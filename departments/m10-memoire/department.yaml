@@ -57,8 +57,8 @@ budget:
   tokens_mois: 2500000
   alerte_pct: 80
 memoire:
-  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques, registre_soi, registre_lecons]
-  ecriture: [registre_evenements, registre_affaires, registre_references_configuration, registre_faits_analytiques,
+  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques, registre_dossiers_cpa, registre_soi, registre_lecons]
+  ecriture: [registre_evenements, registre_affaires, registre_references_configuration, registre_faits_analytiques, registre_dossiers_cpa,
     registre_soi, registre_lecons]
 kpis:
   - id: taux_revisions_arbitrees
@@ -117,3 +117,7 @@ evenements:
     - m3.devis_accepte
     - m3.devis_sans_reponse
     - m2.profil_propriete_confirme
+    # Interconnexion M5 -> M10 (docs/architecture/INTERCONNEXION.md) : la mémoire des dossiers de période scellés
+    # (`m5.dossier_cpa_scelle`), registre `dossiers_cpa_scelles` (FINANCIAL, hors de tout paquet de contexte). M10 se
+    # souvient qu'un dossier a été scellé ; il ne le rouvre ni ne le juge (À valider auprès d'un comptable (CPA)).
+    - m5.dossier_cpa_scelle

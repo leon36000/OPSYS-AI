@@ -1,0 +1,90 @@
+{
+  "schema": "opsys.lectures_croisees/v1",
+  "description": "Lectures d'un département dans les données d'un AUTRE, hors événements. Chaque lecture a une voie nommée (port privé fourni par Capacites, port de la console, ou lecture directe d'un registre), les outils ou registres lus, et la raison. Les lectures de M9 vers ses producteurs ne sont pas répétées ici : leur liste blanche est opsys.lecteurs_m9.LECTURES_AUTORISEES (source unique, relue par le test). Aucune de ces lectures n'ajoute un droit d'appareil ; `dependances` du manifeste ne gouverne que la lecture des bases de connaissances et n'est volontairement PAS élargi pour les couvrir.",
+  "lectures": [
+    {
+      "lecteur": "m01-front-office",
+      "source": "m04-field-ops",
+      "voie": "port:lecteur_capacite_m4",
+      "outils": [
+        "m4_lire_capacite_equipe",
+        "m4_lire_cedule_semaine"
+      ],
+      "raison": "M1.9 : proposer un rendez-vous d'après la capacité réelle des équipes et la semaine datée de la cédule (lectures T0 de M4, revérifiées par M4)."
+    },
+    {
+      "lecteur": "m05-financecore",
+      "source": "m04-field-ops",
+      "voie": "port:lecteur_heures_m4",
+      "outils": [
+        "m4_lire_heures_regulieres_validees"
+      ],
+      "raison": "Coût réel d'un chantier : heures régulières validées par M4, lecture privée réservée au propriétaire de console."
+    },
+    {
+      "lecteur": "m05-financecore",
+      "source": "m07-marketing",
+      "voie": "port:lecteur_campagne_m7",
+      "outils": [
+        "m7_lire_campagne_locale"
+      ],
+      "raison": "Coûts marketing par campagne : M5 lit la campagne locale de M7 (T0/N0) par le port de la console, jamais son registre."
+    },
+    {
+      "lecteur": "m02-revenue-crm",
+      "source": "m10-memoire",
+      "voie": "registre",
+      "registres": [
+        "evenements"
+      ],
+      "raison": "Historique des corrections de contact : M2 relit les faits `m2.contact_corrige` que M10 a mémorisés pour dire s'ils ont été reçus (lecture seule). Non couvert par `dependances` (aucun droit de base de connaissances ajouté)."
+    },
+    {
+      "lecteur": "m03-estimation",
+      "source": "m02-revenue-crm",
+      "voie": "registre",
+      "registres": [
+        "principal"
+      ],
+      "raison": "Modèle de soumission existant d'un lead : M3 relit le lien lead -> client dans le registre chaîné de M2, validé par sa chaîne (lecture seule, déclarée dans `dependances`)."
+    },
+    {
+      "lecteur": "m03-estimation",
+      "source": "m06-material-control",
+      "voie": "registre",
+      "registres": [
+        "livre_prix",
+        "fournisseurs"
+      ],
+      "raison": "Préremplissage d'une soumission : M3 relit le livre de prix et les fournisseurs de M6 en copie validée (chaîne vérifiée par les modules purs de M6), jamais en écriture. Déclarée dans `dependances`."
+    },
+    {
+      "lecteur": "m05-financecore",
+      "source": "m06-material-control",
+      "voie": "registre",
+      "registres": [
+        "livre_prix"
+      ],
+      "raison": "Prix des matériaux pour le coût réel et les comptes à payer : M5 relit le livre de prix de M6 (lecture seule). Déclarée dans `dependances`."
+    },
+    {
+      "lecteur": "m04-field-ops",
+      "source": "m06-material-control",
+      "voie": "registre",
+      "registres": [
+        "contrats_variance_m6.REGISTRE",
+        "contrats_variance_m6.REGISTRE_REFUS"
+      ],
+      "raison": "Revue de complétion : M4 relit les classes de variance de matériaux de M6 (copie SQL en lecture, contrat partagé du socle). Déclarée dans `dependances`."
+    },
+    {
+      "lecteur": "m06-material-control",
+      "source": "m04-field-ops",
+      "voie": "registre",
+      "registres": [
+        "principal"
+      ],
+      "raison": "Contexte matériaux d'un appareil : M6 relit l'intervention et le WCT de M4 (copie SQL validée par la chaîne et les invariants de M4), lecture seule, pour l'employé assigné. Déclarée dans `dependances`."
+    }
+  ]
+}

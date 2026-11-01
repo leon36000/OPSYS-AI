@@ -49,7 +49,7 @@ from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from typing import Any
 
-from . import consentements, gabarits_relance, segments, verdicts
+from . import consentements, faits_interconnexion, gabarits_relance, segments, verdicts
 from . import horodatage as _horodatage
 
 __all__ = [
@@ -243,6 +243,7 @@ def _item(
     consentements_contact: list[Mapping[str, Any]],
     retraits: list[Mapping[str, Any]],
     preparees: list[Mapping[str, Any]],
+    creance: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     donnee = segment_applique["donnee"]
     derniere = _derniere_relance(preparees, leads_de_la_personne)
@@ -253,7 +254,7 @@ def _item(
         derniere_relance = {"le": derniere[1]["prepare_le"], "canal": derniere[1]["canal"]}
         prochaine, permise = prochaine_instant.isoformat(), instant >= prochaine_instant
     canaux, etats = consentements.canaux_permis(leads_de_la_personne, consentements_contact, retraits)
-    return {
+    item = {
         "lead_id": evaluation_du_lead["lead_id"],
         "statut": evaluation_du_lead["statut"],
         "proprietaire": evaluation_du_lead["proprietaire"],
@@ -268,6 +269,13 @@ def _item(
         "canaux_permis": canaux,
         "consentements": etats,
     }
+    if creance is not None:
+        # Interconnexion M5 -> M2 : une relance de créance est préparée pour ce client. Avertissement de coordination
+        # seulement (clé absente sinon) : la relance commerciale n'est ni supprimée ni retardée.
+        item["creance_en_retard"] = {
+            "niveau": creance["niveau"], "jours_retard": creance["jours_retard"], "relance_id": creance["relance_id"],
+        }
+    return item
 
 
 def calculer(
@@ -279,6 +287,7 @@ def calculer(
     consentements_contact: Iterable[Mapping[str, Any]],
     retraits: Iterable[Mapping[str, Any]],
     preparees: Iterable[Mapping[str, Any]],
+    creances: Iterable[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Les relances dues des leads évalués : `{"relances", "indetermines", "regles_non_calculables", ...}`.
 
@@ -304,6 +313,8 @@ def calculer(
     consentements_contact, retraits, preparees = list(consentements_contact), list(retraits), list(preparees)
     client_de_lead = {lead["lead_id"]: lead["client_id"] for lead in evaluation["leads"]}
     opportunites = evaluation["opportunites_par_client"]
+    # Interconnexion M5 -> M2 : la relance de créance la plus avancée du client (lecture, jamais un blocage).
+    creance_du_client = faits_interconnexion.creances_par_client(creances)
     items: list[dict[str, Any]] = []
     indetermines = 0
     for lead in evaluation["leads"]:
@@ -319,7 +330,7 @@ def calculer(
             items.append(_item(
                 lead, regle, applique, instant=instant, jours_entre=jours_entre, leads_de_la_personne=personne,
                 devis_par_id=devis_par_id, consentements_contact=consentements_contact, retraits=retraits,
-                preparees=preparees,
+                preparees=preparees, creance=creance_du_client.get(client_de_lead[lead["lead_id"]]),
             ))
     items.sort(key=lambda i: (segments.instant_utc(i["due_depuis"]), i["lead_id"], i["regle"]))
     return {
@@ -507,6 +518,8 @@ def preparer(
     avertissements = (
         [AVERTISSEMENT_ENVOI_APPROUVE] if item["depart"].get("fait") == ORIGINE_DEVIS_ENVOYE else []
     )
+    if "creance_en_retard" in item:
+        avertissements.append(faits_interconnexion.phrase_creance(item["creance_en_retard"]))
     entree = {
         "type_entree": TYPE_ENTREE,
         "relance_id": identifiant,

@@ -152,7 +152,7 @@ Voir [INGESTION-ONBOARDING.md](INGESTION-ONBOARDING.md) §11 : genre de brouillo
 | `m7.publication_echouee` | planificateur | échec, approbation expirée, issue incertaine | canal, code, transitoire, incertain |
 
 Tous ont un `evenement_id` déterministe : un rejeu n'en publie pas un second. Un profil d'agent peut les consommer (déclencheur
-`evenement`) ; aucun consommateur n'est livré ici.
+`evenement`) ; aucun consommateur n'est livré ici. Bilan des consommateurs réels et des justifications : [INTERCONNEXION.md](INTERCONNEXION.md).
 
 ## 8. Console
 

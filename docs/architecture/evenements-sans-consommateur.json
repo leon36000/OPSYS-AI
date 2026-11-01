@@ -1,0 +1,51 @@
+{
+  "schema": "opsys.evenements.sans_consommateur/v1",
+  "description": "Types d'événements du catalogue qui n'ont volontairement AUCUN consommateur réel, avec la raison écrite et la date de revue. Gardé par tests/test_interconnexion_evenements_garde.py : un type du catalogue a SOIT un consommateur réel, SOIT une fiche ici ; une fiche pour un type qui a un consommateur est périmée et fait échouer le test.",
+  "types": {
+    "m1.approbation_envoi_demandee": {
+      "raison": "Notification du sas d'approbation : la demande d'envoi (N3) est lue par la direction dans la file d'approbation du socle (approbations.file_proprietaire, console et app admin), pas par un département. Aucun département n'a de décision à y prendre ; un consommateur serait un couplage gratuit.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "m1.brouillon_courriel_pret": {
+      "raison": "Notification interne du fil de réponse de M1 (brouillon préparé, rien d'envoyé) : l'état du brouillon se lit dans le sas d'envoi (courriel_connecteurs.envoi) et le fil de réponse de M1. Aucun département destinataire n'a d'action à entreprendre sur un brouillon non demandé.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "m1.envoi_courriel_echoue": {
+      "raison": "Alerte pour un humain (refus de garde, échec définitif, issue INCERTAINE : vérifier la boîte Envoyés, jamais de reprise automatique). Elle est lue dans l'état du planificateur des connecteurs et le sas ; la rejouer vers un département ferait croire à un traitement automatique qui n'existe pas.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "m10.arete_en_attente": {
+      "raison": "File « à confirmer » de la direction (N3, Loi 25) : l'arête personnelle en brouillon ne répond à aucune requête avant la confirmation d'une personne. Destinataire visé : la console de la direction, qui lit le registre de M10 ; aucun département n'en a l'usage.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "m10.lecon_decidee": {
+      "raison": "Une leçon promue est lisible par le département visé par tirage (opsys_lecons_actives) et ne s'applique jamais seule. La mesure d'amélioration par M8 exigerait une métrique gouvernée d'amélioration qui n'existe pas encore : à raccorder à la livraison de cette métrique (revue prévue), pas avant.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "m10.soi_revision_proposee": {
+      "raison": "Révision du modèle de soi en attente de la décision d'une personne (N3) : lue par la console de la direction. M9 (revue) la relira par le registre de M10 (droit de lecture existant) quand sa revue périodique l'exigera ; aucun événement n'est requis pour cela.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "m7.publication_faite": {
+      "raison": "Constat du planificateur après une publication approuvée (WordPress ou réseau social) : l'état de la publication se lit dans le registre de M7 et le planificateur. La mesure par contenu de M8 part de m7.contenu_exporte, pas de la publication ; aucun département n'a de décision à prendre sur une publication déjà faite.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "m7.publication_echouee": {
+      "raison": "Alerte du planificateur (refus typé, approbation expirée, issue incertaine) pour un humain : relue dans l'état du planificateur et le sas d'approbation. Aucune reprise automatique n'est permise (publication = N3+), donc aucun département ne peut agir dessus.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    },
+    "opsys.demo_complete": {
+      "raison": "Type fictif réservé aux tests du bus (tests/test_evenements.py) et aux départements de démonstration ; il ne décrit aucun flux métier.",
+      "revue_le": "2026-11-01",
+      "a_revoir_avant": "2027-02-01"
+    }
+  }
+}

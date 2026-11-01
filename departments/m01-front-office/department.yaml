@@ -51,7 +51,10 @@ canaux: [sms]
 # M1-M6-LEA-ROSALIE : M1 trie les courriels reçus (consomme m1.courriel_recu) et publie l'aiguillage
 # (m1.courriel_aiguille : classe, confiance, faits minimaux, jamais de texte ni d'adresse) que M5 et M6 consomment.
 evenements:
-  consomme: [m1.courriel_recu, m6.po_courriel_pret, m1.courriel_envoye]
+  # Interconnexion M4 -> M1 (docs/architecture/INTERCONNEXION.md) : m4.message_client_brouillon_pret (fenêtre d'arrivée
+  # préparée par M4, client consentant) devient un BROUILLON dans le sas d'envoi (canal courriel) ou est rangé « sms à
+  # reprendre » (l'assistant SMS ne prend que ses gabarits). Rien n'est envoyé : l'envoi est une demande N3 d'une personne.
+  consomme: [m1.courriel_recu, m6.po_courriel_pret, m1.courriel_envoye, m4.message_client_brouillon_pret]
   publie: [m1.lead_qualifie, m1.retrait_consentement, m1.courriel_recu, m1.brouillon_courriel_pret,
            m1.approbation_envoi_demandee, m1.courriel_envoye, m1.envoi_courriel_echoue, m1.courriel_aiguille,
            m1.commande_courriel_envoyee]

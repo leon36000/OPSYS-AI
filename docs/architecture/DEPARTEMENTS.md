@@ -172,6 +172,11 @@ du même événement ni les événements suivants. `opsys-metier verifier` véri
 consommé existe au catalogue, que chaque type consommé a sa fonction, et qu'aucune fonction de
 `consommateurs()` n'est orpheline (absente de `evenements.consomme`).
 
+**Un type du catalogue sans consommateur réel doit être justifié par écrit** (`docs/architecture/evenements-sans-consommateur.json` : raison et
+date de revue), et un consommateur ajouté suit le contrat commun (idempotence par clé de contenu, tolérance à la panne, propriété des
+données, aucune action N3+, minimisation) : voir [INTERCONNEXION.md](INTERCONNEXION.md) et
+`python scripts/docs/interconnexion_evenements.py --audit`.
+
 ## Politiques : autonomie des outils et modes
 
 | Autonomie | Sens | `ombre` | `supervise` | `autonome` |

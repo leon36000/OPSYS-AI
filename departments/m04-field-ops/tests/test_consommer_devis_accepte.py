@@ -181,7 +181,10 @@ def _refus(reponse):
 class TestManifeste:
     def test_la_fonction_est_branchee_au_vrai_manifeste_sans_import_entre_departements(self):
         dep = charger_departements()[M4]
-        assert dep.evenements_consomme == ("m6.variance_chantier", "m3.devis_accepte", "m6.materiel_pret")
+        assert dep.evenements_consomme == (
+            "m6.variance_chantier", "m3.devis_accepte", "m6.materiel_pret", "m2.client_associe",
+            "m2.profil_propriete_confirme",
+        )
         assert dep.evenements_publie == ("m4.travaux_termines", "m4.message_client_brouillon_pret")
         assert dep.charger_consommateurs()["m3.devis_accepte"].__name__ == "_recevoir_devis_accepte"
         assert set(dep.evenements_consomme) == set(dep.charger_consommateurs())

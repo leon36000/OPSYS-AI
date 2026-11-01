@@ -2,7 +2,8 @@
 (simple, clair, actionnable) », §8 « pour la finance, M8 consomme M5 et ne recalcule pas », §9.5 profil admin).
 
 Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge. ``outils.py``, seul point de contact avec le socle,
-lit les faits et les attentes de M6, puis appelle ``assembler``. Quatre sections, chacune dit d'où vient son chiffre :
+lit les faits et les attentes de M6, puis appelle ``assembler``. Quatre sections de base, chacune dit d'où vient son
+chiffre :
 
 1. ``entonnoir`` — les métriques gouvernées de ``entonnoir.py`` (version de définition et propriétaire de chacune),
    les événements reçus et leur fraîcheur, les devis qui attendent, les seuils à configurer (GATE NATHAN) ;
@@ -14,6 +15,10 @@ lit les faits et les attentes de M6, puis appelle ``assembler``. Quatre sections
    avec son résumé et son action proposée : M8 n'a aucun stock, aucun seuil ni aucune quantité à lui ;
 4. ``cash_libre`` — le DERNIER constat que M5 a publié (``m5.cash_libre_constate``), tel quel, avec son âge
    (``cash_libre.py``) ; « manque » si M5 n'en a publié aucun, et où le lire. M8 ne le recalcule jamais.
+
+5. ``operations_recues`` (seulement si le bus a livré au moins un constat) — ce que M7 (signaux, relevés de dépense,
+   anomalies, conversions hors ligne), M5 (mesures comptables) et M3 (mesures de vision validées) ont constaté
+   (``operations_recues.py``) : repris tel quel, une seule somme (les relevés de dépense reçus, libellée comme telle).
 
 Une donnée absente donne un « manque » nommé (``manques``, une fois, dédoublonné), jamais un zéro ni une valeur par
 défaut. La vue ne décide de rien et ne propose aucune action de son cru : M2 relance déjà les devis sans réponse, M6
@@ -31,7 +36,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from . import cash_libre, entonnoir, mesures_chantier
+from . import cash_libre, entonnoir, mesures_chantier, operations_recues
 
 _LIMITE_LISTE = 3
 _TYPE_ATTENTE_BESOIN_COMMANDE = "besoin_commande"
@@ -254,6 +259,8 @@ def _borner(vue: dict[str, Any], budget_caracteres: int | None) -> dict[str, Any
     while _taille(vue) > budget_caracteres:
         candidates = [(conteneur, cle) for conteneur, cle in _listes_bornables(vue) if conteneur.get(cle)]
         if not candidates:
+            if "operations_recues" in vue and operations_recues.reduire(vue["operations_recues"]):
+                continue
             if cash_libre.reduire(vue["cash_libre"]):
                 continue
             raise ValueError(f"la vue exécutive dépasse à elle seule la borne de {budget_caracteres} caractères")
@@ -267,7 +274,7 @@ def assembler(
     situation: dict[str, Any], faits_chantier: list[dict[str, Any]], attentes_m6: list[dict[str, Any]] | None,
     raison_manque_m6: str | None, budget_caracteres: int | None = None, *,
     faits_cash_libre: list[dict[str, Any]] | None = None, aujourd_hui: str | None = None,
-    fraicheur_attendue: dict[str, Any] | None = None,
+    fraicheur_attendue: dict[str, Any] | None = None, faits_operations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """La vue exécutive : ``situation`` est celle de ``entonnoir.situation``, ``faits_chantier`` le registre des
     chantiers terminés (marge réelle de M5), ``attentes_m6`` ce que M6 publie (``None`` s'il n'a pas pu être lu),
@@ -286,6 +293,9 @@ def assembler(
         "cash_libre": section_cash_libre(faits_cash_libre or [], aujourd_hui, manques),
         "manques": manques,
     }
+    recues = operations_recues.section(faits_operations or [], aujourd_hui)
+    if recues is not None:  # sans aucun constat de M7, M5 ou M3 reçu par le bus : la vue reste inchangée
+        vue["operations_recues"] = recues
     if fraicheur_attendue:
         vue.update(fraicheur_attendue)
     return _borner(vue, budget_caracteres)

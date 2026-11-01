@@ -95,11 +95,16 @@ kpis:
 # cette personne, un retrait ne se lève pas) — voir _recevoir_devis_envoye et _recevoir_retrait_consentement dans outils.py.
 # Catalogue : src/opsys/evenements/catalogue/m3.devis_envoye.json et m1.retrait_consentement.json.
 # M2.3 (profil de propriété) : M2 publie m2.profil_propriete_confirme quand une PERSONNE confirme un profil (fait minimisé,
-# sans adresse précise) — catalogue src/opsys/evenements/catalogue/m2.profil_propriete_confirme.json. Aucun consommateur
-# n'est câblé (M3, M4 et M10 pourront s'y abonner) ; la lecture directe reste l'outil m2_lire_profil_propriete.
+# sans adresse précise) — catalogue src/opsys/evenements/catalogue/m2.profil_propriete_confirme.json. Consommé par
+# M3 (contexte de site), M4 (préparation, hors verdict) et M10 (graphe) ; la lecture directe reste l'outil
+# m2_lire_profil_propriete.
 evenements:
+  # Interconnexion (docs/architecture/INTERCONNEXION.md) : m7.conversion_hors_ligne_importee (source normalisée d'un lead,
+  # lue par le score sans rien écraser), m5.creance_relance_preparee (avertissement de coordination sur les relances
+  # commerciales du client ; rien n'est envoyé) et m3.contexte_site_pret (comptes du contexte de site, dits au coach).
   consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte, m3.devis_envoye,
-             m1.retrait_consentement]
+             m1.retrait_consentement, m7.conversion_hors_ligne_importee, m5.creance_relance_preparee,
+             m3.contexte_site_pret]
   publie: [m2.client_associe, m2.lead_assigne, m2.contact_corrige, m2.profil_propriete_confirme]
 configuration:
   # Seuils de segmentation des leads (PLAN T4.6 ; DEFINITION-PRODUIT.md §7 M2.11 ; §13 point 11 « seuils non

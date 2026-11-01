@@ -29,10 +29,11 @@ def test_types_entree_valides_sont_exactement_ceux_de_m10():
         "soi_enonce", "soi_decision", "soi_corroboration", "soi_derive",
         "lecon_proposee", "lecon_evaluation", "lecon_decision",
         "fait_strategique",  # Athéna : décision, résultat mesuré et leçon publiés par M9
+        "dossier_cpa_scelle",  # interconnexion M5 -> M10 : dossiers de période scellés
     }
 
     assert types_attendus.issubset(registre._TYPE_ENTREE_VALIDES)
-    assert len(registre._TYPE_ENTREE_VALIDES) == 19
+    assert len(registre._TYPE_ENTREE_VALIDES) == 20
     assert "mouvement_enregistre" not in registre._TYPE_ENTREE_VALIDES
     assert "demande_creee" not in registre._TYPE_ENTREE_VALIDES
     assert "transition_approbation" not in registre._TYPE_ENTREE_VALIDES

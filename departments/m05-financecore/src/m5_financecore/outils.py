@@ -218,6 +218,7 @@ from . import (
     calendrier_fiscal,
     calendrier_obligations,
     cash_libre,
+    charges_marketing_recues,
     clients_recus,
     comptes_a_payer,
     constat_cash_libre,
@@ -3603,6 +3604,50 @@ def _recevoir_courriel_aiguille(charge: dict[str, Any]) -> dict[str, Any]:
     return facture_courriel_outils.recevoir_courriel_aiguille(charge)
 
 
+def _recevoir_depense_marketing(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m7.depenses_marketing_constatees` (interconnexion M7 -> M5) : un BROUILLON d'écriture de charge, jamais
+    une écriture validée (`charges_marketing_recues.py` dit quand M5 n'en propose pas). Une ligne par (relevé, révision)
+    au registre `charges_marketing_recues` : un rejeu, même sous un autre `evenement_id`, n'écrit rien. Un refus
+    DÉTERMINISTE du grand livre (période close, compte absent) est rangé, pas retenté ; une panne (registre illisible,
+    stockage non durable) LÈVE : le bus réessaie, puis met en quarantaine, visible."""
+    journal = stockage.maillons(_DEPARTEMENT, charges_marketing_recues.REGISTRE)
+    cle_relevee = charges_marketing_recues.cle(charge)
+    if any(m.get("cle") == cle_relevee for m in journal):
+        return {"traite": True, "deja_recu": True, "releve_id": charge["releve_id"], "revision": charge["revision"]}
+    proposees = {
+        m["releve_id"]: m["revision"] for m in journal if m.get("issue") == charges_marketing_recues.BROUILLON_PROPOSE
+    }
+    raison = charges_marketing_recues.decision(charge, proposees)
+    if raison is not None:
+        extra = {"revision_deja_proposee": proposees[charge["releve_id"]]} if charge["releve_id"] in proposees else {}
+        journal.append(charges_marketing_recues.ligne_registre(charge, raison, **extra))
+        return {"traite": True, "issue": raison, "releve_id": charge["releve_id"], "revision": charge["revision"]}
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        raise RuntimeError(f"grand livre indisponible pour le relevé de dépense : {refus.get('code', 'refus')}")
+    registre_cible, plan = ctx
+    compte_charge, refus = plan_comptable.compte_de_charge(
+        plan, po_id=None, categorie=charges_marketing_recues.CATEGORIE_CHARGE)
+    if refus is not None:
+        journal.append(
+            charges_marketing_recues.ligne_registre(charge, charges_marketing_recues.REFUSE, code=refus["code"]))
+        return {"traite": True, "issue": charges_marketing_recues.REFUSE, "code": refus["code"],
+                "releve_id": charge["releve_id"], "revision": charge["revision"]}
+    proposition = charges_marketing_recues.proposition(charge, compte_charge, plan["roles"]["comptes_fournisseurs"])
+    resultat, refus = grand_livre.proposer_ecriture(
+        registre_cible, plan, horodatage=charge["releve_le"], origine="evenement_m7", **proposition)
+    if refus is not None:
+        journal.append(
+            charges_marketing_recues.ligne_registre(charge, charges_marketing_recues.REFUSE, code=refus["code"]))
+        return {"traite": True, "issue": charges_marketing_recues.REFUSE, "code": refus["code"],
+                "releve_id": charge["releve_id"], "revision": charge["revision"]}
+    journal.append(charges_marketing_recues.ligne_registre(
+        charge, charges_marketing_recues.BROUILLON_PROPOSE, ecriture_id=resultat["ecriture"]["ecriture_id"]))
+    return {"traite": True, "issue": charges_marketing_recues.BROUILLON_PROPOSE, "statut": resultat["statut"],
+            "releve_id": charge["releve_id"], "revision": charge["revision"],
+            "ecriture_id": resultat["ecriture"]["ecriture_id"]}
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
         "m2.client_associe": _recevoir_client_associe,
@@ -3613,6 +3658,8 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         # Pont M1 -> M5 : une facture de fournisseur reçue par courriel devient une attente « à saisir » (jamais une
         # écriture).
         "m1.courriel_aiguille": _recevoir_courriel_aiguille,
+        # Interconnexion M7 -> M5 : un relevé de dépense publicitaire devient un BROUILLON de charge (jamais validé).
+        "m7.depenses_marketing_constatees": _recevoir_depense_marketing,
     }
 
 

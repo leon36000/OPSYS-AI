@@ -145,7 +145,7 @@ plutôt que de citer au hasard : le prix du seuil est du rappel, pas une fausse 
 | `m5.dossier_cpa_scelle` | Dossier préparé et scellé | M10 (mémoire des clôtures) | `m5-dossier-<dossier_id>` |
 
 Charges : identifiants, nombres, montants et dates seulement (aucun nom, libellé, chemin ni donnée de client), validées par un schéma JSON à propriétés requises. **Limite** : ce département
-est le producteur. Les consommateurs M2/M8/M6/M10 sont répartis par le bus réel dans les tests avec des consommateurs **simulés** ; leurs vrais gestionnaires appartiennent à leurs lignes de travail.
+est le producteur. Les consommateurs M2/M8/M6/M10 étaient répartis dans les tests avec des consommateurs **simulés** ; leurs vrais gestionnaires existent maintenant (chantier d'interconnexion, [INTERCONNEXION.md](INTERCONNEXION.md)) et sont prouvés sur le vrai bus. M5 consomme en retour `m7.depenses_marketing_constatees` (brouillon de charge, jamais validé).
 
 ## Preuves
 
@@ -195,4 +195,4 @@ Une première mutation M14 mal posée (elle laissait le refus en place : mutant 
 - Le dossier CPA n'est pas une mission de certification ; la question juridique (qui peut remettre quoi à qui) reste ouverte et n'est pas tranchée par le code.
 - Le rapprochement TPS/TVQ n'a pas de lignes de formulaire officielles ; la préclôture signale « taxes rapprochées » `A_VERIFIER` tant que le contrôle n'est pas exécuté.
 - Ni paie, ni impôt des sociétés, ni DPA/CCA modélisés dans les conseillers ; les comparaisons de financement n'incluent aucun effet fiscal.
-- Les consommateurs d'événements des autres départements sont simulés dans les tests.
+- Les tests propres à M5 simulent encore les consommateurs des autres départements ; les vrais sont prouvés par les tests d'interconnexion ([INTERCONNEXION.md](INTERCONNEXION.md)).

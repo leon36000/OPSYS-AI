@@ -68,6 +68,7 @@ from . import (
     digest,
     doublons,
     encodage,
+    faits_interconnexion,
     ingestion,
     interactions,
     liste_leads,
@@ -945,6 +946,7 @@ def lister_relances(
     calcul = relances.calculer(
         evaluation, maintenant=horodatage, configuration=configuration, devis=devis,
         consentements_contact=consentements_contact, retraits=retraits, preparees=preparees,
+        creances=_creances_recues(),
     )
     page, verdict = relances.lister(
         calcul, regle=regle, permises_seulement=permises_seulement, decalage=decalage, limite=limite,
@@ -996,6 +998,7 @@ def preparer_relance(lead_id: str, regle: str, canal: str, horodatage: str) -> d
     calcul = relances.calculer(
         evaluation, maintenant=maintenant, configuration=configuration, devis=devis,
         consentements_contact=consentements_contact, retraits=retraits, preparees=preparees,
+        creances=_creances_recues(),
     )
     preparation, verdict = relances.preparer(
         calcul, lead_id=lead_id, client_id=clients.client_de_lead(reg, lead_id), regle=regle, canal=canal,
@@ -1836,6 +1839,49 @@ def _recevoir_retrait_consentement(charge: dict[str, Any]) -> dict[str, Any]:
     return {"traite": True, "retraits_ecrits": len(ecrits), "deja_enregistres": len(maillons) - len(ecrits)}
 
 
+def _creances_recues() -> list[dict[str, Any]]:
+    """Les relances de créance préparées par M5 et reçues par le bus (lecture ; avertissement de coordination)."""
+    return list(stockage.maillons(_DEPARTEMENT, faits_interconnexion.REGISTRE_CREANCES))
+
+
+def _ranger_fait_interconnexion(nom_registre: str, fait: dict[str, Any]) -> bool:
+    """Range un fait d'interconnexion (`faits_interconnexion.py`) une seule fois, par clé de CONTENU : le même constat
+    republié sous un autre `evenement_id` est un « déjà reçu », jamais un doublon ni une quarantaine. Si le registre est
+    indisponible, l'exception remonte : le bus réessaie. Rend vrai si le fait vient d'être ajouté."""
+    registre = stockage.maillons(_DEPARTEMENT, nom_registre)
+    cles = faits_interconnexion.CLES_UNICITE[fait["type_entree"]]
+    for existant in registre:
+        if existant.get("type_entree") == fait["type_entree"] and all(existant.get(c) == fait.get(c) for c in cles):
+            return False
+    registre.append(fait)
+    return True
+
+
+def _recevoir_conversion_hors_ligne(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m7.conversion_hors_ligne_importee` : range la conversion (identifiants, type, jour, source normalisée,
+    valeur déclarée) SANS toucher au lead ni à son contrat. Elle ne sert que le score, en lecture (`source_connue`)."""
+    ajoute = _ranger_fait_interconnexion(
+        faits_interconnexion.REGISTRE_CONVERSIONS, faits_interconnexion.fait_conversion(charge))
+    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "conversion_id": charge["conversion_id"]}
+
+
+def _recevoir_creance_relance(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m5.creance_relance_preparee` : M5 a préparé la relance d'une facture en retard. M2 la range pour
+    avertir, sur ses relances commerciales, de coordonner avec M5 ; il n'envoie ni ne prépare rien de plus."""
+    ajoute = _ranger_fait_interconnexion(
+        faits_interconnexion.REGISTRE_CREANCES, faits_interconnexion.fait_creance(charge))
+    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "relance_id": charge["relance_id"]}
+
+
+def _recevoir_contexte_site(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m3.contexte_site_pret` : les comptes du contexte de site d'un lead, rangés par version (une version
+    déjà reçue ne s'ajoute pas)."""
+    ajoute = _ranger_fait_interconnexion(
+        faits_interconnexion.REGISTRE_CONTEXTES_SITE, faits_interconnexion.fait_contexte_site(charge))
+    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "lead_id": charge["lead_id"],
+            "version": charge["version"]}
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M2 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
@@ -1845,6 +1891,9 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m3.devis_envoye": _recevoir_devis_envoye,
         "m1.retrait_consentement": _recevoir_retrait_consentement,
+        "m7.conversion_hors_ligne_importee": _recevoir_conversion_hors_ligne,
+        "m5.creance_relance_preparee": _recevoir_creance_relance,
+        "m3.contexte_site_pret": _recevoir_contexte_site,
     }
 
 

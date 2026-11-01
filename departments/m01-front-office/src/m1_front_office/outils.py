@@ -2185,10 +2185,12 @@ def outils(lecteur_capacite_m4: Any = None) -> tuple[Outil, ...]:
 
 def consommateurs() -> dict[str, Any]:
     """Les types d'événements que M1 consomme (ADR-0009 §3) : sa propre réception de courriel (tri, M1.6)."""
-    from . import commande_fournisseur, tri_courriel_outils
+    from . import commande_fournisseur, message_client_m4, tri_courriel_outils
 
     return {
         **tri_courriel_outils.consommateurs(),
+        # Interconnexion M4 -> M1 : la fenêtre d'arrivée préparée par M4 devient un brouillon du sas d'envoi (N3).
+        "m4.message_client_brouillon_pret": message_client_m4.recevoir_message_client_brouillon,
         "m6.po_courriel_pret": commande_fournisseur.recevoir_po_courriel_pret,
         "m1.courriel_envoye": commande_fournisseur.recevoir_courriel_envoye,
     }

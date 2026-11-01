@@ -68,6 +68,7 @@ from . import (
     decisions,
     documents_affaire,
     dossier_revision,
+    dossiers_cpa,
     etapes,
     faits_candidats,
     humain,
@@ -97,6 +98,10 @@ _REGISTRE_FAITS_ANALYTIQUES = registre.Registre(maillons=stockage.maillons("m10-
 # précédent :
 # registre à part, FINANCIAL, hors de tout paquet de contexte.
 _REGISTRE_FAITS_STRATEGIQUES = registre.Registre(maillons=stockage.maillons("m10-memoire", "faits_strategiques"))
+# Interconnexion M5 -> M10 : la mémoire des dossiers de période scellés. Même statut : registre à part, FINANCIAL,
+# hors de
+# tout paquet de contexte.
+_REGISTRE_DOSSIERS_CPA = registre.Registre(maillons=stockage.maillons("m10-memoire", "dossiers_cpa_scelles"))
 
 _DECISION = {
     "type": "object",
@@ -421,6 +426,26 @@ def _recevoir_faits_consolides(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+class DossierCpaRefuse(ValueError):
+    """Un dossier scellé de M5 est refusé par `dossiers_cpa.memoriser` : champ hors forme, ou même dossier sous un autre
+    sceau. Le message nomme le CHAMP, jamais sa valeur ; le répartiteur réessaie puis met en quarantaine, visible."""
+
+
+def _recevoir_dossier_cpa_scelle(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m5.dossier_cpa_scelle` (interconnexion M5 -> M10) : mémorise qu'une période a été scellée en
+    brouillon pour le CPA, une fois par `dossier_id`, au registre `dossiers_cpa_scelles` (FINANCIAL : jamais dans un
+    paquet de contexte). M10 ne rouvre ni ne juge le dossier."""
+    resultat, verdict = dossiers_cpa.memoriser(dict(charge), _REGISTRE_DOSSIERS_CPA)
+    if resultat is None:
+        raise DossierCpaRefuse(
+            f"{dossiers_cpa.TYPE_EVENEMENT} : dossier refusé par M10 : {verdict['code']} ({verdict['detail']})")
+    maillon = resultat["maillon"]
+    return {
+        "memorise": True, "dossier_id": maillon["dossier_id"], "ligne_id": maillon["ligne_id"],
+        "producteur": dossiers_cpa.PRODUCTEUR, "deja_memorise": resultat["deja_memorise"],
+    }
+
+
 class StrategiqueRefuse(ValueError):
     """Un fait stratégique de M9 est refusé par `strategique.memoriser` : champ absent ou hors de sa forme fermée. Le
     message nomme le CHAMP, jamais sa valeur ; le répartiteur réessaie puis met en quarantaine."""
@@ -492,6 +517,7 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m2.profil_propriete_confirme": soi_graphe.recevoir_profil_propriete,
         analytique.TYPE_EVENEMENT: _recevoir_faits_consolides,
         strategique.TYPE_EVENEMENT: _recevoir_faits_strategiques,
+        dossiers_cpa.TYPE_EVENEMENT: _recevoir_dossier_cpa_scelle,
     }
 
 
