@@ -178,6 +178,29 @@ def ecrire_materiau_console(cle: str, revision_attendue: int, nom: str, attendre
     return ("accepte",) if resultat["accepte"] else ("refus", resultat["raison"])
 
 
+# -- 6 bis. N processus de console corrigent la MÊME fiche FOURNISSEUR M6 depuis la même source ---------------------------
+def corriger_fournisseur_console(cle: str, source_attendue: str, nom: str, attendre) -> tuple:
+    """Écrivain HUMAIN d'une fiche fournisseur : lecture de la fiche puis ajout d'un maillon, sans clé unique qui protège
+    la lecture (c'est le verrou d'écriture de console qui évite la mise à jour perdue)."""
+    from opsys import stockage
+    from opsys.console import metier
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+
+    deps = charger_departements()
+    session = Session("admin.fictif", frozenset({"admin"}), "csrf-fictif", 4102444800)
+    arguments = dict(fournisseur_id="fourn-fictif", modifications={"nom": nom}, source_attendue=source_attendue)
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction() as cnx:
+        reponse = metier.executer(cnx, deps, session, "m6_enregistrer_fournisseur_console", arguments, mutation_id=cle)
+    resultat = reponse["resultat"]
+    if resultat["accepte"]:
+        return ("accepte", resultat["resultat"]["source_empreinte"])
+    return ("refus", resultat["raison"])
+
+
 # -- 7. relire_si_conflit : N processus lisent « registre vide ? » puis écrivent, sans verrou -------------------------
 def ajouter_si_vide(registre: str, i: int, attendre) -> tuple:
     """Lire-puis-écrire sans verrou : SQLite l'exclut (écrivain unique), PostgreSQL le départage par la clé du rang ;

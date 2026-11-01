@@ -14,7 +14,13 @@ from __future__ import annotations
 from collections import Counter
 
 import pytest
-from pg_concurrence import ajouter_si_vide, auditer_une_fois, ecrire_materiau_console, lancer
+from pg_concurrence import (
+    ajouter_si_vide,
+    auditer_une_fois,
+    corriger_fournisseur_console,
+    ecrire_materiau_console,
+    lancer,
+)
 from pg_parite import base_pg, serveur_pg, url_base  # noqa: F401  (fixtures pytest)
 from sqlalchemy import func, select
 
@@ -52,6 +58,20 @@ def test_n_ecrivains_de_console_de_la_meme_revision_un_seul_est_accepte_les_autr
         journal = stockage.maillons("m06-material-control", domaine.REGISTRE)
         assert len(journal) == 2  # création + UNE correction : aucune mise à jour perdue
         assert domaine.lire(journal, "mat-fictif")["revision"] == 2
+
+
+def test_n_corrections_de_console_d_un_fournisseur_depuis_la_meme_source_une_seule_est_acceptee(instance):
+    """Mise à jour perdue sans le verrou d'écriture de console : la fiche fournisseur n'a pas de clé unique qui protège
+    sa relecture, deux corrections lues sur la même source s'ajouteraient toutes deux."""
+    _admin()
+    creation = lancer(corriger_fournisseur_console, [("creation-fournisseur", "", "Fournisseur FICTIF")])
+    assert creation[0][0] == "accepte", creation
+    source = creation[0][1]
+    issues = lancer(corriger_fournisseur_console, [(f"correction-{i}", source, f"Nom FICTIF {i}") for i in range(N)])
+    assert [i for i in issues if i[0] == "PANNE"] == [], issues
+    assert Counter(i[0] for i in issues) == {"accepte": 1, "refus": N - 1}, issues
+    with stockage.transaction():
+        assert len(stockage.maillons("m06-material-control", "fournisseurs")) == 2  # création + UNE correction
 
 
 def test_la_meme_saisie_rejouee_par_n_processus_n_ecrit_qu_une_fois(instance):
