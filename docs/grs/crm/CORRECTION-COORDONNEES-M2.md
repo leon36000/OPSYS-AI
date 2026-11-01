@@ -59,7 +59,7 @@ courantes du client partagé sans exposer les autres projets, leurs notes ou leu
 révision produisent un succès et un conflit. Une demande périmée ne remplace pas une modification plus
 récente. Le même identifiant de mutation rejoue son reçu, sans seconde correction. L'autorité courante
 précède la restitution d'un reçu. Une transaction annulée retire ensemble la correction et son reçu.
-La voie PostgreSQL de correction reste refusée jusqu'à qualification de son verrouillage et de ses reprises.
+La voie PostgreSQL de correction, longtemps refusée, est portée (vague 6, `docs/qualification/QUALIFICATION-POSTGRESQL.md` §16) : verrou d'écriture de console et verrou du registre M2 pris AVANT la lecture de la révision ; le perdant d'une course relit et rend `REJ-CONTACT-CONFLIT`, comme sous SQLite.
 
 ## Frontières et suivi
 

@@ -20,6 +20,7 @@ refus d'un moteur autre que SQLite échoue pour une raison propre à SQLite : il
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -35,8 +36,19 @@ RACINE_TESTS = Path(__file__).resolve().parents[1]
 
 @pytest.fixture(autouse=True)
 def _sur_postgresql(_instance_isolee, base_pg, monkeypatch):  # noqa: F811
-    """Chaque test du rejeu s'exécute sur sa propre base PostgreSQL neuve, migrée jusqu'à la tête."""
+    """Chaque test du rejeu s'exécute sur sa propre base PostgreSQL neuve, migrée jusqu'à la tête.
+
+    `OPSYS_BASE_URL` pointe vers elle ; et, comme le fait le plugiciel du banc, la valeur par défaut de
+    `stockage.url_base()` aussi : un test qui retire la variable (fixture automatique de certains fichiers) reste sur
+    PostgreSQL au lieu de retomber sur le fichier SQLite de `OPSYS_HOME`."""
     monkeypatch.setenv(stockage.ENV_URL, base_pg)
+
+    def url_base_pg() -> str:
+        return os.environ.get(stockage.ENV_URL, "").strip() or base_pg
+
+    mod = sys.modules["opsys.stockage.moteur"]
+    monkeypatch.setattr(mod, "url_base", url_base_pg)
+    monkeypatch.setattr(stockage, "url_base", url_base_pg)
     yield base_pg
     stockage.liberer()
 
@@ -52,6 +64,17 @@ def _charger(fichier: str):
     sys.modules[nom] = module
     spec.loader.exec_module(module)
     return module
+
+
+_PARTAGEES = {"_sur_postgresql", "base_pg", "serveur_pg"}
+
+
+def _meme_code(a, b) -> bool:
+    """Deux fixtures chargées depuis le même source (ex. importée par deux fichiers) ont le même code."""
+    try:
+        return a._get_wrapped_function().__code__ == b._get_wrapped_function().__code__
+    except AttributeError:
+        return False
 
 
 def module(fichier: str):
@@ -72,10 +95,14 @@ def installer(globales: dict, *fichiers: str, exclure: Iterable[str] = ()) -> li
             if nom.startswith("_") and not isinstance(objet, FixtureFunctionDefinition):
                 continue
             if isinstance(objet, FixtureFunctionDefinition):
+                existant = globales.get(nom)
+                if existant is not None and existant is not objet and nom not in _PARTAGEES and not _meme_code(
+                        existant, objet):
+                    # deux fichiers aux fixtures homonymes mais DIFFÉRENTES : un fichier de rejeu par fichier de test
+                    raise AssertionError(f"fixture en double dans le rejeu : {nom} ({fichier})")
                 globales[nom] = objet  # même nom que dans le fichier d'origine : les tests le retrouvent
             elif nom.startswith("test_") and callable(objet) and nom not in exclus:
-                if nom in globales:
-                    raise AssertionError(f"nom de test en double dans le rejeu : {nom}")
-                globales[nom] = objet
+                cible = nom if nom not in globales else f"{nom}__{prefixe}"  # deux fichiers, même nom de test
+                globales[cible] = objet
                 injectes.append(f"{prefixe}::{nom}")
     return injectes

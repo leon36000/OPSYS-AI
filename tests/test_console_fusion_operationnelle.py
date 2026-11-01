@@ -667,13 +667,17 @@ def test_retrait_role_apres_calcul_annule_tranche_et_snapshot_perime_avant_retou
     assert len(client_fusion.get(f"/api/fusion-operationnelle/lots/{current['lot_id']}").json()["lot"]["lignes"]) == 0
 
 
-def test_stockage_postgresql_refuse_explicitement_sans_mutation():
+@pytest.mark.parametrize("moteur,qualifie", [("sqlite", True), ("postgresql", True), ("mysql", False)])
+def test_seuls_sqlite_et_postgresql_sont_qualifies_pour_la_fusion(moteur, qualifie):
     class Dialect:
-        name = "postgresql"
+        name = moteur
 
-    class ConnectionPostgres:
+    class Connection:
         dialect = Dialect()
 
+    if qualifie:
+        fusion_csv._isoler_transaction(Connection())
+        return
     with pytest.raises(fusion_csv.FusionErreur) as erreur:
-        fusion_csv._isoler_transaction(ConnectionPostgres())
+        fusion_csv._isoler_transaction(Connection())
     assert erreur.value.code == "STOCKAGE_NON_QUALIFIE"

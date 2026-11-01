@@ -1,6 +1,6 @@
-"""Révisions de profil d'agent sur 64 bits (PostgreSQL) ; succède à 0056.
+"""Révisions de profil d'agent sur 64 bits (PostgreSQL) ; succède à 0057 (garde TRUNCATE PostgreSQL de la ligne architecte).
 
-NUMÉROTATION : 0057 succède à 0056 (parité PostgreSQL).
+NUMÉROTATION : 0058 succède à 0057 (la ligne architecte a pris 0057 ; consigne du coordinateur).
 
 PROBLÈME (défaut latent L6 du rapport de qualification PostgreSQL) : le code accepte une révision de profil d'agent
 jusqu'à 2**53 - 1 (`agents_declencheurs`, `console.application`), mais les colonnes qui la portent étaient des
@@ -23,8 +23,8 @@ La rétrogradation REFUSE de perdre des données : elle s'arrête si une révisi
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0057"
-down_revision = "0056"
+revision = "0058"
+down_revision = "0057"
 branch_labels = None
 depends_on = None
 

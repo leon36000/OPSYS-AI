@@ -83,7 +83,7 @@ ou la construction, le propriétaire relit intention/instance, mandant, version 
 profil, déclencheur et fuseau, classification mémoire `global` explicite et outils réels T0/T1
 N0–N2. Il compare aussi l'époque/ligne durable et la lease avant un ACK nouveau. Une panne ou
 un retrait injecté après écriture annule grant et journal. Les tests injectés dans une transaction
-ne constituent pas une preuve de course PostgreSQL ; PostgreSQL est refusé dans ce lot.
+ne constituent pas une preuve de course PostgreSQL. **Mise à jour (vague 6)** : le cron opérateur tourne aussi sur PostgreSQL — ses tables vivent dans la base de l'instance (il n'a jamais utilisé « une base SQLite dédiée » : seules l'identité de la base canonique et l'exclusion d'écriture `BEGIN IMMEDIATE` étaient propres à SQLite) ; l'identité PostgreSQL est (serveur, port, base), sans compte ni mot de passe ; un verrou consultatif nommé `cron-operateur` sérialise toutes les opérations (demande, retrait, remise, reçu) ; preuves : les 8 fichiers de test cron rejoués sur PostgreSQL réel et `tests/test_postgresql_portage_cron.py` (N processus, une intention, un audit).
 
 La déclaration est un objet JSON de types natifs, borné à 16 KiB UTF-8, 512 nœuds et profondeur 8
 avant sérialisation/restauration. Les nombres non finis, cycles, chaînes invalides et champs

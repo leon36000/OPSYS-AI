@@ -2,7 +2,7 @@
 PostgreSQL 17 (docker, sinon ignorés avec la raison exacte).
 
 - L6 : la révision d'un profil d'agent accepte jusqu'à 2**53 - 1 dans le code, mais cinq colonnes étaient des `INTEGER`
-  (refusées au-delà de 2**31 - 1 par PostgreSQL, acceptées en silence par SQLite). Migration 0057 : `BIGINT` sur
+  (refusées au-delà de 2**31 - 1 par PostgreSQL, acceptées en silence par SQLite). Migration 0058 : `BIGINT` sur
   PostgreSQL seulement, descente qui REFUSE de perdre des données.
 - Les `epoch` / `lease_epoch` du cron sont des COMPTEURS que le code borne à 2**31 - 1 : colonne et borne concordent
   (ce ne sont pas des secondes depuis 1970, il n'y a pas de débordement en 2038) ; le test le fige.
@@ -45,7 +45,7 @@ def test_le_schema_declare_les_cinq_colonnes_de_revision_en_64_bits():
 
 
 def test_epoch_et_lease_epoch_restent_des_compteurs_bornes_par_le_code_a_31_bits():
-    """Documenté dans la migration 0057 : même borne dans la colonne et dans le code, aucun débordement possible."""
+    """Documenté dans la migration 0058 : même borne dans la colonne et dans le code, aucun débordement possible."""
     assert isinstance(AGENTS_DECLENCHEURS_REMISES.c.epoch.type, Integer)
     assert isinstance(AGENTS_DECLENCHEURS_REMISES.c.lease_epoch.type, Integer)
     assert agents_cron_autorite._positif(2**31 - 1) == 2**31 - 1
@@ -69,7 +69,7 @@ def _profil(revision: int) -> dict:
 
 
 def test_une_revision_de_profil_de_2_puissance_53_est_stockee_et_relue_a_l_identique(url_base):  # noqa: F811
-    """L6 : avant 0057, PostgreSQL refusait toute révision > 2**31 - 1 (« integer out of range »), pourtant admise."""
+    """L6 : avant 0058, PostgreSQL refusait toute révision > 2**31 - 1 (« integer out of range »), pourtant admise."""
     with stockage.transaction(url_base) as cnx:
         cnx.execute(insert(AGENTS_CONFIGURABLES).values(**_profil(MAX_53)))
         cnx.execute(insert(AGENTS_CONFIGURABLES_HISTORIQUE).values(
@@ -109,45 +109,45 @@ def test_sur_postgresql_les_cinq_colonnes_sont_bigint_et_les_compteurs_cron_rest
     assert types["agents_declencheurs_remises.lease_epoch"] == "integer"
 
 
-def test_0057_succede_a_0056_et_la_chaine_n_a_qu_une_tete():
+def test_0058_succede_a_0057_et_la_chaine_n_a_qu_une_tete():
     from alembic.script import ScriptDirectory
 
     scripts = ScriptDirectory.from_config(stockage._config())
     assert len(scripts.get_heads()) == 1
-    assert scripts.get_revision("0057").down_revision == "0056"
+    assert scripts.get_revision("0058").down_revision == "0057"
 
 
-def test_0057_sur_sqlite_ne_change_rien_et_avance_la_revision(tmp_path):
+def test_0058_sur_sqlite_ne_change_rien_et_avance_la_revision(tmp_path):
     url = "sqlite:///" + str(tmp_path / "s.db")
     stockage.migrer(url)
     with stockage.moteur(url).connect() as cnx:
-        assert cnx.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() >= "0057"
+        assert cnx.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() >= "0058"
     stockage.liberer(url)
 
 
-def test_0057_descente_refusee_avec_une_valeur_64_bits_puis_permise_sans_perte_et_remontable(serveur_pg):  # noqa: F811
+def test_0058_descente_refusee_avec_une_valeur_64_bits_puis_permise_sans_perte_et_remontable(serveur_pg):  # noqa: F811
     nom, url = serveur_pg.nouvelle_base(depuis_gabarit=False)
     cfg = stockage._config()
     try:
         with stockage.moteur(url).begin() as cnx:
             cfg.attributes["connection"] = cnx
-            command.upgrade(cfg, "0057")
+            command.upgrade(cfg, "0058")
             cnx.execute(insert(AGENTS_CONFIGURABLES).values(**_profil(2**40)))
         with stockage.moteur(url).begin() as cnx:
             cfg.attributes["connection"] = cnx
             with pytest.raises(RuntimeError, match="rétrogradation refusée : agents_configurables.revision"):
-                command.downgrade(cfg, "0056")
+                command.downgrade(cfg, "0057")
         with stockage.moteur(url).begin() as cnx:  # rien n'a été perdu ni converti
             assert cnx.exec_driver_sql("SELECT revision FROM agents_configurables").scalar_one() == 2**40
             cnx.exec_driver_sql("UPDATE agents_configurables SET revision = 7")
         with stockage.moteur(url).begin() as cnx:
             cfg.attributes["connection"] = cnx
-            command.downgrade(cfg, "0056")
+            command.downgrade(cfg, "0057")
             assert cnx.exec_driver_sql(
                 "SELECT data_type FROM information_schema.columns WHERE table_name = 'agents_configurables' "
                 "AND column_name = 'revision'").scalar_one() == "integer"
             assert cnx.exec_driver_sql("SELECT revision FROM agents_configurables").scalar_one() == 7
-            command.upgrade(cfg, "0057")
+            command.upgrade(cfg, "0058")
             assert cnx.exec_driver_sql(
                 "SELECT data_type FROM information_schema.columns WHERE table_name = 'agents_configurables' "
                 "AND column_name = 'revision'").scalar_one() == "bigint"
@@ -156,14 +156,14 @@ def test_0057_descente_refusee_avec_une_valeur_64_bits_puis_permise_sans_perte_e
         serveur_pg.supprimer(nom)
 
 
-def test_sans_la_migration_0057_postgresql_refuse_la_revision_que_le_code_accepte(serveur_pg):  # noqa: F811
-    """Témoin du défaut d'origine : à 0056, une révision > 2**31 - 1 est une erreur de base, pas un refus typé."""
+def test_sans_la_migration_0058_postgresql_refuse_la_revision_que_le_code_accepte(serveur_pg):  # noqa: F811
+    """Témoin du défaut d'origine : à 0057, une révision > 2**31 - 1 est une erreur de base, pas un refus typé."""
     nom, url = serveur_pg.nouvelle_base(depuis_gabarit=False)
     cfg = stockage._config()
     try:
         with stockage.moteur(url).begin() as cnx:
             cfg.attributes["connection"] = cnx
-            command.upgrade(cfg, "0056")
+            command.upgrade(cfg, "0057")
         with pytest.raises(DBAPIError, match="out of range"), stockage.moteur(url).begin() as cnx:
             cnx.execute(insert(AGENTS_CONFIGURABLES).values(**_profil(MAX_53)))
     finally:

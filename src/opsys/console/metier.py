@@ -19,7 +19,7 @@ from .. import approbations, contexte, idempotence, identite, stockage
 from ..capacites import Capacites
 from ..departements import Departement
 from ..etat import journaliser
-from ..outils import Autonomie, Niveau, Outil, executer_atomique, valider_arguments
+from ..outils import Autonomie, Niveau, Outil, executer_atomique, executer_atomique_console, valider_arguments
 from ..stockage.portabilite import DIALECTES_QUALIFIES
 from .securite import Session
 
@@ -463,7 +463,7 @@ def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutati
                 except n.Refus as exc:
                     return {"ok": True, "resultat": n.refuser(exc.suffixe)}
                 return {**recu.reponse, "rejoue": True}
-            reponse = executer_atomique(outil, dict(arguments))
+            reponse = _atomique(outil, dict(arguments))
             if reponse.get("ok") is True:
                 n.verifier_borne(reponse["resultat"], n.BORNE_SORTIE)
             idempotence.finaliser(cnx, meta, reponse)
@@ -507,7 +507,7 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
         contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
         if ecriture else nullcontext(),
     ):
-        return executer_atomique(outil, dict(arguments))
+        return _atomique(outil, dict(arguments))
 
 
 def _executer_declaration_journaliere(cnx, deps, session, personne, nom, arguments, mutation_id):
@@ -549,7 +549,7 @@ def _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id):
         contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
         if ecriture else nullcontext(),
     ):
-        return executer_atomique(outil, dict(arguments))
+        return _atomique(outil, dict(arguments))
 
 
 def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id):
@@ -586,10 +586,10 @@ def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutatio
             from .memoire_chantier import _admin
 
             with stockage.transaction():
-                resultat = executer_atomique(outil, dict(arguments))
+                resultat = _atomique(outil, dict(arguments))
                 _admin(cnx, session)
                 return resultat
-        resultat = executer_atomique(outil, dict(arguments))
+        resultat = _atomique(outil, dict(arguments))
         if nom in {"m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console"}:
             from .memoire_chantier import _admin
 
@@ -627,7 +627,14 @@ def _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
         contexte.receptionne_de(contexte.HorodatageAppareil(
             "console:" + personne.identifiant, maintenant, maintenant)),
     ):
-        return executer_atomique(outil, dict(arguments))
+        return _atomique(outil, dict(arguments))
+
+
+def _atomique(outil: Outil, arguments: Mapping[str, Any], *, rejouer: bool = True) -> dict[str, Any]:
+    """`executer_atomique` d'un port d'écriture humaine : verrou d'instance et rejeu après conflit sur PostgreSQL
+    seulement, exécution inchangée sous SQLite (`executer_atomique` de ce module, que les tests peuvent remplacer)."""
+    return executer_atomique_console(outil, arguments, rejouer=rejouer,
+                                     executeur=lambda o, a: executer_atomique(o, a))
 
 
 def executer(
@@ -858,7 +865,7 @@ def executer(
                           "m4_interrompre_visite_console_v2"}
             else nullcontext(),
         ):
-            reponse = executer_atomique(outil, charge)
+            reponse = _atomique(outil, charge, rejouer=False)
     if nom == "m1_consigner_suivi_rappel":
         personne_vivante = identite.personne_active(cnx, session.utilisateur)
         if (session.expire <= datetime.now(UTC).timestamp() or personne_vivante is None

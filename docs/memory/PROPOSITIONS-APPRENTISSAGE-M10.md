@@ -31,7 +31,7 @@ avant rendu et le rôle administrateur est revalidé. Une tête changée produit
 
 Le contrat de cohérence n'est qualifié ici que pour SQLite. Le backend d'instance utilise une
 transaction `BEGIN IMMEDIATE`; bien que cette route n'écrive pas, son snapshot borné peut brièvement
-retenir le verrou d'écriture. PostgreSQL est refusé explicitement tant que l'isolation snapshot et la
+retenir le verrou d'écriture. PostgreSQL était refusé explicitement tant que l'isolation snapshot et la
 course de revalidation des têtes ne sont pas qualifiées sur ce parcours.
 
 Le rapport canonique (empreinte incluse) conserve toutes les références sources des groupes retenus.
