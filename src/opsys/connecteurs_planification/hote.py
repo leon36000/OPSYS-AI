@@ -18,7 +18,18 @@ Le coffre refuse de résoudre un secret DANS une transaction métier : le servic
 la clé du `state` est capturée à la construction (octets en mémoire le temps de la requête ou du tour).
 
 Aucun transport WordPress ni aucun adaptateur de réseau social réel n'existe : ces ports restent `None` en production
-(`non raccordé`) ; les tests y branchent des doubles.
+(`non raccordé`) ; les tests y branchent des doubles. Il en va de même des connecteurs de signaux, de la veille et des
+générateurs du studio (planification autonome).
+
+Trois ports de la planification autonome SONT raccordés en production parce que leur « transport » est local :
+
+- `dossier_traces` : le journal de traces de l'instance (`<OPSYS_HOME>/traces`, clés dérivées de la clé locale) ; sa
+  rétention vient de `OPSYS_TRACES_RETENTION_JOURS` (30 par défaut) ;
+- `verifier_sauvegarde` : seulement si l'opérateur a nommé le dossier des sauvegardes
+  (`OPSYS_PLANIF_SAUVEGARDES_DOSSIER`)
+  ET la clé de sauvegarde (`OPSYS_SAUVEGARDE_CLE_FICHIER`) pour le processus du serveur : donner cette clé au serveur
+  est une décision d'exploitation (la politique veut la clé hors de l'instance), jamais prise par défaut ;
+- `embeddings_raccordes` : vrai dès qu'un adaptateur d'embeddings est enregistré (aucun ne l'est dans cette version).
 """
 
 from __future__ import annotations
@@ -114,7 +125,66 @@ def recepteur_m1() -> Callable[[Any], dict[str, Any]] | None:
     return recevoir_courriel_connecteur
 
 
+def journal_traces(environ: Mapping[str, str] | None = None) -> Any:
+    """Le journal de traces à purger, ou `None` si l'instance n'en a pas (rien à purger). Dossier présent mais clé
+    locale absente : en attente (on ne purge pas un journal qu'on ne sait pas ouvrir)."""
+    from ..observabilite import cle_locale
+    from ..observabilite.traces import JournalTraces, retention_jours_env
+    from .planificateur import EnAttenteTransport
+
+    environ = os.environ if environ is None else environ
+    dossier = stockage.dossier_opsys() / "traces"
+    if not dossier.is_dir():
+        return None
+    try:
+        cle = cle_locale.deriver(cle_locale.charger(), "traces/chaine/v1")
+    except Exception:  # noqa: BLE001 — clé absente ou illisible : le motif exact n'a pas à fuir
+        raise EnAttenteTransport("REJ-PLAN-TRACES-CLE-ABSENTE") from None
+    return JournalTraces(dossier, cle, retention_jours=retention_jours_env(environ))
+
+
+def verifier_sauvegarde_depuis_env(environ: Mapping[str, str] | None = None
+                                   ) -> Callable[[], Mapping[str, Any]] | None:
+    """Le vérificateur de sauvegardes si l'opérateur l'a configuré (dossier ET clé), sinon `None`."""
+    from pathlib import Path
+
+    from .. import sauvegarde_chiffree as sauvegarde
+
+    environ = os.environ if environ is None else environ
+    dossier = environ.get("OPSYS_PLANIF_SAUVEGARDES_DOSSIER", "").strip()
+    if not dossier or not environ.get(sauvegarde.ENV_CLE_FICHIER, "").strip():
+        return None
+
+    def verifier(maintenant: float | None = None) -> Mapping[str, Any]:
+        import datetime as dt
+        import time
+
+        racine = Path(dossier)
+        trouvees = sorted((p for p in racine.iterdir() if sauvegarde._NOM_SAUVEGARDE.match(p.name) and p.is_file()),
+                          key=lambda p: p.name) if racine.is_dir() else []
+        if not trouvees:
+            return {"trouvee": False}
+        derniere = trouvees[-1]
+        horodatage = sauvegarde._NOM_SAUVEGARDE.match(derniere.name).group(1)  # type: ignore[union-attr]
+        age = int((time.time() if maintenant is None else maintenant)
+                  - dt.datetime.strptime(horodatage, "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.UTC).timestamp())
+        try:
+            sauvegarde.verifier(derniere, environ=environ)
+        except sauvegarde.ErreurSauvegarde as exc:
+            return {"trouvee": True, "authentique": False, "code": exc.code, "age_s": age}
+        return {"trouvee": True, "authentique": True, "age_s": age}
+
+    return verifier
+
+
+def embeddings_raccordes() -> bool:
+    from ..connaissances import ports as ports_connaissances
+
+    return bool(ports_connaissances._ADAPTATEURS_EMBEDDINGS)  # noqa: SLF001 — lecture de la table d'adaptateurs
+
+
 def ports_par_defaut() -> Ports:
     """Les ports de production : courriel réel (urllib, jamais exercé contre un vrai service dans cette version) ;
-    WordPress et réseaux sociaux non raccordés."""
-    return Ports(service_courriel=construire_service, recepteur_m1=recepteur_m1())
+    WordPress, réseaux sociaux, signaux, veille et studio non raccordés ; traces, sauvegardes et embeddings locaux."""
+    return Ports(service_courriel=construire_service, recepteur_m1=recepteur_m1(), dossier_traces=journal_traces,
+                 verifier_sauvegarde=verifier_sauvegarde_depuis_env(), embeddings_raccordes=embeddings_raccordes)

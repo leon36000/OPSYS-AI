@@ -17,6 +17,7 @@ DETAILS_PERMIS = frozenset({
     "ressources", "traites", "ignores", "refuses", "erreurs", "messages", "pages", "envoyes", "publies", "transmis",
     "reconcilies", "expires", "aurait", "duree_ms", "revision", "intervalle_s", "ancien_mode", "expire_le", "raison",
     "brouillon_id", "publication_id", "demande_id", "jeton", "porteur", "reseau", "attente_s", "quota", "motif",
+    "appels", "etapes", "purges", "elements", "empreinte", "transport", "plafond", "inchanges", "documents", "archives",
 })
 
 

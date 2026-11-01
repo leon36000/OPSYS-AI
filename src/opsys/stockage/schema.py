@@ -1923,6 +1923,44 @@ PLANIFICATEUR_JOURNAL = Table(
     Index("ix_planificateur_journal_executeur", "executeur", "id"),
 )
 
+# -- Planification autonome : approbations de première activation d'un exécuteur IRRÉVERSIBLE, échéances de rétention
+# (migration 0055, docs/architecture/PLANIFICATION.md) ----------------------------------------------------------------
+# `planificateur_approbations` (append-only) : la décision d'un admin humain, depuis la console, d'activer un exécuteur
+# dont l'effet est irréversible (purge de rétention) APRÈS avoir vu l'aperçu à blanc de ce qui sera purgé. Elle porte
+# l'empreinte de CET aperçu, la révision de l'exécuteur qu'elle autorise et une expiration (90 jours). Sans ligne
+# valide,
+# l'exécuteur n'exécute pas, quel que soit son mode.
+PLANIFICATEUR_APPROBATIONS = Table(
+    "planificateur_approbations", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("executeur", String(40), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("apercu_empreinte", String(64), nullable=False),
+    Column("nb_elements", Integer, nullable=False),
+    Column("approuve_par", String(200), nullable=False),
+    Column("approuve_le", Text, nullable=False),
+    Column("expire_le", BigInteger, nullable=False),
+    CheckConstraint("revision >= 1 AND nb_elements >= 0", name="bornes"),
+    Index("ix_planificateur_approbations_executeur", "executeur", "id"),
+)
+# `retention_echeances` : l'index des clés détruisibles à échéance (enregistrement vocal, adresse d'un courriel reçu
+# par M1). `ref` est un pseudonyme (jamais une adresse ni un contenu) ; la ligne est le seul état mutable (en_attente
+# -> purgee) ; la clé elle-même vit dans `cles_chiffrement` et sa destruction passe par `effacements_cles`.
+RETENTION_ECHEANCES = Table(
+    "retention_echeances", META,
+    Column("domaine", String(32), primary_key=True),
+    Column("ref", String(160), primary_key=True),
+    Column("portee", String(128), nullable=False),
+    Column("identifiant", String(128), nullable=False),
+    Column("echeance_epoch", BigInteger, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("statut", String(12), nullable=False),
+    Column("purge_le", Text, nullable=True),
+    CheckConstraint("statut IN ('en_attente','purgee')", name="statut_valide"),
+    CheckConstraint("(statut = 'purgee') = (purge_le IS NOT NULL)", name="purge_coherente"),
+    Index("ix_retention_echeances_statut", "statut", "echeance_epoch"),
+)
+
 # -- M8 : entrepôt analytique DÉRIVÉ et pont BI en lecture (migration 0046) ---------------------------------------
 # L'entrepôt (M8.2) n'est JAMAIS une source de vérité : chaque table est reconstructible depuis les registres des
 # départements (`faits_chantier`, `faits_entonnoir`, `faits_contenus`, `faits_cash_libre`), qui restent la vérité. Il

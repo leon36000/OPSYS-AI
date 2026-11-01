@@ -30,10 +30,10 @@ from opsys.courriel_connecteurs import envoi
 from opsys.courriel_connecteurs.erreurs import ErreurCourriel
 from opsys.outils import Autonomie, Niveau, Outil
 
+from . import courriel_pii, reception, tri_courriel
 from . import horodatage as controle_horodatage
 from . import identite_client as ic
 from . import outils as _o
-from . import reception, tri_courriel
 from .registre import TYPE_RECU_COURRIEL, TYPE_REPONSE_COURRIEL
 
 DEPARTEMENT = "m01-front-office"
@@ -74,7 +74,7 @@ def cle_correspondant(adresse: str) -> str:
 
 
 def _reception(signal_id: str) -> dict[str, Any] | None:
-    return next(
+    ligne = next(
         (
             x
             for x in _o._obtenir_registre().lire()
@@ -82,6 +82,7 @@ def _reception(signal_id: str) -> dict[str, Any] | None:
         ),
         None,
     )
+    return None if ligne is None else courriel_pii.ouvrir(ligne, exiger=True)
 
 
 def _texte_du_signal(signal_id: str, objet: str) -> str:

@@ -60,6 +60,7 @@ packages = [
     "opsys.packs",
     "opsys.evaluation",
     "opsys.observabilite",
+    "opsys.retention",
     "opsys.registre_mcp",
     "opsys.pont_bi",
     "opsys.avatars_voix",

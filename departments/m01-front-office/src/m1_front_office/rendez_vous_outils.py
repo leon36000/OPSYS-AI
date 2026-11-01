@@ -25,6 +25,7 @@ from opsys.courriel_connecteurs import envoi
 from opsys.courriel_connecteurs.erreurs import ErreurCourriel
 from opsys.outils import Autonomie, Niveau, Outil
 
+from . import courriel_pii
 from . import gabarits as gb
 from . import horodatage as controle_horodatage
 from . import outils as _o
@@ -333,6 +334,7 @@ def preparer_messages_rdv(
         )
         if recue is None:
             return _refus("REJ-M1-RDV-CANAL", "ce rendez-vous ne vient pas d'un courriel reçu : utilise le canal sms")
+        recue = courriel_pii.ouvrir(recue, exiger=True)  # adresse effacée à l'échéance : refus typé
         plan = [("confirmation", "courriel_rdv_confirmation", None)] + [
             ("rappel", "courriel_rdv_rappel", e) for e in echeances
         ]

@@ -530,11 +530,31 @@ class Traceur:
             code_refus=code, attributs=dict(attributs or {})))
 
 
-def traceur_local(dossier: Path | None = None, *, masqueur: MasqueurPII | None = None, retention_jours: int =
-                  RETENTION_JOURS_DEFAUT, tarifs: Mapping[str, Tarif] | None = None) -> Traceur:
-    """Traceur de l'instance : journal sous `<OPSYS_HOME>/traces`, clés dérivées de la clé locale (créée au besoin)."""
+ENV_RETENTION_JOURS = "OPSYS_TRACES_RETENTION_JOURS"
+
+
+def retention_jours_env(environ: Mapping[str, str] | None = None) -> int:
+    """La rétention des traces déclarée par l'instance (1 à 3650 jours), 30 par défaut. Une valeur invalide est
+    REFUSÉE (jamais lue comme la valeur par défaut : on ne raccourcit ni ne rallonge une rétention par accident)."""
+    import os
+
+    brut = (os.environ if environ is None else environ).get(ENV_RETENTION_JOURS, "").strip()
+    if not brut:
+        return RETENTION_JOURS_DEFAUT
+    if not brut.isdigit() or not 1 <= int(brut) <= 3650:
+        raise ErreurObservabilite("REJ-OBS-JOURNAL-RETENTION", f"{ENV_RETENTION_JOURS} : 1 à 3650 jours")
+    return int(brut)
+
+
+def traceur_local(dossier: Path | None = None, *, masqueur: MasqueurPII | None = None, retention_jours: int | None =
+                  None, tarifs: Mapping[str, Tarif] | None = None) -> Traceur:
+    """Traceur de l'instance : journal sous `<OPSYS_HOME>/traces`, clés dérivées de la clé locale (créée au besoin).
+    Rétention : l'argument, sinon `OPSYS_TRACES_RETENTION_JOURS`, sinon 30 jours."""
     from ..stockage.moteur import dossier_opsys
     from .pii import MasqueurMotifs
+
+    if retention_jours is None:
+        retention_jours = retention_jours_env()
 
     graine = cle_locale.charger(creer=True)
     journal = JournalTraces(dossier or dossier_opsys() / "traces", cle_locale.deriver(graine, "traces/chaine/v1"),

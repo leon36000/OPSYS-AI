@@ -55,9 +55,17 @@ class Cablage:
         return planificateur.tour(None, ports=self.ports, **options)
 
     def activer(self, executeur: str, mode: str = "actif", motif: str = "essai fictif", intervalle_s: int = 30) -> None:
+        """Un geste d'admin ; un exécuteur irréversible (purge) passe par l'aperçu et la confirmation, comme à la
+        console."""
+        extra: dict[str, Any] = {}
+        definition = etat.definition(executeur)
+        if definition is not None and definition.irreversible and mode == "actif":
+            apercu = planificateur.apercu(executeur, ports=self.ports)
+            extra = {"apercu_empreinte": apercu["empreinte"], "confirme_irreversible": True,
+                     "apercu_courant": lambda: (apercu["empreinte"], apercu["nombre"])}
         with stockage.transaction() as cnx:
             etat.appliquer(cnx, session_admin(), executeur, mode, motif=motif, intervalle_s=intervalle_s,
-                           maintenant=self.horloge())
+                           maintenant=self.horloge(), **extra)
 
     def decider(self, demande_id: str, approuver: bool = True, par: str = ADMIN) -> dict[str, Any]:
         outils = outils_executables(self.capacites.departements, stockage.transaction)
