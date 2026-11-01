@@ -489,3 +489,22 @@ def test_la_panne_de_m8_en_pleine_chaine_puis_la_reprise_donnent_les_memes_mesur
     for metric_id, valeur in ATTENDU.items():
         assert mesures[metric_id]["valeur"] == valeur, metric_id
     assert monde.ecritures_hors_propriete() == []
+
+
+def test_la_cle_de_contenu_distingue_deux_commandes_envoyees_au_meme_instant_et_deux_receptions_d_un_meme_bon(monde):
+    """La clé est le bon de commande (commandes) ou le bon et le mouvement de stock (réceptions), jamais l'instant."""
+    instant = f"{JOUR}T10:00:00-04:00"
+    for i in (1, 2):
+        evenements.publier(
+            "m1.commande_courriel_envoyee",
+            M1,
+            ch.commande_envoyee(f"po-m{i}", i, envoye_le=instant),
+            evenement_id=f"cmd-meme-instant-{i}",
+        )
+        evenements.publier("m6.reception_enregistree", M6, ch.reception_m6("po-unique", i), evenement_id=f"rec-{i}")
+    monde.repartir(departements=(M8,))
+    faits = monde.registre(M8, "faits_operations")
+    assert sum(1 for f in faits if f["type_entree"] == "commande_envoyee") == 2
+    assert sum(1 for f in faits if f["type_entree"] == "reception_materiaux") == 2
+    mesures = _mesures(monde)
+    assert mesures["m8_commandes_envoyees"]["valeur"] == "2" and mesures["m8_receptions_materiaux"]["valeur"] == "2"

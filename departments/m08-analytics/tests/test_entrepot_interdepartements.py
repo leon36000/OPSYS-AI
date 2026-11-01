@@ -331,3 +331,16 @@ def test_l_ecart_de_depense_est_nomme_et_dit_non_calculable_par_le_copilote():
     assert "non calculable" in reponse["texte"] and reponse["mesures"][0]["manque"] == [
         "charges_marketing_comptabilisees"
     ]
+
+
+def test_les_dix_huit_premieres_mesures_disent_aussi_leur_couverture():
+    """Complète quand calculée, inconnue quand non calculable : la même forme pour les 38 mesures."""
+    lues = {
+        m["metric_id"]: m
+        for m in moteur_mesures.lire(jeux_fictifs.registres_fictifs(cash_libre_cad=None, avec_operations=True), CAT)
+    }
+    assert lues["m8_leads_recus"]["couverture"] == {"etat": "complete"}
+    assert lues["m8_cash_libre_cad"]["statut"] == "non_calculable"
+    assert lues["m8_cash_libre_cad"]["couverture"] == {"etat": "inconnue"}
+    assert lues["m8_impressions_par_contenu"]["couverture"] == {"etat": "inconnue"}
+    assert all(m["couverture"]["etat"] in ("complete", "partielle", "inconnue") for m in lues.values())

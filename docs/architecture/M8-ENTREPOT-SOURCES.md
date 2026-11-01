@@ -96,9 +96,10 @@ mesure n'est pas faite (raison dite) ; **impossible sans décision** = aucun év
 | `m8_demandes_qualifiees_m1` | demandes | M1 `m1.lead_qualifie` | `lead_id` distincts | branché | idem |
 | `m8_demandes_m1_sans_lead_m2` | demandes | M1 `m1.lead_qualifie` contre M2 `m2.client_associe` | **écart** : demandes de M1 sans lead reçu chez M2 | branché | idem |
 
-Preuves : `departments/m08-analytics/tests/test_mesures_interdepartements.py` (pur, 55 tests), `…/test_entrepot_interdepartements.py`
-(moteur, fraîcheur, entrepôt, wallboard, copilote), `tests/test_entrepot_m8_garanties.py` (les cinq garanties par source, 13 sources),
-`tests/test_entrepot_m8_scenarios.py` (bout en bout multi-départements et cas négatifs).
+Preuves : `departments/m08-analytics/tests/test_mesures_interdepartements.py` (pur, 46 tests), `…/test_entrepot_interdepartements.py`
+(moteur, fraîcheur, entrepôt, wallboard, copilote, 19 tests), `tests/test_entrepot_m8_garanties.py` (les cinq garanties par source, 13 sources,
+66 tests), `tests/test_entrepot_m8_scenarios.py` (bout en bout multi-départements et cas négatifs, 11 tests), plus l'ajustement des tests
+existants qui épinglaient 18 mesures, 4 registres ou 2 wallboards.
 
 ## 4. Ce que les départements produisent et que M8 ne reçoit pas
 
@@ -149,7 +150,17 @@ Preuves : `departments/m08-analytics/tests/test_mesures_interdepartements.py` (p
 - **Un recalcul des montants de M5** : créances, comptes à payer, solde, taxes passent sans calcul ; la marge est **cumulée** chantier
   par chantier à partir de la marge que M5 a chiffrée et qui a passé les gardes de `mesures_chantier` (prix définitif, coût complet).
 
-## 7. Limites (sans euphémisme)
+## 7. Ordre de livraison et `publie_le`
+
+La revue adverse a fait départager les versions d'un constat comptable de M5 du même jour par l'**instant de publication** que le bus
+donne (`repartiteur.instant_publication_livre()` → `publie_le`, gardé hors de toute clé de contenu). `dernier_constat_comptable`
+(partagé par la vue exécutive et par les mesures `m8_creances_*` et `m8_ecritures_en_attente`) suit cette règle : plus grande date de
+référence, puis publication la plus récente, puis dernier reçu (test : deux versions du même jour, livrées dans les deux ordres).
+Les autres sources n'ont **pas** besoin de cet instant : rentabilité et cash libre s'ordonnent par leur `sequence` (M5), les relevés
+par `revision`, les réceptions, commandes, conversions et anomalies sont des faits indépendants à clé de contenu (testés dans l'ordre
+inverse de livraison).
+
+## 8. Limites (sans euphémisme)
 
 - Les producteurs réels de M5, M6, M7 et M1 ne sont **pas relancés** par les scénarios de ce chantier : leurs charges sont celles du
   catalogue (validées à la publication). La preuve des producteurs réels est dans leurs suites et, pour la marge et le cash libre,
@@ -171,7 +182,18 @@ Preuves : `departments/m08-analytics/tests/test_mesures_interdepartements.py` (p
 - Score de santé : **non modifié**. Ajouter la marge, les créances ou les comptes à payer comme indicateurs est une décision de
   pondération et de bornes du propriétaire (`configuration.sante`, vide) ; les mesures sont disponibles pour cela.
 
-## 8. Commandes
+## 9. Mutations
+
+Cinquante-trois mutations appliquées une à une dans un clone (témoin vert avant chaque série), sur le code de ce chantier : somme et
+révisions des relevés, frontières de chevauchement et de jours sans relevé, bases de taxes, garde d'incohérence des créances, tranche
+90+, marge nulle, couverture partielle (module, entrepôt, tuile, copilote, bannière), fenêtre de M7 (plus stricte, égalité, signal de
+démonstration, canal Meta), dernier fait, clés de contenu (réception, commande), provenance, fait de la réception/commande minimisé,
+section de la vue exécutive, composantes du cash libre, écritures en attente, copilote (« comptes à payer » pris pour un ordre),
+registre `operations` de l'empreinte. **Quatre ont d'abord SURVÉCU** (marge nulle comptée en perte, couverture « inconnue » des
+mesures de la tranche 1, clé de contenu des commandes, clé de contenu des réceptions) : un test chacune les a fermées et elles ont été
+rejouées tuées. Les listes détaillées sont dans le rapport de livraison.
+
+## 10. Commandes
 
 ```bash
 pytest departments/m08-analytics

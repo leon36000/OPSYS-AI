@@ -167,6 +167,10 @@ consentement ignoré (M1), source non normalisée comptée (M2), vue de M8 sans 
 concordant, dossier CPA non FINANCIAL, pièce du brouillon M5 faussement « vérifiée », anomalie fictive admise (M9), audit qui
 compte un déclaré comme réel, audit qui ne voit plus une lecture directe.
 
+Entrepôt de M8 (chantier « entrepôt interdépartements ») : cinquante-trois mutations de plus, sur les mesures, la couverture, la fenêtre de
+M7, les clés de contenu et le copilote, quatre d'abord survivantes puis fermées par un test chacune (détail : [`M8-ENTREPOT-SOURCES.md`](M8-ENTREPOT-SOURCES.md) §9).
+Les cinq garanties ci-dessus sont rejouées pour les treize sources qui nourrissent l'entrepôt (`tests/test_entrepot_m8_garanties.py`).
+
 ## 5. Lectures croisées (hors événements)
 
 `dependances` du manifeste ne gouverne que la lecture des **bases de connaissances** (`connaissances.service.bases_lisibles`) ; les
