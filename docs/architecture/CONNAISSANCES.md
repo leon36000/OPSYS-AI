@@ -189,7 +189,7 @@ d'outil d'action dans une lecture et la validation humaine N3+ de tout acte irr�
   confirme même pas l'existence d'une version d'une base non lisible. Sans département appelant (`/mcp` de la direction) : refus.
 - **Aucun droit d'appareil élargi.** Aucun des onze outils ne déclare de rôle d'appareil (`roles_appareil` vide) ; une identité
   d'appareil qui les atteindrait malgré tout est refusée dans le code (`REJ-CONN-APPAREIL-FERME`). Le total des outils de ROLES.md
-  passe de 415 à 424, les 232 outils déclarés ne changent pas.
+  passe de 415 à 424 (chiffres au moment de la livraison de cette tranche ; le total actuel est dans le README), les 232 outils déclarés d'alors ne changent pas.
 - **Lecture non publiée.** `opsys_connaissances_lire` ne rend que des versions publiées. M10 (gardien de la base) lit tous les états
   avec `m10_lire_connaissance`, toujours neutralisés.
 - **Sortie bornée.** Le répartiteur tronque à 6 000 caractères : la sortie est bornée ici par résultat ENTIER (jamais une provenance

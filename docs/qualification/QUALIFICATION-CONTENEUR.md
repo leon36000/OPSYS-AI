@@ -52,7 +52,7 @@ manquait de mémoire.
 | E01 installation depuis le dépôt | PASSE | 29,4 (build 24,3) | Image construite sans réseau ; `pip` a installé `opsys-ai` ; `opsys-metier --version` ; `pip check` propre ; uid 1000 |
 | **E02 installateur public** | **ÉCHEC (documenté)** | 0,4 | `install.sh` sort en erreur : « Node.js est introuvable » (Node 24.16+/26.1+, uv, pnpm, Docker et réseau requis). **Jamais terminé avec succès ici.** |
 | init | PASSE | 24,9 | 1er démarrage : readiness 3 (en attente de configuration), puis après initialisation (2 personnes par la CLI humaine, paliers, entreprise, profils de base) et redémarrage : readiness 0 |
-| verifier | PASSE | 3,4 | `opsys-metier verifier` code 0 : 10 départements, 415 outils |
+| verifier | PASSE | 3,4 | `opsys-metier verifier` code 0 : 10 départements, 415 outils (chiffre du 1er novembre sur la base `0773dea68` ; la ligne actuelle en compte 537) |
 | sondes | PASSE (16) | 1,9 | MCP `/sante` 200, POST 405, sans jeton 401, mauvais jeton 401, bon jeton 200 ; console `/connexion` 200, en-têtes, 404 sans trace, redirection sans session ; connexion (mauvais refusée, bonne → cookie HttpOnly/Secure/SameSite) |
 | parcours | PASSE (14) | 10,0 | Lead par la route MCP HTTP → M2 qualifie → M3 crée la soumission (625,00 $ calculé par l'outil) → N3 refusée → accordée (§6) → M4 « à planifier » |
 | empreinte avant | PASSE | 1,6 | 86 tables, 109 lignes, `integrity_check` ok, deux lectures identiques |

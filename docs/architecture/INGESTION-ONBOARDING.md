@@ -171,7 +171,7 @@ que des LIGNES d'un fichier importé, avant qu'aucune fiche n'existe.
 | `m2_valider_brouillon_onboarding_contact_courriel` | T1 / N3 | Confirmer (contact du CRM) ou écarter un contact tiré d'une boîte courriel (§11). |
 | `m2_lister_contacts_courriel_importes` | T0 | Contacts confirmés, paginés. |
 
-Portée d'appareil **fermée** pour les huit (aucune déclaration ; `docs/architecture/ROLES.md` : 232 outils déclarés sur
+Portée d'appareil **fermée** pour les huit (aucune déclaration ; `docs/architecture/ROLES.md` : 232 outils déclarés (chiffre au moment de cette tranche ; total actuel : README) sur
 387). CLI : `opsys metier onboarding deposer <fichier> --mutation-id … --par …`, `avancer <lot> --par …`,
 `lire <lot> [--vue documents|brouillons] [--brouillon <id> --par …]`, `lots`, `journal <lot>` (mutations et contenu :
 authentification personnelle `nathan_owner`, `admin` ou `finance`). Console : `/onboarding`,

@@ -1,11 +1,16 @@
 # Documentation OPSYS-AI — points d'entrée actuels
 
-Mise à jour : 1er octobre 2026. Les documents historiques restent disponibles ; les directives
+Mise à jour : 1er novembre 2026 (guides d'utilisation, licences, qualification en conteneur). Les documents historiques restent disponibles ; les directives
 actuelles, la définition et les preuves du périmètre concerné déterminent la suite du travail.
 Une vérification locale peut identifier des sources gelées avant leur commit.
 
 | Besoin | Document |
 |---|---|
+| Utiliser OPSYS-AI (direction) | [Guide du propriétaire](utilisation/GUIDE-PROPRIETAIRE.md) |
+| Installer, sauvegarder, mettre à jour, dépanner | [Guide d'administration](utilisation/GUIDE-ADMINISTRATION.md) ; ce qui est qualifié : [QUALIFICATION-CONTENEUR](qualification/QUALIFICATION-CONTENEUR.md) |
+| Savoir ce qui n'est pas prêt | [Limites connues et ce qui reste à valider](utilisation/LIMITES-CONNUES.md) ; vocabulaire : [Glossaire et FAQ](utilisation/GLOSSAIRE-ET-FAQ.md) |
+| État vérifiable des exigences par département | [Matrices d'exigences](reprise/MATRICES-20261031/README.md) |
+| Licences, SBOM, fournisseurs de modèles, questions à un avocat | [Inventaire des licences](compliance/INVENTAIRE-LICENCES.md), [SBOM](compliance/sbom.cdx.json), [registre des fournisseurs](compliance/REGISTRE-FOURNISSEURS-LICENCES.md), [questions à un avocat](compliance/QUESTIONS-AVOCAT.md) |
 | Direction durable de Nathan | [DIRECTIVES-NATHAN](produit/DIRECTIVES-NATHAN.md) |
 | Ambition et fonctionnement des dix départements | [Définition produit](produit/DEFINITION-PRODUIT.md) |
 | Profondeur M1/M5/M7/M10 et adaptation des prompts | [Périmètre des modules](produit/PERIMETRE-MODULES.md) |

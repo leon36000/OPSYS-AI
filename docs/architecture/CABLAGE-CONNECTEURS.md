@@ -170,8 +170,8 @@ Tous ont un `evenement_id` déterministe : un rejeu n'en publie pas un second. U
 ## 9. Migration
 
 `0044_planificateur_connecteurs` : trois tables (`planificateur_executeurs`, `planificateur_baux`, `planificateur_journal` immuable) et la CHECK de
-`ingestion_brouillons.genre` élargie à `courriel_contact` (remplacée en place sur SQLite). **`down_revision = "0040"` dans ce worktree** (la tête de la ligne
-architecte) : à l'intégration, l'architecte le réaligne sur `"0043"` (0041 m10-connaissances, 0042 m7-studio-creatif, 0043 observabilite-mcp). Trois
+`ingestion_brouillons.genre` élargie à `courriel_contact` (remplacée en place sur SQLite). **Sur la ligne architecte actuelle, `down_revision = "0041"`** (chaîne 0040 → 0041 → 0044 → 0046 → 0049 ; la tête est 0049). Le
+`"0040"` et le réalignement sur `"0043"` annoncés ici à l'origine ne se sont pas produits : les numéros 0042 et 0043 n'existent pas. Trois
 tests épinglaient la tête « 0040 » : ils lisent désormais la tête alembic. La descente est refusée dès qu'une ligne existe.
 
 ## 10. Ce qui reste manuel

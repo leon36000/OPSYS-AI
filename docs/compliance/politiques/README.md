@@ -23,7 +23,7 @@ Les politiques suivantes sont exigées par le Plan maître §14.2. Elles doivent
 
 ## Renvois
 
-- [`GABARIT-EFVP.md`](../GABARIT-EFVP.md) — gabarit d'évaluation des facteurs de vie privée et calendrier de destruction.
+- [`GABARIT-EFVP.md`](../efvp/GABARIT-EFVP.md) — gabarit d'évaluation des facteurs de vie privée et calendrier de destruction.
 - Registre d'incidents et procédure de notification CAI (Plan maître §14.2).
 
 ## Responsable
