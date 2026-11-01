@@ -295,11 +295,14 @@ def test_les_sources_citees_dans_les_donnees_existent_dans_le_depot(donnees):
 
 def test_les_licences_de_la_documentation_du_depot_concordent_avec_les_donnees(donnees):
     lignes = (RACINE / "docs/research/INGREDIENTS.md").read_text(encoding="utf-8").splitlines()
-    assert "NumPy BSD-3-Clause" in lignes[234] and "Tokenizers Apache-2.0" in lignes[234] and "ONNX Runtime MIT" in lignes[234]
-    assert lignes[357].startswith("| **PyVRP** | MIT")
-    for nom, ligne in (("numpy", 235), ("onnxruntime", 235), ("tokenizers", 235), ("pyvrp", 358)):
+    # Les numéros de ligne cités par les données sont RELUS dans le document (il bouge quand d'autres chantiers l'éditent) :
+    # le test échoue si la citation ne pointe plus la bonne ligne.
+    ligne_ml = next(i for i, texte in enumerate(lignes, 1) if "NumPy BSD-3-Clause" in texte)
+    assert "Tokenizers Apache-2.0" in lignes[ligne_ml - 1] and "ONNX Runtime MIT" in lignes[ligne_ml - 1]
+    ligne_vrp = next(i for i, texte in enumerate(lignes, 1) if texte.startswith("| **PyVRP** | MIT"))
+    for nom, ligne in (("numpy", ligne_ml), ("onnxruntime", ligne_ml), ("tokenizers", ligne_ml), ("pyvrp", ligne_vrp)):
         assert nom in donnees[0]["declarations_documentation"]["pypi"]
-        assert f"l.{ligne}" in donnees[0]["declarations_documentation"]["pypi"][nom]["source"]
+        assert f"l.{ligne} " in donnees[0]["declarations_documentation"]["pypi"][nom]["source"], (nom, ligne)
 
 
 def test_le_plugin_wordpress_declare_bien_sa_licence_et_reste_isole():

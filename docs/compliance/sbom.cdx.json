@@ -81599,7 +81599,7 @@
     },
     {
      "name": "opsys:source-licence",
-     "value": "docs/research/INGREDIENTS.md l.235 (« NumPy BSD-3-Clause »), déclaration écrite non revérifiée à la source ; vaut pour les deux versions du verrou"
+     "value": "docs/research/INGREDIENTS.md l.244 (« NumPy BSD-3-Clause »), déclaration écrite non revérifiée à la source ; vaut pour les deux versions du verrou"
     }
    ],
    "purl": "pkg:pypi/numpy@2.3.5",
@@ -81634,7 +81634,7 @@
     },
     {
      "name": "opsys:source-licence",
-     "value": "docs/research/INGREDIENTS.md l.235 (« NumPy BSD-3-Clause »), déclaration écrite non revérifiée à la source ; vaut pour les deux versions du verrou"
+     "value": "docs/research/INGREDIENTS.md l.244 (« NumPy BSD-3-Clause »), déclaration écrite non revérifiée à la source ; vaut pour les deux versions du verrou"
     }
    ],
    "purl": "pkg:pypi/numpy@2.4.6",
@@ -82363,7 +82363,7 @@
     },
     {
      "name": "opsys:source-licence",
-     "value": "docs/research/INGREDIENTS.md l.358 (« MIT, LICENSE.md du dépôt PyVRP lu le 2026-09-28 ») ; commentaire de pyproject.toml et de deploy/Dockerfile"
+     "value": "docs/research/INGREDIENTS.md l.367 (« MIT, LICENSE.md du dépôt PyVRP lu le 2026-09-28 ») ; commentaire de pyproject.toml et de deploy/Dockerfile"
     }
    ],
    "purl": "pkg:pypi/pyvrp@0.14.0",
@@ -82821,7 +82821,7 @@
     },
     {
      "name": "opsys:source-licence",
-     "value": "docs/research/INGREDIENTS.md l.235 (« Tokenizers Apache-2.0 ») et capture LICENSE docs/research/R35-2026-10-02/captures/tokenizers-LICENSE*.gz"
+     "value": "docs/research/INGREDIENTS.md l.244 (« Tokenizers Apache-2.0 ») et capture LICENSE docs/research/R35-2026-10-02/captures/tokenizers-LICENSE*.gz"
     }
    ],
    "purl": "pkg:pypi/tokenizers@0.23.2",
@@ -83099,7 +83099,7 @@
    }
   ]
  },
- "serialNumber": "urn:uuid:3050db5b-7191-5ebb-8334-768fad3e4825",
+ "serialNumber": "urn:uuid:550624d8-e53d-5a48-917a-7a850514440e",
  "specVersion": "1.5",
  "version": 1
 }

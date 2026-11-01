@@ -75,7 +75,7 @@ def _anciennes():
     )} | {
         nom for nom in META.tables
         if nom.startswith(("fournisseurs_", "coffre_", "ingestion_", "avatars_", "courriel_", "connaissances_",
-                           "planificateur_", "m8_ent_", "pont_bi_"))
+                           "planificateur_", "m8_ent_", "pont_bi_", "retention_", "graphe_"))
     }
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]

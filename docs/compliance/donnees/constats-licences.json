@@ -4,22 +4,22 @@
   "pypi": {
    "numpy": {
     "niveau": "documentation_depot",
-    "source": "docs/research/INGREDIENTS.md l.235 (« NumPy BSD-3-Clause »), déclaration écrite non revérifiée à la source ; vaut pour les deux versions du verrou",
+    "source": "docs/research/INGREDIENTS.md l.244 (« NumPy BSD-3-Clause »), déclaration écrite non revérifiée à la source ; vaut pour les deux versions du verrou",
     "spdx": "BSD-3-Clause"
    },
    "onnxruntime": {
     "niveau": "documentation_depot",
-    "source": "docs/research/INGREDIENTS.md l.235 (« ONNX Runtime MIT ») et capture LICENSE docs/research/R35-2026-10-02/captures/onnxruntime-LICENSE*.gz",
+    "source": "docs/research/INGREDIENTS.md l.244 (« ONNX Runtime MIT ») et capture LICENSE docs/research/R35-2026-10-02/captures/onnxruntime-LICENSE*.gz",
     "spdx": "MIT"
    },
    "pyvrp": {
     "niveau": "documentation_depot",
-    "source": "docs/research/INGREDIENTS.md l.358 (« MIT, LICENSE.md du dépôt PyVRP lu le 2026-09-28 ») ; commentaire de pyproject.toml et de deploy/Dockerfile",
+    "source": "docs/research/INGREDIENTS.md l.367 (« MIT, LICENSE.md du dépôt PyVRP lu le 2026-09-28 ») ; commentaire de pyproject.toml et de deploy/Dockerfile",
     "spdx": "MIT"
    },
    "tokenizers": {
     "niveau": "documentation_depot",
-    "source": "docs/research/INGREDIENTS.md l.235 (« Tokenizers Apache-2.0 ») et capture LICENSE docs/research/R35-2026-10-02/captures/tokenizers-LICENSE*.gz",
+    "source": "docs/research/INGREDIENTS.md l.244 (« Tokenizers Apache-2.0 ») et capture LICENSE docs/research/R35-2026-10-02/captures/tokenizers-LICENSE*.gz",
     "spdx": "Apache-2.0"
    }
   }
