@@ -1,4 +1,4 @@
-"""Installation PostgreSQL de la mémoire malgré les registres inactifs 0034/0035/0036."""
+"""Installation PostgreSQL de la mémoire malgré les registres inactifs 0034/0035/0036 et les migrations suivantes."""
 
 import importlib.util
 import os
@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy.exc import IntegrityError
 
 from opsys import stockage
@@ -25,7 +26,13 @@ from opsys.stockage.schema import (
     WCT_ATTENTES_AUDIT,
 )
 
+
 # Même propriétaire de fixture que le reste des tests PostgreSQL M10.
+def _tete() -> str:
+    """Tête alembic courante : « head » suit les migrations ajoutées après 0036, jamais un numéro écrit en dur."""
+    return ScriptDirectory.from_config(stockage._config()).get_current_head()
+
+
 _SPEC = importlib.util.spec_from_file_location(
     "opsys_m10_migrations_pg_fixture", Path(__file__).resolve().parents[3] / "tests/fixtures/memoire/doubles.py"
 )
@@ -78,7 +85,7 @@ def test_pg_migrations_historique_wct_et_retour_arriere(pg):
     assert c.execute(sa.select(sa.func.count()).select_from(SERVICE_POLITIQUES)).scalar_one() == 0
     assert c.execute(sa.select(sa.func.count()).select_from(SERVICE_AUDIT)).scalar_one() == 0
     command.upgrade(cfg, "head")
-    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0036"
+    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == _tete()
     for table in (
         SERVICE_POLITIQUES,
         SERVICE_AUDIT,
@@ -169,7 +176,7 @@ def test_pg_downgrade_vide_et_transaction_annulee(pg):
     command.downgrade(cfg, "0033")
     assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0033"
     command.upgrade(cfg, "head")
-    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0036"
+    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == _tete()
 
 
 def test_pg_attestation_immuable_downgrade_refuse_et_port_ferme(pg):
@@ -225,7 +232,7 @@ def test_pg_attestation_immuable_downgrade_refuse_et_port_ferme(pg):
     assert c.execute(sa.select(sa.func.count()).select_from(SERVICE_POLITIQUES)).scalar_one() == 0
     with pytest.raises(RuntimeError, match="historique recalcul présent"), c.begin_nested():
         command.downgrade(cfg, "0033")
-    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0036"
+    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == _tete()
 
 
 def test_pg_downgrade_ne_perd_pas_une_insertion_concurrente(pg):
