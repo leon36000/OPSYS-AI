@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import Any
 
 from .. import journal_chaine
+from ..studio import portes
 from . import etats, garde_fous, modele
 from .etats import EtatPublication
 from .politique import PolitiqueSas
@@ -227,9 +228,10 @@ def soumettre(
     politique: PolitiqueSas,
     maintenant: datetime,
     horodatage: str,
+    actifs: portes.Resolveur | None = None,
 ) -> dict[str, Any]:
     """brouillon -> en_attente_approbation, SI tous les contrôles passent (sinon rien n'est écrit et le refus nomme les
-    règles).
+    règles). `actifs` : résolveur du registre des actifs du studio créatif (voir `garde_fous.controler_medias`).
     """
     tous, refus = charger(journal)
     if refus is not None:
@@ -251,6 +253,7 @@ def soumettre(
         politique,
         maintenant,
         horaires_du_compte(tous, publication.reseau, publication.compte, exclure=publication_id),
+        actifs,
     )
     if problemes:
         return {"accepte": False, "refus": problemes}
@@ -285,6 +288,7 @@ def approuver(
     politique: PolitiqueSas,
     maintenant: datetime,
     horodatage: str,
+    actifs: portes.Resolveur | None = None,
 ) -> dict[str, Any]:
     """en_attente_approbation -> approuve -> planifie. Rien ne s'écrit si un contrôle échoue."""
     if (
@@ -327,6 +331,7 @@ def approuver(
         politique,
         maintenant,
         horaires_du_compte(tous, publication.reseau, publication.compte, exclure=publication_id),
+        actifs,
     )
     if problemes:
         return {"accepte": False, "refus": problemes}

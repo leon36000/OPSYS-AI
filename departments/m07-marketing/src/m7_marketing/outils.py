@@ -35,7 +35,7 @@ from opsys import contexte as contexte_appel
 from opsys import stockage, taxonomie
 from opsys.outils import Autonomie, Niveau, Outil
 
-from . import depenses_marketing, performance_campagnes, publication_outils
+from . import depenses_marketing, performance_campagnes, publication_outils, studio_outils
 from . import growth as growth_service
 from . import local as local_service
 from .ads import intelligence as ads_intelligence
@@ -66,6 +66,7 @@ from .social.postiz_adapter import (
     PostizAdapter,
     SocialPost,
 )
+from .studio import actifs as studio_actifs
 from .usine import decision as usine_decision
 from .usine import plateformes as usine_plateformes
 from .usine import registre as usine_registre
@@ -607,6 +608,12 @@ def analyser_concurrents(
 _CONTENU_FICHIER_MAX = 20_000
 
 
+def _actifs_studio():
+    """Résolveur du registre des actifs du studio créatif : une image de site qui est un actif du studio doit être
+    approuvée (N3), un fond généré brut ne se publie jamais (`studio.portes`). Toujours fourni aux chaînes du site."""
+    return studio_actifs.resolveur_du_registre(stockage.maillons(*studio_actifs.REGISTRE))
+
+
 def _site_source(
     schema: dict[str, Any] | None, schema_demo: str | None, concurrents: list[str] | None
 ) -> tuple[Any, dict[str, bytes], dict[str, str], dict[str, Any] | None]:
@@ -626,7 +633,7 @@ def valider_schema_site(
     charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
     if refus is not None:
         return refus
-    construit = site_service.construire_site(charge, actifs, concurrents=textes)
+    construit = site_service.construire_site(charge, actifs, concurrents=textes, actifs_studio=_actifs_studio())
     if not construit["accepte"]:
         return construit
     return {"accepte": True, "site_id": charge["site_id"], "refus": [], "qa_conforme": construit["qa"]["conforme"]}
@@ -642,7 +649,7 @@ def generer_site_statique(
     charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
     if refus is not None:
         return refus
-    construit = site_service.construire_site(charge, actifs, concurrents=textes)
+    construit = site_service.construire_site(charge, actifs, concurrents=textes, actifs_studio=_actifs_studio())
     if not construit["accepte"]:
         return construit
     fichiers, qa = construit["fichiers"], construit["qa"]
@@ -684,7 +691,8 @@ def preparer_paquet_site(
     charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
     if refus is not None:
         return refus
-    prepare = site_service.preparer_paquet(charge, actifs, version, cible, concurrents=textes)
+    prepare = site_service.preparer_paquet(charge, actifs, version, cible, concurrents=textes,
+                                           actifs_studio=_actifs_studio())
     if not prepare["accepte"]:
         return {cle: prepare[cle] for cle in ("accepte", "refus")}
     ecrit = site_service.ecrire_paquet(prepare, site_service.dossier_site(charge["site_id"]) / "paquets")
@@ -713,7 +721,8 @@ def demander_publication_site(
     charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
     if refus is not None:
         return refus
-    resultat = site_service.demander_publication(charge, actifs, version, empreinte_archive, cible, concurrents=textes)
+    resultat = site_service.demander_publication(charge, actifs, version, empreinte_archive, cible, concurrents=textes,
+                                                 actifs_studio=_actifs_studio())
     if resultat.get("accepte") and "plan" in resultat:
         resultat = {**resultat, "plan": _plan_resume(resultat["plan"])}
     return resultat
@@ -1860,4 +1869,5 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T3,
         ),
         *publication_outils.outils(),
+        *studio_outils.outils(),
     )

@@ -81,6 +81,7 @@ packages = [
     "m7_marketing.seo",
     "m7_marketing.site",
     "m7_marketing.social",
+    "m7_marketing.studio",
     "m7_marketing.usine",
     "m7_marketing.utm",
     "m7_marketing.wordpress",

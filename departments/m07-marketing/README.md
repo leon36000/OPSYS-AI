@@ -289,3 +289,15 @@ doubles de test seulement. Rien ne publie ni ne dépense : les approbations sont
 `src/m7_marketing/sas_social/`, `publication_outils.py` ; vecteurs partagés : `contracts/opsys-connect-vecteurs.v1.json` ;
 tests : `tests/wordpress/`, `tests/sas_social/`, `tests/test_outils_publication.py`. Sécurité, modèle de menace, exigences d'accès
 par réseau (à vérifier) et limites : `docs/architecture/M7-WORDPRESS-SOCIAL.md`.
+
+## Studio créatif gouverné : images, logos, matériel imprimable (2026-11-01)
+
+Brief créatif en données structurées (téléphone, adresse, licence RBQ, NEQ, prix jamais confiés à un modèle), sélection du
+modèle par le registre de fournisseurs existant sous la politique de licence (seuil de revenu, territoire, service à des tiers,
+usage commercial), génération en port (doubles de test seulement : **aucun vrai modèle n'a produit d'image**), provenance
+append-only (modèle, version, graine, invite, licence), composition déterministe par gabarits (carte d'affaires, affiche,
+bannière, couverture ; SVG, PNG, PDF RVB ; polices OFL épinglées), contrôle qualité avec lecture de la sortie (OCR réel non
+exécuté : doubles, dits), revue humaine N3, et portes du sas social et du site (un visuel non composé, non contrôlé ou non
+approuvé est refusé). Logos : concept vectoriel et avertissement (aucune protection juridique promise). Code :
+`src/m7_marketing/studio/`, `studio_outils.py` ; tests : `tests/studio/` ; documentation, matrice des licences, limites et plan
+Nexora : `docs/architecture/M7-STUDIO-CREATIF.md`.

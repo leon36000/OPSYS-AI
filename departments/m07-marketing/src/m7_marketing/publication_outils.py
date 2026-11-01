@@ -30,6 +30,7 @@ from opsys.outils import Autonomie, Niveau, Outil
 from . import journal_chaine
 from .sas_social import comptes, etats, modele, politique, reseaux
 from .sas_social import service as sas
+from .studio import actifs as actifs_studio
 from .usine import service as usine_service
 from .wordpress import flux, sites
 
@@ -51,6 +52,14 @@ REJ_HORODATAGE = "REJ-PUBLICATION-HORODATAGE"
 
 def _journal(registre: tuple[str, str]):
     return stockage.maillons(*registre)
+
+
+def _actifs_studio():
+    """Le résolveur du registre des actifs du studio créatif : un média « composition déterministe » doit être un visuel
+    approuvé par une personne, et un actif du studio ne se présente jamais sous une autre origine (`studio.portes`).
+    Fourni à CHAQUE contrôle du sas par les outils : un retrait de cet argument est une régression (test de bout
+    en bout)."""
+    return actifs_studio.resolveur_du_registre(_journal(actifs_studio.REGISTRE))
 
 
 def _horodatage(horodatage: str) -> tuple[str, datetime] | dict[str, Any]:
@@ -287,6 +296,7 @@ def soumettre_publication_sociale(publication_id: str, horodatage: str) -> dict[
         POLITIQUE,
         instant[1],
         instant[0],
+        _actifs_studio(),
     )
 
 
@@ -309,6 +319,7 @@ def _approuver_publication(
         POLITIQUE,
         instant[1],
         instant[0],
+        _actifs_studio(),
     )
     if resultat.get("accepte"):
         resultat = {**resultat, "statut": STATUT_APPROUVEE}

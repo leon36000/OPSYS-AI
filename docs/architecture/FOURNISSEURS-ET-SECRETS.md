@@ -139,6 +139,10 @@ opsys-metier coffre jeton <nom> --porteur m07-marketing --usage connecteur:googl
 
 Une valeur passée en argument (`--valeur`, positionnel) est refusée sans être recopiée dans l’erreur.
 
+Premier consommateur des capacités `image` et `video` : le studio créatif de M7 ([M7-STUDIO-CREATIF.md](M7-STUDIO-CREATIF.md)) ;
+il appelle `registre.resoudre` et `politique.evaluer` (aucune copie), refuse tout repli, fige un instantané de licence sans le
+revenu du client dans la provenance et revérifie la licence à chaque étape. Aucun adaptateur de modèle réel n'est encore branché.
+
 ## 6. Limites connues
 
 - Les consommateurs existants (passerelle LiteLLM et paliers, STT M1, embeddings M10, OCR) ne lisent pas encore

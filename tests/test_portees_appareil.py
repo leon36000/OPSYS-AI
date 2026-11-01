@@ -236,6 +236,28 @@ FERMES_A_TOUS = {
     "m7_demander_annonce_payante": "annonce payante N4 (engagement de dépense) : file d'approbation du propriétaire",
     "m7_annuler_publication_sociale": "retrait de la file par l'agent ; une publication sortie ne se retire pas d'ici",
     "m7_lire_file_publication_sociale": "file du sas (états, erreurs, comptes) ; lue par les agents et la console",
+    "m7_preparer_brief_creatif": (
+        "brief créatif rédigé par l'agent (N2) : éléments critiques "
+        "structurés, marque posée par l'outil"
+    ),
+    "m7_demander_fond_studio": "demande de génération consignée par l'agent (N2) ; aucun modèle appelé par l'outil",
+    "m7_composer_visuel_studio": "composition par gabarit déterministe par l'agent (N2) ; pas une action de téléphone",
+    "m7_controler_visuel_studio": "contrôle qualité (lecture de la sortie) par l'agent (N2) ; rapport signé",
+    "m7_demander_revue_visuel_studio": "mise en revue par l'agent (N2) après un contrôle conforme",
+    "m7_approuver_visuel_studio": (
+        "approbation d'un visuel ou d'un logo (N3) : file d'approbation du "
+        "propriétaire, jamais exécutée"
+    ),
+    "m7_retirer_visuel_studio": (
+        "rejet ou retrait d'un visuel par l'agent ou la file ; une publication "
+        "sortie ne se retire pas d'ici"
+    ),
+    "m7_vectoriser_logo_studio": "concept de logo vectoriel par l'agent (N2) ; aucune protection juridique promise",
+    "m7_exporter_visuel_vers_site": (
+        "copie d'un visuel approuvé vers le dossier d'actifs d'un site du "
+        "serveur ; agents seulement"
+    ),
+    "m7_lire_studio": "briefs, actifs, rapports et provenance du studio ; lus par les agents et la console",
     "m10_affaire_de_la_session": "lien session -> affaire : lu par le moteur de contexte du core seulement",
 }
 
