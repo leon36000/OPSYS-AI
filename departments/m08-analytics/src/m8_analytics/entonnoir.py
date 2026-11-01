@@ -446,6 +446,21 @@ def _manques_entonnoir_vide(metric_id: str) -> list[dict[str, str]]:
     ]
 
 
+def dernier_fait_le(entrees: list[dict[str, Any]], metric_id: str) -> str | None:
+    """L'instant (tel que reçu) du fait le plus récent parmi ceux dont la métrique a besoin (``_SOURCES_REQUISES``), ou
+    ``None`` s'il n'y en a aucun de lisible. C'est la date à laquelle la fraîcheur d'une mesure s'apprécie (M8.5,
+    M8.8) :
+    M8 n'a pas d'horloge, il dit jusqu'où vont les faits qui portent la mesure."""
+    par_type = _par_type(entrees)
+    candidats = []
+    for type_entree in _SOURCES_REQUISES.get(metric_id, ()):
+        for fait in par_type[type_entree]:
+            instant = instant_lu(fait.get("horodatage"))
+            if instant is not None:
+                candidats.append((instant, fait["horodatage"]))
+    return max(candidats, key=lambda paire: paire[0])[1] if candidats else None
+
+
 def est_vide(entrees: list[dict[str, Any]]) -> bool:
     """Vrai si ``entrees`` ne porte aucun fait de l'entonnoir : M8 ne peut alors pas dire si l'entreprise n'a rien fait
     ou si le bus n'a rien livré. La règle de ``mesurer``, offerte aux mesures qui lisent aussi l'entonnoir (T4.17-e)."""
@@ -598,6 +613,7 @@ __all__ = [
     "charger_definitions",
     "cles_unicite",
     "construire_mesure",
+    "dernier_fait_le",
     "est_vide",
     "etat_des_devis",
     "evaluer_seuils",

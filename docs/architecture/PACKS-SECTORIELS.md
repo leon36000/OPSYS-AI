@@ -33,7 +33,7 @@ cas sont des exceptions nommées de la garde (ci-dessous), pas du texte de promp
 - **Code et données du cœur** : catalogue de services de `opsys.taxonomie` (4 services), énumérés v1 gelés (6 copies),
   calendrier saisonnier de M7 (données), regex de matériaux et de métiers de M9 (`question_scenario.py`), motifs de
   `garde_fou_texte/engagements.py`, quelques commentaires et exemples de docstrings (réécrits).
-- **Évaluation** : 22 des 120 cas du corpus supposent le secteur (sur 10 départements) ; M9 garde en plus ses trois
+- **Évaluation** : 22 des 130 cas du corpus supposent le secteur (sur 10 départements) ; M9 garde en plus ses trois
   corpus existants (référencés par empreinte, non réécrits).
 - **Hors périmètre de la garde (dette recensée)**, après généralisation, en fichiers texte portant au moins un terme :
   `departments/*/tests` 283 fichiers, `tests/` du socle 165, `docs/` 92, `mobile/` 40 (données de test, un commentaire),
@@ -167,8 +167,8 @@ Un cas du corpus qui suppose le secteur porte `pack: <id>` (22 cas, tous `renova
 exige que tout cas contenant un terme sectoriel porte l'étiquette (et que toute étiquette soit justifiée).
 `opsys-metier evaluer lancer --pack ID` (défaut : le pack du profil, sinon `generique-pme` ; `--tous-les-cas` : aucun
 filtre, diagnostic) écarte les cas d'un autre pack et **les nomme dans le rapport** (`pack.cas_ecartes`, ligne du
-Markdown). Résultats (répondant `reference`, double déterministe, aucun modèle réel) : pack rénovation **120/120** ; pack
-générique 98/98 sur le sous-ensemble neutre, 22 écartés. Le corpus et son empreinte restent ceux du fichier entier.
+Markdown). Résultats (répondant `reference`, double déterministe, aucun modèle réel) : pack rénovation **130/130** ; pack
+générique 108/108 sur le sous-ensemble neutre, 22 écartés. Le corpus et son empreinte restent ceux du fichier entier.
 
 ## Ce qui reste (suivi explicite)
 

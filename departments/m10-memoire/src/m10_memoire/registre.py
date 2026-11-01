@@ -27,6 +27,7 @@ _TYPE_ENTREE_VALIDES = {
     "session_affaire_revoquee",  # retrait humain CAS d'une liaison de session, historique append-only
     "memoire_developpement",  # Tranche mémoire dev : événements, sources et relations dans le registre durable
     "provenance_documentaire",  # source métier autonome, sans affaire client implicite
+    "fait_analytique",  # M8.18 : analytique.py, consolidation des mesures d'entreprise publiée par M8 (registre dédié)
 }
 
 

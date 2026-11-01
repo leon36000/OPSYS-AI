@@ -1,0 +1,43 @@
+# Score de santé de l'entreprise (M8.11) : indice composite TRANSPARENT. Définition déclarative, versionnée par empreinte.
+#
+# Chaque composante est sourcée par des mesures du CATALOGUE FERMÉ (donc par les départements propriétaires) ; ses
+# pondérations sont DÉCLARÉES ici (entiers, somme 100 au niveau des composantes et au niveau des indicateurs de chacune) ;
+# l'échelle d'un indicateur (valeur « pire » = 0 point, valeur « cible » = 100 points, interpolation linéaire bornée) n'est PAS
+# ici : ce sont des seuils d'affaires que le propriétaire déclare (`department.yaml`, `configuration.sante.bornes`, VIDE à la
+# livraison, GATE propriétaire : DEFINITION-PRODUIT.md §13 point 11). Sans bornes, l'indicateur est « bornes à configurer » et
+# le score est INDÉTERMINÉ — jamais un faux score. De même si une mesure est non calculable, périmée ou de fraîcheur inconnue.
+#
+# Les pondérations proposées ci-dessous sont une PROPOSITION de l'architecte, à valider par le propriétaire : le score les
+# affiche et dit si elles ont été validées (`configuration.sante.ponderations_validees_par`). `proxy: true` dit qu'un indicateur
+# n'est qu'une approximation (aucune mesure de satisfaction n'existe aujourd'hui : M1 plaintes n'est pas consommé par M8).
+schema: opsys.m8.sante/v1
+version: 1
+declare_par: "architecte OPSYS-AI (proposition à valider par le propriétaire)"
+mention: "Indicateur de gestion préparatoire, non un avis. À valider auprès d'un comptable (CPA) / professionnel qualifié avant toute décision financière."
+composantes:
+  - id: finance
+    libelle: "Finance"
+    poids: 25
+    indicateurs:
+      - {mesure: m8_cash_libre_cad, poids: 100}
+  - id: ventes
+    libelle: "Ventes"
+    poids: 25
+    indicateurs:
+      - {mesure: m8_taux_acceptation_pct, poids: 60}
+      - {mesure: m8_devis_sans_reponse, poids: 40}
+  - id: operations
+    libelle: "Opérations"
+    poids: 20
+    indicateurs:
+      - {mesure: m8_ecart_duree_equipe_pct, poids: 100}
+  - id: qualite
+    libelle: "Qualité"
+    poids: 15
+    indicateurs:
+      - {mesure: m8_chantiers_signal_materiaux, poids: 100}
+  - id: clientele
+    libelle: "Clientèle"
+    poids: 15
+    indicateurs:
+      - {mesure: m8_delai_lead_acceptation_jours, poids: 100, proxy: true}

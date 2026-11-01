@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 232 outils sur 431 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 233 outils sur 442 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -123,7 +123,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (231 outils) : §9.5 + employé + vendeur
+### `admin` (232 outils) : §9.5 + employé + vendeur
 
 Les 17 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -188,6 +188,7 @@ Les 17 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M8 | `m8_lire_vue_executive` (T0) | §9.5 M8 « tableau de bord exécutif » (T4.19) : l'entonnoir commercial, la marge réelle que M5 a publiée, le stock à commander que M6 publie, le cash libre ou ce qui en manque. Règles plus bas (« La vue exécutive de M8 »). |
 | M8 | `m8_lire_mesures_contenus` (T0) | §9.5 M8 « tableau de bord exécutif » et §7 M7 mobile « tableau de bord marketing » (T4.17-e) : ce que chaque contenu exporté par M7 a amené (leads de M1, devis envoyés et acceptés de M3, par clé `utm_content`), une ligne par contenu, par pages. Impressions et clics : aucune source, « non calculable ». Règles plus bas (« La mesure par contenu de M8 »). |
 | M8 | `m8_lire_provenance_m5_appareil` (T0/N0) | Publications M5 et reçus/faits M8 rapprochés, cash global ou rentabilité par WCT ; identité appareil admin active revérifiée avant copies. Pages courantes, références/dates natives et inconnus explicites, sans réception, calcul financier, écriture ou artefact. |
+| M8 | `m8_lire_wallboard` (T0/N0) | §9.5 M8 « wallboard » (M8.8) : un tableau de bord en direct (définition déclarative : mesures du catalogue fermé, seuils d'affichage, rafraîchissement), évalué avec la fraîcheur de chaque mesure ; une mesure périmée, inconnue ou non calculable est dite en toutes lettres, jamais montrée comme à jour. Aucune donnée personnelle. Admin DEVICE confirmé en base ; la console le lit avec le rôle `admin` relu avant et après. Règles plus bas (« La couche analytique de M8 »). |
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_preparer_dossier_direction` (T0/N0) | Dossier préparatoire sourcé de M9.10 : question et modules attendus explicites, faits et contradictions historiques cités, données manquantes signalées. Appareil admin actif revérifié avant lecture ; ni employé ni vendeur. Lecture sans effet métier, actualité non évaluée et dossier non validé ; dépassement de sortie refusé sans artefact ni contenu partiel. Aucun rapport complet à 21 sections ni nouveau parcours mobile certifié. |
 | M9 | `m9_diagnostiquer_dossier_direction` (T0/N0) | Produit le dossier depuis une unique capture serveur autorisée, puis compare ses observations à une référence explicite avec fuseau. Admin SQL courant avant lecture ; aucun dossier fourni par le client. Rend dossier et diagnostic entiers ou refuse sans artefact ; observation antérieure/future ne signifie pas actualité métier. |
@@ -464,7 +465,21 @@ Les plus sensibles :
 | `m10_rechercher_connaissances`, `m10_lire_connaissance`, `m10_lister_sources_connaissance` (T0/N0), `m10_ingerer_source_connaissance`, `m10_reviser_source_connaissance`, `m10_publier_source_connaissance`, `m10_retirer_source_connaissance`, `m10_reindexer_connaissances` (T1/**N2**), `m10_valider_source_connaissance` (T1/**N3**) ; outils communs `opsys_connaissances_rechercher`, `opsys_connaissances_lire` (T0/N0, sans déclaration) | Bases de connaissances par département, sourcées et versionnées (`docs/architecture/CONNAISSANCES.md`). **Aucun rôle d'appareil, pour aucun des onze** : une identité d'appareil qui atteindrait les lectures est refusée dans le code (`REJ-CONN-APPAREIL-FERME`). Lecture : un département lit sa base et celles de ses `dependances` (relation déjà déclarée dans les manifestes), sources publiées seulement, texte neutralisé (donnée non fiable). Écritures N2 : brouillon, revue, publication d'un domaine non réglementé, retrait motivé, réindexation, toutes append-only. La publication d'un domaine réglementé (comptabilité, fiscalité, juridique, investissement) ou d'une source suspecte (injection) est le seul N3 : une personne l'approuve dans la file (`nathan_owner`), jamais un agent seul, même en mode « autonome ». |
 | `m1_lister_comptes_courriel`, `m1_lire_courriels_recus`, `m1_lire_reponse_courriel` (T0/N0), `m1_preparer_reponse_courriel`, `m1_demander_envoi_courriel` (T1/N2) | Courriel de M1 / Léa, câblage des connecteurs (`docs/architecture/CABLAGE-CONNECTEURS.md`). **Aucun rôle d'appareil, pour aucun des cinq** : lecture de la boîte (texte NEUTRALISÉ, donnée non fiable), brouillon de réponse (destinataire imposé : l'expéditeur du courriel reçu), demande d'envoi. L'ENVOI n'est le geste d'aucun outil de M1 : `m1_demander_envoi_courriel` ouvre une demande N3 dans le sas (`opsys_courriel_approuver_envoi`, outil commun N3 caché aux agents, exécuté par `approbations.decider`) ; la direction (`nathan_owner`) approuve l'empreinte exacte, puis l'exécuteur `courriel.envoi` du planificateur envoie une seule fois avec le jeton. |
 | `m2_valider_brouillon_onboarding_contact_courriel` (T1/N3), `m2_lister_contacts_courriel_importes` (T0) | Contacts candidats tirés de l'historique d'une boîte courriel (genre de brouillon `courriel_contact`, `docs/architecture/INGESTION-ONBOARDING.md` §11). Aucun rôle d'appareil, comme les autres outils d'onboarding : confirmer ou écarter un contact est une décision humaine de la file d'approbation ; rien n'est écrit au CRM sans elle. |
+| `m8_lire_mesures`, `m8_lire_sante_entreprise`, `m8_lire_entrepot`, `m8_repondre_question`, `m8_contextualiser_mesure`, `m8_lire_pont_bi` (T0/N0), `m8_construire_entrepot`, `m8_enregistrer_sante_entreprise`, `m8_publier_faits_consolides` (T1/**N2**) | Couche analytique de M8 (M8.2, M8.11, M8.12, M8.14, M8.18 ; `docs/architecture/M8-OLIVIER.md`). **Aucun rôle d'appareil, pour aucun des neuf** (le seul ouvert à l'admin est `m8_lire_wallboard`, plus haut). Lectures : les mesures du catalogue fermé avec leur fraîcheur, le score de santé (indéterminé plutôt que faux), l'état de l'entrepôt, le copilote en langage naturel (catalogue fermé, refus typés, reçu), le contexte de mémoire (donnée non fiable), l'état du pont BI (métadonnées, jamais un secret). Écritures N2 : entrepôt DÉRIVÉ et reconstructible, historique append-only du score, événement interne vers M10. **Aucun outil d'agent n'émet, ne lit ni ne révoque un jeton BI** : l'émission est un geste humain (N3, `opsys-metier pont-bi jeton-emettre`). |
 | `m7_lire_depenses_marketing` (T0) | Dépenses marketing (`m7.depenses_marketing`, CAD) lues des relevés sourcés du registre de M7 : `CONNUE`, `PARTIELLE` ou `NON_BRANCHEE`, jamais un zéro à la place d'une absence. Aucun appareil (comme tout outil sans déclaration) ; l'accès serveur reprend la garde de `m7_lire_performance_campagnes` (admin ou propriétaire de console confirmé, ou approbation serveur du propriétaire). Aucun outil d'écriture : l'ingestion des relevés reste une décision produit. Contrat : `departments/m07-marketing/docs/M7-DEPENSES-MARKETING.md`. |
+
+### La couche analytique de M8 (M8.2, M8.8, M8.11, M8.12, M8.14, M8.18)
+
+Un seul outil de cette couche est ouvert à un appareil : `m8_lire_wallboard` (§9.5 admin : « wallboard »). Les neuf autres sont
+fermés aux appareils, y compris admin, et restent des outils d'agent (serveur MCP de M8).
+
+| Règle | Détail |
+|---|---|
+| `roles_appareil = {"admin"}` pour `m8_lire_wallboard` seulement, T0/N0 | Le rôle du jeton est REVÉRIFIÉ en base (personne active portant encore `admin`, même garde que la vue exécutive) avant toute lecture ; employé, vendeur, personne inconnue ou désactivée : `REJ-IDENTITE-APPAREIL-INVALIDE`. Un wallboard ne nomme que des rôles permis (`admin`, `nathan_owner`) : `REJ-WALLBOARD-ROLE-REFUSE` sinon. |
+| Mesures d'ENTREPRISE seulement | Le catalogue fermé (`departments/m08-analytics/definitions/m8-catalogue.v1.yaml`) ne contient aucune mesure personnelle : ni technicien, ni client, ni contact. Une tuile de wallboard ne peut donc pas en porter. |
+| Fraîcheur visible | Une mesure périmée, de fraîcheur inconnue ou non calculable est dite telle ; son seuil n'est pas évalué ; la bannière n'est jamais « ok ». |
+| Console | La page `/wallboards` n'ouvre rien de plus : session obligatoire, `admin` relu en base avant ET après chaque lecture (et à chaque envoi du flux SSE). |
+| Pont BI | Hors des rôles d'appareil : un jeton BI est un secret du coffre à portée de LECTURE dédiée, présenté en en-tête sur les routes `/pont-bi/…` (GET seulement), jamais un jeton d'appareil. Émission et révocation : une personne admin ou propriétaire, jamais un agent. |
 
 ## Contrôle d'accès par personne et par intervention (T1.4-k, M4 et M6)
 

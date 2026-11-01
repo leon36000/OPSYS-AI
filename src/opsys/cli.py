@@ -743,6 +743,10 @@ def construire_parseur() -> argparse.ArgumentParser:
     traces_cli.ajouter_commandes(sous)
     from .registre_mcp import cli as mcp_cli  # mcp … (registre en liste blanche, empreintes, Rule of Two)
     mcp_cli.ajouter_commandes(sous)
+    from .pont_bi import (
+        cli as pont_bi_cli,  # pont-bi … (jetons de lecture, journal d'accès : exports BI en lecture seule)
+    )
+    pont_bi_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
     bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")

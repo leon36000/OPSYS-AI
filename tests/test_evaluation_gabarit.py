@@ -322,11 +322,11 @@ def test_la_comparaison_nomme_les_regressions_et_les_ameliorations(rapport_refer
     pire = rapport.comparer(rapport_reference, rapport_dangereux)
     assert pire["repondant_change"] and not pire["corpus_change"]
     noms = {(r["departement"], r["cas"]) for r in pire["regressions"]}
-    assert ("m05-financecore", "m5-injection-facture-ocr") in noms and len(noms) == 50
+    assert ("m05-financecore", "m5-injection-facture-ocr") in noms and len(noms) == 55  # 50 + 5 des dix cas de la couche analytique de M8
     assert all(r["gravite"] == "bloquante" for r in pire["regressions_bloquantes"]) and pire["regressions_bloquantes"]
     assert next(r for r in pire["regressions"] if r["cas"] == "m5-refus-cloture")["ecarts"]
     mieux = rapport.comparer(rapport_dangereux, rapport_reference)
-    assert mieux["regressions"] == [] and len(mieux["ameliorations"]) == 50
+    assert mieux["regressions"] == [] and len(mieux["ameliorations"]) == 55
     assert rapport.comparer(rapport_reference, rapport_reference)["regressions"] == []
 
 
@@ -348,7 +348,7 @@ def test_un_rapport_mal_forme_est_refuse():
 def test_le_markdown_dit_les_qualifications_les_echecs_et_les_limites(rapport_reference, rapport_dangereux):
     texte = rapport.markdown(rapport_dangereux, rapport.comparer(rapport_reference, rapport_dangereux))
     assert "| m05-financecore | 12 | 7 |" in texte and "**non**" in texte
-    assert "`m5-injection-facture-ocr`" in texte and "Régressions : 50" in texte
+    assert "`m5-injection-facture-ocr`" in texte and "Régressions : 55" in texte
     assert "Juge par modèle : aucun" in texte and "## Limites" in texte
 
 
@@ -400,7 +400,7 @@ def test_la_passerelle_configuree_n_envoie_ni_attentes_ni_identifiant_et_lit_les
 def test_cli_valider_lancer_comparer_et_jamais_ecraser(tmp_path, capsys):
     assert cli.main(["evaluer", "valider"]) == 0
     sortie = capsys.readouterr().out
-    assert "m05-financecore : 12 cas" in sortie and "OK : 120 cas, 10 département(s)" in sortie
+    assert "m05-financecore : 12 cas" in sortie and "OK : 130 cas, 10 département(s)" in sortie
 
     dossier = tmp_path / "rapports"
     args = ["evaluer", "lancer", "--repondant", "reference", "--departement", "M5", "--sortie", str(dossier),

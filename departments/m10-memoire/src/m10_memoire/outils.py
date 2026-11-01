@@ -57,6 +57,7 @@ from opsys.stockage.schema import REGISTRES
 
 from . import (
     amont,
+    analytique,
     audit,
     catalogue_references,
     classification,
@@ -86,6 +87,10 @@ from . import confidentialite as regle_confidentialite
 _REGISTRE_EVENEMENTS = registre.Registre(maillons=stockage.maillons("m10-memoire", "evenements"))
 _REGISTRE_AFFAIRES = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
 _REGISTRES_NOMMES = {"evenements": _REGISTRE_EVENEMENTS, "affaires": _REGISTRE_AFFAIRES}
+# M8.18 : les faits analytiques consolidés que M8 publie. Registre à part (ni affaire, ni événement opérationnel),
+# hors de
+# `_REGISTRES_NOMMES` : une ReferenceMemoireM10 ne le nomme pas, et aucun paquet de contexte ne le lit.
+_REGISTRE_FAITS_ANALYTIQUES = registre.Registre(maillons=stockage.maillons("m10-memoire", "faits_analytiques"))
 
 _DECISION = {
     "type": "object",
@@ -386,6 +391,49 @@ def _consommateur_configuration(type_evenement):
     return recevoir
 
 
+class AnalytiqueRefuse(ValueError):
+    """Une consolidation de M8 est refusée par `analytique.memoriser` : champ absent ou hors de sa forme fermée.
+    Incohérence
+    entre le catalogue du socle et ce que M10 accepte de garder : le répartiteur réessaie puis met en quarantaine. Le
+    message
+    nomme le CHAMP, jamais sa valeur."""
+
+
+def _recevoir_faits_consolides(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m8.fait_consolide` (M8.18) : mémorise la consolidation des mesures d'entreprise de M8, une fois par
+    `evenement_id`, au registre `faits_analytiques` (FINANCIAL : jamais dans un paquet de contexte)."""
+    resultat, verdict = analytique.memoriser(dict(charge), _REGISTRE_FAITS_ANALYTIQUES)
+    if resultat is None:
+        raise AnalytiqueRefuse(
+            f"{analytique.TYPE_EVENEMENT} : fait refusé par M10 : {verdict['code']} ({verdict['detail']})")
+    maillon = resultat["maillon"]
+    return {
+        "memorise": True, "evenement_id": maillon["evenement_id"], "ligne_id": maillon["ligne_id"],
+        "producteur": analytique.PRODUCTEUR, "deja_memorise": resultat["deja_memorise"],
+        "n_mesures": len(maillon["mesures"]), "n_changements_definition": len(maillon["changements_definition"]),
+        "n_anomalies": len(maillon["anomalies"]),
+    }
+
+
+def lire_faits_analytiques(
+    limite: int = 8, decalage: int = 0, metric_id: str | None = None,
+) -> dict[str, Any]:
+    """Lecture admin des consolidations de M8 mémorisées (résumés paginés) ou, avec `metric_id`, la dernière valeur
+    mémorisée de cette mesure. Admin d'appareil confirmé en base avant tout registre ; sans identité (agent, console),
+    lecture interne."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    if metric_id is not None:
+        if not isinstance(metric_id, str) or not metric_id.startswith("m8_") or len(metric_id) > 80:
+            return _verdict("REJ-ANALYTIQUE-MESURE-INVALIDE", "metric_id : identifiant de mesure M8 attendu")
+        return analytique.derniere_valeur(_REGISTRE_FAITS_ANALYTIQUES, metric_id)
+    if type(limite) is not int or not 1 <= limite <= 8 or type(decalage) is not int or decalage < 0:
+        return _verdict(
+            "REJ-ANALYTIQUE-PAGINATION-INVALIDE", "limite entière de 1 à 8 et décalage entier positif ou nul")
+    return analytique.lister(_REGISTRE_FAITS_ANALYTIQUES, limite, decalage)
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M10 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
@@ -395,6 +443,7 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m6.variance_chantier": _recevoir_variance_chantier,
         "m5.rentabilite_chantier": _recevoir_rentabilite_chantier,
         **{type_evenement: _consommateur_amont(type_evenement) for type_evenement in etapes.types_consommes()},
+        analytique.TYPE_EVENEMENT: _recevoir_faits_consolides,
     }
 
 
@@ -1504,6 +1553,28 @@ def outils() -> tuple[Outil, ...]:
     """Conserve les déclarations historiques, ajoute les deux lecteurs T0 et les outils de connaissances."""
     return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
         *connaissances.outils_connaissances(),
+        Outil(
+            nom="m10_lire_faits_analytiques",
+            description=(
+                "Lit les faits analytiques consolidés que M8 a publiés à la mémoire (mesures d'entreprise avec valeur, "
+                "version de définition, fraîcheur et provenance) : les consolidations en résumé, paginées, ou la "
+                "dernière "
+                "valeur mémorisée d'une mesure (metric_id). Niveau FINANCIAL : jamais dans un paquet de contexte. "
+                "Lecture pure ; un appareil doit être l'admin confirmé en base."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+                    "decalage": {"type": "integer", "minimum": 0},
+                    "metric_id": {"type": ["string", "null"], "maxLength": 80},
+                },
+                "additionalProperties": False,
+            },
+            fonction=lire_faits_analytiques,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
+        ),
         Outil(
             nom="m10_lister_documents_affaire_appareil",
             description="Index documentaire courant d'une affaire pour l'admin appareil, sans corps ni effet de bord.",

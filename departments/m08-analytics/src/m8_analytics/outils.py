@@ -66,6 +66,7 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
     alertes,
+    analytique_outils,
     cash_libre,
     contenus,
     entonnoir,
@@ -200,6 +201,8 @@ _NOM_REGISTRE_FAITS = "faits_chantier"
 _NOM_REGISTRE_ENTONNOIR = "faits_entonnoir"
 _NOM_REGISTRE_CONTENUS = "faits_contenus"
 _NOM_REGISTRE_CASH_LIBRE = "faits_cash_libre"
+_NOM_REGISTRE_HISTORIQUE_SANTE = "historique_sante"
+_NOM_REGISTRE_PUBLICATIONS = "publications_memoire"
 _M6 = "m06-material-control"
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : 25 caractères d'enveloppe, plus une marge.
 # Sous ce budget (la limite de sortie du socle moins cette réserve), une réponse n'est jamais tronquée.
@@ -703,6 +706,9 @@ def outils(
     faits_entonnoir_cible: Any = None,
     faits_contenus_cible: Any = None,
     faits_cash_libre_cible: Any = None,
+    historique_sante_cible: Any = None,
+    publications_cible: Any = None,
+    recherche_connaissances: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -729,6 +735,12 @@ def outils(
     `faits_cash_libre_cible` (T4.19-b) : même patron pour le registre `faits_cash_libre` (constats du cash libre publiés
     par M5, reçus par le bus, lus par `m8_lire_vue_executive`) — `None` (défaut) l'adosse à
     `opsys.stockage.maillons("m08-analytics", "faits_cash_libre")`.
+
+    `historique_sante_cible` (M8.11) et `publications_cible` (M8.18) : mêmes points d'injection pour l'historique
+    append-only du score de santé (`historique_sante`) et la mémoire des consolidations publiées vers M10
+    (`publications_memoire`). `recherche_connaissances` (M8.18) : le port de lecture de la base de connaissances
+    (défaut :
+    le service `opsys.connaissances`, avec ses droits) ; les tests y mettent un double.
     """
     if faits_cible is None:
         faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
@@ -738,6 +750,12 @@ def outils(
         faits_contenus_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONTENUS)
     if faits_cash_libre_cible is None:
         faits_cash_libre_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CASH_LIBRE)
+    if historique_sante_cible is None:
+        historique_sante_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_HISTORIQUE_SANTE)
+    if publications_cible is None:
+        publications_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_PUBLICATIONS)
+    if recherche_connaissances is None:
+        recherche_connaissances = _rechercher_connaissances
     maillons_snapshots = None
     if registre_cible is None:
         maillons_snapshots = stockage.maillons("m08-analytics", "snapshots")
@@ -1081,7 +1099,19 @@ def outils(
         )
         return vue_contenus.assembler(situation, depart, BUDGET_SORTIE)
 
-    return (
+    def lire_registres() -> dict[str, list[dict[str, Any]]]:
+        return {
+            "chantier": list(faits_cible), "entonnoir": list(faits_entonnoir_cible),
+            "contenus": list(faits_contenus_cible), "cash_libre": list(faits_cash_libre_cible),
+        }
+
+    outils_analytiques = analytique_outils.construire(
+        lire_registres=lire_registres, configuration=_configuration, exiger_admin_appareil=_exiger_admin_pour_appareil,
+        historique_sante_cible=historique_sante_cible, publications_cible=publications_cible,
+        budget_sortie=BUDGET_SORTIE, recherche_connaissances=recherche_connaissances,
+    )
+
+    outils_existants = (
         Outil(
             nom="m8_rapport_metriques",
             description=(
@@ -1420,6 +1450,25 @@ def outils(
             portee_contexte="globale",
         ),
     )
+    # Le lecteur de provenance M5 reste le DERNIER outil du catalogue (épinglé par test_provenance_m5_appareil) : les
+    # outils
+    # de la couche analytique s'insèrent avant lui.
+    return (*outils_existants[:-1], *outils_analytiques, outils_existants[-1])
+
+
+def _rechercher_connaissances(requete: str, departement: str) -> dict[str, Any]:
+    """Lecture de la base de connaissances de M8 par le service existant (`opsys.connaissances`) : mêmes droits (le
+    département appelant fixé par la plateforme, jamais un argument), jamais un appareil, contenu neutralisé et marqué
+    non
+    fiable, sortie bornée. Seule la base de M8 est interrogée (le moindre droit)."""
+    from opsys.connaissances import service
+
+    appelant = service.departement_appelant()
+    if appelant != _DEPARTEMENT or departement != _DEPARTEMENT:
+        raise ValueError("REJ-MEMOIRE-LECTURE-INTERDITE : M8 ne lit que sa propre base de connaissances")
+    cnx = service.connexion()
+    return service.rechercher_pour(
+        cnx, appelant=appelant, bases=(_DEPARTEMENT,), requete=requete, k=service.K_DEFAUT, a_la_date=None)
 
 
 def autoriser_provenance_m5_appareil(arguments: Any, *, cnx: Any) -> dict[str, Any]:

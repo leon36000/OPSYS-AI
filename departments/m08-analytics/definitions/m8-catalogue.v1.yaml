@@ -1,0 +1,129 @@
+# CATALOGUE FERMÉ des mesures d'entreprise de M8 (M8.2 entrepôt, M8.8 wallboards, M8.11 score de santé, M8.12 copilote,
+# M8.14 pont BI). C'est LA liste de ce que les couches de lecture peuvent montrer ou exporter : une mesure hors de cette liste
+# n'existe pas pour elles (pas de SQL libre, pas de colonne choisie par l'appelant). Chaque entrée RÉFÉRENCE une métrique
+# gouvernée (définition, unité, propriétaire, version) d'un des registres `m8-entonnoir`, `m8-contenus`, `m8-synthese` : elle
+# n'en redéfinit rien. `m8_analytics.catalogue_mesures` refuse un catalogue dont une entrée est inconnue, en double, ou porte
+# une clé de plus (faute de frappe à dire, jamais à ignorer).
+#
+#   domaine         ventes | marketing | operations | qualite | finance | clientele
+#   sens            plus_est_mieux | moins_est_mieux | neutre (sert au score de santé et à la couleur des wallboards ; jamais à
+#                   décider à la place du propriétaire)
+#   sensibilite     agregat (compte ou durée d'entreprise) | financier (montant : admin seulement). AUCUNE mesure du catalogue
+#                   n'est personnelle : ni technicien, ni client, ni contact.
+#   fraicheur       fenetre_s : fenêtre (secondes) dans laquelle le propriétaire attend le dernier fait (décision d'architecte r1
+#                   « fraîcheur M8 » : vue exécutive 24 h) ; OU terminale : true (mesure cumulée de chantiers TERMINÉS, « non
+#                   applicable une fois le chantier terminé » : l'âge du dernier chantier ne la rend pas périmée). Le propriétaire
+#                   peut resserrer ou fixer une fenêtre par mesure : department.yaml, configuration.fraicheur_mesures_s.
+#   synonymes       formulations du français que le copilote reconnaît (accents et casse sans importance). Aucune ne sert à
+#                   exécuter quoi que ce soit : elles désignent une entrée de CE catalogue.
+schema: opsys.m8.catalogue_mesures/v1
+version: 1
+mesures:
+  - metric_id: m8_leads_recus
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["leads", "leads reçus", "demandes reçues", "nouveaux leads", "nouvelles demandes"]
+  - metric_id: m8_leads_qualifies
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["leads qualifiés", "demandes qualifiées", "prospects qualifiés"]
+  - metric_id: m8_devis_envoyes
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["devis envoyés", "soumissions envoyées", "soumissions transmises"]
+  - metric_id: m8_devis_acceptes
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["devis acceptés", "soumissions acceptées", "soumissions signées", "ventes conclues"]
+  - metric_id: m8_devis_sans_reponse
+    domaine: ventes
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["devis sans réponse", "soumissions sans réponse", "devis en attente de réponse", "devis à relancer"]
+  - metric_id: m8_taux_acceptation_pct
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["taux d'acceptation", "taux de conversion des devis", "taux de conversion des soumissions", "taux de signature"]
+  - metric_id: m8_delai_lead_acceptation_jours
+    domaine: clientele
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["délai d'acceptation", "délai du lead à l'acceptation", "temps pour conclure une vente", "cycle de vente"]
+  - metric_id: m8_carnet_signe_cad
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["carnet signé", "carnet de commandes", "travaux signés à réaliser", "valeur du carnet"]
+  - metric_id: m8_contenus_exportes
+    domaine: marketing
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["contenus exportés", "publications exportées", "contenus marketing"]
+  - metric_id: m8_leads_par_contenu
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["leads par contenu", "leads amenés par le marketing", "demandes provenant des contenus"]
+  - metric_id: m8_devis_envoyes_par_contenu
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["devis envoyés par contenu", "soumissions envoyées par contenu"]
+  - metric_id: m8_devis_acceptes_par_contenu
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["devis acceptés par contenu", "ventes par contenu", "soumissions acceptées par contenu"]
+  - metric_id: m8_impressions_par_contenu
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["impressions", "impressions par contenu", "portée des contenus"]
+  - metric_id: m8_clics_par_contenu
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["clics", "clics par contenu"]
+  - metric_id: m8_chantiers_termines
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {terminale: true}
+    synonymes: ["chantiers terminés", "travaux terminés", "chantiers complétés"]
+  - metric_id: m8_ecart_duree_equipe_pct
+    domaine: operations
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {terminale: true}
+    synonymes: ["écart de durée", "écart de temps", "dépassement de durée", "temps réel contre prévu", "respect des durées"]
+  - metric_id: m8_chantiers_signal_materiaux
+    domaine: qualite
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {terminale: true}
+    synonymes: ["signal de matériaux", "chantiers avec écart de matériaux", "gaspillage de matériaux", "perte de matériaux"]
+  - metric_id: m8_cash_libre_cad
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["cash libre", "liquidités libres", "argent disponible", "trésorerie libre"]

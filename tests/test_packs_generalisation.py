@@ -502,16 +502,16 @@ def rapports(entrees, deps):
     return {pack: executeur.evaluer(entrees, repondant, deps, pack=pack) for pack in (RENOVATION, GENERIQUE, None)}
 
 
-def test_avec_le_pack_renovation_le_repondant_reference_reste_a_120_sur_120(rapports):
+def test_avec_le_pack_renovation_le_repondant_reference_reste_a_130_sur_130(rapports):
     rapport = rapports[RENOVATION]
-    assert rapport["global"]["effectif"] == 120 and rapport["global"]["reussites"] == 120
+    assert rapport["global"]["effectif"] == 130 and rapport["global"]["reussites"] == 130
     assert rapport["global"]["score"] == "1.0000" and rapport["global"]["departements_non_qualifies"] == []
     assert rapport["pack"]["actif"] == RENOVATION and rapport["pack"]["total_ecartes"] == 0
 
 
 def test_avec_le_pack_generique_les_22_cas_sectoriels_sont_ecartes_et_nommes_et_le_reste_passe(rapports, entrees):
     rapport = rapports[GENERIQUE]
-    assert rapport["global"]["effectif"] == 98 and rapport["global"]["reussites"] == 98
+    assert rapport["global"]["effectif"] == 108 and rapport["global"]["reussites"] == 108
     assert rapport["pack"]["total_ecartes"] == 22
     ecartes = {i for ids in rapport["pack"]["cas_ecartes"].values() for i in ids}
     assert ecartes == {c["id"] for e in entrees for c in e["corpus"]["cas"] if "pack" in c}
@@ -519,7 +519,7 @@ def test_avec_le_pack_generique_les_22_cas_sectoriels_sont_ecartes_et_nommes_et_
 
 
 def test_sans_pack_donne_tous_les_cas_restent_et_le_corpus_garde_sa_meme_empreinte(rapports):
-    assert rapports[None]["global"]["effectif"] == 120 and rapports[None]["pack"]["actif"] is None
+    assert rapports[None]["global"]["effectif"] == 130 and rapports[None]["pack"]["actif"] is None
     assert rapports[None]["corpus"] == rapports[RENOVATION]["corpus"] == rapports[GENERIQUE]["corpus"]
 
 

@@ -10,7 +10,7 @@ départements, des corpus internes obligatoires (appel d'outils en français, re
 d'adopter** promptfoo (gate CI, red team) puis inspect-ai. « CI verte » ne veut pas dire « qualité » : la CI prouve que
 le code fait ce qu'il dit ; le gabarit mesure si l'agent d'un département se comporte comme son `SOUL.md` l'exige.
 
-Cette tranche livre le format, l'exécuteur déterministe, le rapport et un corpus de départ de 120 cas. Elle ne mesure
+Cette tranche livre le format, l'exécuteur déterministe, le rapport et un corpus de départ de 120 cas (130 depuis la couche analytique de M8, voir plus bas). Elle ne mesure
 **aucun modèle réel** : voir « Ce qui manque ».
 
 ## Le format de corpus (`opsys.evaluation.corpus/v1`)
@@ -152,6 +152,16 @@ Résultats de cette tranche (répondants simulés, aucun modèle réel) :
 | `dangereux` | 70/120 | 0.4864 | 0/10 (35 cas bloquants échoués) | 23/23 |
 | `inventif` | 0/120 | 0.0000 | 0/10 | 23/23 |
 
+**Mise à jour M8 (couche analytique, 2026-11-01).** M8 passe de 12 à 22 cas (corpus global : 130 ; tâche métier 20, appel d'outil 22, refus attendu
+34, injection de consigne 21, français québécois 11, mention professionnel 11, honnêteté 11). Les dix cas ajoutés sont écrits à la main depuis le skill
+`lecture-analytique-fermee` et les règles de M8.2/M8.5/M8.8/M8.11/M8.12/M8.14 : appels réels de `m8_lire_mesures` et `m8_repondre_question`
+(exécutés par l'exécuteur sur l'instance fictive), refus SQL libre (sécurité), refus d'émettre un jeton BI (autorité : geste humain N3), refus d'un
+faux score de santé, refus d'écrire dans l'entrepôt dérivé, injection dans un billet qui cherche à contourner le catalogue, honnêteté sur un constat
+périmé, mention CPA du score de santé, français québécois familier. Résultats (répondants simulés, `--tous-les-cas`) : `reference` 130/130 (M8 22/22, qualifié) ;
+`dangereux` 75/130 (0.4817 ; M8 12/22, 5 échecs critiques, non qualifié, sondes tenues) ; `inventif` 0/130. Avec le pack générique : 108/108 sur le sous-ensemble
+neutre (aucun des dix cas n'est sectoriel). Le copilote a de plus son propre corpus déterministe (`departments/m08-analytics/evals/copilote.v1.yaml`,
+82 questions : reconnaissance des mesures, refus typés, injections, SQL) : voir `M8-OLIVIER.md` § 5. Détails de M8 : [M8-OLIVIER.md](M8-OLIVIER.md).
+
 Références M9 exécutées : `corpus-v1` 61/61, `corpus-metier-v1` 58/60 et `corpus-metier-v2` 75/77 (rouges connus
 mkt-A07 et rep-V02).
 
@@ -163,8 +173,8 @@ les données ou les attentes nomment le secteur du premier client porte `pack: r
 d'entreprise, sinon `generique-pme` — et nomme les cas écartés dans le rapport (`pack.cas_ecartes`, une ligne du Markdown) :
 un score sans cette ligne serait trompeur. `--tous-les-cas` ne filtre rien (diagnostic). Un cas étiqueté d'un pack non
 installé, ou un `--pack` inconnu, est `REJ-EVAL-CORPUS-PACK` : une faute de frappe n'écarte jamais un cas en silence. Le corpus,
-sa validation (`valider` : 120 cas) et son empreinte restent ceux du fichier entier. Avec le pack rénovation, le répondant
-`reference` fait **120/120** ; avec le pack générique, 98/98 sur le sous-ensemble neutre (aucun équivalent neutre des 22
+sa validation (`valider` : 130 cas) et son empreinte restent ceux du fichier entier. Avec le pack rénovation, le répondant
+`reference` fait **130/130** ; avec le pack générique, 108/108 sur le sous-ensemble neutre (aucun équivalent neutre des 22
 cas n'est encore écrit). Le répondant `passerelle` envoie le même `SOUL.md` effectif que l'agent (cœur rendu + bloc du pack).
 `tests/test_packs_generalisation.py` exige qu'un cas qui contient un terme sectoriel porte l'étiquette, et inversement.
 

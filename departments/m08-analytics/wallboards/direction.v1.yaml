@@ -1,0 +1,23 @@
+# Wallboard « direction » (M8.8) : le pouls de l'entreprise, pour un écran de bureau ou une télé. Définition DÉCLARATIVE :
+# mesures du catalogue fermé, seuils d'affichage et rafraîchissement. Aucune mesure n'est calculée ici ; aucun seuil n'est
+# inventé (les tuiles sans `seuils` n'ont ni couleur ni alerte : « seuil à configurer » par le propriétaire). Un seuil
+# d'affichage n'est PAS un seuil d'alerte de M8 (`configuration.seuils_*`) ; il ne publie rien.
+# Format : docs/architecture/M8-OLIVIER.md, § Wallboards.
+schema: opsys.m8.wallboard/v1
+id: direction
+version: 1
+titre: "Pouls de l'entreprise"
+description: "Ventes, chantiers, qualité et cash libre : ce que la direction doit voir d'un coup d'œil."
+roles: [admin]
+rafraichissement: {intervalle_s: 30, flux_max: 120}
+rotation: {actif: false, intervalle_s: 20}
+tuiles:
+  - {id: leads, mesure: m8_leads_recus, titre: "Leads reçus", page: 1}
+  - {id: devis-acceptes, mesure: m8_devis_acceptes, titre: "Devis acceptés", page: 1}
+  - {id: taux-acceptation, mesure: m8_taux_acceptation_pct, titre: "Taux d'acceptation", page: 1}
+  - {id: sans-reponse, mesure: m8_devis_sans_reponse, titre: "Devis sans réponse", page: 1}
+  - {id: carnet, mesure: m8_carnet_signe_cad, titre: "Carnet signé", page: 2}
+  - {id: cash-libre, mesure: m8_cash_libre_cad, titre: "Cash libre (M5)", page: 2}
+  - {id: chantiers, mesure: m8_chantiers_termines, titre: "Chantiers terminés", page: 2}
+  - {id: ecart-duree, mesure: m8_ecart_duree_equipe_pct, titre: "Écart de durée", page: 2}
+  - {id: signal-materiaux, mesure: m8_chantiers_signal_materiaux, titre: "Signal de matériaux", page: 2}

@@ -90,6 +90,7 @@ class TestManifeste:
     def test_m10_declare_consommer_le_chantier_et_l_amont_de_l_affaire(self):
         dep = charger_departements()["m10-memoire"]
         assert dep.evenements_consomme == (
+            "m8.fait_consolide",  # M8.18 : les mesures d'entreprise consolidées par M8 (tests/test_analytique.py)
             "m3.catalogue_reference", "m6.catalogue_reference",
             "m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier",
             "m1.lead_qualifie", "m2.client_associe", "m2.contact_corrige", "m6.note_commande_referencee",
