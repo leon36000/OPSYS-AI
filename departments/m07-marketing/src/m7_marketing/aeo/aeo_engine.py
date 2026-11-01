@@ -290,8 +290,10 @@ def _a08(data, artifact, knowledge):
     lb = None
     for script_info in data.jsonld_scripts:
         parsed = script_info["parsed"]
-        if isinstance(parsed, dict) and parsed.get("@type") in TYPES_LOCALBUSINESS:
-            lb = parsed
+        # Un bloc `@graph` (sites du schéma opsys.site/v1) porte l'entreprise parmi d'autres nœuds.
+        noeuds = parsed["@graph"] if isinstance(parsed, dict) and isinstance(parsed.get("@graph"), list) else [parsed]
+        lb = next((n for n in noeuds if isinstance(n, dict) and n.get("@type") in TYPES_LOCALBUSINESS), None)
+        if lb:
             break
     if not lb:
         measured = "pas_de_localbusiness_jsonld"

@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 232 outils sur 387 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 232 outils sur 391 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -457,6 +457,7 @@ Les plus sensibles :
 | `m8_rapport_metriques`, `m9_etat_consolide` | Ingèrent un snapshot fourni par l'appelant dans le registre de vérité. |
 | `m7_auditer_seo_site`, `m7_calculer_roi` | Chemins de fichiers du serveur. |
 | `m7_proposer_contenus_chantier`, `m7_lire_matiere_chantier` | Brouillons N1 nés du bus (le consommateur de M7 les crée déjà) et matière du modèle qui rédige : le propriétaire lit et décide (`m7_lister_contenus_chantier`, `m7_decider_contenu`), il ne fait pas écrire de textes depuis son téléphone. |
+| `m7_valider_schema_site`, `m7_generer_site_statique` (T0), `m7_preparer_paquet_site` (T1/N1), `m7_demander_publication_site` (T1/**N3**) | Sites web statiques, tranche 1 (`departments/m07-marketing/docs/sites-web.md`). Aucun rôle d'appareil : l'agent valide le schéma de contenu, génère et contrôle le site en mémoire, et prépare dans `$OPSYS_HOME/sites/<id>/paquets/` l'archive, le manifeste, le Caddyfile et le PLAN de déploiement, sans rien exécuter. La publication publique est une décision de la direction (N3, `nathan_owner`) : la demande d'un agent attend la file d'approbation ; approuvée, elle rend le plan approuvé (`PUBLICATION_APPROUVEE_NON_EXECUTEE`), jamais un déploiement. Un site fictif n'est jamais publiable ; une autre empreinte d'archive que celle demandée est refusée. |
 | `m7_lire_depenses_marketing` (T0) | Dépenses marketing (`m7.depenses_marketing`, CAD) lues des relevés sourcés du registre de M7 : `CONNUE`, `PARTIELLE` ou `NON_BRANCHEE`, jamais un zéro à la place d'une absence. Aucun appareil (comme tout outil sans déclaration) ; l'accès serveur reprend la garde de `m7_lire_performance_campagnes` (admin ou propriétaire de console confirmé, ou approbation serveur du propriétaire). Aucun outil d'écriture : l'ingestion des relevés reste une décision produit. Contrat : `departments/m07-marketing/docs/M7-DEPENSES-MARKETING.md`. |
 
 ## Contrôle d'accès par personne et par intervention (T1.4-k, M4 et M6)

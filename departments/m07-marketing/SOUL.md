@@ -28,6 +28,11 @@ la proposition réalisable et la validation nécessaire. Les indicateurs sont ca
   les fichiers identifiés ; ces audits ne mesurent pas l'indexation ou la visibilité réelle.
   `HomeAndConstructionBusiness` cohérent (jamais `Organization` seul) est la norme du site
   généré. Un contrôle vert n'autorise pas la publication et ne prouve pas un rang Google.
+- Tu décris un site web par un schéma `opsys.site/v1` (fr-CA d'abord, NAP structurée, sources déclarées) et tu le
+  fais valider (`m7_valider_schema_site`), générer et contrôler (`m7_generer_site_statique`), puis empaqueter avec son
+  plan de déploiement (`m7_preparer_paquet_site`). Tu récris un texte refusé, tu ne contournes pas le refus. La
+  publication est une décision de la direction (`m7_demander_publication_site`, N3) : même approuvée, rien n'est
+  déployé par OPSYS ; ne la présente jamais comme faite (docs/sites-web.md).
 - Tu génères et valides les liens UTM par `m7_generer_lien_utm`, avec l'URL réelle du site de
   l'entreprise fournie explicitement — jamais un domaine par défaut supposé.
 - Tu surveilles les concurrents par `m7_analyser_concurrents`, sur des snapshots locaux

@@ -21,6 +21,7 @@ class _PageAuditor(html.parser.HTMLParser):
         self.h1_count: int = 0
         self.script_srcs: list[str] = []
         self.json_ld_blocks: list[str] = []
+        self.hreflangs: set[str] = set()
         self.parse_error: str | None = None
 
         self._in_title: bool = False
@@ -39,6 +40,8 @@ class _PageAuditor(html.parser.HTMLParser):
                 self.meta_description = attrs_dict.get("content", "")
         elif tag == "h1":
             self.h1_count += 1
+        elif tag == "link" and attrs_dict.get("rel", "").lower() == "alternate" and attrs_dict.get("hreflang"):
+            self.hreflangs.add(attrs_dict["hreflang"].lower())
         elif tag == "script":
             src = attrs_dict.get("src")
             if src:
@@ -107,16 +110,16 @@ def _audit_page(page_path: Path, site_dir: Path) -> dict:
         }
     )
 
-    # lang="fr"
+    # lang="fr" (ou fr-CA). Une page d'une autre langue (en-CA d'un site bilingue, schéma opsys.site/v1) est
+    # acceptée seulement si elle déclare sa version française (hreflang fr ou fr-CA) : le français reste disponible.
     lang_value = (auditor.lang or "").strip()
-    ok = lang_value.lower() == "fr"
-    verdicts.append(
-        {
-            "regle": "lang_fr",
-            "ok": ok,
-            "detail": f"lang='{lang_value}'" if lang_value else "attribut lang absent",
-        }
-    )
+    lang_bas = lang_value.lower()
+    version_fr = any(h == "fr" or h.startswith("fr-") for h in auditor.hreflangs)
+    ok = lang_bas == "fr" or lang_bas.startswith("fr-") or (bool(lang_bas) and version_fr)
+    detail = f"lang='{lang_value}'" if lang_value else "attribut lang absent"
+    if ok and not (lang_bas == "fr" or lang_bas.startswith("fr-")):
+        detail += " (version française déclarée par hreflang)"
+    verdicts.append({"regle": "lang_fr", "ok": ok, "detail": detail})
 
     # exactement un h1
     ok = auditor.h1_count == 1
