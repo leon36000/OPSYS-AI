@@ -6,7 +6,11 @@ mission: >-
   Piloter le marketing d'une entreprise cliente au Québec : profil Brand Core
   versionné et signé, visibilité SEO/AEO, UTM et attribution/ROI, observations Growth sourcées,
   plans déterministes sur 30 jours, campagnes locales en brouillon, fabrique de contenu saisonnier,
-  calendrier éditorial lié aux contenus chantier et export manuel, réputation et veille concurrentielle.
+  calendrier éditorial lié aux contenus chantier et export manuel, réputation et veille concurrentielle ;
+  signaux de marché et de performance lus en LECTURE SEULE chez les sources de données propres du client
+  (Search Console, PageSpeed, Bing, analytique, fiche Google, rapports publicitaires), médias payants en
+  brouillon (jamais lancés par OPSYS), veille concurrentielle gouvernée, GEO/SEO sur données propres et mesure
+  marketing (docs/architecture/M7-SIGNAUX.md).
   Ne calcule jamais un chiffre de tête et ne fabrique jamais
   un coût, un lead ou une plateforme publicitaire quand le lien manque : le lien
   manquant devient une donnee_insuffisante explicite, jamais un zéro silencieux.
@@ -28,7 +32,7 @@ dependances: [m01-front-office, m02-revenue-crm, m03-estimation, m04-field-ops, 
 modeles:
   defaut: standard
   extraction: rapide
-skills: [audit-seo-local, plan-de-contenu-saisonnier, reponse-aux-avis, contenu-de-chantier]
+skills: [audit-seo-local, plan-de-contenu-saisonnier, reponse-aux-avis, contenu-de-chantier, lecture-des-signaux, plan-de-campagne-payante, veille-concurrentielle, mesure-et-tests-marketing]
 planifications:
   - nom: digest-marketing
     cron: "0 7 * * 1-5"
@@ -43,7 +47,7 @@ budget:
   alerte_pct: 80
 memoire:
   lecture: [clients, chantiers, campagnes, avis]
-  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales, depenses_marketing, sites_wordpress, publications_wordpress, comptes_sociaux, publications_sociales, briefs_studio, jobs_studio, provenance_studio, actifs_studio]
+  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales, depenses_marketing, sites_wordpress, publications_wordpress, comptes_sociaux, publications_sociales, briefs_studio, jobs_studio, provenance_studio, actifs_studio, sources_signaux, curseurs_signaux, signaux_marketing, plans_medias, concurrents_declares, observations_concurrents, propositions_site, conversions_hors_ligne, plans_tests_marketing]
 # PLAN T4.17-c : M7 consomme le STOP de M1 (`m1.retrait_consentement`, les leads que le client avait ouverts, par leur
 # `lead_id`) et l'inscrit comme retrait du consentement marketing. Catalogue : src/opsys/evenements/catalogue/.
 # PLAN T4.17-e : M7 publie `m7.contenu_exporte` quand le propriétaire prend le paquet manuel d'un contenu (dans la
@@ -51,7 +55,7 @@ memoire:
 # texte, une ville, un lead ni un contact. M8 en tire les contenus qui existent et compte les leads par `utm_content`.
 evenements:
   consomme: [m4.travaux_termines, m1.retrait_consentement, m2.client_associe, m3.devis_accepte, m5.rentabilite_chantier]
-  publie: [m7.contenu_exporte, m7.publication_faite, m7.publication_echouee]
+  publie: [m7.contenu_exporte, m7.publication_faite, m7.publication_echouee, m7.signaux_marketing_constates, m7.depenses_marketing_constatees, m7.anomalie_depense_detectee, m7.conversion_hors_ligne_importee]
 kpis:
   - id: m7_cout_par_lead_global
     description: Coût publicitaire joignable divisé par les leads attribués aux canaux correspondants (CAD/lead).
@@ -70,4 +74,7 @@ approbations:                      # ADR-0009 §5, PLAN T4.17 : qui décide un N
   # consigné, jamais exécuté ; un visuel non approuvé est refusé par le sas social et par le site.
   n3: [nathan_owner]
   # N4 : l'annonce PAYANTE (engagement de dépense, m7_demander_annonce_payante). Aussi au propriétaire seulement.
+  # M7-SIGNAUX : le LANCEMENT d'un plan de campagne payante (m7_demander_lancement_campagne) est aussi un engagement de
+  # dépense N4, consigné et jamais exécuté. Déclarer une source de données propres (m7_enregistrer_source_signaux) et
+  # un concurrent (m7_declarer_concurrent) sont des N3 du propriétaire.
   n4: [nathan_owner]

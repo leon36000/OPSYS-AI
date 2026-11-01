@@ -7,6 +7,18 @@ content factory, données saisonnières, competitive engine, grille AEO/GEO, con
 attribution, ROI, puis l'usine à contenu de chantier de T4.17. 992 tests (dossier `tests/` de M7). Le
 statut du registre est la source de vérité, gate statut_lint.)
 
+## Signaux de marché et de performance (2026-11-01)
+
+Cinq paquets et cinq modules d'outils s'ajoutent, **hors ligne (ports + doubles, aucun transport réel branché, aucune clé)** : `signaux/`
+(connecteurs de LECTURE des données propres du client : Search Console, PageSpeed, CrUX, Bing, Umami, Matomo, fiche Google, rapports Google Ads et
+Meta Ads — curseurs, quotas, idempotence, erreurs typées, minimisation PII, provenance et fraîcheur), `medias_payants/` (plan de campagne en brouillon,
+règles de plafond et d'arrêt préparées, anomalies de dépense, rapport honnête ; le lancement est un N4 consigné, jamais exécuté), `veille/`
+(concurrents déclarés, robots.txt respecté, collecte gouvernée), `geo/` (robots d'IA, journaux, panel par API officielles, recommandations
+sourcées, changements de site en brouillon) et `mesure/` (UTM, conversions hors ligne, tests marche-arrêt/géo avec reçu rejouable, attribution
+descriptive). Documentation, limites et ce qui n'est PAS prouvé : [`docs/architecture/M7-SIGNAUX.md`](../../docs/architecture/M7-SIGNAUX.md).
+Tests : `tests/signaux`, `tests/medias_payants`, `tests/veille`, `tests/geo`, `tests/mesure`, `tests/test_signaux_sans_reseau.py`,
+`tests/test_evaluation_signaux.py` (corpus `evals/signaux.v1.yaml`).
+
 ## M7-S000 — Brand Core minimal
 
 Le fichier `src/brand/profile.yaml` est un **GABARIT initial** ; les valeurs proposées

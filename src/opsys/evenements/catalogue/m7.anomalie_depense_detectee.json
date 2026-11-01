@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.anomalie_depense_detectee",
+  "title": "M7 — Anomalie de dépense publicitaire détectée",
+  "description": "Émis par M7 (medias_payants/anomalies.py, outil m7_evaluer_regles_media) quand une règle TRANSPARENTE de dépense publicitaire se déclenche sur des faits lus chez la plateforme : dépassement du plafond quotidien déclaré, dépense sans conversion, saut de dépense par rapport à la médiane des sept jours précédents, dépense hors plan, trou de données. Destiné à M9 (alertes de gestion) et M8. L'événement ne propose ni n'exécute aucune action : une pause proposée est préparée pour une décision humaine. Valeurs en texte décimal ; aucun nom de campagne libre (identifiant technique seulement), aucune donnée personnelle. evenement_id déterministe (canal, campagne, règle, jours) : un rejeu est un no-op.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "anomalie_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "canal": {
+      "enum": [
+        "google_ads",
+        "meta"
+      ]
+    },
+    "campagne_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,79}$"
+    },
+    "regle": {
+      "enum": [
+        "DEP-01",
+        "DEP-02",
+        "DEP-03",
+        "DEP-04",
+        "DEP-05",
+        "DEP-06",
+        "DEP-07"
+      ]
+    },
+    "severite": {
+      "enum": [
+        "info",
+        "attention",
+        "critique"
+      ]
+    },
+    "valeur": {
+      "type": "string",
+      "pattern": "^-?[0-9]{1,15}(\\.[0-9]{1,6})?$"
+    },
+    "seuil": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?[0-9]{1,15}(\\.[0-9]{1,6})?$"
+    },
+    "unite": {
+      "enum": [
+        "CAD",
+        "ratio",
+        "jours",
+        "conversions"
+      ]
+    },
+    "jour_debut": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "jour_fin": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "detectee_le": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 40
+    },
+    "fictif": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "anomalie_id",
+    "canal",
+    "campagne_ref",
+    "regle",
+    "severite",
+    "valeur",
+    "seuil",
+    "unite",
+    "jour_debut",
+    "jour_fin",
+    "detectee_le",
+    "fictif"
+  ]
+}
