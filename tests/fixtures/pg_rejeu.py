@@ -32,6 +32,7 @@ from pg_parite import base_pg, serveur_pg  # noqa: F401  (fixtures pytest)
 from opsys import stockage
 
 RACINE_TESTS = Path(__file__).resolve().parents[1]
+INDEX_DERIVES_PG = frozenset({"connaissances_lexique"})
 
 
 @pytest.fixture(autouse=True)
@@ -49,6 +50,16 @@ def _sur_postgresql(_instance_isolee, base_pg, monkeypatch):  # noqa: F811
     mod = sys.modules["opsys.stockage.moteur"]
     monkeypatch.setattr(mod, "url_base", url_base_pg)
     monkeypatch.setattr(stockage, "url_base", url_base_pg)
+    # Comme le plugiciel du banc : les recensements de tables des tests ignorent l'index lexical DÉRIVÉ propre à
+    # PostgreSQL (`connaissances_lexique`, migration 0053), comme ils ignorent `connaissances_fts*` sous SQLite.
+    from sqlalchemy.engine.reflection import Inspector
+
+    original = Inspector.get_table_names
+
+    def sans_index_derive(self, schema=None, **kw):
+        return [t for t in original(self, schema, **kw) if t not in INDEX_DERIVES_PG]
+
+    monkeypatch.setattr(Inspector, "get_table_names", sans_index_derive)
     yield base_pg
     stockage.liberer()
 
@@ -82,12 +93,47 @@ def module(fichier: str):
     return sys.modules["rejeu_" + Path(fichier).stem]
 
 
-def installer(globales: dict, *fichiers: str, exclure: Iterable[str] = ()) -> list[str]:
-    """Injecte tests et fixtures des `fichiers` dans `globales` ; rend les noms des tests injectés (pour les relire)."""
+@pytest.fixture(autouse=True)
+def _sqlite_explicite_vers_postgresql(serveur_pg):
+    """Variante du rejeu pour les tests qui bâtissent EUX-MÊMES une base SQLite fichier (`OPSYS_BASE_URL=sqlite:///…`).
+
+    Même mécanisme que le mode `--redirige` du banc : toute URL SQLite passée au moteur de l'instance devient une base
+    PostgreSQL VIDE (le test la migre lui-même, comme sur un fichier neuf), supprimée en fin de test. Le test d'origine
+    n'est pas modifié ; un test qui ouvre le fichier SQLite directement (sqlite3, `Path`) n'a pas sa place ici."""
+    mod = sys.modules["opsys.stockage.moteur"]
+    original = mod.create_engine
+    creees: dict[str, tuple[str, str]] = {}
+
+    def redirige(cible, *args, **kw):
+        texte = str(cible if isinstance(cible, str) else cible.render_as_string(hide_password=False))
+        if texte.startswith("sqlite"):
+            if texte not in creees:
+                creees[texte] = serveur_pg.nouvelle_base(depuis_gabarit=False)
+            cible = creees[texte][1]
+        return original(cible, *args, **kw)
+
+    mod.create_engine = redirige
+    try:
+        yield
+    finally:
+        mod.create_engine = original
+        stockage.liberer()
+        for nom, _ in creees.values():
+            serveur_pg.supprimer(nom)
+
+
+def installer(
+    globales: dict, *fichiers: str, exclure: Iterable[str] = (), rediriger_sqlite: bool = False,
+) -> list[str]:
+    """Injecte tests et fixtures des `fichiers` dans `globales` ; rend les noms des tests injectés (pour les relire).
+
+    `rediriger_sqlite` : les URL SQLite explicites que bâtit le test deviennent des bases PostgreSQL vides."""
     exclus = set(exclure)
     injectes: list[str] = []
     for nom, objet in (("_sur_postgresql", _sur_postgresql), ("base_pg", base_pg), ("serveur_pg", serveur_pg)):
         globales[nom] = objet
+    if rediriger_sqlite:
+        globales["_sqlite_explicite_vers_postgresql"] = _sqlite_explicite_vers_postgresql
     for fichier in fichiers:
         module = _charger(fichier)
         prefixe = Path(fichier).stem.removeprefix("test_")
