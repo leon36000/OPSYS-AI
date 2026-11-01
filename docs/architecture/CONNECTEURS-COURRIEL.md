@@ -304,8 +304,11 @@ masqué par `secrets_coffre.masquage`. Codes (liste fermée, épinglée par `tes
   **finalité déclarée** (`finalite`, 500 caractères). Sans lui : `REJ-COURRIEL-CONSENTEMENT-ABSENT`, même pour un mot de passe d'application.
 - **Minimisation** : portées minimales ; dossiers suivis déclarés par compte (par défaut la boîte de réception seule) ; le client peut
   exclure ses dossiers personnels ; le corps n'est pas conservé ; les originaux d'ingestion sont scellés.
-- **Rétention** : `retention_jours` (1 à 3650) est **déclarée** par compte. **La purge n'est pas implémentée** : aucune tâche n'efface
-  encore les originaux ni les clés d'idempotence à l'échéance. À faire avant tout usage réel.
+- **Rétention** : `retention_jours` (1 à 3650) est déclarée par compte. **La purge est implémentée** (`opsys.retention.courriel`, exécuteur
+  `retention.courriel` du planificateur, [PLANIFICATION.md](PLANIFICATION.md) §5) : à l'échéance, les originaux et résultats scellés, les
+  brouillons non décidés ou sortants terminés et les archives déposées sont rendus illisibles ; les **empreintes d'idempotence sont gardées** (sinon
+  un nouvel amorçage réingérerait le courriel). Inactive par défaut ; la première activation exige l'aperçu à blanc et la validation d'un admin ;
+  qualifiée sur SQLite et doubles seulement.
 - **Communication hors Québec** : Gmail (États-Unis) et Graph exigent une EFVP préalable (`efvp_ref`), vérifiée par la politique du
   registre. EFVP avant le projet (LPRPSP art. 3.3 et art. 17 : voir recherche R3). « À valider auprès d'un professionnel
   qualifié (avocat / conseiller en protection des renseignements personnels) » : ce document ne constitue pas un avis juridique.
@@ -349,9 +352,9 @@ dans une table du chantier ou qu'un fournisseur « courriel » est configuré. T
   commun de `Capacites` (caché aux agents), les outils de M1 (boîte de réception, brouillons, demande d'envoi) sont déclarés,
   la route de retour OAuth et l'écran d'administration existent (`/plateforme/connecteurs`, `/courriel/oauth/retour`), et le
   planificateur exécute la synchronisation et l'envoi approuvé quand un admin les active. `/courriel` reste en lecture.
-- **Rétention non appliquée** (voir Loi 25). Le corps des courriels n'est pas conservé par les connecteurs ; M1 garde, à la
-  réception d'un courriel ENTRANT, le texte neutralisé et l'adresse de l'expéditeur dans son registre append-only (sans purge) :
-  à traiter avec la rétention de M1 avant tout usage réel. Le genre de brouillon « courriel_contact » existe désormais
+- **Rétention** : voir Loi 25 et [PLANIFICATION.md](PLANIFICATION.md). Le corps des courriels n'est pas conservé par les connecteurs ; M1 garde, à la
+  réception d'un courriel ENTRANT, le texte neutralisé dans son registre append-only (sans purge) ; l'adresse et l'objet y sont scellés et
+  effaçables par destruction de clé. Le genre de brouillon « courriel_contact » existe désormais
   (INGESTION-ONBOARDING.md §11), pour les comptes qui l'ont demandé.
 - Pas de QRESYNC/CONDSTORE (suppressions IMAP invisibles), pas de XOAUTH2, pas de STARTTLS, pas de sous-dossiers Graph, un `.mbox.gz`
   se relit depuis le début à chaque reprise, pas de PST/EML.

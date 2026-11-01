@@ -171,7 +171,7 @@ Voir le rapport de livraison (comptes exacts des suites, mutations, rouges avant
 
 * **Aucun modèle réel** : ni le conseil, ni le briefing, ni la boucle n'ont été mesurés avec un modèle ; la qualification d'Athéna reste
   OUVERTE. Le contrôle de recommandation ne juge pas la qualité d'un raisonnement.
-* **Pas de planification** : aucun cron ne rafraîchit les lectures ; un agent de planification n'a pas d'identité d'admin, donc le port
+* **Pas de planification** (décision confirmée par l'inventaire de [PLANIFICATION.md](PLANIFICATION.md) : « ne jamais automatiser ») : aucun cron ne rafraîchit les lectures ; un agent de planification n'a pas d'identité d'admin, donc le port
   le refuse (hôte opérateur de M9.5 : toujours ouvert). Le rafraîchissement est un geste de l'admin (console, app).
 * **Aucun écran mobile** : ces outils n'ont aucun rôle d'appareil (décision de ne rien élargir) ; l'écran admin de M9.22 reste à faire.
 * **Données fictives seulement** ; la santé de l'entreprise reste indéterminée tant que la direction n'a pas déclaré les bornes et validé les

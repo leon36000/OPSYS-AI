@@ -34,6 +34,7 @@ DETAILS_PERMIS = frozenset({
     "attente_s", "revision", "brouillon_id", "empreinte", "demande_id", "fournisseur", "usage", "etat",
     "rotation_refresh",
     "nb_portees", "page", "statut", "termine", "ignores", "generation", "reprise", "recus_m1", "contacts", "bail",
+    "purges", "documents", "archives",
 })
 _COMPTE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _ADRESSE = re.compile(r"^[A-Za-z0-9._%+'=!#$&*/?^`{|}~-]{1,64}@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$")

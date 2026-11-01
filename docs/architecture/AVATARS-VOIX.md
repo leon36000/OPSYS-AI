@@ -291,7 +291,7 @@ porte : un canal reste « prévu » tant que ses conditions ne tiennent pas.
 - Le gestionnaire de sessions est en mémoire (aucune persistance, aucun partage entre processus) : les quotas ne tiennent
   que dans un seul processus. La persistance viendra avec le gateway.
 - Le nom d'entreprise de la divulgation est fourni par l'appelant ; l'enregistrement effectif et la purge selon la
-  rétention sont des **ordres** que le worker devra exécuter (rien ne les exécute ici).
+  rétention sont des **ordres** que le worker devra exécuter. `opsys.retention.voix` est cette exécution (clé par session, fichier chiffré, rétention de 1 à 90 jours, retrait immédiat du consentement) et l'exécuteur `retention.cles` du planificateur détruit les clés à l'échéance ([PLANIFICATION.md](PLANIFICATION.md) §5) ; **aucun worker ne l'appelle encore : rien n'est enregistré aujourd'hui**.
 - Aucune écriture n'est exposée en CLI ni en console ; les mutations ne sont atteignables que par le code.
 - PostgreSQL : les déclencheurs de la migration 0039 sont écrits pour PostgreSQL mais n'ont pas été exécutés ici
   (aucune instance PostgreSQL dans cette preuve) ; seule la voie SQLite a tourné.

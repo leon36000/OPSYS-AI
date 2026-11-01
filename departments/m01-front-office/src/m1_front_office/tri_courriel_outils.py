@@ -24,6 +24,7 @@ from opsys.courriel_connecteurs.erreurs import ErreurCourriel
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import apprentissage as ap
+from . import courriel_pii
 from . import gabarits as gb
 from . import horodatage as controle_horodatage
 from . import outils as _o
@@ -75,7 +76,9 @@ def _reception(lignes: list[dict[str, Any]], signal_id: str) -> tuple[dict[str, 
         (x for x in lignes if x.get("type_entree") == TYPE_RECU_COURRIEL and x.get("signal_id") == signal_id), None
     )
     signal = next((x for x in lignes if x.get("type_entree") == "signal" and x.get("signal_id") == signal_id), None)
-    return (recue, signal) if recue is not None and signal is not None else None
+    if recue is None or signal is None:
+        return None
+    return courriel_pii.ouvrir(recue, exiger=True), signal  # adresse effacée (rétention) : refus typé
 
 
 def _corps_du_signal(contenu_filtre: str, objet: str) -> str:

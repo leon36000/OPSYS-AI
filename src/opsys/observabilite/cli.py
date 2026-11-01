@@ -56,7 +56,10 @@ def _dossier(args: argparse.Namespace) -> Path:
 
 
 def _journal_ecriture(args: argparse.Namespace) -> JournalTraces:
-    return JournalTraces(_dossier(args), cle_locale.deriver(cle_locale.charger(), "traces/chaine/v1"))
+    from .traces import retention_jours_env
+
+    return JournalTraces(_dossier(args), cle_locale.deriver(cle_locale.charger(), "traces/chaine/v1"),
+                         retention_jours=retention_jours_env())
 
 
 def _masqueur():

@@ -83,7 +83,7 @@ Il n'y a **aucun champ de contenu** : ni corps de courriel, ni prompt, ni sortie
   locale. Seule une ancre conservée hors du dossier (tête de chaîne publiée ailleurs) fermerait cette limite.
 - **Rétention bornée** : `retention_jours` (30 par défaut, 1–3650) et `taille_max_octets` (256 Mio) ; le dépassement supprime des **segments entiers**,
   le plus ancien d'abord, jamais le segment du jour ; chaque purge est consignée dans `purges.jsonl` (segments, raisons, dernier maillon). La
-  purge s'exécute à la création d'un segment ; `traces purger --confirmer` la déclenche à la main (à blanc par défaut). Ce sont de la télémétrie,
+  purge s'exécute à la création d'un segment ; `traces purger --confirmer` la déclenche à la main (à blanc par défaut) ; l'exécuteur `retention.traces` du planificateur ([PLANIFICATION.md](PLANIFICATION.md) §5) l'applique périodiquement après validation humaine sur aperçu. La rétention vient de `OPSYS_TRACES_RETENTION_JOURS` (30 par défaut, valeur invalide refusée) pour le serveur, la CLI et l'exécuteur. Ce sont de la télémétrie,
   pas des données d'affaires : la suppression de ces segments est la rétention voulue, pas une suppression définitive de données d'affaires.
 - **La télémétrie ne casse jamais l'appel** : une panne d'écriture est journalisée (nom de la classe d'exception seulement, pas son message) et
   l'outil continue.

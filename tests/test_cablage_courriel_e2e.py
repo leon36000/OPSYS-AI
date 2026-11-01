@@ -102,7 +102,13 @@ def test_un_courriel_entrant_devient_une_reception_de_m1_avec_provenance_et_sans
     assert resume["recus_m1"] == 1
     recu = _recu(c)[0]
     assert recu["compte_id"] == "gmail-paul" and recu["fournisseur"] == "gmail" and recu["neutralise"] is True
-    assert recu["expediteur"] == CLIENT and recu["decision"] in {"TRANSMETTRE_M2", "DEMANDER_PRECISIONS"}
+    # l'adresse n'est plus en clair au registre chaîné : elle est scellée (effaçable à l'échéance, Loi 25)
+    from m1_front_office import courriel_pii
+
+    assert recu["expediteur"] is None and recu["objet"] is None and "pii" in recu
+    with stockage.transaction():
+        assert courriel_pii.ouvrir(recu)["expediteur"] == CLIENT
+    assert recu["decision"] in {"TRANSMETTRE_M2", "DEMANDER_PRECISIONS"}
     signal = next(ligne for ligne in cq.lignes_m1() if ligne["type_entree"] == "signal")
     assert signal["signal_id"] == recu["signal_id"] and signal["source"] == "courriel"
     registre = json.dumps(cq.lignes_m1(), ensure_ascii=False)

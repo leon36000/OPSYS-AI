@@ -1,5 +1,12 @@
 """Console « Connecteurs » (administration) : connecter un compte courriel, voir l'état, activer ou désactiver les
-exécuteurs du planificateur, voir ce qui attend la direction avant tout envoi ou toute publication.
+exécuteurs du planificateur (TOUS les tours : connecteurs, départements, vérifications, rétention Loi 25), voir ce qui
+attend la direction avant tout envoi ou toute publication.
+
+Un exécuteur IRRÉVERSIBLE (purge de rétention) ne passe en « Actif » qu'après l'aperçu à blanc : choisir « Actif »
+affiche la
+liste de ce qui sera purgé (références, jamais un contenu) ; la confirmation expresse porte l'empreinte de CETTE liste,
+et
+la décision est refusée si la liste a changé entre-temps (on n'approuve que ce qu'on a vu).
 
 Mêmes protections que les pages Plateforme :
 - session obligatoire et rôle `nathan_owner`/`admin` RELU EN BASE avant ET après chaque lecture ; avant chaque
@@ -36,7 +43,9 @@ from sqlalchemy import func, select
 
 from .. import approbations
 from ..connecteurs_planification import etat as exec_etat
+from ..connecteurs_planification import inventaire
 from ..connecteurs_planification import journal as journal_plan
+from ..connecteurs_planification import planificateur as exec_planificateur
 from ..courriel_connecteurs import comptes
 from ..courriel_connecteurs.erreurs import ErreurCourriel
 from ..secrets_coffre import masquage
@@ -53,6 +62,18 @@ _SUCCES = {
     "cree": "Compte créé et consentement consigné (Loi 25). Il reste à le connecter.",
     "connecte": "Compte connecté : les jetons sont dans le coffre, jamais ici.",
     "revoque": "Compte révoqué : le secret est détruit.", "mode": "Mode de l'exécuteur enregistré.",
+    "irreversible": "Activation irréversible approuvée : l'aperçu que vous avez vu est consigné avec votre nom.",
+}
+_FAMILLES = (
+    ("connecteurs", "Connecteurs (courriel, WordPress, réseaux sociaux)"),
+    ("departements", "Départements (calculs, reconstructions, lectures)"),
+    ("verification", "Vérifications"),
+    ("retention", "Rétention Loi 25 (suppressions irréversibles)"),
+)
+_LIBELLE_DECISION = {
+    "brancher_quand_transport": "À brancher quand le transport existera",
+    "ne_jamais_automatiser": "Ne jamais automatiser",
+    "a_construire": "À construire",
 }
 # Ce que la direction doit décider avant qu'un envoi ou une publication ne parte (file d'approbation du socle).
 OUTILS_EN_ATTENTE = frozenset({
@@ -71,19 +92,111 @@ def _bandeau(params: Mapping[str, str]) -> pages.Bandeau | None:
     return None
 
 
+def _date(epoch: Any) -> str:
+    if not epoch:
+        return "—"
+    import datetime as dt
+
+    return dt.datetime.fromtimestamp(int(epoch), dt.UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _etat_affiche(v: Mapping[str, Any]) -> str:
+    e = pages.e
+    morceaux = [f'<strong>{e(_LIBELLE_MODE[v["mode"]])}</strong>{" (expiré)" if v["expire"] else ""}']
+    if v["en_attente_transport"]:
+        morceaux.append(f'<br><strong>En attente de transport</strong> : {e(v["transport_libelle"] or "")} '
+                        'non raccordé. Rien n\'est tenté ni simulé.')
+    if v["dernier_statut"] == "plafond":
+        morceaux.append("<br><strong>Plafond d'appels atteint</strong> (24 h glissantes).")
+    if v["irreversible"] and v["mode"] == "actif" and v["approbation"] is None:
+        morceaux.append("<br><strong>Sans décision humaine valide</strong> : n'efface rien.")
+    return "".join(morceaux)
+
+
 def _formulaire_executeur(v: Mapping[str, Any], prefixe: str, csrf: str) -> str:
     e = pages.e
     options = "".join(f'<option value="{m}"{" selected" if m == v["mode"] else ""}>{e(_LIBELLE_MODE[m])}</option>'
                       for m in exec_etat.MODES)
+    ident = re.sub(r"[^a-z0-9]+", "-", v["executeur"])
+    note = (f'<small id="irr-{ident}">Irréversible : « Actif » montre d\'abord ce qui sera purgé et demande votre '
+            'confirmation.</small>' if v["irreversible"] else "")
+    decrit = f' aria-describedby="irr-{ident}"' if v["irreversible"] else ""
     return (
         f'<form method="post" action="{e(prefixe)}/plateforme/connecteurs/executeurs" class="pile">'
         f'<input type="hidden" name="csrf" value="{e(csrf)}">'
         f'<input type="hidden" name="executeur" value="{e(v["executeur"])}">'
-        f'<label>Mode<select name="mode">{options}</select></label>'
+        f'<label>Mode<select name="mode"{decrit}>{options}</select></label>'
         f'<label>Intervalle (s)<input name="intervalle_s" inputmode="numeric" pattern="[0-9]*" maxlength="5" '
         f'value="{int(v["intervalle_s"])}"></label>'
         '<label>Motif<input name="motif" required minlength="3" maxlength="500"></label>'
-        '<button>Enregistrer (90 jours)</button></form>')
+        f'{note}<button>Enregistrer (90 jours)</button></form>')
+
+
+def contenu_apercu(v: Mapping[str, Any], apercu: Mapping[str, Any], champs: Mapping[str, str], *, prefixe: str,
+                   csrf: str) -> str:
+    """L'aperçu à blanc d'un exécuteur irréversible et le formulaire de confirmation expresse."""
+    e = pages.e
+    lignes = "".join(
+        f'<tr><td>{e(el.get("categorie", ""))}</td><td><code>{e(el.get("ref", ""))}</code></td>'
+        f'<td>{e(", ".join(el.get("comptes", [])) or "—")}</td></tr>' for el in apercu["elements"]
+    ) or '<tr><td colspan="3">Rien n\'est échu : une activation ne purgerait rien aujourd\'hui.</td></tr>'
+    cache = "".join(f'<input type="hidden" name="{n}" value="{e(champs.get(n, ""))}">'
+                    for n in ("executeur", "mode", "motif", "intervalle_s"))
+    return (
+        pages.navigation_plateforme(prefixe, "connecteurs") +
+        f'<section class="pile"><h2>Aperçu à blanc : {e(v["libelle"])}</h2>'
+        f'<p><strong>{int(apercu["nombre"])} élément(s)</strong> seraient supprimés ou rendus illisibles à la première '
+        'exécution. C\'est <strong>irréversible</strong>. Ce sont des références (identifiants, noms de segment), '
+        'jamais un contenu. Ensuite, la purge se répète automatiquement selon la politique déclarée, jusqu\'à '
+        'l\'expiration de 90 jours.</p>'
+        '<table><caption>Ce qui serait purgé</caption><thead><tr><th scope="col">Catégorie</th>'
+        '<th scope="col">Référence</th><th scope="col">Comptes</th></tr></thead>'
+        f'<tbody>{lignes}</tbody></table>'
+        f'<p>Empreinte de cette liste : <code>{e(apercu["empreinte"][:16])}</code></p>'
+        f'<form method="post" action="{e(prefixe)}/plateforme/connecteurs/executeurs" class="pile">'
+        f'<input type="hidden" name="csrf" value="{e(csrf)}">{cache}'
+        f'<input type="hidden" name="apercu_empreinte" value="{e(apercu["empreinte"])}">'
+        '<label><input type="checkbox" name="confirme_irreversible" value="oui" required> J\'ai lu cette liste et '
+        'j\'autorise cette suppression irréversible, puis son renouvellement automatique selon la politique.</label>'
+        '<button>Confirmer l\'activation irréversible</button></form>'
+        f'<p><a href="{e(prefixe)}/plateforme/connecteurs">Annuler</a></p></section>')
+
+
+def _section_executeurs(executeurs: list[dict[str, Any]], *, prefixe: str, csrf: str) -> str:
+    e = pages.e
+    sortie = ""
+    for famille, titre in _FAMILLES:
+        choisis = [v for v in executeurs if v["famille"] == famille]
+        if not choisis:
+            continue
+        lignes = "".join(
+            f'<tr><td><strong>{e(v["libelle"])}</strong><br><code>{e(v["executeur"])}</code><br>'
+            f'<small>{e(v["description"])}</small></td><td>{e(v["niveau"])}</td>'
+            f'<td>{_etat_affiche(v)}</td><td>{e(_date(v["expire_le"]))}</td>'
+            f'<td>{e(_date(v["dernier_passage"]))}<br>{e(v["dernier_statut"] or "jamais")} '
+            f'<code>{e(v["dernier_code"] or "")}</code><br>Échecs (24 h) : {int(v["echecs_24h"])}</td>'
+            f'<td>{e(_date(v["prochain_passage"]))}</td><td>{_formulaire_executeur(v, prefixe, csrf)}</td></tr>'
+            for v in choisis)
+        sortie += (
+            f'<h3>{e(titre)}</h3><table><caption class="cache">{e(titre)}</caption><thead><tr>'
+            '<th scope="col">Tour</th><th scope="col">Niveau</th><th scope="col">État</th>'
+            '<th scope="col">Expire</th><th scope="col">Dernier passage</th><th scope="col">Prochain</th>'
+            f'<th scope="col">Réglage</th></tr></thead><tbody>{lignes}</tbody></table>')
+    return sortie
+
+
+def _section_tours_non_branches() -> str:
+    e = pages.e
+    lignes = "".join(
+        f'<tr><td><strong>{e(t.libelle)}</strong><br><code>{e(t.identifiant)}</code></td><td>{e(t.niveau)}</td>'
+        f'<td>{e(_LIBELLE_DECISION[t.decision])}</td><td>{e(t.justification)}</td></tr>'
+        for t in inventaire.TOURS if t.decision in _LIBELLE_DECISION)
+    return (
+        '<section class="pile"><h2>Tours non branchés</h2><p class="note">Livrés mais volontairement absents du '
+        'planificateur : la raison est dite, rien n\'est simulé. Un geste humain reste un geste humain.</p>'
+        '<table><caption class="cache">Tours non branchés</caption><thead><tr><th scope="col">Tour</th>'
+        '<th scope="col">Niveau</th><th scope="col">Décision</th><th scope="col">Pourquoi</th></tr></thead>'
+        f'<tbody>{lignes}</tbody></table></section>')
 
 
 def contenu_page(comptes_liste: list[dict[str, Any]], executeurs: list[dict[str, Any]],
@@ -145,13 +258,6 @@ def contenu_page(comptes_liste: list[dict[str, Any]], executeurs: list[dict[str,
         '(brouillons à confirmer)</label>'
         '<label><input type="checkbox" name="consentement" value="oui" required> Le titulaire de la boîte a consenti '
         'à cette finalité</label><button>Créer</button></form></section>')
-    lignes_exec = "".join(
-        f'<tr><td><strong>{e(v["libelle"])}</strong><br><code>{e(v["executeur"])}</code><br>'
-        f'<small>{e(v["description"])}</small></td><td>{e(v["niveau"])}</td>'
-        f'<td>{e(_LIBELLE_MODE[v["mode"]])}{" (expiré)" if v["expire"] else ""}</td>'
-        f'<td>{e(v["expire_le"] or "—")}</td><td>{e(v["dernier_statut"] or "jamais")} '
-        f'<code>{e(v["dernier_code"] or "")}</code></td><td>{_formulaire_executeur(v, prefixe, csrf)}</td></tr>'
-        for v in executeurs)
     lignes_att = "".join(
         f'<tr><td><code>{e(d["id"])}</code></td><td>{e(d["outil"])}</td><td>{e(d["departement"])}</td>'
         f'<td>{e(d["niveau"])}</td><td>{e(str(d["cree_le"])[:19])}</td></tr>' for d in en_attente
@@ -169,10 +275,13 @@ def contenu_page(comptes_liste: list[dict[str, Any]], executeurs: list[dict[str,
         '<th>Adresse</th><th>État</th><th>Usage</th><th>Dernier passage</th><th>Brouillons</th><th>Actions</th>'
         f'</tr></thead><tbody>{ligne_comptes or "<tr><td colspan=8>Aucun compte.</td></tr>"}</tbody></table></section>'
         f"{creer}"
-        '<section class="pile"><h2>Exécuteurs du planificateur</h2><p class="note">Inactif par défaut. « Ombre » '
-        'constate sans rien appeler ; « Actif » exécute. Chaque activation expire après 90 jours.</p>'
-        '<table><thead><tr><th>Exécuteur</th><th>Niveau</th><th>Mode</th><th>Expire</th><th>Dernier passage</th>'
-        f'<th>Réglage</th></tr></thead><tbody>{lignes_exec}</tbody></table></section>'
+        '<section class="pile"><h2>Tours du planificateur</h2><p class="note">Inactif par défaut. « Ombre » '
+        'constate sans rien appeler ni écrire ; « Actif » exécute. Chaque activation expire après 90 jours. Un tour '
+        'dont le transport n\'est pas raccordé le dit : « En attente de transport ». Aucun tour de niveau N3 ou plus '
+        'n\'agit sans l\'approbation humaine consommée.</p>'
+        f'{_section_executeurs(executeurs, prefixe=prefixe, csrf=csrf)}'
+        '</section>'
+        f'{_section_tours_non_branches()}'
         f'<section class="pile"><h2>En attente de la direction</h2><p>Les décisions se prennent dans '
         f'<a href="{e(prefixe)}/approbations">Approbations</a> ; chaque envoi ou publication y est approuvé pour une '
         'empreinte précise.</p><table><thead><tr><th>Demande</th><th>Outil</th><th>Département</th><th>Niveau</th>'
@@ -223,6 +332,12 @@ def creer_router(
             raise HTTPException(422, "identifiant de compte invalide")
         return valeur
 
+    def ports_hote() -> Any:
+        """Les ports de l'hôte : seulement pour dire quel transport est (ou n'est pas) raccordé."""
+        from ..connecteurs_planification import hote
+
+        return hote.ports_par_defaut()
+
     def donnees() -> dict[str, Any]:
         with cnx_factory() as cnx:
             brouillons: dict[str, dict[str, int]] = {}
@@ -234,7 +349,8 @@ def creer_router(
             attente = [
                 {k: d[k] for k in ("id", "outil", "departement", "niveau", "cree_le")}
                 for d in approbations.lister(cnx, "en_attente", 200) if d["outil"] in OUTILS_EN_ATTENTE]
-            return {"comptes": comptes.lister(cnx), "executeurs": exec_etat.vue(cnx), "en_attente": attente,
+            return {"comptes": comptes.lister(cnx), "executeurs": exec_etat.vue(cnx, ports=ports_hote()),
+                    "en_attente": attente,
                     "brouillons": brouillons, "journal": journal_plan.lire(cnx, None, 50)}
 
     def oauth_configures() -> list[str]:
@@ -259,6 +375,7 @@ def creer_router(
         session_api(request)
         d = donnees()
         d["comptes"] = [{k: v for k, v in c.items() if k != "secret_nom"} for c in d["comptes"]]
+        d["tours"] = [{**t.__dict__, "n3_ou_plus": t.n3_ou_plus} for t in inventaire.TOURS]
         return JSONResponse(masquage.masquer({"ok": True, **d, "oauth": oauth_configures()}), headers=ENTETES)
 
     # -- écritures -------------------------------------------------------------------------------
@@ -353,13 +470,34 @@ def creer_router(
         intervalle = champs.get("intervalle_s", "").strip()
         if intervalle and not intervalle.isdigit():
             return retour(erreur="INTERVALLE_INVALIDE")
+        nom, mode = champs.get("executeur"), champs.get("mode")
+        definition = exec_etat.definition(nom) if isinstance(nom, str) else None
+        irreversible_actif = bool(definition and definition.irreversible and mode == "actif")
+        apercu: Mapping[str, Any] | None = None
+        if irreversible_actif:
+            try:
+                apercu = exec_planificateur.apercu(nom, ports=ports_hote())  # type: ignore[arg-type]
+            except exec_etat.RefusOperateur as exc:  # pragma: no cover — apercu ne lève pas ce type
+                return echec(exc)
+            except Exception as exc:  # noqa: BLE001 — la cause (dossier, clé) ne fuit pas : code fixe
+                return retour(erreur=getattr(exc, "code", "APERCU_INDISPONIBLE"))
+            if not champs.get("apercu_empreinte"):
+                # Première étape : on MONTRE ce qui serait purgé ; rien n'est enregistré.
+                vue = next(v for v in donnees()["executeurs"] if v["executeur"] == nom)
+                corps = contenu_apercu(vue, apercu, champs, prefixe=prefixe, csrf=session.csrf)
+                return servir(pages.gabarit("Plateforme — aperçu à blanc", corps, prefixe=prefixe, session=session,
+                                            actif=ONGLET))
         try:
             with cnx_factory() as cnx:
-                exec_etat.appliquer(cnx, session, champs.get("executeur"), champs.get("mode"),
-                                    motif=champs.get("motif"), intervalle_s=int(intervalle) if intervalle else None)
+                exec_etat.appliquer(
+                    cnx, session, nom, mode, motif=champs.get("motif"),
+                    intervalle_s=int(intervalle) if intervalle else None,
+                    apercu_empreinte=champs.get("apercu_empreinte"),
+                    apercu_courant=(lambda: (apercu["empreinte"], apercu["nombre"])) if apercu else None,
+                    confirme_irreversible=champs.get("confirme_irreversible") == "oui")
         except exec_etat.RefusOperateur as exc:
             return echec(exc)
-        return retour(ok="mode")
+        return retour(ok="irreversible" if irreversible_actif else "mode")
 
     return router
 

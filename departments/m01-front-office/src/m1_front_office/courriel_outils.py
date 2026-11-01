@@ -30,7 +30,7 @@ from opsys.courriel_connecteurs import comptes, envoi
 from opsys.courriel_connecteurs.erreurs import ErreurCourriel
 from opsys.outils import Autonomie, Niveau, Outil
 
-from . import horodatage, reception
+from . import courriel_pii, horodatage, reception
 from . import outils as _o
 from .registre import TYPE_RECU_COURRIEL, TYPE_REPONSE_COURRIEL
 
@@ -63,7 +63,9 @@ def _lignes() -> list[dict[str, Any]]:
 
 
 def _recus(lignes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {ligne["signal_id"]: ligne for ligne in lignes if ligne.get("type_entree") == TYPE_RECU_COURRIEL}
+    """Les courriels reçus, adresse et objet OUVERTS (ou `None` + `efface` si la clé a été détruite à l'échéance)."""
+    return {ligne["signal_id"]: courriel_pii.ouvrir(ligne) for ligne in lignes
+            if ligne.get("type_entree") == TYPE_RECU_COURRIEL}
 
 
 def _etapes(lignes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -94,10 +96,13 @@ def recevoir_courriel_connecteur(entrant: Any) -> dict[str, Any]:
             return {"statut": "deja_recu", "signal_id": message.signal_id}
         reponse = _o._recevoir_message_prepare(message, None)
         decision = str(reponse.get("decision") or "INCONNUE")
+        retention = comptes.lire(_cnx(), entrant.compte_id)["retention_jours"]
+        scelle = courriel_pii.sceller(message.signal_id, message.correspondant, entrant.objet or "",
+                                      retention_jours=retention, recu_le=message.horodatage)
         registre.ajouter({
             "type_entree": TYPE_RECU_COURRIEL, "horodatage": message.horodatage, "signal_id": message.signal_id,
             "compte_id": entrant.compte_id, "fournisseur": entrant.fournisseur, "dossier": entrant.dossier,
-            "expediteur": message.correspondant, "objet": entrant.objet,
+            "expediteur": None, "objet": None, "pii": scelle,
             "reference_reponse": entrant.reference_reponse, "empreinte_message": entrant.empreinte[:32],
             "signaux": list(entrant.signaux), "neutralise": bool(entrant.neutralise),
             "authentification": dict(entrant.authentification), "nb_pieces": entrant.nb_pieces,
@@ -160,7 +165,8 @@ def lire_courriels_recus(compte_id: str | None = None, signal_id: str | None = N
                            "authentification": r["authentification"], "indicatif": True},
             "signal_id": signal_id, "recu_le": r["horodatage"], "expediteur": r["expediteur"], "objet": r["objet"],
             "contenu": contenu, "signaux": r["signaux"], "neutralise": r["neutralise"], "nb_pieces": r["nb_pieces"],
-            "decision": r["decision"], "reponse": _resume_reponse(etapes.get(signal_id))}}
+            "decision": r["decision"], "efface": bool(r.get("efface")),
+            "reponse": _resume_reponse(etapes.get(signal_id))}}
     choisis = [r for r in reversed(list(recus.values())) if compte_id in (None, r["compte_id"])]
     page = choisis[depart:depart + limite]
     return {"accepte": True, "resultat": {
@@ -170,7 +176,7 @@ def lire_courriels_recus(compte_id: str | None = None, signal_id: str | None = N
             "expediteur": r["expediteur"], "objet": r["objet"],
             "extrait": " ".join((signaux.get(r["signal_id"]) or {}).get("contenu_filtre", "").split())[:200],
             "signaux": r["signaux"], "neutralise": r["neutralise"], "decision": r["decision"],
-            "reponse": _resume_reponse(etapes.get(r["signal_id"]))} for r in page],
+            "efface": bool(r.get("efface")), "reponse": _resume_reponse(etapes.get(r["signal_id"]))} for r in page],
         "total": len(choisis), "depart": depart, "suivant": depart + limite if depart + limite < len(choisis)
         else None}}
 
@@ -223,6 +229,9 @@ def preparer_reponse_courriel(signal_id: str, corps: str, objet: str | None = No
     r = _recus(lignes).get(signal_id)
     if r is None:
         raise ValueError("REJ-M1-COURRIEL-INCONNU: aucun courriel reçu sous ce signal_id")
+    if r.get("efface"):
+        raise ValueError("REJ-M1-COURRIEL-EFFACE: l'adresse de ce courriel a été effacée à l'échéance de rétention "
+                         "(Loi 25) : aucune réponse ne peut lui être adressée")
     cnx = _cnx()
     precedent = _etapes(lignes).get(signal_id)
     existant = None
