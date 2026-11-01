@@ -36,12 +36,23 @@ from pathlib import Path
 
 import pytest
 
+# lié à l'import : un test qui remplace `json.dumps` (panne d'encodeur simulée) ne doit pas casser le journal du banc
+_DUMPS = json.dumps
+
 ENV_ADMIN = "OPSYS_QUALIF_PG_ADMIN_URL"
 ENV_SORTIE = "OPSYS_QUALIF_PG_SORTIE"
 INDEX_DERIVES_PG = frozenset({"connaissances_lexique"})
 ENV_REDIRIGER = "OPSYS_QUALIF_PG_REDIRIGER"
 _ACTIF = bool(os.environ.get(ENV_ADMIN, "").strip())
 _COMPTEUR = itertools.count(1)
+_PILOTE_REEL: dict = {}
+if _ACTIF:
+    try:
+        import psycopg as _psycopg_reel
+
+        _PILOTE_REEL["psycopg"] = _psycopg_reel
+    except ImportError:  # pragma: no cover - le banc exige psycopg
+        pass
 _ETAT: dict = {"ordres_pg": 0, "gabarit": None, "suivi": None}
 
 
@@ -58,12 +69,22 @@ def _avec_base(url: str, base: str) -> str:
 def _executer_admin(sql: str) -> None:
     from sqlalchemy import create_engine, text
 
-    moteur = create_engine(_admin_url(), isolation_level="AUTOCOMMIT", pool_pre_ping=True)
+    # Un test qui remplace `psycopg` par un double dans `sys.modules` (test_postgres_fixture_doubles) ne doit pas
+    # priver le banc de son pilote réel pour créer ou supprimer les bases : on lui rend le vrai le temps de l'appel.
+    reel = _PILOTE_REEL.get("psycopg")
+    present = sys.modules.get("psycopg")
+    if reel is not None:
+        sys.modules["psycopg"] = reel
     try:
-        with moteur.connect() as cnx:
-            cnx.execute(text(sql))
+        moteur = create_engine(_admin_url(), isolation_level="AUTOCOMMIT", pool_pre_ping=True)
+        try:
+            with moteur.connect() as cnx:
+                cnx.execute(text(sql))
+        finally:
+            moteur.dispose()
     finally:
-        moteur.dispose()
+        if reel is not None and present is not None:
+            sys.modules["psycopg"] = present
 
 
 if _ACTIF:
@@ -190,4 +211,4 @@ def pytest_runtest_makereport(item, call):
         if rapport.outcome == "skipped" and rapport.longrepr:
             ligne["raison"] = str(rapport.longrepr[-1])[:200]
         with open(Path(chemin), "a", encoding="utf-8") as f:
-            f.write(json.dumps(ligne, ensure_ascii=False) + "\n")
+            f.write(_DUMPS(ligne, ensure_ascii=False) + "\n")

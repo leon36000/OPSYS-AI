@@ -652,6 +652,9 @@ _SECRET_PARTIEL = "secret-console-verticale-partielle-fictif-" + "x" * 32
 _ROUTE_PARTIEL = "/api/finance/rapprochement-bancaire/proposer"
 
 
+_INDEX_DERIVES = frozenset({"connaissances_lexique"})
+
+
 def _tables_partiel():
     """Toutes les tables SQL réelles, y compris celles hors META ; aucun filtre métier."""
     with stockage.transaction() as cnx:
@@ -659,6 +662,7 @@ def _tables_partiel():
         return {
             nom: Counter(tuple(row) for row in cnx.execute(select(Table(nom, meta, autoload_with=cnx))))
             for nom in inspect(cnx).get_table_names()
+            if nom not in _INDEX_DERIVES  # index de recherche PostgreSQL dérivé (migration 0053), pas une donnée métier
         }
 
 

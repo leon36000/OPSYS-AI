@@ -17,6 +17,7 @@ from hashlib import sha256
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Connection,
     DateTime,
     Integer,
@@ -328,7 +329,8 @@ def _requete_cohorte_m5_m8(type_evenement: str, dialecte: str):
     # Huit octets fixes de budget par métadonnée entière métier (kind est synthétique).
     for kind, nom in ((1, "tentatives"), (2, "rang")):
         col = prefixe.c[nom]
-        mauvais = or_(col.is_(None), col < -(2**63), col > 2**63 - 1)
+        # Bornes en BigInteger : liées à une colonne INTEGER, 2**63 déborde sur PostgreSQL (integer out of range).
+        mauvais = or_(col.is_(None), col < literal(-(2**63), BigInteger), col > literal(2**63 - 1, BigInteger))
         if dialecte == "sqlite":
             mauvais = or_(mauvais, func.typeof(col) != "integer")
         invalides.append(and_(prefixe.c.kind == kind, mauvais))
