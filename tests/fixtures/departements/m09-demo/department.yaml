@@ -3,6 +3,13 @@ id: m09-demo
 code: M9
 nom: Démo
 mission: Département fictif des tests du socle.
+avatar:
+  nom: Démo
+  role: Avatar fictif des tests du socle
+  voix: voix.demo.defaut
+  visage: visage.demo.defaut
+  canaux:
+    messagerie: disponible
 outils: demo_outils
 mode: supervise
 modeles:

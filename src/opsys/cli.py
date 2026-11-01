@@ -23,6 +23,7 @@ from . import (
     agents_base,
     appareils,
     approbations,
+    avatars,
     canaux,
     equipes,
     etat,
@@ -98,6 +99,12 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_canaux:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    problemes_avatars = avatars.verifier_declarations(deps)
+    if problemes_avatars:
+        print("ERREUR : avatars des départements invalides (department.yaml, bloc avatar) :", file=sys.stderr)
+        for probleme in problemes_avatars:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
     # Un fichier illisible échoue à chaque lecture du profil : le même message ne s'affiche qu'une fois.
     problemes_taxonomie = list(dict.fromkeys(
         taxonomie.verifier_profil()
@@ -115,6 +122,13 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_taxonomie:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    # Après la taxonomie : un profil illisible y est déjà signalé ; ici, seules les surcharges d'avatars sont jugées.
+    problemes_surcharges = avatars.verifier_profil(deps)
+    if problemes_surcharges:
+        print("ERREUR : avatars personnalisés invalides (profil d'entreprise, clé avatars) :", file=sys.stderr)
+        for probleme in problemes_surcharges:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
     etat_canaux = canaux.configuration(deps, os.environ).etat
     for ligne in canaux.lignes_d_etat(etat_canaux):
         print(ligne)
@@ -128,7 +142,8 @@ def cmd_verifier(args: argparse.Namespace) -> int:
     avec_portee = sum(1 for _dep, outil in index.values() if outil.roles_appareil)
     print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides, "
           f"événements cohérents, portées d'appareil valides ({avec_portee} outils déclarés, "
-          "les autres fermés aux appareils), taxonomie sans copie locale.")
+          "les autres fermés aux appareils), taxonomie sans copie locale, "
+          f"{len(deps)} avatars aux noms distincts.")
     if args.paliers:
         paliers = modeles.charger_paliers()
         manquants = sorted({d.modeles[u] for d in deps.values() for u in d.modeles} - set(paliers))

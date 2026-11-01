@@ -50,11 +50,17 @@ kpis:
 evenements:                   # optionnel (ADR-0009 §3) — voir « Événements » ci-dessous
   consomme: [m4.travaux_termines]   # types du catalogue src/opsys/evenements/catalogue/*.json
 canaux: [sms]                 # optionnel (T2.1-a) : canaux du core par lesquels il reçoit le public
+avatar:                       # exigé par `opsys-metier verifier` : identité par défaut (AVATARS.md)
+  nom: Mathis
+  role: "Estimateur : métrés et soumissions"
+  voix: voix.mathis.defaut    # identifiant logique, jamais un fournisseur
+  visage: visage.mathis.defaut
+  canaux: {messagerie: disponible, voix: prevu, audiovisuel: prevu}
 ```
 
 `opsys-metier verifier` (ou `opsys metier verifier` depuis le core ; `opsys` seul est le core depuis T0.7 lot 2) valide tous les manifestes, l'unicité des outils, les dépendances et la cohérence
 des événements (types déclarés au catalogue, fonction présente pour chaque type consommé, aucune
-fonction orpheline). Il tourne en CI.
+fonction orpheline), et un avatar par département aux noms distincts ([AVATARS](AVATARS.md)). Il tourne en CI.
 
 ## `outils.py` : le contrat d'outil
 

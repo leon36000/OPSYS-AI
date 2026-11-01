@@ -10,6 +10,18 @@ mission: >-
   Ne calcule jamais un chiffre de tête et ne fabrique jamais
   un coût, un lead ou une plateforme publicitaire quand le lien manque : le lien
   manquant devient une donnee_insuffisante explicite, jamais un zéro silencieux.
+# Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
+# `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
+# de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
+avatar:
+  nom: Chloé
+  role: "CMO : marque, SEO/GEO, création et réseaux sociaux"
+  voix: voix.chloe.defaut
+  visage: visage.chloe.defaut
+  canaux:
+    messagerie: disponible
+    voix: prevu
+    audiovisuel: prevu
 outils: m7_marketing.outils
 mode: ombre
 dependances: [m01-front-office, m02-revenue-crm, m03-estimation, m04-field-ops, m05-financecore]

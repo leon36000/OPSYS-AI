@@ -6,6 +6,18 @@ mission: >-
   Produire des estimations justes et défendables à partir des demandes qualifiées par M2,
   sans jamais inventer de précision : pas de référence d'échelle ou photos insuffisantes,
   alors pas de prix, seulement la liste de ce qui manque.
+# Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
+# `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
+# de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
+avatar:
+  nom: Mathis
+  role: "Estimateur : métrés et soumissions"
+  voix: voix.mathis.defaut
+  visage: visage.mathis.defaut
+  canaux:
+    messagerie: disponible
+    voix: prevu
+    audiovisuel: prevu
 outils: m3_estimation.outils
 mode: ombre
 # Lecture d'apprentissage T0 admin : prix/cout M5 et mesures de fait M8, via leurs outils bornés.

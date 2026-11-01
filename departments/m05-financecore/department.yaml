@@ -7,6 +7,18 @@ mission: >-
   demande de l'admin), prévision de trésorerie des flux connus et datés, taxes TPS/TVQ et leurs échéances,
   approbations F0-F7 — sans jamais engager, payer ou approuver de lui-même : toute écriture financière et toute
   décision d'approbation restent une proposition tant qu'un humain ne les a pas validées sur pièces.
+# Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
+# `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
+# de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
+avatar:
+  nom: Sophie
+  role: "Contrôleuse, comptable, fiscaliste et CFO"
+  voix: voix.sophie.defaut
+  visage: visage.sophie.defaut
+  canaux:
+    messagerie: disponible
+    voix: prevu
+    audiovisuel: prevu
 outils: m5_financecore.outils
 mode: ombre
 dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m06-material-control]

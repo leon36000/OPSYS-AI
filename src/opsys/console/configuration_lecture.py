@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 from sqlalchemy import Connection, LargeBinary, case, cast, func, or_, select
 
-from opsys import approbations, modeles, openclaw
+from opsys import approbations, avatars, modeles, openclaw, taxonomie
 from opsys.departements import PALIERS, Departement
 from opsys.stockage.schema import AGENTS_CONFIGURABLES, AGENTS_POLITIQUE_ENTREPRISE
 
@@ -144,6 +144,27 @@ def _profils(cnx: Connection, deps: Mapping[str, Departement]) -> dict[str, Any]
             "items": items, "par_departement": par_departement}
 
 
+def _avatars(deps: Mapping[str, Departement], chemin_profil: Path | None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Identités effectives des avatars (manifestes + surcharges du profil d'entreprise), en lecture seule.
+
+    Fail-closed : un profil trop volumineux, illisible ou dont les surcharges ne se résolvent pas ne montre AUCUNE
+    identité (pas même les défauts, qui afficheraient un nom que le client a remplacé) ; le statut le dit, sans chemin
+    ni contenu du fichier fautif.
+    """
+    if any(dep.avatar is None for dep in deps.values()):
+        return {}, {"statut": "avatars_non_declares"}  # `opsys-metier verifier` refuse déjà un tel manifeste
+    fichier = chemin_profil or taxonomie.fichier_profil()
+    try:
+        if fichier.is_file() and fichier.stat().st_size > MAX_OCTETS:
+            return {}, {"statut": "profil_trop_volumineux"}
+        identites = avatars.identites_effectives(deps, fichier)
+    except (OSError, taxonomie.ProfilInvalide):
+        return {}, {"statut": "profil_invalide"}
+    personnalises = sorted(i for i, ident in identites.items() if avatars.SOURCE_ENTREPRISE in ident.sources.values())
+    statut = {"statut": "personnalise" if personnalises else "defaut", "personnalises": personnalises}
+    return {ident: identite.en_dict() for ident, identite in identites.items()}, statut
+
+
 def verifier_sortie(brut: bytes) -> None:
     if len(brut) > MAX_OCTETS:
         raise ConfigurationLectureErreur("configuration_sortie_trop_volumineuse", statut=413)
@@ -151,13 +172,14 @@ def verifier_sortie(brut: bytes) -> None:
 
 def lire(
     cnx: Connection, deps: Mapping[str, Departement], environ: Mapping[str, str],
-    chemin_paliers: Path | None = None,
+    chemin_paliers: Path | None = None, chemin_profil: Path | None = None,
 ) -> dict[str, Any]:
     """Identité vérifiée par le transport avant/après lecture et rendu ; aucun effet ici."""
     if len(deps) > MAX_DEPARTEMENTS:
         raise ConfigurationLectureErreur("configuration_trop_de_departements", statut=413)
     paliers = _lire_paliers(chemin_paliers)
     profils = _profils(cnx, deps)
+    identites, statut_avatars = _avatars(deps, chemin_profil)
     tiers = []
     for nom in PALIERS:
         conf = paliers.get(nom)
@@ -183,6 +205,7 @@ def lire(
             "evenements_declares": {"publie": list(dep.evenements_publie), "consomme": list(dep.evenements_consomme)},
             "memoire_declaree": {"lecture": list(dep.memoire_lecture), "ecriture": list(dep.memoire_ecriture)},
             "permissions": "outils_du_departement_et_politiques_metier", "inventaire_api": "partiel",
+            "avatar": identites.get(dep.id),
         })
     politique = cnx.execute(select(
         AGENTS_POLITIQUE_ENTREPRISE.c.budget_jour, AGENTS_POLITIQUE_ENTREPRISE.c.budget_mois,
@@ -191,6 +214,7 @@ def lire(
     resultat = {
         "schema": "opsys.configuration_dashboard/v1", "departements": departements, "paliers": tiers,
         "profils": {k: v for k, v in profils.items() if k != "par_departement"},
+        "avatars": statut_avatars,
         "plafonds_specialistes": {k: _entier(v, 1) for k, v in politique.items()} if politique else None,
         "verification_runtime": "non_observee", "cout_financier": "inconnu",
         "limites": {"octets": MAX_OCTETS, "departements": MAX_DEPARTEMENTS,
