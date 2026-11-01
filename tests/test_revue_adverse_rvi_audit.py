@@ -114,3 +114,64 @@ def test_la_lecture_deja_declaree_n_est_pas_un_ecart(racine):
 def test_le_registre_de_son_propre_departement_et_une_constante_inutilisee_ne_sont_pas_des_ecarts(racine):
     code = 'MOI = "m09-fictif"\nAUTRE = "m04-field-ops"\nx = stockage.maillons(MOI, "principal")\ny = len(AUTRE)\n'
     assert _non_declarees(racine, code)[0] == []
+
+
+# ------------------------------------------------------------------------------------------ consommateur factice
+def _avec_handlers(handlers, consomme):
+    return SimpleNamespace(
+        id="m09-fictif", numero=9, evenements_publie=(), evenements_consomme=tuple(consomme), racine=None,
+        charger_consommateurs=lambda: dict(handlers))
+
+
+def _handler_reel(charge):
+    return {"recu": len(charge)}
+
+
+def test_un_handler_qui_ne_fait_rien_ne_compte_pas_comme_un_consommateur_reel():
+    inertes = {
+        "m3.devis_accepte": lambda charge: {},
+        "m2.client_associe": lambda charge: charge,
+        "m4.travaux_termines": lambda charge: None,
+    }
+    dep = _avec_handlers(inertes, inertes)
+    analyse = ic.analyser({"m09-fictif": dep}, {})
+    assert sorted(e["type"] for e in analyse["handlers_inertes"]) == sorted(inertes)
+    ligne = {x["type"]: x for x in analyse["matrice"]}["m3.devis_accepte"]
+    assert ligne["consommateurs"] == []
+    problemes = ic.problemes(analyse)
+    assert any("m3.devis_accepte" in p and "inerte" in p for p in problemes)
+    assert any("m3.devis_accepte" in p and "aucun consommateur réel" in p for p in problemes)
+
+
+def test_un_vrai_handler_reste_un_consommateur_reel():
+    dep = _avec_handlers({"m3.devis_accepte": _handler_reel}, ["m3.devis_accepte"])
+    analyse = ic.analyser({"m09-fictif": dep}, {})
+    assert analyse["handlers_inertes"] == []
+    ligne = {x["type"]: x for x in analyse["matrice"]}["m3.devis_accepte"]
+    assert ligne["consommateurs"] == ["m09-fictif"]
+
+
+def test_un_handler_ferme_sur_une_variable_ou_une_methode_liee_n_est_pas_inerte():
+    cible = []
+
+    class Recepteur:
+        recus: list = []
+
+        def recevoir(self, charge):
+            self.recus.append(charge)
+
+    def fabrique(delegue):
+        return lambda charge: delegue(charge)  # le seul nom est une variable libre : il délègue
+
+    for handler in (fabrique(cible.append), Recepteur().recevoir):
+        dep = _avec_handlers({"m3.devis_accepte": handler}, ["m3.devis_accepte"])
+        assert ic.analyser({"m09-fictif": dep}, {})["handlers_inertes"] == []
+
+
+def test_aucun_consommateur_reel_du_depot_n_est_inerte():
+    from pathlib import Path
+
+    from opsys.departements import charger_departements
+
+    analyse = ic.analyser(charger_departements(Path(__file__).resolve().parents[1] / "departments"))
+    assert analyse["handlers_inertes"] == []

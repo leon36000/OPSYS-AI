@@ -12,6 +12,8 @@ Il en tire une matrice producteur -> consommateurs et quatre familles d'écarts 
   justification écrite dans `docs/architecture/evenements-sans-consommateur.json` (raison, date de revue) ;
 - `declares_sans_handler` : un département déclare consommer un type mais n'a pas de fonction pour lui
   (il croit recevoir, il ne reçoit rien) ;
+- `handlers_inertes` : une fonction qui ne référence aucun nom (`lambda charge: {}`) : elle ne compte PAS comme un
+  consommateur réel ;
 - `handlers_sans_declaration` : une fonction de `consommateurs()` absente de `evenements.consomme`
   (le répartiteur ne l'appelle jamais : du code mort qui se croit branché) ;
 - `types_sans_producteur` / `producteurs_sans_trace` : un type consommé que personne ne déclare publier, ou un type
@@ -132,6 +134,15 @@ def _trace_dans_le_code(departement: Departement, type_evenement: str) -> bool:
     return False
 
 
+def _inerte(fonction: Any) -> bool:
+    """Un handler qui ne référence AUCUN nom (ni appel, ni attribut, ni variable libre) ne peut rien écrire : c'est le
+    consommateur factice (`lambda charge: {}`, `lambda charge: charge`) qui ferait passer l'audit sans rien recevoir.
+    Heuristique grossière et dite telle : un handler qui appelle `print` n'est pas vu ; le comportement des handlers
+    est prouvé par les tests de chaque consommateur, pas par cet audit."""
+    code = getattr(fonction, "__code__", None)  # une méthode liée délègue `__code__` à sa fonction
+    return code is not None and not code.co_names and not code.co_freevars
+
+
 def analyser(
     departements: Mapping[str, Departement], justifications: Mapping[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -144,6 +155,7 @@ def analyser(
     declares_sans_handler: list[dict[str, str]] = []
     handlers_sans_declaration: list[dict[str, str]] = []
     illisibles: list[dict[str, str]] = []
+    handlers_inertes: list[dict[str, str]] = []
     producteurs_sans_trace: list[dict[str, str]] = []
     for dep in sorted(departements.values(), key=lambda d: d.numero):
         for type_evenement in dep.evenements_publie:
@@ -151,13 +163,17 @@ def analyser(
             if type_evenement in catalogue and not _trace_dans_le_code(dep, type_evenement):
                 producteurs_sans_trace.append({"departement": dep.id, "type": type_evenement})
         try:
-            fonctions = set(dep.charger_consommateurs())
+            handlers = dict(dep.charger_consommateurs())
         except Exception as exc:  # noqa: BLE001 — décrit dans le rapport, jamais une panne de l'audit
             illisibles.append({"departement": dep.id, "erreur": f"{type(exc).__name__}: {exc}"})
-            fonctions = set()
+            handlers = {}
+        fonctions = set(handlers)
         for type_evenement in dep.evenements_consomme:
             declares.setdefault(type_evenement, []).append(dep.id)
-            if type_evenement in fonctions:
+            if type_evenement in fonctions and _inerte(handlers[type_evenement]):
+                # Un handler inerte ne reçoit rien : il n'est PAS un consommateur réel.
+                handlers_inertes.append({"departement": dep.id, "type": type_evenement})
+            elif type_evenement in fonctions:
                 reels.setdefault(type_evenement, []).append(dep.id)
             else:
                 declares_sans_handler.append({"departement": dep.id, "type": type_evenement})
@@ -180,6 +196,7 @@ def analyser(
         "types_sans_consommateur_non_justifies": [t for t in sans_consommateur if t not in justifs],
         "justifications_perimees": sorted(t for t in justifs if reels.get(t)),
         "declares_sans_handler": declares_sans_handler,
+        "handlers_inertes": handlers_inertes,
         "handlers_sans_declaration": handlers_sans_declaration,
         "types_sans_producteur": sorted(t for t in catalogue if reels.get(t) and not producteurs.get(t)),
         "producteurs_sans_trace": producteurs_sans_trace,
@@ -197,6 +214,8 @@ def problemes(analyse: Mapping[str, Any]) -> list[str]:
         sortie.append(f"{t} : justifié « sans consommateur » alors qu'un consommateur réel existe (retirer la fiche)")
     for ecart in analyse["declares_sans_handler"]:
         sortie.append(f"{ecart['departement']} : consomme {ecart['type']} sans handler dans consommateurs()")
+    for ecart in analyse["handlers_inertes"]:
+        sortie.append(f"{ecart['departement']} : handler {ecart['type']} inerte (ne référence aucun appel ni écriture)")
     for ecart in analyse["handlers_sans_declaration"]:
         sortie.append(f"{ecart['departement']} : handler {ecart['type']} absent de evenements.consomme")
     for t in analyse["types_sans_producteur"]:
