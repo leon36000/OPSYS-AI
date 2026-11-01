@@ -22,6 +22,7 @@ import unicodedata
 from collections.abc import Mapping
 from datetime import UTC
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 import anyio
@@ -34,6 +35,10 @@ from .capacites import _LECTURES_DOCUMENTAIRES_M10, _OUTILS_DOCUMENTAIRES_M10, C
 from .departements import Departement, charger_departements
 from .memoire import autorite as autorite_memoire
 from .outils import Autonomie, Niveau, Outil
+from .registre_mcp import garde as garde_mcp
+from .registre_mcp import registre as registre_mcp
+from .registre_mcp import rule_of_two
+from .registre_mcp.inventaire import NIVEAUX_RUNTIME
 from .stockage import base_cron_operateur
 
 ENV_REPARTITEUR = "OPSYS_EVENEMENTS_REPARTITEUR"
@@ -57,14 +62,160 @@ def _annotations(outil: Outil) -> types.ToolAnnotations:
     return _ANNOTATIONS[outil.autonomie]
 
 
+# -- Registre MCP en liste blanche, Rule of Two et traces (docs/architecture/OBSERVABILITE-MCP.md) -------------------
+# Rien de ceci n'agit sans configuration : `OPSYS_MCP_REGISTRE` (garde) et `OPSYS_TRACES` (journal de traces).
+ENV_TRACES = "OPSYS_TRACES"
+META_EXPOSITIONS = "opsys/surfacesNonFiables"
+_DEFAUT: Any = object()
+_VRAI = {"1", "true", "oui", "on", "actif"}
+_CACHE_GARDE: dict[tuple[Any, ...], Any] = {}
+_CACHE_TRACEUR: dict[str, Any] = {}
+_CODE_REJ = re.compile(r"^(REJ-[A-Z0-9-]{2,80})")
+_CODE_SIMPLE = re.compile(r"^[a-z][a-z0-9_]{1,60}$")
+_AGENT_META = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
+
+
+def _garde_de_l_environnement() -> garde_mcp.GardeMCP | None:
+    """Garde configurée par `OPSYS_MCP_REGISTRE` (une seule lecture du registre par processus et par configuration)."""
+    valeur = os.environ.get(garde_mcp.ENV_REGISTRE, "").strip()
+    if not valeur:
+        return None
+    chemin = garde_mcp.REGISTRE_LIVRE if valeur == "defaut" else Path(valeur)
+    try:
+        horodatage = chemin.stat().st_mtime_ns
+    except OSError:
+        horodatage = 0
+    cle = (valeur, os.environ.get(garde_mcp.ENV_STRICT), os.environ.get(garde_mcp.ENV_HMAC), horodatage)
+    if cle not in _CACHE_GARDE:
+        _CACHE_GARDE.clear()
+        _CACHE_GARDE[cle] = garde_mcp.garde_depuis_env()
+    return _CACHE_GARDE[cle]
+
+
+def _traceur_de_l_environnement() -> Any:
+    """Traceur local si `OPSYS_TRACES` est actif (journal sous `<OPSYS_HOME>/traces`), sinon None."""
+    if os.environ.get(ENV_TRACES, "").strip().lower() not in _VRAI:
+        return None
+    from .observabilite.traces import traceur_local
+    from .stockage.moteur import dossier_opsys
+
+    cle = str(dossier_opsys())
+    if cle not in _CACHE_TRACEUR:
+        _CACHE_TRACEUR[cle] = traceur_local()
+    return _CACHE_TRACEUR[cle]
+
+
+def _surface_vivante(nom: str) -> str:
+    return "contexte" if nom.startswith("opsys_contexte_") else "departement"
+
+
+def _definition_vivante(capacites: Capacites, nom: str) -> registre_mcp.DefinitionOutil | None:
+    """L'outil tel qu'il est exposé MAINTENANT (jamais une copie mémorisée), ou None s'il n'existe pas ici."""
+    entree = capacites.index.get(nom)
+    if entree is None:
+        return None
+    departement, outil = entree
+    return registre_mcp.DefinitionOutil.depuis_outil(outil, departement.id if departement is not None else "opsys",
+                                                     _surface_vivante(nom))
+
+
+def _definitions_vivantes(capacites: Capacites, outils: list[Outil]) -> list[registre_mcp.DefinitionOutil]:
+    trouvees = (_definition_vivante(capacites, o.nom) for o in outils)
+    return [d for d in trouvees if d is not None]
+
+
+def _agent_depuis_meta(meta: Any) -> str:
+    valeur = meta.get("opsys/runtimeProfileId") if isinstance(meta, dict) else None
+    return valeur if isinstance(valeur, str) and _AGENT_META.fullmatch(valeur) else "non_identifie"
+
+
+def _rapporteur(traceur: Any, capacites: Capacites | None) -> garde_mcp.Rapporteur:
+    """Chaque refus du registre devient un span `refus_mcp` (si le traceur est actif)."""
+    def rapporter(refus: registre_mcp.RefusMCP, contexte: Any) -> None:
+        if traceur is None:
+            return
+        entree = capacites.index.get(refus.outil or "") if capacites is not None else None
+        departement = (entree[0].id if entree and entree[0] is not None
+                       else capacites.appelant.id if capacites is not None and capacites.appelant else "opsys")
+        niveau = entree[1].niveau_effectif.value if entree else None
+        traceur.refus(outil=refus.outil, departement=departement, agent="non_identifie", niveau=niveau,
+                      code=refus.code, attributs={"moment": str(contexte.get("moment", ""))})
+    return rapporter
+
+
+def _resultat_refus(refus: registre_mcp.RefusMCP) -> types.CallToolResult:
+    return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(refus.enveloppe(),
+                                                                                        ensure_ascii=False))],
+                                isError=True)
+
+
+def _conclure_span(span: Any, resultat: types.CallToolResult) -> None:
+    """Issue, code de refus et lien d'approbation lus dans l'enveloppe de l'outil (jamais son contenu)."""
+    donnees: Any = None
+    try:
+        bloc = resultat.content[0] if resultat.content else None
+        texte = getattr(bloc, "text", None)
+        if isinstance(texte, str) and len(texte) <= 1_000_000:
+            donnees = json.loads(texte)
+    except (ValueError, IndexError, AttributeError):
+        donnees = None
+    if not isinstance(donnees, dict):
+        span.conclure("refus" if resultat.is_error else "ok")
+        return
+    if donnees.get("statut") == "en_attente_approbation":
+        demande = donnees.get("demande_id")
+        span.conclure("attente_approbation", approbation_id=str(demande) if demande is not None else None)
+        return
+    code: str | None = None
+    erreur = donnees.get("erreur")
+    if isinstance(erreur, str):
+        trouve = _CODE_REJ.match(erreur)
+        if erreur == "refus_metier" and isinstance(donnees.get("details"), str):
+            trouve = _CODE_REJ.match(donnees["details"])
+            code = trouve.group(1) if trouve else erreur
+        else:
+            code = trouve.group(1) if trouve else erreur if _CODE_SIMPLE.match(erreur) else None
+    contenu = donnees.get("resultat")
+    verdict = contenu.get("verdict") if isinstance(contenu, dict) and contenu.get("accepte") is False else None
+    if isinstance(verdict, dict) and isinstance(verdict.get("code"), str):
+        trouve_verdict = _CODE_REJ.match(verdict["code"])
+        code = trouve_verdict.group(1) if trouve_verdict else code
+    if donnees.get("ok") is False or verdict is not None or resultat.is_error:
+        span.conclure("refus", code=code)
+    else:
+        span.conclure("ok")
+
+
 def creer_serveur(
     capacites: Capacites,
     *,
     outils_permis: frozenset[str] | None = None,
     outils_caches: frozenset[str] = frozenset(),
+    garde: Any = _DEFAUT,
+    traceur: Any = _DEFAUT,
+    expositions: frozenset[str] = frozenset(),
 ) -> Server[Any]:
+    """`garde` (registre MCP scellé + Rule of Two) et `traceur` (journal de traces) : par défaut, ce que dit
+    l'environnement (`OPSYS_MCP_REGISTRE`, `OPSYS_TRACES`) ; `None` les désactive. `expositions` : surfaces non fiables
+    que ce serveur-ci déclare pour toutes ses sessions (profil d'agent), s'ajoutant à celles que l'hôte met dans
+    `_meta`."""
+    if traceur is _DEFAUT:
+        traceur = _traceur_de_l_environnement()
+    if garde is _DEFAUT:
+        garde = _garde_de_l_environnement()
+    if garde is not None:
+        surfaces = frozenset({"departement"}) if outils_permis is None else frozenset({"departement", "contexte"})
+        garde = garde.avec(surfaces=surfaces, rapporter=_rapporteur(traceur, capacites))
+        garde.demarrer(_definitions_vivantes(capacites, [o for o in capacites.lister()
+                       if (outils_permis is None or o.nom in outils_permis) and o.nom not in outils_caches]))
+
     async def lister_outils(ctx: Any, params: types.PaginatedRequestParams | None) -> types.ListToolsResult:
         del ctx, params
+        visibles = [outil for outil in capacites.lister()
+                    if (outils_permis is None or outil.nom in outils_permis) and outil.nom not in outils_caches]
+        if garde is not None:  # un outil dont la définition a changé depuis le scellement n'est même pas annoncé
+            conformes = {d.nom for d in garde.filtrer(_definitions_vivantes(capacites, visibles))}
+            visibles = [o for o in visibles if o.nom in conformes]
         return types.ListToolsResult(
             tools=[
                 types.Tool(
@@ -73,13 +224,35 @@ def creer_serveur(
                     inputSchema=dict(outil.parametres),
                     annotations=_annotations(outil),
                 )
-                for outil in capacites.lister()
-                if outils_permis is None or outil.nom in outils_permis
-                if outil.nom not in outils_caches
+                for outil in visibles
             ]
         )
 
     async def appeler_outil(ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
+        """Garde (registre + Rule of Two) puis trace autour de l'appel d'origine, qui reste inchangé."""
+        if garde is not None:
+            try:
+                exposees = expositions | rule_of_two.parser_expositions(
+                    params.meta.get(META_EXPOSITIONS) if isinstance(params.meta, dict) else None)
+            except registre_mcp.RefusMCP as refus:
+                garde.signaler(refus, moment="appel")
+                return _resultat_refus(refus)
+            refus = garde.controler(_definition_vivante(capacites, params.name), expositions=exposees)
+            if refus is not None:
+                return _resultat_refus(refus)
+        if traceur is None:
+            return await _appeler_outil_interne(ctx, params)
+        entree = capacites.index.get(params.name)
+        departement = (entree[0].id if entree and entree[0] is not None
+                       else capacites.appelant.id if capacites.appelant else "opsys")
+        niveau = entree[1].niveau_effectif.value if entree else None
+        with traceur.appel_outil(outil=params.name, departement=departement, agent=_agent_depuis_meta(params.meta),
+                                 niveau=niveau) as span:
+            resultat = await _appeler_outil_interne(ctx, params)
+            _conclure_span(span, resultat)
+        return resultat
+
+    async def _appeler_outil_interne(ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
         del ctx
         if params.name in _LECTURES_DOCUMENTAIRES_M10:
             # No mutation Meta is fabricated for T0. The SDK validates its own request
@@ -849,8 +1022,20 @@ def _dans_base_cron_operateur(
     return base_cron_operateur.dans_base_cron_operateur(cnx_factory, identite_base, operation)
 
 
-def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factory: Any, agent_id: str) -> Server[Any]:
+def _definition_runtime(outil: types.Tool) -> registre_mcp.DefinitionOutil:
+    """Un outil d'hôte du serveur d'admission, vu comme une définition du registre (niveau déclaré, jamais deviné)."""
+    niveau = NIVEAUX_RUNTIME.get(outil.name, "N5")  # non classé : N5, qui ne correspondra jamais au sceau
+    return registre_mcp.DefinitionOutil(outil.name, outil.description or "", dict(outil.input_schema), "opsys", niveau,
+                                        "runtime")
+
+
+def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factory: Any, agent_id: str,
+                             *, garde: Any = _DEFAUT) -> Server[Any]:
     """Private token admission endpoint whose profile identity is fixed by the route."""
+    if garde is _DEFAUT:
+        garde = _garde_de_l_environnement()
+    if garde is not None:
+        garde = garde.avec(surfaces=frozenset({"runtime"}), rapporter=_rapporteur(_traceur_de_l_environnement(), None))
     from . import admission_agents, postflight_runtime, reception_sms_receipt
     from .reception_sms_runtime import valider_commande
 
@@ -981,55 +1166,65 @@ def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factor
         },
     }
 
+    def _catalogue() -> list[types.Tool]:
+        return [
+            types.Tool(
+                name="opsys_runtime_admettre",
+                description="Admet un cycle fournisseur une seule fois.",
+                inputSchema=reserve_schema,
+            ),
+            types.Tool(
+                name="opsys_runtime_concilier",
+                description="Enregistre l'usage exact d'un stream.",
+                inputSchema=reconcile_schema,
+            ),
+            types.Tool(
+                name="opsys_runtime_liberer_avant_dispatch",
+                description="Cleanup hôte privé d'un cycle dont le provider n'a jamais été invoqué.",
+                inputSchema=release_schema,
+            ),
+            types.Tool(
+                name="opsys_runtime_importer_appel_manque",
+                description="Importe un appel manqué après validation webhook côté hôte; aucun voicemail ni envoi.",
+                inputSchema=appel_manque_schema,
+            ),
+            types.Tool(
+                name=postflight_runtime.NOM,
+                description="Dépose les faits candidats observés par l’hôte sous l’origine du profil courant.",
+                inputSchema=postflight_runtime.schema(departements),
+            ),
+            types.Tool(
+                name="opsys_runtime_verifier_outil",
+                description="Revalide un outil du profil courant avant son dispatch Core.",
+                inputSchema=verify_tool_schema,
+            ),
+            types.Tool(
+                name="opsys_runtime_cfo_ticket",
+                description="Émet un ticket CFO lié à ce profil fixe.",
+                inputSchema=cfo_ticket_schema,
+            ),
+            *[types.Tool(name=nom, description="Réception SMS privée liée au profil fixe et au reçu durable.",
+                         inputSchema=sms_schema,
+                         annotations=types.ToolAnnotations(read_only_hint=operation == "lire",
+                                                           destructive_hint=False, idempotent_hint=True))
+              for nom, operation in operations_sms.items()],
+        ]
+
     async def lister_outils(ctx: Any, params: types.PaginatedRequestParams | None) -> types.ListToolsResult:
         del ctx, params
-        return types.ListToolsResult(
-            tools=[
-                types.Tool(
-                    name="opsys_runtime_admettre",
-                    description="Admet un cycle fournisseur une seule fois.",
-                    inputSchema=reserve_schema,
-                ),
-                types.Tool(
-                    name="opsys_runtime_concilier",
-                    description="Enregistre l'usage exact d'un stream.",
-                    inputSchema=reconcile_schema,
-                ),
-                types.Tool(
-                    name="opsys_runtime_liberer_avant_dispatch",
-                    description="Cleanup hôte privé d'un cycle dont le provider n'a jamais été invoqué.",
-                    inputSchema=release_schema,
-                ),
-                types.Tool(
-                    name="opsys_runtime_importer_appel_manque",
-                    description="Importe un appel manqué après validation webhook côté hôte; aucun voicemail ni envoi.",
-                    inputSchema=appel_manque_schema,
-                ),
-                types.Tool(
-                    name=postflight_runtime.NOM,
-                    description="Dépose les faits candidats observés par l’hôte sous l’origine du profil courant.",
-                    inputSchema=postflight_runtime.schema(departements),
-                ),
-                types.Tool(
-                    name="opsys_runtime_verifier_outil",
-                    description="Revalide un outil du profil courant avant son dispatch Core.",
-                    inputSchema=verify_tool_schema,
-                ),
-                types.Tool(
-                    name="opsys_runtime_cfo_ticket",
-                    description="Émet un ticket CFO lié à ce profil fixe.",
-                    inputSchema=cfo_ticket_schema,
-                ),
-                *[types.Tool(name=nom, description="Réception SMS privée liée au profil fixe et au reçu durable.",
-                             inputSchema=sms_schema,
-                             annotations=types.ToolAnnotations(read_only_hint=operation == "lire",
-                                                               destructive_hint=False, idempotent_hint=True))
-                  for nom, operation in operations_sms.items()],
-            ]
-        )
+        catalogue = _catalogue()
+        if garde is not None:
+            conformes = {d.nom for d in garde.filtrer([_definition_runtime(t) for t in catalogue])}
+            catalogue = [t for t in catalogue if t.name in conformes]
+        return types.ListToolsResult(tools=catalogue)
 
     async def appeler(ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
         del ctx
+        if garde is not None:
+            courant = next((t for t in _catalogue() if t.name == params.name), None)
+            refus = garde.controler(_definition_runtime(courant) if courant is not None else None)
+            if refus is not None:
+                return _resultat_refus(refus)
         if params.name in operations_sms:
             # Voie fermée distincte : aucun détail brut ne rejoint le catch-all d'admission.
             try:

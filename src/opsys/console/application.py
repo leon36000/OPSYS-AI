@@ -81,6 +81,7 @@ from . import (
     memoire_ui,
     obligations_privees,
     obligations_rapprochement_ui,
+    observabilite_ui,
     onboarding_ui,
     pages,
     paie_ui,
@@ -413,6 +414,11 @@ def creer_application(
     app.include_router(plateforme_ui.creer_router(
         session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
         formulaire=_formulaire, cnx_factory=cnx_factory, departements=sorted(deps), prefixe=prefixe,
+    ))
+    # Observabilité (observabilite_ui) : coût et latence par département, en lecture, administration seulement.
+    app.include_router(observabilite_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, prefixe=prefixe,
+        dossier_traces=lambda: stockage.dossier_opsys() / "traces",
     ))
     # Avatars (avatars_ui) : état des canaux et registre des voix et visages, en lecture, administration seulement.
     app.include_router(avatars_ui.creer_router(
