@@ -1,0 +1,32 @@
+{
+  "etape": "E02-installateur-public",
+  "titre": "Installateur officiel install/install.sh dans un conteneur propre, sans root, sans réseau",
+  "attendu": "le résultat réel est consigné ; l'installateur exige Node, uv, pnpm, Docker et le réseau",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T10:49:26.337+00:00",
+  "fin": "2026-11-01T10:49:26.683+00:00",
+  "duree_s": 0.35,
+  "constats": [
+    {
+      "nom": "l'installateur public termine avec succès (code 0)",
+      "ok": false,
+      "detail": "NON : [opsys] ERREUR : Node.js est introuvable. Installez Node 24.16+ ou 26.1+ (https://nodejs.org/), puis relancez cette commande."
+    }
+  ],
+  "mesures": {
+    "code_sortie_installateur": 1,
+    "sortie": "[opsys] ERREUR : Node.js est introuvable. Installez Node 24.16+ ou 26.1+ (https://nodejs.org/), puis relancez cette commande."
+  },
+  "notes": [
+    "Échec réel et attendu hors réseau : prérequis absents du conteneur (Node 24.16+/26.1+, uv, pnpm, daemon Docker). Le chemin « installateur » n'est donc NON PROUVÉ ici ; la preuve d'installation de cette qualification est E01 (moteur Python seul, sans Core). Le manque de mémoire observé sur la VM ARM64 (construction du Core) n'est PAS reproduit : le Core n'est pas construit par ce banc."
+  ],
+  "commandes": [
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --label opsys.banc=qualif-20261101T104911Z -e HOME=/home/t --tmpfs /home/t:uid=1000,mode=700,size=256m -v /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/wt-qualification-docker:/src:ro python:3.12-slim bash /src/install/install.sh --source /src --sans-service",
+      "code": 1,
+      "duree_s": 0.35,
+      "sortie_fin": "",
+      "erreur_fin": "[opsys] ERREUR : Node.js est introuvable. Installez Node 24.16+ ou 26.1+ (https://nodejs.org/), puis relancez cette commande.\n"
+    }
+  ]
+}

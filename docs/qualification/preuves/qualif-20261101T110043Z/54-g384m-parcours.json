@@ -1,0 +1,36 @@
+{
+  "etape": "g384m-parcours",
+  "titre": "[384m] Entreprise fictive et parcours minimal : lead, soumission, N3 refusée puis accordée",
+  "attendu": "chaque constat vérifié en base ; l'approbation N3 est refusée sans humain habilité et accordée par la CLI humaine",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T11:08:38.675+00:00",
+  "fin": "2026-11-01T11:08:42.378+00:00",
+  "duree_s": 3.7,
+  "constats": [
+    {
+      "nom": "sortie JSON illisible",
+      "ok": false,
+      "detail": null
+    }
+  ],
+  "mesures": {
+    "memoire_apres_parcours": {}
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-g384m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py parcours",
+      "code": 137,
+      "duree_s": 3.53,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-g384m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 137,
+      "duree_s": 0.17,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    }
+  ]
+}

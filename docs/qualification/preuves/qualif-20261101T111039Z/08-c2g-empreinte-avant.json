@@ -1,0 +1,59 @@
+{
+  "etape": "c2g-empreinte-avant",
+  "titre": "[2g] Empreintes et comptages AVANT sauvegarde",
+  "attendu": "base saine (integrity_check), empreinte par table stable entre deux lectures",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:12:07.795+00:00",
+  "fin": "2026-11-01T11:12:09.384+00:00",
+  "duree_s": 1.59,
+  "constats": [
+    {
+      "nom": "deux lectures successives identiques (instance au repos)",
+      "ok": true,
+      "detail": "edd0372b74d8e1e4"
+    },
+    {
+      "nom": "integrity_check = ok",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "mesures": {
+    "resume": {
+      "revision": "0040",
+      "integrity_check": true,
+      "tables": 86,
+      "lignes_total": 109,
+      "sha256_global": "edd0372b74d8e1e44cfdee47e49e00a6096e71d128b1d0bdcc423ae674782692"
+    },
+    "taille_des_donnees_ko": {
+      "/opt/data": 1604,
+      "/openclaw-config": 748,
+      "/sauvegardes": 4
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qbd2db04-c2g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.27,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qbd2db04-c2g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.27,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qbd2db04-c2g-s1 du -sk /opt/data /openclaw-config /sauvegardes",
+      "code": 0,
+      "duree_s": 0.05,
+      "sortie_fin": "1604\t/opt/data\n748\t/openclaw-config\n4\t/sauvegardes\n",
+      "erreur_fin": ""
+    }
+  ]
+}

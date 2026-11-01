@@ -1,0 +1,176 @@
+{
+  "run_id": "qualif-20261101T111039Z",
+  "fin": "2026-11-01T11:13:55.803+00:00",
+  "etapes": [
+    {
+      "etape": "E00-prevol",
+      "verdict": "PASSE",
+      "duree_s": 0.22,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E01-installation-depuis-le-depot-local",
+      "verdict": "PASSE",
+      "duree_s": 45.27,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E02-installateur-public",
+      "verdict": "ECHEC",
+      "duree_s": 0.37,
+      "constats_en_echec": [
+        "l'installateur public termine avec succès (code 0)"
+      ]
+    },
+    {
+      "etape": "c2g-init",
+      "verdict": "PASSE",
+      "duree_s": 24.86,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.21,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.87,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-parcours",
+      "verdict": "PASSE",
+      "duree_s": 9.79,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.59,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.46,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-durcissement",
+      "verdict": "PASSE",
+      "duree_s": 4.76,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-destruction",
+      "verdict": "PASSE",
+      "duree_s": 1.59,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-restauration",
+      "verdict": "PASSE",
+      "duree_s": 10.37,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-comparaison",
+      "verdict": "PASSE",
+      "duree_s": 4.51,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-arret-propre",
+      "verdict": "PASSE",
+      "duree_s": 1.49,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-mise-a-jour",
+      "verdict": "PASSE",
+      "duree_s": 21.81,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-injections",
+      "verdict": "PASSE",
+      "duree_s": 57.65,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E90-etat-final",
+      "verdict": "PASSE",
+      "duree_s": 1.12,
+      "constats_en_echec": []
+    }
+  ],
+  "passes": 16,
+  "echecs": 1,
+  "nettoyage": {
+    "conteneurs": 6,
+    "volumes": 21,
+    "image": true
+  },
+  "bilans": {
+    "complet_2g": {
+      "gabarit": "2g",
+      "etapes": {
+        "init": true,
+        "verifier": true,
+        "sondes": true,
+        "parcours": true,
+        "empreinte_avant": true,
+        "sauvegarde": true,
+        "durcissement": true,
+        "destruction": true,
+        "restauration": true,
+        "comparaison": true,
+        "arret_propre": true,
+        "mise_a_jour": true,
+        "injections": true
+      },
+      "archive": {
+        "fichier": "opsys-sauvegarde-20261101T111210Z-9799.tar.gz.enc",
+        "revision_base": "0040",
+        "sha256_clair": "8646bebca0b4dd2efc3a83e9d206c52170599b1cef59edc72c3d82a860659af5",
+        "octets_chiffres": 46399,
+        "cle_id": "b5cba2be7e7c842d65ea4ca9d09025d8",
+        "cree_le": "2026-11-01T11:12:10+00:00",
+        "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+        "chemin": "/sauvegardes/opsys-sauvegarde-20261101T111210Z-9799.tar.gz.enc",
+        "verifiee": true
+      },
+      "memoire_service": {
+        "cgroup_pic_mo": 433.4,
+        "cgroup_limite": "2147483648",
+        "rss_max_par_processus_mo": {
+          "opsys-console[29]": 142.2,
+          "opsys-mcp[27]": 135.4,
+          "python[186]": 31.7,
+          "sleep[185]": 1.6
+        }
+      },
+      "memoire_finale": {
+        "cgroup_pic_mo": 315.6,
+        "cgroup_limite": "2147483648",
+        "rss_max_par_processus_mo": {
+          "opsys-console[28]": 142.2,
+          "opsys-mcp[26]": 132.8,
+          "python[72]": 31.7,
+          "sleep[27]": 1.6
+        }
+      },
+      "arret": {
+        "code_sortie": 0,
+        "oom": false,
+        "duree_s": 1.2,
+        "message_arret_demande": true,
+        "message_faux_processus_mort": false
+      },
+      "viable": true
+    }
+  }
+}

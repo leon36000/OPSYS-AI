@@ -1,0 +1,195 @@
+{
+  "run_id": "qualif-20261101T111355Z",
+  "fin": "2026-11-01T11:15:44.270+00:00",
+  "etapes": [
+    {
+      "etape": "E00-prevol",
+      "verdict": "PASSE",
+      "duree_s": 0.2,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E01-installation-depuis-le-depot-local",
+      "verdict": "PASSE",
+      "duree_s": 18.59,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E02-installateur-public",
+      "verdict": "ECHEC",
+      "duree_s": 0.17,
+      "constats_en_echec": [
+        "l'installateur public termine avec succès (code 0)"
+      ]
+    },
+    {
+      "etape": "g448m-init",
+      "verdict": "PASSE",
+      "duree_s": 24.72,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g448m-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.24,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g448m-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.81,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g448m-parcours",
+      "verdict": "PASSE",
+      "duree_s": 9.62,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g448m-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.58,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g448m-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.44,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g448m-arret",
+      "verdict": "PASSE",
+      "duree_s": 1.31,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g416m-init",
+      "verdict": "PASSE",
+      "duree_s": 24.74,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g416m-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.37,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g416m-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.82,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g416m-parcours",
+      "verdict": "ECHEC",
+      "duree_s": 5.97,
+      "constats_en_echec": [
+        "sortie JSON illisible"
+      ]
+    },
+    {
+      "etape": "g416m-empreinte-avant",
+      "verdict": "ECHEC",
+      "duree_s": 1.03,
+      "constats_en_echec": [
+        "deux lectures successives identiques (instance au repos)"
+      ]
+    },
+    {
+      "etape": "g416m-sauvegarde",
+      "verdict": "ECHEC",
+      "duree_s": 0.01,
+      "constats_en_echec": [
+        "sauvegarde chiffrée réussie (code 0)"
+      ]
+    },
+    {
+      "etape": "g416m-arret",
+      "verdict": "ECHEC",
+      "duree_s": 0.04,
+      "constats_en_echec": [
+        "arrêt propre : code 0, sans OOM"
+      ]
+    },
+    {
+      "etape": "E90-etat-final",
+      "verdict": "PASSE",
+      "duree_s": 1.11,
+      "constats_en_echec": []
+    }
+  ],
+  "passes": 13,
+  "echecs": 5,
+  "nettoyage": {
+    "conteneurs": 2,
+    "volumes": 8,
+    "image": true
+  },
+  "bilans": {
+    "balayage": [
+      {
+        "gabarit": "448m",
+        "etapes": {
+          "init": true,
+          "verifier": true,
+          "sondes": true,
+          "parcours": true,
+          "empreinte_avant": true,
+          "sauvegarde": true
+        },
+        "archive": {
+          "fichier": "opsys-sauvegarde-20261101T111459Z-1e0e.tar.gz.enc",
+          "revision_base": "0040",
+          "sha256_clair": "91d8040a304531198bdda71802ff226817210b59212b80ba12ac1afdf9323b39",
+          "octets_chiffres": 46408,
+          "cle_id": "6724d57429f9fffd74c271b0c09fada8",
+          "cree_le": "2026-11-01T11:14:59+00:00",
+          "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+          "chemin": "/sauvegardes/opsys-sauvegarde-20261101T111459Z-1e0e.tar.gz.enc",
+          "verifiee": true
+        },
+        "memoire_finale": {
+          "cgroup_pic_mo": 433.6,
+          "cgroup_limite": "469762048",
+          "rss_max_par_processus_mo": {
+            "opsys-console[29]": 142.2,
+            "opsys-mcp[27]": 134.8,
+            "python[149]": 31.7,
+            "sleep[28]": 1.6
+          }
+        },
+        "arret": {
+          "code_sortie": 0,
+          "oom": false,
+          "duree_s": 0.99,
+          "message_arret_demande": true,
+          "message_faux_processus_mort": false
+        },
+        "viable": true
+      },
+      {
+        "gabarit": "416m",
+        "etapes": {
+          "init": true,
+          "verifier": true,
+          "sondes": true,
+          "parcours": false,
+          "empreinte_avant": false,
+          "sauvegarde": false
+        },
+        "memoire_finale": {},
+        "arret": {
+          "code_sortie": 1,
+          "oom": true,
+          "duree_s": 0.01,
+          "message_arret_demande": true,
+          "message_faux_processus_mort": true
+        },
+        "viable": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,630 @@
+{
+  "run_id": "qualif-20261101T110043Z",
+  "fin": "2026-11-01T11:08:48.927+00:00",
+  "etapes": [
+    {
+      "etape": "E00-prevol",
+      "verdict": "PASSE",
+      "duree_s": 0.19,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E01-installation-depuis-le-depot-local",
+      "verdict": "PASSE",
+      "duree_s": 29.37,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E02-installateur-public",
+      "verdict": "ECHEC",
+      "duree_s": 0.47,
+      "constats_en_echec": [
+        "l'installateur public termine avec succès (code 0)"
+      ]
+    },
+    {
+      "etape": "c4g-init",
+      "verdict": "PASSE",
+      "duree_s": 24.93,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.4,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.89,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-parcours",
+      "verdict": "PASSE",
+      "duree_s": 10.03,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.6,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.25,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-durcissement",
+      "verdict": "PASSE",
+      "duree_s": 4.67,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-destruction",
+      "verdict": "PASSE",
+      "duree_s": 1.25,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-restauration",
+      "verdict": "PASSE",
+      "duree_s": 10.09,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-comparaison",
+      "verdict": "PASSE",
+      "duree_s": 4.55,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-arret-propre",
+      "verdict": "PASSE",
+      "duree_s": 1.51,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-mise-a-jour",
+      "verdict": "PASSE",
+      "duree_s": 22.08,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-injections",
+      "verdict": "PASSE",
+      "duree_s": 58.37,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-init",
+      "verdict": "PASSE",
+      "duree_s": 24.75,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.19,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.81,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-parcours",
+      "verdict": "PASSE",
+      "duree_s": 9.94,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.61,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.35,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-durcissement",
+      "verdict": "PASSE",
+      "duree_s": 4.53,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-destruction",
+      "verdict": "PASSE",
+      "duree_s": 1.63,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-restauration",
+      "verdict": "PASSE",
+      "duree_s": 9.97,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-comparaison",
+      "verdict": "PASSE",
+      "duree_s": 4.53,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-arret-propre",
+      "verdict": "PASSE",
+      "duree_s": 1.4,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c2g-mise-a-jour",
+      "verdict": "ECHEC",
+      "duree_s": 0.0,
+      "constats_en_echec": [
+        "exception inattendue du banc"
+      ]
+    },
+    {
+      "etape": "c2g-injections",
+      "verdict": "PASSE",
+      "duree_s": 53.83,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g1g-init",
+      "verdict": "PASSE",
+      "duree_s": 24.69,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g1g-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.36,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g1g-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.81,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g1g-parcours",
+      "verdict": "PASSE",
+      "duree_s": 9.84,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g1g-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.59,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g1g-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.42,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g1g-arret",
+      "verdict": "PASSE",
+      "duree_s": 0.93,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g768m-init",
+      "verdict": "PASSE",
+      "duree_s": 24.93,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g768m-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.21,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g768m-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.85,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g768m-parcours",
+      "verdict": "PASSE",
+      "duree_s": 9.49,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g768m-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.61,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g768m-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.36,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g768m-arret",
+      "verdict": "PASSE",
+      "duree_s": 1.48,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g512m-init",
+      "verdict": "PASSE",
+      "duree_s": 24.76,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g512m-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.21,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g512m-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.81,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g512m-parcours",
+      "verdict": "PASSE",
+      "duree_s": 9.8,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g512m-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.59,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g512m-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.36,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g512m-arret",
+      "verdict": "PASSE",
+      "duree_s": 1.18,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g384m-init",
+      "verdict": "PASSE",
+      "duree_s": 24.66,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g384m-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.21,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g384m-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.76,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "g384m-parcours",
+      "verdict": "ECHEC",
+      "duree_s": 3.7,
+      "constats_en_echec": [
+        "sortie JSON illisible"
+      ]
+    },
+    {
+      "etape": "g384m-empreinte-avant",
+      "verdict": "ECHEC",
+      "duree_s": 1.03,
+      "constats_en_echec": [
+        "deux lectures successives identiques (instance au repos)"
+      ]
+    },
+    {
+      "etape": "g384m-sauvegarde",
+      "verdict": "ECHEC",
+      "duree_s": 0.01,
+      "constats_en_echec": [
+        "sauvegarde chiffrée réussie (code 0)"
+      ]
+    },
+    {
+      "etape": "g384m-arret",
+      "verdict": "ECHEC",
+      "duree_s": 0.04,
+      "constats_en_echec": [
+        "arrêt propre : code 0, sans OOM"
+      ]
+    },
+    {
+      "etape": "E90-etat-final",
+      "verdict": "PASSE",
+      "duree_s": 1.03,
+      "constats_en_echec": []
+    }
+  ],
+  "passes": 52,
+  "echecs": 6,
+  "nettoyage": {
+    "conteneurs": 15,
+    "volumes": 52,
+    "image": true
+  },
+  "bilans": {
+    "complet_4g": {
+      "gabarit": "4g",
+      "etapes": {
+        "init": true,
+        "verifier": true,
+        "sondes": true,
+        "parcours": true,
+        "empreinte_avant": true,
+        "sauvegarde": true,
+        "durcissement": true,
+        "destruction": true,
+        "restauration": true,
+        "comparaison": true,
+        "arret_propre": true,
+        "mise_a_jour": true,
+        "injections": true
+      },
+      "archive": {
+        "fichier": "opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc",
+        "revision_base": "0040",
+        "sha256_clair": "9a373fe3d11b06ab703e88e2732e4b3df2b67b33d39bf3bd6b1cc5c1965397f2",
+        "octets_chiffres": 46408,
+        "cle_id": "1e0ad75a9e140054491a6f6e0b017cb0",
+        "cree_le": "2026-11-01T11:01:59+00:00",
+        "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+        "chemin": "/sauvegardes/opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc",
+        "verifiee": true
+      },
+      "memoire_service": {
+        "cgroup_pic_mo": 433.7,
+        "cgroup_limite": "4294967296",
+        "rss_max_par_processus_mo": {
+          "opsys-console[29]": 142.2,
+          "opsys-mcp[27]": 135.4,
+          "python[184]": 31.7,
+          "sleep[28]": 1.6
+        }
+      },
+      "memoire_finale": {
+        "cgroup_pic_mo": 315.3,
+        "cgroup_limite": "4294967296",
+        "rss_max_par_processus_mo": {
+          "opsys-console[30]": 142.2,
+          "opsys-mcp[28]": 132.9,
+          "python[74]": 31.7,
+          "sleep[80]": 1.6
+        }
+      },
+      "arret": {
+        "code_sortie": 0,
+        "oom": false,
+        "duree_s": 1.23,
+        "message_arret_demande": true,
+        "message_faux_processus_mort": false
+      },
+      "viable": true
+    },
+    "complet_2g": {
+      "gabarit": "2g",
+      "etapes": {
+        "init": true,
+        "verifier": true,
+        "sondes": true,
+        "parcours": true,
+        "empreinte_avant": true,
+        "sauvegarde": true,
+        "durcissement": true,
+        "destruction": true,
+        "restauration": true,
+        "comparaison": true,
+        "arret_propre": true,
+        "injections": true
+      },
+      "archive": {
+        "fichier": "opsys-sauvegarde-20261101T110428Z-29b4.tar.gz.enc",
+        "revision_base": "0040",
+        "sha256_clair": "c736330a7fab114cc8a3b48a3be8ce4c3b912bda980208859645da8572492a91",
+        "octets_chiffres": 46401,
+        "cle_id": "c56e7a649fe39f4070ca2ff1dd2067f8",
+        "cree_le": "2026-11-01T11:04:28+00:00",
+        "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+        "chemin": "/sauvegardes/opsys-sauvegarde-20261101T110428Z-29b4.tar.gz.enc",
+        "verifiee": true
+      },
+      "memoire_service": {
+        "cgroup_pic_mo": 431.9,
+        "cgroup_limite": "2147483648",
+        "rss_max_par_processus_mo": {
+          "opsys-console[27]": 140.8,
+          "opsys-mcp[26]": 135.4,
+          "python[186]": 31.7,
+          "sleep[192]": 1.6
+        }
+      },
+      "memoire_finale": {
+        "cgroup_pic_mo": 315.4,
+        "cgroup_limite": "2147483648",
+        "rss_max_par_processus_mo": {
+          "opsys-console[27]": 142.2,
+          "opsys-mcp[26]": 132.8,
+          "python[72]": 31.7,
+          "sleep[28]": 1.6
+        }
+      },
+      "arret": {
+        "code_sortie": 0,
+        "oom": false,
+        "duree_s": 1.11,
+        "message_arret_demande": true,
+        "message_faux_processus_mort": false
+      },
+      "viable": true
+    },
+    "balayage": [
+      {
+        "gabarit": "1g",
+        "etapes": {
+          "init": true,
+          "verifier": true,
+          "sondes": true,
+          "parcours": true,
+          "empreinte_avant": true,
+          "sauvegarde": true
+        },
+        "archive": {
+          "fichier": "opsys-sauvegarde-20261101T110630Z-67b6.tar.gz.enc",
+          "revision_base": "0040",
+          "sha256_clair": "2ebad734d0badd5640d25607bbb363ea5be8df3ccaddfb1b240aee181d61340b",
+          "octets_chiffres": 46402,
+          "cle_id": "2e496dd350265adc6155cdd298433690",
+          "cree_le": "2026-11-01T11:06:30+00:00",
+          "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+          "chemin": "/sauvegardes/opsys-sauvegarde-20261101T110630Z-67b6.tar.gz.enc",
+          "verifiee": true
+        },
+        "memoire_finale": {
+          "cgroup_pic_mo": 433.9,
+          "cgroup_limite": "1073741824",
+          "rss_max_par_processus_mo": {
+            "opsys-console[28]": 142.2,
+            "opsys-mcp[26]": 134.9,
+            "python[150]": 31.7,
+            "sleep[27]": 1.6
+          }
+        },
+        "arret": {
+          "code_sortie": 0,
+          "oom": false,
+          "duree_s": 0.64,
+          "message_arret_demande": true,
+          "message_faux_processus_mort": false
+        },
+        "viable": true
+      },
+      {
+        "gabarit": "768m",
+        "etapes": {
+          "init": true,
+          "verifier": true,
+          "sondes": true,
+          "parcours": true,
+          "empreinte_avant": true,
+          "sauvegarde": true
+        },
+        "archive": {
+          "fichier": "opsys-sauvegarde-20261101T110718Z-6bbf.tar.gz.enc",
+          "revision_base": "0040",
+          "sha256_clair": "5e35c4a4dfc1dc5512c06f4adefbc82d69616d8b180e895c92c9d757a4186f8b",
+          "octets_chiffres": 46402,
+          "cle_id": "6543d68852d3b2453e1396c6f71ec396",
+          "cree_le": "2026-11-01T11:07:18+00:00",
+          "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+          "chemin": "/sauvegardes/opsys-sauvegarde-20261101T110718Z-6bbf.tar.gz.enc",
+          "verifiee": true
+        },
+        "memoire_finale": {
+          "cgroup_pic_mo": 433.9,
+          "cgroup_limite": "805306368",
+          "rss_max_par_processus_mo": {
+            "opsys-console[28]": 142.2,
+            "opsys-mcp[27]": 134.8,
+            "python[149]": 31.7,
+            "sleep[29]": 1.6
+          }
+        },
+        "arret": {
+          "code_sortie": 0,
+          "oom": false,
+          "duree_s": 1.2,
+          "message_arret_demande": true,
+          "message_faux_processus_mort": false
+        },
+        "viable": true
+      },
+      {
+        "gabarit": "512m",
+        "etapes": {
+          "init": true,
+          "verifier": true,
+          "sondes": true,
+          "parcours": true,
+          "empreinte_avant": true,
+          "sauvegarde": true
+        },
+        "archive": {
+          "fichier": "opsys-sauvegarde-20261101T110806Z-65a1.tar.gz.enc",
+          "revision_base": "0040",
+          "sha256_clair": "267589c54ab9f2afe0440af151c0b6cb75dc4d93edfd1a3fe0dfc3609088ecce",
+          "octets_chiffres": 46397,
+          "cle_id": "a9627c6e9f00a913329bcccbc7002f1c",
+          "cree_le": "2026-11-01T11:08:06+00:00",
+          "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+          "chemin": "/sauvegardes/opsys-sauvegarde-20261101T110806Z-65a1.tar.gz.enc",
+          "verifiee": true
+        },
+        "memoire_finale": {
+          "cgroup_pic_mo": 432.9,
+          "cgroup_limite": "536870912",
+          "rss_max_par_processus_mo": {
+            "opsys-console[29]": 142.0,
+            "opsys-mcp[27]": 134.8,
+            "python[151]": 31.7,
+            "sleep[28]": 1.6
+          }
+        },
+        "arret": {
+          "code_sortie": 0,
+          "oom": false,
+          "duree_s": 0.9,
+          "message_arret_demande": true,
+          "message_faux_processus_mort": false
+        },
+        "viable": true
+      },
+      {
+        "gabarit": "384m",
+        "etapes": {
+          "init": true,
+          "verifier": true,
+          "sondes": true,
+          "parcours": false,
+          "empreinte_avant": false,
+          "sauvegarde": false
+        },
+        "memoire_finale": {},
+        "arret": {
+          "code_sortie": 1,
+          "oom": true,
+          "duree_s": 0.01,
+          "message_arret_demande": true,
+          "message_faux_processus_mort": true
+        },
+        "viable": false
+      }
+    ]
+  }
+}

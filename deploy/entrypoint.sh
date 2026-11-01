@@ -218,15 +218,24 @@ console_pid=$!
 term() {
     kill -TERM "$sync_loop_pid" ${memoire_loop_pid:+"$memoire_loop_pid"} "$mcp_pid" "$console_pid" 2>/dev/null || true
 }
-trap term TERM INT
+# Un arrêt demandé (docker stop : SIGTERM) n'est pas une panne : il sort avec 0 et ne se fait pas passer pour un
+# processus mort (qualification en conteneur, docs/qualification/QUALIFICATION-CONTENEUR.md : l'ancien code sortait 1).
+arret_demande=0
+arreter() { arret_demande=1; term; }
+trap arreter TERM INT
 
 # Le conteneur vit tant que le MCP ET la console vivent tous les deux ; le premier des deux à
 # mourir fait sortir le conteneur (`restart: unless-stopped` le relance).
-while kill -0 "$mcp_pid" 2>/dev/null && kill -0 "$console_pid" 2>/dev/null; do
+while [ "$arret_demande" = 0 ] && kill -0 "$mcp_pid" 2>/dev/null && kill -0 "$console_pid" 2>/dev/null; do
     sleep 1
 done
 
+if [ "$arret_demande" = 1 ]; then
+    log "arrêt demandé — les processus longue durée sont arrêtés."
+    wait || true
+    exit 0
+fi
 warn "un processus longue durée s'est arrêté — arrêt du conteneur pour relance par restart:unless-stopped."
 term
-wait
+wait || true
 exit 1

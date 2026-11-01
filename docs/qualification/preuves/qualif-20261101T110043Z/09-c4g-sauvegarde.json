@@ -1,0 +1,87 @@
+{
+  "etape": "c4g-sauvegarde",
+  "titre": "[4g] Sauvegarde chiffrée (export + AES-256-GCM, clé hors sauvegarde) et vérification",
+  "attendu": "archive chiffrée dans /sauvegardes, clé dans /cles (hors sauvegarde), vérification de bout en bout, aucun clair",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:01:58.155+00:00",
+  "fin": "2026-11-01T11:02:00.408+00:00",
+  "duree_s": 2.25,
+  "constats": [
+    {
+      "nom": "sauvegarde chiffrée réussie (code 0)",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "nom": "verifiee == vrai",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "archive en 0600, propriétaire non root",
+      "ok": true,
+      "detail": [
+        "600 opsys"
+      ]
+    },
+    {
+      "nom": "la clé n'est pas dans le dossier des sauvegardes",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "aucune donnée lisible dans l'archive (« nathan » absent du fichier chiffré)",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "nom": "`verifier` indépendant : archive authentifiée avec la clé",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "mesures": {
+    "sauvegarde": {
+      "duree_s": 0.81,
+      "rss_max_enfant_mo": 69.7,
+      "cgroup_pic_mo": 433.7
+    },
+    "archive": {
+      "fichier": "opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc",
+      "octets_chiffres": 46408,
+      "revision_base": "0040",
+      "cle_id": "1e0ad75a9e140054491a6f6e0b017cb0"
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree sauvegarder --dossier /sauvegardes --par banc",
+      "code": 0,
+      "duree_s": 1.06,
+      "sortie_fin": "384,\n  \"cgroup_pic_octets\": 454778880,\n  \"stdout\": \"{\\n  \\\"fichier\\\": \\\"opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc\\\",\\n  \\\"revision_base\\\": \\\"0040\\\",\\n  \\\"sha256_clair\\\": \\\"9a373fe3d11b06ab703e88e2732e4b3df2b67b33d39bf3bd6b1cc5c1965397f2\\\",\\n  \\\"octets_chiffres\\\": 46408,\\n  \\\"cle_id\\\": \\\"1e0ad75a9e140054491a6f6e0b017cb0\\\",\\n  \\\"cree_le\\\": \\\"2026-11-01T11:01:59+00:00\\\",\\n  \\\"note\\\": \\\"informatif, non authentifié : l'autorité est l'archive chiffrée elle-même\\\",\\n  \\\"chemin\\\": \\\"/sauvegardes/opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc\\\",\\n  \\\"verifiee\\\": true\\n}\\n\",\n  \"stderr\": \"\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-c4g-s1 sh -c stat -c '%a %U' /sauvegardes/opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc; ls /sauvegardes; ls /cles",
+      "code": 0,
+      "duree_s": 0.05,
+      "sortie_fin": "600 opsys\nopsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc\nopsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc.meta.json\nmdp-agent-systeme\nmdp-nathan\nsauvegarde.cle\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-c4g-s1 grep -c -a nathan /sauvegardes/opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc",
+      "code": 1,
+      "duree_s": 0.05,
+      "sortie_fin": "0\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree verifier /sauvegardes/opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc",
+      "code": 0,
+      "duree_s": 1.05,
+      "sortie_fin": "{\n  \"code\": 0,\n  \"duree_s\": 0.78,\n  \"rss_max_enfant_ko\": 71396,\n  \"cgroup_pic_octets\": 454778880,\n  \"stdout\": \"{\\n  \\\"sha256_clair\\\": \\\"9a373fe3d11b06ab703e88e2732e4b3df2b67b33d39bf3bd6b1cc5c1965397f2\\\",\\n  \\\"octets_clairs\\\": 46343,\\n  \\\"blocs\\\": 1,\\n  \\\"cle_id\\\": \\\"1e0ad75a9e140054491a6f6e0b017cb0\\\",\\n  \\\"chemin\\\": \\\"/sauvegardes/opsys-sauvegarde-20261101T110159Z-00c6.tar.gz.enc\\\",\\n  \\\"verifiee\\\": true\\n}\\n\",\n  \"stderr\": \"\"\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

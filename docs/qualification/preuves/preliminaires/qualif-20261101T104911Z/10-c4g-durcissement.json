@@ -1,0 +1,220 @@
+{
+  "etape": "c4g-durcissement",
+  "titre": "[4g] Durcissement vérifié dans le conteneur en service",
+  "attendu": "non root, racine en lecture seule, secrets 0600, aucune capacité, ports minimaux, aucun secret dans l'image ni les journaux, journaux sans PII",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T10:50:13.552+00:00",
+  "fin": "2026-11-01T10:50:19.107+00:00",
+  "duree_s": 5.56,
+  "constats": [
+    {
+      "nom": "processus non root (uid/gid)",
+      "ok": true,
+      "detail": {
+        "uid": 1000,
+        "gid": 1000
+      }
+    },
+    {
+      "nom": "aucun processus du conteneur ne tourne en root",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "système de fichiers racine en lecture seule (code, venv, /etc, /usr)",
+      "ok": true,
+      "detail": {
+        "/opt/opsys/probe": "OSError",
+        "/usr/local/probe": "OSError",
+        "/etc/probe": "OSError",
+        "/opt/opsys-venv/probe": "OSError"
+      }
+    },
+    {
+      "nom": "seuls /tmp (tmpfs) et les volumes de données sont inscriptibles",
+      "ok": true,
+      "detail": {
+        "/tmp": true,
+        "/opt/data": true,
+        "/openclaw-config": true
+      }
+    },
+    {
+      "nom": "no-new-privileges actif",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "nom": "aucune capacité effective",
+      "ok": true,
+      "detail": "0000000000000000"
+    },
+    {
+      "nom": "fichiers de secrets et base : aucun accès groupe/autres (0600)",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "dossier des clés en 0700",
+      "ok": true,
+      "detail": "0o700"
+    },
+    {
+      "nom": "ports en écoute minimaux : exactement 8765 (MCP) et 8700 (console)",
+      "ok": true,
+      "detail": [
+        8700,
+        8765
+      ]
+    },
+    {
+      "nom": "docker inspect : racine en lecture seule",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "docker inspect : toutes capacités retirées, no-new-privileges",
+      "ok": true,
+      "detail": {
+        "CapDrop": [
+          "ALL"
+        ],
+        "SecurityOpt": [
+          "no-new-privileges"
+        ]
+      }
+    },
+    {
+      "nom": "docker inspect : aucun port publié sur l'hôte",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "nom": "docker inspect : limite mémoire et PID posées",
+      "ok": true,
+      "detail": {
+        "Memory": 4294967296,
+        "PidsLimit": 256
+      }
+    },
+    {
+      "nom": "l'image n'expose que 8765 et 8700",
+      "ok": true,
+      "detail": [
+        "8700/tcp",
+        "8765/tcp"
+      ]
+    },
+    {
+      "nom": "journaux du service : aucune valeur de secret du banc (jetons, secret de console, clé fournisseur)",
+      "ok": true,
+      "detail": {
+        "octets": 5174,
+        "fuites": []
+      }
+    },
+    {
+      "nom": "journaux du service : ni mot de passe, ni clé de sauvegarde, ni téléphone du client, ni identifiant tapé (PII)",
+      "ok": true,
+      "detail": {
+        "octets_examines": 5174,
+        "secrets_en_clair": [],
+        "pii_trouvees": []
+      }
+    },
+    {
+      "nom": "volumes de données/config/sauvegardes : aucun secret du banc en clair (jetons, clé fournisseur, mots de passe)",
+      "ok": true,
+      "detail": {
+        "fichiers": 71,
+        "trouvailles": []
+      }
+    },
+    {
+      "nom": "système de fichiers de l'image (code, config, hors tests/docs/bibliothèques) : aucun secret ni clé privée",
+      "ok": false,
+      "detail": {
+        "fichiers": 4886,
+        "trouvailles": [
+          {
+            "fichier": "/opt/opsys/mobile/src/appairage/identite.test.ts",
+            "type": "clé privée PEM"
+          }
+        ]
+      }
+    },
+    {
+      "nom": "historique et variables de l'image : aucune valeur de secret du banc",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "variables d'environnement de l'image : aucune ne ressemble à un secret",
+      "ok": false,
+      "detail": [
+        "PATH=/opt/opsys-venv/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "LANG=C.UTF-8",
+        "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+        "PYTHON_VERSION=3.12.15",
+        "PYTHON_SHA256=c2c4321961fab0fb999d66e0cecf521c2ab3994c7992873ea99e306c1094fd5a",
+        "OPSYS_HOME=/opt/data",
+        "OPSYS_MCP_PORT=8765",
+        "OPSYS_CONSOLE_PORT=8700",
+        "OPENCLAW_CONFIG_DIR=/openclaw-config",
+        "LITELLM_CONFIG_DIR=/shared/litellm-config",
+        "PYTHONUNBUFFERED=1",
+        "PYTHONDONTWRITEBYTECODE=1"
+      ]
+    }
+  ],
+  "mesures": {
+    "memoire_en_service": {
+      "cgroup_pic_mo": 433.7,
+      "cgroup_limite": "4294967296",
+      "rss_max_par_processus_mo": {
+        "opsys-console[29]": 142.1,
+        "opsys-mcp[27]": 135.3,
+        "python[173]": 31.7,
+        "sleep[28]": 1.6
+      }
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb2f043b-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py durcissement",
+      "code": 0,
+      "duree_s": 0.27,
+      "sortie_fin": "ain/SKILL.md\": \"0o664\",\n    \"/openclaw-config/opsys/espaces/m06-material-control/skills/receptionner-une-commande/SKILL.md\": \"0o664\",\n    \"/openclaw-config/opsys/espaces/m06-material-control/skills/compter-l-inventaire/SKILL.md\": \"0o664\",\n    \"/openclaw-config/opsys/espaces/m08-analytics/SOUL.md\": \"0o644\",\n    \"/openclaw-config/opsys/espaces/m08-analytics/AGENTS.md\": \"0o644\",\n    \"/openclaw-config/opsys/espaces/m08-analytics/skills/rapport-analytique-quotidien/SKILL.md\": \"0o664\",\n    \"/cles/sauvegarde.cle\": \"0o600\",\n    \"/cles/mdp-nathan\": \"0o600\",\n    \"/cles/mdp-agent-systeme\": \"0o600\"\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb2f043b-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py balayer /opt/data /openclaw-config /sauvegardes --variables OPENCLAW_GATEWAY_TOKEN OPSYS_MCP_JETON OPSYS_CONTEXT_MCP_JETON OPSYS_CONSOLE_SECRET ANTHROPIC_API_KEY --fichiers-secrets /cles/mdp-nathan /cles/mdp-agent-systeme",
+      "code": 0,
+      "duree_s": 0.25,
+      "sortie_fin": "{\n  \"fichiers_balayes\": 71,\n  \"trouvailles\": []\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-d72f.env --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py balayer / --variables OPENCLAW_GATEWAY_TOKEN OPSYS_MCP_JETON OPSYS_CONTEXT_MCP_JETON OPSYS_CONSOLE_SECRET ANTHROPIC_API_KEY --motifs --exclure /proc /sys /dev /tmp /opt/opsys/tests /opt/opsys/docs /opt/opsys-venv/lib /usr/lib /usr/share",
+      "code": 1,
+      "duree_s": 4.09,
+      "sortie_fin": "{\n  \"fichiers_balayes\": 4886,\n  \"trouvailles\": [\n    {\n      \"fichier\": \"/opt/opsys/mobile/src/appairage/identite.test.ts\",\n      \"type\": \"clé privée PEM\"\n    }\n  ]\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb2f043b-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.29,
+      "sortie_fin": "    \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    },\n    {\n      \"pid\": 29,\n      \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 145516,\n      \"rss_ko\": 145516\n    },\n    {\n      \"pid\": 166,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1648,\n      \"rss_ko\": 1648\n    },\n    {\n      \"pid\": 167,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32432,\n      \"rss_ko\": 32432\n    }\n  ],\n  \"cgroup_pic_octets\": 454762496,\n  \"cgroup_courant_octets\": 272191488,\n  \"cgroup_limite\": \"4294967296\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb2f043b-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.29,
+      "sortie_fin": "    \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    },\n    {\n      \"pid\": 29,\n      \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 145516,\n      \"rss_ko\": 145516\n    },\n    {\n      \"pid\": 166,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1648,\n      \"rss_ko\": 1648\n    },\n    {\n      \"pid\": 173,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32432,\n      \"rss_ko\": 32432\n    }\n  ],\n  \"cgroup_pic_octets\": 454762496,\n  \"cgroup_courant_octets\": 273457152,\n  \"cgroup_limite\": \"4294967296\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

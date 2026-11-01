@@ -1,0 +1,130 @@
+{
+  "etape": "E01-installation-depuis-le-depot-local",
+  "titre": "Installation du moteur depuis le dépôt local (image de qualification)",
+  "attendu": "dépendances copiées d'un environnement local, paquet opsys-ai installé depuis le dépôt, image construite sans réseau",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:10:39.376+00:00",
+  "fin": "2026-11-01T11:11:24.641+00:00",
+  "duree_s": 45.27,
+  "constats": [
+    {
+      "nom": "dépendances indispensables toutes présentes",
+      "ok": true,
+      "detail": "oui"
+    },
+    {
+      "nom": "construction de l'image réussie (code 0)",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "nom": "pip a installé opsys-ai depuis le dépôt (--no-deps --no-build-isolation)",
+      "ok": true,
+      "detail": [
+        "Successfully installed opsys-ai-2.0.0.dev0"
+      ]
+    },
+    {
+      "nom": "`opsys-metier --version` répond (code 0)",
+      "ok": true,
+      "detail": "opsys-metier 2.0.0.dev0"
+    },
+    {
+      "nom": "`pip check` : aucune dépendance cassée",
+      "ok": true,
+      "detail": "No broken requirements found.\nWARNING: The directory '/home/opsys/.cache/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permis"
+    },
+    {
+      "nom": "l'image tourne par défaut en utilisateur non root (uid 1000)",
+      "ok": true,
+      "detail": "uid=1000(opsys) gid=1000(opsys) groups=1000(opsys)"
+    }
+  ],
+  "mesures": {
+    "dependances": {
+      "copiees": 42,
+      "absentes_du_venv": [
+        "contourpy==1.4.0",
+        "cycler==0.12.1",
+        "fonttools==4.66.1",
+        "kiwisolver==1.5.1",
+        "matplotlib==3.11.2",
+        "numpy==2.3.5",
+        "pyparsing==3.3.3",
+        "python-dateutil==2.9.0.post0",
+        "pyvrp==0.14.0",
+        "six==1.17.0",
+        "tqdm==4.70.1",
+        "vrplib==2.2.0"
+      ],
+      "versions_differentes_du_verrou": [],
+      "empreintes_du_verrou_verifiees": false
+    },
+    "duree_construction_s": 41.4,
+    "taille_image_mo": 135.5,
+    "taille_image_de_base_mo": 41.5,
+    "pip_check": {
+      "code": 0,
+      "sortie": "No broken requirements found.\nWARNING: The directory '/home/opsys/.cache/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag."
+    },
+    "composition_image_mo": {
+      "/opt/opsys-venv": 113,
+      "/opt/opsys/docs": 48,
+      "/usr/local/lib/python3.12": 31,
+      "/opt/opsys/departments": 23,
+      "/opt/opsys/mobile": 18,
+      "/opt/opsys/tests": 9,
+      "/opt/opsys/src": 5,
+      "/opt/opsys/uv.lock": 1,
+      "/opt/opsys/scripts": 1
+    }
+  },
+  "notes": [
+    "ÉCART : `pip install --require-hashes -r requirements-runtime.lock.txt` (chemin de production) exige le réseau et n'a PAS été exécuté ; les dépendances viennent d'un environnement déjà installé (mêmes versions que le verrou, sauf les distributions listées en « absentes_du_venv » : extra « tournées », PyVRP et numériques).",
+    "L'image embarque le dépôt entier hors .dockerignore (mobile/, tests/, docs/) : voir « composition_image_mo »."
+  ],
+  "commandes": [
+    {
+      "commande": "preparer_contexte.py (copie hors réseau des dépendances du verrou)",
+      "code": 0,
+      "duree_s": 0.21,
+      "sortie_fin": "{\"verrou\": \"requirements-runtime.lock.txt\", \"sha256_verrou\": \"a87fd6934db4cbe4c04fddac91f633c98ebd485e8754095ea4fd631024ead6c8\", \"python_cible\": \"3.12.15\", \"empreintes_verrou_verifiees\": false, \"copiees\": 42, \"versions_differentes\": 0, \"absentes_du_venv\": 12, \"marqueur_faux\": 6, \"indispensables_absentes\": 0, \"extras_facultatifs_absents\": 12}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker build --progress=plain -f /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/wt-qualification-docker/install/qualification/Dockerfile --build-context deps=/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-pnw4t128/deps --label opsys.banc=qualif-20261101T111039Z -t opsys-qualif:banc /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/wt-qualification-docker",
+      "code": 0,
+      "duree_s": 41.45,
+      "sortie_fin": "",
+      "erreur_fin": "tation manifest sha256:f9db01acdc3f2881af7e75568f42c88483d03b310f6cf7d341fbce9913f50d18\n#16 exporting attestation manifest sha256:f9db01acdc3f2881af7e75568f42c88483d03b310f6cf7d341fbce9913f50d18 0.2s done\n#16 exporting manifest list sha256:a18a9bc05ff5fed5af6f5a09fe99b7e6087c06bb5be5e752d9627deaca477cd8\n#16 exporting manifest list sha256:a18a9bc05ff5fed5af6f5a09fe99b7e6087c06bb5be5e752d9627deaca477cd8 0.1s done\n#16 naming to docker.io/library/opsys-qualif:banc done\n#16 unpacking to docker.io/library/opsys-qualif:banc\n#16 unpacking to docker.io/library/opsys-qualif:banc 2.0s done\n#16 DONE 6.8s\n"
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T111039Z --entrypoint opsys-metier opsys-qualif:banc --version",
+      "code": 0,
+      "duree_s": 1.96,
+      "sortie_fin": "opsys-metier 2.0.0.dev0\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T111039Z --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -m pip check",
+      "code": 0,
+      "duree_s": 0.77,
+      "sortie_fin": "No broken requirements found.\n",
+      "erreur_fin": "WARNING: The directory '/home/opsys/.cache/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.\n"
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T111039Z --entrypoint sh opsys-qualif:banc -c du -sm /opt/opsys/* /opt/opsys-venv /usr/local/lib/python3.12 2>/dev/null | sort -rn | head -9",
+      "code": 0,
+      "duree_s": 0.42,
+      "sortie_fin": "113\t/opt/opsys-venv\n48\t/opt/opsys/docs\n31\t/usr/local/lib/python3.12\n23\t/opt/opsys/departments\n18\t/opt/opsys/mobile\n9\t/opt/opsys/tests\n5\t/opt/opsys/src\n1\t/opt/opsys/uv.lock\n1\t/opt/opsys/scripts\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T111039Z --entrypoint id opsys-qualif:banc",
+      "code": 0,
+      "duree_s": 0.38,
+      "sortie_fin": "uid=1000(opsys) gid=1000(opsys) groups=1000(opsys)\n",
+      "erreur_fin": ""
+    }
+  ]
+}

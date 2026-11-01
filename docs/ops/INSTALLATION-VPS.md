@@ -1,5 +1,9 @@
 # Installation VPS — OPSYS clé en main
 
+> Qualification en conteneur (1er novembre 2026) : le moteur Python, ses services, la sauvegarde chiffrée, la restauration et la mise
+> à jour ont été éprouvés dans des conteneurs fictifs sans réseau ; **aucun VPS n'est qualifié** (Core, Caddy/TLS, DNS, matériel,
+> charge, hébergeur et copie hors site non prouvés). Voir [`../qualification/QUALIFICATION-CONTENEUR.md`](../qualification/QUALIFICATION-CONTENEUR.md).
+
 > État au 30 septembre : le Compose courant démarre le fork Core local et utilise les fournisseurs
 > natifs par défaut. PostgreSQL et LiteLLM sont des profils optionnels. Les sauvegardes v3 sont
 > testées sur des volumes Docker QA éphémères, mais le parcours complet n'est pas certifié sur un

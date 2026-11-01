@@ -1,0 +1,202 @@
+{
+  "etape": "c2g-durcissement",
+  "titre": "[2g] Durcissement vérifié dans le conteneur en service",
+  "attendu": "non root, racine en lecture seule, secrets 0600, aucune capacité, ports minimaux, aucun secret dans l'image ni les journaux, journaux sans PII",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:12:11.849+00:00",
+  "fin": "2026-11-01T11:12:16.613+00:00",
+  "duree_s": 4.76,
+  "constats": [
+    {
+      "nom": "processus non root (uid/gid)",
+      "ok": true,
+      "detail": {
+        "uid": 1000,
+        "gid": 1000
+      }
+    },
+    {
+      "nom": "aucun processus du conteneur ne tourne en root",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "système de fichiers racine en lecture seule (code, venv, /etc, /usr)",
+      "ok": true,
+      "detail": {
+        "/opt/opsys/probe": "OSError",
+        "/usr/local/probe": "OSError",
+        "/etc/probe": "OSError",
+        "/opt/opsys-venv/probe": "OSError"
+      }
+    },
+    {
+      "nom": "seuls /tmp (tmpfs) et les volumes de données sont inscriptibles",
+      "ok": true,
+      "detail": {
+        "/tmp": true,
+        "/opt/data": true,
+        "/openclaw-config": true
+      }
+    },
+    {
+      "nom": "no-new-privileges actif",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "nom": "aucune capacité effective",
+      "ok": true,
+      "detail": "0000000000000000"
+    },
+    {
+      "nom": "fichiers de secrets et base : aucun accès groupe/autres (0600)",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "dossier des clés en 0700",
+      "ok": true,
+      "detail": "0o700"
+    },
+    {
+      "nom": "ports en écoute minimaux : exactement 8765 (MCP) et 8700 (console)",
+      "ok": true,
+      "detail": [
+        8700,
+        8765
+      ]
+    },
+    {
+      "nom": "docker inspect : racine en lecture seule",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "docker inspect : toutes capacités retirées, no-new-privileges",
+      "ok": true,
+      "detail": {
+        "CapDrop": [
+          "ALL"
+        ],
+        "SecurityOpt": [
+          "no-new-privileges"
+        ]
+      }
+    },
+    {
+      "nom": "docker inspect : aucun port publié sur l'hôte",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "nom": "docker inspect : limite mémoire et PID posées",
+      "ok": true,
+      "detail": {
+        "Memory": 2147483648,
+        "PidsLimit": 256
+      }
+    },
+    {
+      "nom": "l'image n'expose que 8765 et 8700",
+      "ok": true,
+      "detail": [
+        "8700/tcp",
+        "8765/tcp"
+      ]
+    },
+    {
+      "nom": "journaux du service : aucune valeur de secret du banc (jetons, secret de console, clé fournisseur)",
+      "ok": true,
+      "detail": {
+        "octets": 5174,
+        "fuites": []
+      }
+    },
+    {
+      "nom": "journaux du service : ni mot de passe, ni clé de sauvegarde, ni téléphone du client, ni identifiant tapé (PII)",
+      "ok": true,
+      "detail": {
+        "octets_examines": 5174,
+        "secrets_en_clair": [],
+        "pii_trouvees": []
+      }
+    },
+    {
+      "nom": "volumes de données/config/sauvegardes : aucun secret du banc en clair (jetons, clé fournisseur, mots de passe)",
+      "ok": true,
+      "detail": {
+        "fichiers": 71,
+        "trouvailles": []
+      }
+    },
+    {
+      "nom": "système de fichiers de l'image (code, config, hors tests/docs/bibliothèques) : aucun secret ni clé privée",
+      "ok": true,
+      "detail": {
+        "fichiers": 4266,
+        "trouvailles": []
+      }
+    },
+    {
+      "nom": "historique et variables de l'image : aucune valeur de secret du banc",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "variables d'environnement de l'image : aucun secret (GPG_KEY = empreinte publique de l'image de base)",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "mesures": {
+    "memoire_en_service": {
+      "cgroup_pic_mo": 433.4,
+      "cgroup_limite": "2147483648",
+      "rss_max_par_processus_mo": {
+        "opsys-console[29]": 142.2,
+        "opsys-mcp[27]": 135.4,
+        "python[179]": 31.7,
+        "sleep[185]": 1.6
+      }
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qbd2db04-c2g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py durcissement",
+      "code": 0,
+      "duree_s": 0.28,
+      "sortie_fin": "ain/SKILL.md\": \"0o664\",\n    \"/openclaw-config/opsys/espaces/m06-material-control/skills/receptionner-une-commande/SKILL.md\": \"0o664\",\n    \"/openclaw-config/opsys/espaces/m06-material-control/skills/compter-l-inventaire/SKILL.md\": \"0o664\",\n    \"/openclaw-config/opsys/espaces/m08-analytics/SOUL.md\": \"0o644\",\n    \"/openclaw-config/opsys/espaces/m08-analytics/AGENTS.md\": \"0o644\",\n    \"/openclaw-config/opsys/espaces/m08-analytics/skills/rapport-analytique-quotidien/SKILL.md\": \"0o664\",\n    \"/cles/sauvegarde.cle\": \"0o600\",\n    \"/cles/mdp-nathan\": \"0o600\",\n    \"/cles/mdp-agent-systeme\": \"0o600\"\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qbd2db04-c2g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py balayer /opt/data /openclaw-config /sauvegardes --variables OPENCLAW_GATEWAY_TOKEN OPSYS_MCP_JETON OPSYS_CONTEXT_MCP_JETON OPSYS_CONSOLE_SECRET ANTHROPIC_API_KEY --fichiers-secrets /cles/mdp-nathan /cles/mdp-agent-systeme",
+      "code": 0,
+      "duree_s": 0.27,
+      "sortie_fin": "{\n  \"fichiers_balayes\": 71,\n  \"trouvailles\": []\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T111039Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-pnw4t128/env-un-0efd.env --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py balayer / --variables OPENCLAW_GATEWAY_TOKEN OPSYS_MCP_JETON OPSYS_CONTEXT_MCP_JETON OPSYS_CONSOLE_SECRET ANTHROPIC_API_KEY --motifs --exclure /proc /sys /dev /tmp /opt/opsys/tests /opt/opsys/docs /opt/opsys/mobile /opt/opsys-venv/lib /usr/lib /usr/share",
+      "code": 0,
+      "duree_s": 3.31,
+      "sortie_fin": "{\n  \"fichiers_balayes\": 4266,\n  \"trouvailles\": []\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qbd2db04-c2g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.27,
+      "sortie_fin": "    \"nom\": \"sleep\",\n      \"rss_max_ko\": 1648,\n      \"rss_ko\": 1648\n    },\n    {\n      \"pid\": 29,\n      \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 145628,\n      \"rss_ko\": 145628\n    },\n    {\n      \"pid\": 172,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    },\n    {\n      \"pid\": 173,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32436,\n      \"rss_ko\": 32436\n    }\n  ],\n  \"cgroup_pic_octets\": 454455296,\n  \"cgroup_courant_octets\": 272453632,\n  \"cgroup_limite\": \"2147483648\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qbd2db04-c2g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.26,
+      "sortie_fin": "    \"nom\": \"sleep\",\n      \"rss_max_ko\": 1648,\n      \"rss_ko\": 1648\n    },\n    {\n      \"pid\": 29,\n      \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 145628,\n      \"rss_ko\": 145628\n    },\n    {\n      \"pid\": 179,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32432,\n      \"rss_ko\": 32432\n    },\n    {\n      \"pid\": 185,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    }\n  ],\n  \"cgroup_pic_octets\": 454455296,\n  \"cgroup_courant_octets\": 272412672,\n  \"cgroup_limite\": \"2147483648\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

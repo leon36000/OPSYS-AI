@@ -1,0 +1,123 @@
+{
+  "etape": "g384m-init",
+  "titre": "[384m] Démarrage à vide puis initialisation d'une instance fictive",
+  "attendu": "services démarrés (entrypoint de production), prêts « en attente de configuration » (3), puis prêts (0) après initialisation (personnes, paliers, entreprise, profils de base)",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:08:09.051+00:00",
+  "fin": "2026-11-01T11:08:33.708+00:00",
+  "duree_s": 24.66,
+  "constats": [
+    {
+      "nom": "premier démarrage : readiness = 3 (en attente de configuration opérateur), pas 0 ni échec",
+      "ok": true,
+      "detail": [
+        1,
+        1,
+        3
+      ]
+    },
+    {
+      "nom": "secrets de test créés dans /cles (0600, dossier 0700)",
+      "ok": true,
+      "detail": {
+        "mdp-agent-systeme": "0o600",
+        "mdp-nathan": "0o600",
+        "sauvegarde.cle": "0o600"
+      }
+    },
+    {
+      "nom": "initialisation : verifier",
+      "ok": true,
+      "detail": "code 0 (attendu 0)"
+    },
+    {
+      "nom": "initialisation : personnes creer nathan (nathan_owner)",
+      "ok": true,
+      "detail": "code 0 (attendu 0)"
+    },
+    {
+      "nom": "initialisation : personnes creer agent-systeme (system_agent)",
+      "ok": true,
+      "detail": "code 0 (attendu 0)"
+    },
+    {
+      "nom": "initialisation : paliers definir standard",
+      "ok": true,
+      "detail": "code 0 (attendu 0)"
+    },
+    {
+      "nom": "initialisation : paliers definir rapide",
+      "ok": true,
+      "detail": "code 0 (attendu 0)"
+    },
+    {
+      "nom": "initialisation : entreprise fictive (services + zone)",
+      "ok": true,
+      "detail": "code 0 (attendu 0)"
+    },
+    {
+      "nom": "initialisation : agents-base provisionner",
+      "ok": true,
+      "detail": "code 0 (attendu 0)"
+    },
+    {
+      "nom": "après initialisation et redémarrage : readiness = 0",
+      "ok": true,
+      "detail": [
+        1,
+        1,
+        0
+      ]
+    }
+  ],
+  "mesures": {
+    "temps_avant_premier_readiness_s": 6.9,
+    "temps_redemarrage_jusqu_a_pret_s": 6.7,
+    "duree_totale_s": 24.7
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker run -d --init --name qb46c83f-g384m-s1 --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 384m --memory-swap 384m --label opsys.banc=qualif-20261101T110043Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-h49t3cb9/env-g384m-s1.env -v qb46c83f-g384m-data:/opt/data -v qb46c83f-g384m-cfg:/openclaw-config -v qb46c83f-g384m-cles:/cles -v qb46c83f-g384m-sauv:/sauvegardes opsys-qualif:banc",
+      "code": 0,
+      "duree_s": 0.21,
+      "sortie_fin": "033185399fb4e305ea4865bdec74790f05c3aa30846027cd5194813b6aedbb2f\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "readiness.py en boucle sur qb46c83f-g384m-s1",
+      "code": 3,
+      "duree_s": 6.87,
+      "sortie_fin": "historique des codes : [1, 1, 3]",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-g384m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py preparer-secrets",
+      "code": 0,
+      "duree_s": 0.88,
+      "sortie_fin": "{\n  \"crees\": [\n    \"mdp-nathan\",\n    \"mdp-agent-systeme\",\n    \"sauvegarde.cle\"\n  ],\n  \"modes\": {\n    \"mdp-agent-systeme\": \"0o600\",\n    \"mdp-nathan\": \"0o600\",\n    \"sauvegarde.cle\": \"0o600\"\n  },\n  \"dossier_mode\": \"0o700\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-g384m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py initialiser",
+      "code": 0,
+      "duree_s": 9.45,
+      "sortie_fin": "e (services + zone)\",\n      \"code\": 0,\n      \"attendu\": 0,\n      \"ok\": true,\n      \"extrait\": \"entreprise.yaml écrit\"\n    },\n    {\n      \"nom\": \"agents-base provisionner\",\n      \"code\": 0,\n      \"attendu\": 0,\n      \"ok\": true,\n      \"extrait\": \"e_reessais\\\": 2,\\n    \\\"limite_concurrence\\\": 2,\\n    \\\"declencheurs\\\": [\\n      {\\n        \\\"type\\\": \\\"manuel\\\"\\n      }\\n    ],\\n    \\\"actif\\\": true,\\n    \\\"supprime\\\": false,\\n    \\\"revision\\\": 2,\\n    \\\"cree_le\\\": \\\"2026-11-01T11:08:26+00:00\\\",\\n    \\\"modifie_le\\\": \\\"2026-11-01T11:08:26+00:00\\\",\\n    \\\"modifie_par\\\": \\\"nathan\\\"\\n  }\\n}\"\n    }\n  ]\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker restart -t 30 qb46c83f-g384m-s1",
+      "code": 0,
+      "duree_s": 0.55,
+      "sortie_fin": "qb46c83f-g384m-s1\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "readiness.py en boucle sur qb46c83f-g384m-s1",
+      "code": 0,
+      "duree_s": 6.7,
+      "sortie_fin": "historique des codes : [1, 1, 0]",
+      "erreur_fin": ""
+    }
+  ]
+}

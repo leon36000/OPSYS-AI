@@ -85,8 +85,26 @@ AVERTISSEMENTS = (
 )
 
 
+def _code_sqlite(erreur: sqlite3.Error) -> str | None:
+    """Type un échec SQLite que l'exploitation doit distinguer : disque plein, base corrompue ou illisible."""
+    numero = getattr(erreur, "sqlite_errorcode", None)
+    if numero is not None and (numero & 0xFF) == sqlite3.SQLITE_FULL:
+        return "REJ-EXPORT-DISQUE-PLEIN"
+    if numero is not None and (numero & 0xFF) in (sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB):
+        return "REJ-EXPORT-BASE-CORROMPUE"
+    return None
+
+
 class ErreurExportation(Exception):
-    """Une exportation ou une restauration refusée ; le message dit quoi faire."""
+    """Une exportation ou une restauration refusée ; le message dit quoi faire.
+
+    `code` (facultatif) type les refus que l'exploitation doit distinguer sans lire le texte : `REJ-EXPORT-…`
+    (`opsys.sauvegarde_chiffree` les traduit en codes de sortie). Absent, le refus reste un message.
+    """
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclasses.dataclass(frozen=True)
@@ -159,7 +177,8 @@ def _instantane_sqlite(base: Path, cible: Path) -> str:
             copie.execute("PRAGMA journal_mode=DELETE")  # un seul fichier, sans -wal ni -shm
             controle = copie.execute("PRAGMA integrity_check").fetchall()
             if controle != [("ok",)]:
-                raise ErreurExportation(f"la base {base} échoue à PRAGMA integrity_check : export refusé.")
+                raise ErreurExportation(f"la base {base} échoue à PRAGMA integrity_check : export refusé.",
+                                        code="REJ-EXPORT-BASE-CORROMPUE")
             try:
                 ligne = copie.execute("SELECT version_num FROM alembic_version").fetchone()
             except sqlite3.OperationalError:
@@ -167,7 +186,7 @@ def _instantane_sqlite(base: Path, cible: Path) -> str:
         finally:
             copie.close()
     except sqlite3.Error as erreur:
-        raise ErreurExportation(f"copie de la base impossible : {erreur}") from erreur
+        raise ErreurExportation(f"copie de la base impossible : {erreur}", code=_code_sqlite(erreur)) from erreur
     finally:
         source.close()
     if not ligne or not ligne[0]:
@@ -338,15 +357,18 @@ def _verifier_base(chemin: Path, manifeste: dict[str, Any]) -> str:
         finally:
             connexion.close()
     except sqlite3.Error as erreur:
-        raise ErreurExportation(f"la base de l'archive est illisible : {erreur}") from erreur
+        raise ErreurExportation(f"la base de l'archive est illisible : {erreur}",
+                                code=_code_sqlite(erreur) or "REJ-EXPORT-BASE-CORROMPUE") from erreur
     if controle != [("ok",)]:
-        raise ErreurExportation("la base de l'archive échoue à PRAGMA integrity_check : restauration refusée.")
+        raise ErreurExportation("la base de l'archive échoue à PRAGMA integrity_check : restauration refusée.",
+                                code="REJ-EXPORT-BASE-CORROMPUE")
     base = manifeste.get("base")
     revision = base.get("revision") if isinstance(base, dict) else None
     if not isinstance(revision, str) or not stockage.revision_connue(revision):
         raise ErreurExportation(
             f"la révision de la base ({revision!r}) est inconnue de ce logiciel : l'archive vient d'une version plus "
-            "récente. Mettez le logiciel à jour (relancez l'installateur) avant de restaurer."
+            "récente. Mettez le logiciel à jour (relancez l'installateur) avant de restaurer.",
+            code="REJ-EXPORT-VERSION-INCOMPATIBLE",
         )
     try:
         connexion = sqlite3.connect(str(chemin))
@@ -391,7 +413,7 @@ def restaurer(archive: Path, home: Path, *, par: str, remplacer: bool = False, e
     reelle, _ = _sha256(archive)
     if not hmac.compare_digest(attendue, reelle):
         raise ErreurExportation("l'empreinte SHA-256 de l'archive diffère de celle attendue : archive altérée ou "
-                                "incomplète. Rien n'est modifié.")
+                                "incomplète. Rien n'est modifié.", code="REJ-EXPORT-EMPREINTE")
 
     home.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".opsys-restauration-", dir=home) as temporaire:

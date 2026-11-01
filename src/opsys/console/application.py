@@ -23,6 +23,7 @@ ce préfixe ou non.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -694,7 +695,10 @@ def creer_application(
         identifiant = champs.get("identifiant", "").strip()
         authentifiee = await run_in_threadpool(authentifier, identifiant, champs.get("mot_de_passe", ""))
         if authentifiee is None:
-            logger.warning("échec de connexion pour %r", identifiant)
+            # Jamais l'identifiant tapé : une faute de frappe peut être un courriel ou un numéro (PII, journal lisible
+            # par l'exploitation). Une empreinte courte suffit à relier des essais répétés (qualification conteneur).
+            logger.warning("échec de connexion (empreinte de l'identifiant %s)",
+                           hashlib.sha256(identifiant.encode("utf-8")).hexdigest()[:10])
             page = pages.page_connexion(
                 prefixe=prefixe, erreur="Identifiant ou mot de passe incorrect.", identifiant=identifiant
             )

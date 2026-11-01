@@ -1,0 +1,26 @@
+{
+  "etape": "E90-etat-final",
+  "titre": "Conteneurs étrangers intacts, disque, nettoyage",
+  "attendu": "aucun conteneur étranger modifié",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:13:54.045+00:00",
+  "fin": "2026-11-01T11:13:55.164+00:00",
+  "duree_s": 1.12,
+  "constats": [
+    {
+      "nom": "les conteneurs étrangers existent encore, même état (Up/Exited)",
+      "ok": true,
+      "detail": {}
+    }
+  ],
+  "mesures": {
+    "docker_system_df": [
+      "Images: 22.34GB (récupérable 6.253GB (27%))",
+      "Containers: 505.8MB (récupérable 227.8MB (45%))",
+      "Local Volumes: 14.69GB (récupérable 13.05GB (88%))",
+      "Build Cache: 19.37GB (récupérable 8.871GB)"
+    ]
+  },
+  "notes": [],
+  "commandes": []
+}

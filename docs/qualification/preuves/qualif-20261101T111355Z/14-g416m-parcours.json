@@ -1,0 +1,45 @@
+{
+  "etape": "g416m-parcours",
+  "titre": "[416m] Entreprise fictive et parcours minimal : lead, soumission, N3 refusée puis accordée",
+  "attendu": "chaque constat vérifié en base ; l'approbation N3 est refusée sans humain habilité et accordée par la CLI humaine",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T11:15:32.549+00:00",
+  "fin": "2026-11-01T11:15:38.521+00:00",
+  "duree_s": 5.97,
+  "constats": [
+    {
+      "nom": "sortie JSON illisible",
+      "ok": false,
+      "detail": null
+    }
+  ],
+  "mesures": {
+    "memoire_apres_parcours": {
+      "cgroup_pic_mo": 416.0,
+      "cgroup_limite": "436207616",
+      "rss_max_par_processus_mo": {
+        "python[78]": 31.7,
+        "sleep[77]": 1.6,
+        "sleep[28]": 1.6,
+        "entrypoint.sh[6]": 1.5
+      }
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb768e49-g416m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py parcours",
+      "code": 137,
+      "duree_s": 5.7,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb768e49-g416m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.27,
+      "sortie_fin": "\": 25,\n      \"nom\": \"entrypoint.sh\",\n      \"rss_max_ko\": 836,\n      \"rss_ko\": 836\n    },\n    {\n      \"pid\": 28,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1652,\n      \"rss_ko\": 1652\n    },\n    {\n      \"pid\": 77,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    },\n    {\n      \"pid\": 78,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32432,\n      \"rss_ko\": 32432\n    }\n  ],\n  \"cgroup_pic_octets\": 436207616,\n  \"cgroup_courant_octets\": 24821760,\n  \"cgroup_limite\": \"436207616\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 97\\noom 4\\noom_kill 4\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

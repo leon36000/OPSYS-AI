@@ -1,0 +1,184 @@
+{
+  "run_id": "qualif-20261101T104911Z",
+  "fin": "2026-11-01T10:51:46.605+00:00",
+  "etapes": [
+    {
+      "etape": "E00-prevol",
+      "verdict": "PASSE",
+      "duree_s": 0.21,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E01-installation-depuis-le-depot-local",
+      "verdict": "PASSE",
+      "duree_s": 14.84,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "E02-installateur-public",
+      "verdict": "ECHEC",
+      "duree_s": 0.35,
+      "constats_en_echec": [
+        "l'installateur public termine avec succès (code 0)"
+      ]
+    },
+    {
+      "etape": "c4g-init",
+      "verdict": "PASSE",
+      "duree_s": 24.85,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-verifier",
+      "verdict": "PASSE",
+      "duree_s": 3.18,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-sondes",
+      "verdict": "PASSE",
+      "duree_s": 1.76,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-parcours",
+      "verdict": "PASSE",
+      "duree_s": 10.15,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-empreinte-avant",
+      "verdict": "PASSE",
+      "duree_s": 1.52,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-sauvegarde",
+      "verdict": "PASSE",
+      "duree_s": 2.35,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-durcissement",
+      "verdict": "ECHEC",
+      "duree_s": 5.56,
+      "constats_en_echec": [
+        "système de fichiers de l'image (code, config, hors tests/docs/bibliothèques) : aucun secret ni clé privée",
+        "variables d'environnement de l'image : aucune ne ressemble à un secret"
+      ]
+    },
+    {
+      "etape": "c4g-destruction",
+      "verdict": "PASSE",
+      "duree_s": 1.85,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-restauration",
+      "verdict": "PASSE",
+      "duree_s": 10.16,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-comparaison",
+      "verdict": "PASSE",
+      "duree_s": 4.52,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-arret-propre",
+      "verdict": "PASSE",
+      "duree_s": 1.6,
+      "constats_en_echec": []
+    },
+    {
+      "etape": "c4g-mise-a-jour",
+      "verdict": "ECHEC",
+      "duree_s": 19.22,
+      "constats_en_echec": [
+        "le logiciel PRÉCÉDENT relit la base rétrogradée (base etat, révision 0038)"
+      ]
+    },
+    {
+      "etape": "c4g-injections",
+      "verdict": "ECHEC",
+      "duree_s": 48.45,
+      "constats_en_echec": [
+        "F2b restauration d'une archive authentique contenant une base corrompue : refusé avec REJ-SAUVEGARDE-BASE-CORROMPUE (code de sortie 26)",
+        "F4 disque plein (destination de 96 Ko) : refusé avec REJ-SAUVEGARDE-DISQUE-PLEIN (code de sortie 19)"
+      ]
+    },
+    {
+      "etape": "E90-etat-final",
+      "verdict": "PASSE",
+      "duree_s": 1.14,
+      "constats_en_echec": []
+    }
+  ],
+  "passes": 13,
+  "echecs": 4,
+  "nettoyage": {
+    "conteneurs": 5,
+    "volumes": 20,
+    "image": true
+  },
+  "bilans": {
+    "complet_4g": {
+      "gabarit": "4g",
+      "etapes": {
+        "init": true,
+        "verifier": true,
+        "sondes": true,
+        "parcours": true,
+        "empreinte_avant": true,
+        "sauvegarde": true,
+        "durcissement": false,
+        "destruction": true,
+        "restauration": true,
+        "comparaison": true,
+        "arret_propre": true,
+        "mise_a_jour": false,
+        "injections": false
+      },
+      "archive": {
+        "fichier": "opsys-sauvegarde-20261101T105012Z-0717.tar.gz.enc",
+        "revision_base": "0040",
+        "sha256_clair": "3eb84c7f873989af7c77f1dfda452c2ca800683ee184305cff695f13a13455e5",
+        "octets_chiffres": 46420,
+        "cle_id": "1a1d293e8103c67f7beba37379f56b3d",
+        "cree_le": "2026-11-01T10:50:12+00:00",
+        "note": "informatif, non authentifié : l'autorité est l'archive chiffrée elle-même",
+        "chemin": "/sauvegardes/opsys-sauvegarde-20261101T105012Z-0717.tar.gz.enc",
+        "verifiee": true
+      },
+      "memoire_service": {
+        "cgroup_pic_mo": 433.7,
+        "cgroup_limite": "4294967296",
+        "rss_max_par_processus_mo": {
+          "opsys-console[29]": 142.1,
+          "opsys-mcp[27]": 135.3,
+          "python[179]": 31.7,
+          "sleep[28]": 1.6
+        }
+      },
+      "memoire_finale": {
+        "cgroup_pic_mo": 316.3,
+        "cgroup_limite": "4294967296",
+        "rss_max_par_processus_mo": {
+          "opsys-console[28]": 142.2,
+          "opsys-mcp[27]": 132.9,
+          "python[73]": 31.7,
+          "sleep[29]": 1.6
+        }
+      },
+      "arret": {
+        "code_sortie": 0,
+        "oom": false,
+        "duree_s": 1.29,
+        "message_arret_demande": true,
+        "message_faux_processus_mort": false
+      },
+      "viable": false
+    }
+  }
+}

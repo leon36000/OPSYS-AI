@@ -1,0 +1,61 @@
+{
+  "etape": "c4g-comparaison",
+  "titre": "[4g] Comparaison des empreintes et comptages avant / après restauration",
+  "attendu": "mêmes tables, mêmes comptes, mêmes empreintes de contenu (journal d'audit hors lignes instance.*)",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T10:54:00.052+00:00",
+  "fin": "2026-11-01T10:54:04.593+00:00",
+  "duree_s": 4.54,
+  "constats": [
+    {
+      "nom": "base restaurée : integrity_check = ok, révision 0040",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "toutes les tables identiques (comptes et SHA-256 de contenu)",
+      "ok": true,
+      "detail": "aucune différence"
+    },
+    {
+      "nom": "empreinte globale identique",
+      "ok": true,
+      "detail": {
+        "avant": "5c6dcc8e8a3ce9b1",
+        "apres": "5c6dcc8e8a3ce9b1"
+      }
+    },
+    {
+      "nom": "l'approbation N3 accordée avant la destruction est présente dans l'instance restaurée",
+      "ok": true,
+      "detail": "[\n  {\n    \"id\": \"fdc191ce431b\",\n    \"cree_le\": \"2026-11-01T10:53:30+00:00\",\n    \"departement\": \"m03-estimation\",\n    \"ou"
+    }
+  ],
+  "mesures": {
+    "tables": {
+      "avant": 86,
+      "apres": 86
+    },
+    "lignes": {
+      "avant": 109,
+      "apres": 109
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb987e29-c4g-s2 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.29,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb987e29-c4g-s2 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.cli approbations lister --statut executee",
+      "code": 0,
+      "duree_s": 1.25,
+      "sortie_fin": "         \\\"cout_ligne\\\": \\\"500.00\\\",\\n              \\\"prix_unitaire\\\": \\\"62.50\\\",\\n              \\\"prix_ligne\\\": \\\"625.00\\\"\\n            }\\n          ],\\n          \\\"taux_marge\\\": \\\"0.25\\\",\\n          \\\"cout_total\\\": \\\"500.00\\\",\\n          \\\"prix_total\\\": \\\"625.00\\\",\\n          \\\"type_entree\\\": \\\"transition_devis\\\",\\n          \\\"statut\\\": \\\"accepte\\\",\\n          \\\"horodatage\\\": \\\"2026-11-01T16:00:00-04:00\\\",\\n          \\\"approbateur\\\": \\\"nathan\\\"\\n        }\\n      }\\n    },\\n    \\\"niveau\\\": \\\"N3\\\",\\n    \\\"decide_role\\\": \\\"nathan_owner\\\",\\n    \\\"attestation\\\": null\\n  }\\n]\\n\",\n  \"stderr\": \"\"\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

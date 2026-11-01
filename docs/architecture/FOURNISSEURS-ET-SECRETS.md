@@ -96,7 +96,9 @@ citée ; toutes `a_mesurer`.
   → `COFFRE_CLE_CONFLIT` ; aucune → `COFFRE_CLE_MAITRESSE_ABSENTE` ; mauvaise clé → `COFFRE_CLE_MAITRESSE_DIFFERENTE`.
   Création : `opsys-metier coffre generer-cle-maitresse --fichier /chemin/hors/depot/coffre.cle` (O_EXCL, 0600).
   L’export d’instance (`instance exporter`) ne prend que `opsys.db`, `paliers.yaml`, `entreprise.yaml` : il
-  contient des chiffrés, jamais la clé.
+  contient des chiffrés, jamais la clé. L'archive elle-même est en clair : `python -m opsys.sauvegarde_chiffree` la
+  chiffre (AES-256-GCM) avec une clé de SAUVEGARDE distincte de la clé maîtresse, elle aussi hors de la sauvegarde et de
+  l'instance (docs/qualification/QUALIFICATION-CONTENEUR.md, « Sauvegarde et restauration »).
 - **Agents** : ils reçoivent un jeton opaque `opsys-jeton:v1:…` (`coffre jeton`), lié à un porteur et à un usage
   (`fournisseur:<id>`, `connecteur:<nom>`), avec expiration. Seul `coffre.utiliser(...)`, côté serveur, au moment
   de l’appel et hors transaction métier, le résout ; la valeur n’existe en clair que dans ce bloc et y est

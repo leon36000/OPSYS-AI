@@ -1,0 +1,47 @@
+{
+  "etape": "c4g-empreinte-avant",
+  "titre": "[4g] Empreintes et comptages AVANT sauvegarde",
+  "attendu": "base saine (integrity_check), empreinte par table stable entre deux lectures",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T10:53:40.486+00:00",
+  "fin": "2026-11-01T10:53:42.051+00:00",
+  "duree_s": 1.56,
+  "constats": [
+    {
+      "nom": "deux lectures successives identiques (instance au repos)",
+      "ok": true,
+      "detail": "5c6dcc8e8a3ce9b1"
+    },
+    {
+      "nom": "integrity_check = ok",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "mesures": {
+    "resume": {
+      "revision": "0040",
+      "integrity_check": true,
+      "tables": 86,
+      "lignes_total": 109,
+      "sha256_global": "5c6dcc8e8a3ce9b1ce34c4ab43c7e4279ea724db8b19af9d8a0a15d63b4e8b9c"
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb987e29-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.28,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb987e29-c4g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.28,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

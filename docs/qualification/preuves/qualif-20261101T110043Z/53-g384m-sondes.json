@@ -1,0 +1,136 @@
+{
+  "etape": "g384m-sondes",
+  "titre": "[384m] Sondes de santé, authentification, en-têtes de sécurité",
+  "attendu": "MCP et console répondent ; jeton exigé ; en-têtes de sécurité ; readiness 0",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:08:36.917+00:00",
+  "fin": "2026-11-01T11:08:38.674+00:00",
+  "duree_s": 1.76,
+  "constats": [
+    {
+      "nom": "MCP GET /sante = 200 + JSON ok",
+      "ok": true,
+      "detail": {
+        "statut": 200,
+        "corps": "{\"statut\": \"ok\", \"service\": \"opsys-metier\"}"
+      }
+    },
+    {
+      "nom": "MCP POST /sante = 405",
+      "ok": true,
+      "detail": 405
+    },
+    {
+      "nom": "MCP sans jeton = 401",
+      "ok": true,
+      "detail": 401
+    },
+    {
+      "nom": "MCP mauvais jeton = 401",
+      "ok": true,
+      "detail": 401
+    },
+    {
+      "nom": "MCP bon jeton : initialize accepté (200)",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "nom": "console GET /connexion = 200",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "nom": "console : en-têtes de sécurité (nosniff, DENY, no-referrer, no-store)",
+      "ok": true,
+      "detail": {
+        "manquants": {},
+        "csp": "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+      }
+    },
+    {
+      "nom": "console 404 sans trace d'exécution",
+      "ok": true,
+      "detail": 404
+    },
+    {
+      "nom": "console /departements sans session : redirigé vers la connexion",
+      "ok": true,
+      "detail": {
+        "statut": 303,
+        "location": "/connexion"
+      }
+    },
+    {
+      "nom": "readiness.py = 0 (prêt)",
+      "ok": true,
+      "detail": {
+        "code": 0,
+        "stdout": "ready migrations: 0040\nready configuration: paliers et fragments présents\nready secrets: variables requises présentes\nready mémoire: configuration embeddings et fragment cohérents\nready console: /connexion HTTP 200\n",
+        "stderr": ""
+      }
+    },
+    {
+      "nom": "console : mauvais identifiant : pas de session (aucun Set-Cookie de session)",
+      "ok": true,
+      "detail": {
+        "statut": 401
+      }
+    },
+    {
+      "nom": "console : bon identifiant : redirection (303) avec cookie de session",
+      "ok": true,
+      "detail": {
+        "statut": 303
+      }
+    },
+    {
+      "nom": "console : cookie de session : HttpOnly, Secure, SameSite",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "console : page protégée avec le cookie : 200",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "nom": "console : page protégée sans cookie : redirigée",
+      "ok": true,
+      "detail": 303
+    },
+    {
+      "nom": "console : page protégée : en-têtes de sécurité présents",
+      "ok": true,
+      "detail": [
+        "cache-control",
+        "content-length",
+        "content-security-policy",
+        "content-type",
+        "date",
+        "referrer-policy",
+        "server",
+        "x-content-type-options",
+        "x-frame-options"
+      ]
+    }
+  ],
+  "mesures": {},
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-g384m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py sondes",
+      "code": 0,
+      "duree_s": 1.1,
+      "sortie_fin": "n embeddings et fragment cohérents\\nready console: /connexion HTTP 200\\n\",\n        \"stderr\": \"\"\n      }\n    }\n  ],\n  \"headers_console\": {\n    \"date\": \"Sun, 01 Nov 2026 11:08:37 GMT\",\n    \"server\": \"uvicorn\",\n    \"content-length\": \"929\",\n    \"content-type\": \"text/html; charset=utf-8\",\n    \"content-security-policy\": \"default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'\",\n    \"x-content-type-options\": \"nosniff\",\n    \"x-frame-options\": \"DENY\",\n    \"referrer-policy\": \"no-referrer\",\n    \"cache-control\": \"no-store\"\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-g384m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py connexion",
+      "code": 0,
+      "duree_s": 0.66,
+      "sortie_fin": "\"ok\": true,\n      \"detail\": []\n    },\n    {\n      \"nom\": \"page protégée avec le cookie : 200\",\n      \"ok\": true,\n      \"detail\": 200\n    },\n    {\n      \"nom\": \"page protégée sans cookie : redirigée\",\n      \"ok\": true,\n      \"detail\": 303\n    },\n    {\n      \"nom\": \"page protégée : en-têtes de sécurité présents\",\n      \"ok\": true,\n      \"detail\": [\n        \"cache-control\",\n        \"content-length\",\n        \"content-security-policy\",\n        \"content-type\",\n        \"date\",\n        \"referrer-policy\",\n        \"server\",\n        \"x-content-type-options\",\n        \"x-frame-options\"\n      ]\n    }\n  ]\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}
