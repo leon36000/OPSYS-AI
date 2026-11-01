@@ -13,6 +13,7 @@ aucune connexion SSH n'existe dans OPSYS (docs/sites-web.md).
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -21,6 +22,7 @@ from typing import Any
 from opsys.stockage.moteur import dossier_opsys
 
 from ..competitive.loader import load_fixture
+from ..studio import portes
 from ..usine import verdicts
 from . import deploiement, garde_contenu, paquet, qa_site, rendu_statique, schema_site
 
@@ -95,19 +97,36 @@ def textes_concurrents(slugs: Sequence[str] | None) -> tuple[dict[str, str], lis
     return textes, refus
 
 
+def images_du_studio(
+    schema: Mapping[str, Any], actifs: Mapping[str, bytes], resolveur: portes.Resolveur
+) -> list[dict[str, str]]:
+    """Refus des images du site qui sont des actifs du studio créatif non approuvés (ou des fonds bruts) : un fond
+    généré ne se publie jamais tel quel, un visuel composé seulement une fois approuvé par une personne (N3)."""
+    refus: list[dict[str, str]] = []
+    for image in schema.get("images", []):
+        octets = actifs.get(image["fichier"])
+        if octets is not None:
+            refus += portes.controler_image_site(image["id"], hashlib.sha256(octets).hexdigest(), resolveur)
+    return refus
+
+
 def construire_site(
     schema: Mapping[str, Any],
     actifs: Mapping[str, bytes],
     *,
     concurrents: Mapping[str, str] | None = None,
     noms_interdits: Sequence[str] = (),
+    actifs_studio: portes.Resolveur | None = None,
 ) -> dict[str, Any]:
-    """`{accepte, fichiers, qa}` ou `{accepte: False, refus}`. Les fichiers ne sont écrits nulle part."""
+    """`{accepte, fichiers, qa}` ou `{accepte: False, refus}`. Les fichiers ne sont écrits nulle part. `actifs_studio` :
+    résolveur du registre des actifs du studio créatif (les outils de M7 le fournissent toujours)."""
     refus = schema_site.valider_schema(schema)
     if refus:
         return _refus(*refus)
     refus = garde_contenu.controler_contenu(schema, textes_concurrents=concurrents, noms_interdits=noms_interdits)
     refus += rendu_statique.verifier_actifs(schema, actifs)
+    if actifs_studio is not None:
+        refus += images_du_studio(schema, actifs, actifs_studio)
     if refus:
         return _refus(*refus)
     fichiers = rendu_statique.rendre_site(schema, actifs)
@@ -122,11 +141,13 @@ def preparer_paquet(
     *,
     concurrents: Mapping[str, str] | None = None,
     noms_interdits: Sequence[str] = (),
+    actifs_studio: portes.Resolveur | None = None,
 ) -> dict[str, Any]:
     """`{accepte, archive, manifeste, plan, qa}` : rien n'est écrit ni exécuté (voir `ecrire_paquet`)."""
     if not paquet.version_valide(version):
         return _refus(schema_site.refus(paquet.REJ_VERSION, "$.version", "version AAAAMMJJTHHMMSSZ (UTC) attendue"))
-    construit = construire_site(schema, actifs, concurrents=concurrents, noms_interdits=noms_interdits)
+    construit = construire_site(schema, actifs, concurrents=concurrents, noms_interdits=noms_interdits,
+                                actifs_studio=actifs_studio)
     if not construit["accepte"]:
         return construit
     qa = construit["qa"]
@@ -179,6 +200,7 @@ def demander_publication(
     cible: Mapping[str, Any],
     *,
     concurrents: Mapping[str, str] | None = None,
+    actifs_studio: portes.Resolveur | None = None,
 ) -> dict[str, Any]:
     """La demande de publication publique (N3+), jamais exécutée ici.
 
@@ -201,7 +223,7 @@ def demander_publication(
             f"{verdict['detail']} Publier un site est une décision de la direction (N3+) : la demande attend dans "
             "la file d'approbation, elle n'est jamais exécutée par l'agent.",
         ))
-    prepare = preparer_paquet(schema, actifs, version, cible, concurrents=concurrents)
+    prepare = preparer_paquet(schema, actifs, version, cible, concurrents=concurrents, actifs_studio=actifs_studio)
     if not prepare["accepte"]:
         return prepare
     archive = prepare["manifeste"]["archive"]

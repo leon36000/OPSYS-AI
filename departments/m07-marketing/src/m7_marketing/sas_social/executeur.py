@@ -29,6 +29,7 @@ from typing import Any
 from opsys.secrets_coffre import masquage
 
 from .. import journal_chaine
+from ..studio import portes
 from . import etats, garde_fous, modele, service
 from .etats import EtatPublication
 from .politique import PolitiqueSas
@@ -149,8 +150,13 @@ def executer(
     fournisseur_secret: FournisseurSecret,
     politique: PolitiqueSas,
     maintenant: datetime,
+    actifs: portes.Resolveur | None = None,
 ) -> dict[str, Any]:
     """Une tentative de publication. Rend `{accepte, publie, ...}` ou `{accepte: False, publie: False, refus}`.
+
+    `actifs` : résolveur du registre des actifs du studio créatif ; le contrôle est refait à la sortie, comme tout
+    contrôle de contenu : un visuel révoqué entre l'approbation et l'envoi ne part pas
+    (`garde_fous.controler_medias`).
 
     `fournisseur_secret` donne le jeton d'accès du compte, du coffre, le temps d'un appel : il n'est appelé qu'au moment
     d'écrire sur le réseau (jamais pour un refus), enregistré au masquage pendant l'appel, et n'entre jamais au
@@ -194,7 +200,7 @@ def executer(
         return _refus(REJ_ECHEANCE_DEPASSEE, "l'heure approuvée est trop dépassée pour publier")
     if not politique.fenetre.contient(maintenant):
         return _refus(garde_fous.REJ_HORS_FENETRE, "hors de la fenêtre de publication : réessayer dans la fenêtre")
-    problemes = garde_fous.controler_contenu(publication, adaptateur, politique)
+    problemes = garde_fous.controler_contenu(publication, adaptateur, politique, actifs)
     if problemes:
         _ecrire_echec(
             journal,

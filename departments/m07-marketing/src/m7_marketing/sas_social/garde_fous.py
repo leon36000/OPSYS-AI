@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from ..moderation.floutage import RapportPhoto
+from ..studio import portes
 from ..usine import controle_texte
 from . import modele
 from .politique import NIVEAU_ANNONCE_PAYANTE, NIVEAU_ORGANIQUE, PolitiqueSas
@@ -102,7 +103,13 @@ def controler_texte(
     return refus
 
 
-def controler_medias(publication: modele.Publication, limites: LimitesReseau) -> list[dict[str, str]]:
+def controler_medias(
+    publication: modele.Publication, limites: LimitesReseau, actifs: portes.Resolveur | None = None
+) -> list[dict[str, str]]:
+    """`actifs` : le résolveur du registre des actifs du studio créatif (`studio.actifs.resolveur_du_registre`).
+    Fourni, un média n'est « composition déterministe » que s'il EST un visuel du studio approuvé par une personne ; un
+    actif du studio ne passe jamais sous une autre origine (`studio.portes`). Absent (tests purs du sas), seules les
+    règles déclaratives s'appliquent : les outils de M7 le fournissent toujours."""
     refus: list[dict[str, str]] = []
     medias = publication.medias
     if not limites.medias_min <= len(medias) <= limites.medias_max:
@@ -171,6 +178,8 @@ def controler_medias(publication: modele.Publication, limites: LimitesReseau) ->
             refus.append(
                 _refus(REJ_MEDIA_IA_INCOHERENTE, f"{chemin}.ia_generee", "un média généré porte ia_generee=true")
             )
+        if actifs is not None:
+            refus.extend(portes.controler_media_sas(dataclasses.asdict(media), chemin, actifs))
         if media.moderation != "verifiee":
             refus.append(
                 _refus(
@@ -326,12 +335,13 @@ def controler_contenu(
     publication: modele.Publication,
     adaptateur: DeclarationReseau,
     politique: PolitiqueSas,
+    actifs: portes.Resolveur | None = None,
 ) -> list[dict[str, str]]:
     """Tout ce qui ne dépend pas de l'horloge : texte, médias, divulgation, type, options. L'ordre est fixe."""
     limites = adaptateur.LIMITES
     return [
         *controler_texte(publication, limites, politique),
-        *controler_medias(publication, limites),
+        *controler_medias(publication, limites, actifs),
         *controler_divulgation(publication, limites),
         *controler_type(publication, limites, politique),
         *controler_options(publication, adaptateur),
@@ -344,9 +354,10 @@ def controler_tout(
     politique: PolitiqueSas,
     maintenant: datetime,
     horaires_du_compte: Sequence[datetime],
+    actifs: portes.Resolveur | None = None,
 ) -> list[dict[str, str]]:
     return [
-        *controler_contenu(publication, adaptateur, politique),
+        *controler_contenu(publication, adaptateur, politique, actifs),
         *controler_planification(publication, adaptateur.LIMITES, politique, maintenant, horaires_du_compte),
     ]
 

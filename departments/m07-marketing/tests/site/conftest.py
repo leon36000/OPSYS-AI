@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 from m7_marketing.site import rendu_statique
 
+from opsys import stockage
+
 FICTIF = True
 DOSSIER_DEMO = Path(__file__).resolve().parents[2] / "fixtures" / "sites" / "revetements-horizon-fictif"
 _SCHEMA = json.loads((DOSSIER_DEMO / "site.json").read_text(encoding="utf-8"))
@@ -38,3 +40,14 @@ def fichiers_demo():
 @pytest.fixture
 def fichiers(fichiers_demo):
     return dict(fichiers_demo)
+
+
+@pytest.fixture(autouse=True)
+def _base_de_donnees_du_studio(tmp_path_factory, monkeypatch):
+    """Les outils du site lisent le registre des actifs du studio créatif (un fond ou un visuel non approuvé est
+    refusé) : ils exigent donc une base migrée, comme en production où chaque outil tourne dans une transaction."""
+    url = f"sqlite:///{tmp_path_factory.mktemp('base-studio') / 'opsys-studio.db'}"
+    monkeypatch.setenv(stockage.ENV_URL, url)
+    stockage.migrer(url)
+    yield
+    stockage.liberer()

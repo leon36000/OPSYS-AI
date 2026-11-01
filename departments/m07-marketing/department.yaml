@@ -43,7 +43,7 @@ budget:
   alerte_pct: 80
 memoire:
   lecture: [clients, chantiers, campagnes, avis]
-  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales, depenses_marketing, sites_wordpress, publications_wordpress, comptes_sociaux, publications_sociales]
+  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales, depenses_marketing, sites_wordpress, publications_wordpress, comptes_sociaux, publications_sociales, briefs_studio, jobs_studio, provenance_studio, actifs_studio]
 # PLAN T4.17-c : M7 consomme le STOP de M1 (`m1.retrait_consentement`, les leads que le client avait ouverts, par leur
 # `lead_id`) et l'inscrit comme retrait du consentement marketing. Catalogue : src/opsys/evenements/catalogue/.
 # PLAN T4.17-e : M7 publie `m7.contenu_exporte` quand le propriétaire prend le paquet manuel d'un contenu (dans la
@@ -66,6 +66,8 @@ approbations:                      # ADR-0009 §5, PLAN T4.17 : qui décide un N
   # M7-WORDPRESS-SOCIAL : brancher un site WordPress ou un compte social (m7_enregistrer_site_wordpress,
   # m7_enregistrer_compte_social), publier un article (m7_demander_publication_wordpress) ou une publication sociale
   # organique (m7_demander_publication_sociale) : consignés, jamais exécutés par un outil.
+  # M7-STUDIO-CREATIF : approuver un visuel ou un logo pour publication ou impression (m7_approuver_visuel_studio) :
+  # consigné, jamais exécuté ; un visuel non approuvé est refusé par le sas social et par le site.
   n3: [nathan_owner]
   # N4 : l'annonce PAYANTE (engagement de dépense, m7_demander_annonce_payante). Aussi au propriétaire seulement.
   n4: [nathan_owner]

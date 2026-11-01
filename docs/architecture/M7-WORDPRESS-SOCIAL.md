@@ -214,6 +214,10 @@ L'état est le pliage du journal ; un maillon impossible rend le journal incohé
   auditée). Un test remplace la classe par une sous-classe aux limites différentes et montre que le sas suit.
 - **Décision r2 n°3** : un média `origine = genere_non_compose` est refusé (`REJ-SOCIAL-MEDIA-GENERE-NON-COMPOSE`) ; une
   `composition_deterministe` exige un contrôle OCR `conforme` ; une photo de chantier ne peut pas être « générée ».
+  **Studio créatif** ([M7-STUDIO-CREATIF.md](M7-STUDIO-CREATIF.md)) : ces champs ne sont plus crus sur parole. Les outils fournissent
+  au sas le résolveur du registre des actifs du studio (`studio.portes`) : un média « composition déterministe » doit être un
+  visuel du studio APPROUVÉ par une personne (N3), aux faits exacts (format, octets, dimensions, part d'IA, allure réaliste) ;
+  un actif du studio présenté sous une autre origine est refusé. Le contrôle est refait au point de sortie.
 - **Modération** : un média doit être `verifiee` (visages et plaques floutés ou absents, revue humaine faite).
 - **Divulgation d'IA** : `media_synthetique_realiste` est CALCULÉ des médias (`ia_generee` et `realiste`), jamais cru ; si elle est
   imposée, la publication doit la déclarer et le réseau doit offrir un champ pour la porter (sinon `DIVULGATION-IMPOSSIBLE`). Le
