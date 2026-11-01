@@ -258,6 +258,13 @@ vidéo courte est comptée comme TikTok, où que le propriétaire la publie. GAT
 de nommage des campagnes. (5) Le compte par contenu est une borne basse : un client qui appelle ou écrit sans passer par
 le lien ne porte aucune clé, et son lead n'est attribué à aucun contenu.
 
+## Sites web statiques (décision r6, tranche 1)
+
+Un site est décrit par un schéma JSON versionné `opsys.site/v1` (`contracts/site-contenu.v1.schema.json`), indépendant
+du moteur de rendu : garde-fous de contenu, rendu HTML en Python pur (fr-CA d'abord, en-CA, `hreflang`, sitemap,
+JSON-LD), 17 contrôles qualité, paquet reproductible et PLAN de déploiement SSH/Caddy jamais exécuté ; la publication
+est une demande N3 à la direction. Détails, codes de refus et limites : [`docs/sites-web.md`](docs/sites-web.md).
+
 ## Contrat gelé v1
 
 - **Source unique de vérité** : [contracts/brand-contract.v1.yaml](contracts/brand-contract.v1.yaml)
