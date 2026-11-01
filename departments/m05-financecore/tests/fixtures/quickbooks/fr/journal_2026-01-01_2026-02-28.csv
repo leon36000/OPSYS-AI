@@ -1,0 +1,30 @@
+Toitures Fictives Démo inc. (FICTIF)
+Journal
+Du 1er janvier au 28 février 2026
+
+Date;Type de transaction;N°;Nom;Mémo/Description;Compte;Débit;Crédit
+02/01/2026;Écriture de journal;EJ-1;;Mise de fonds (fictif);Desjardins — opérations;10 000,00 $;
+;;;;;Capital-actions;;10 000,00 $
+
+15/01/2026;Facture;F-2001;Client Fictif B;;Comptes clients;3 449,25 $;
+;;;;Revêtement (fictif);Ventes;;3 000,00 $
+;;;;;TPS/TVH à payer;;150,00 $
+;;;;;TVQ à payer;;299,25 $
+
+05/02/2026;Paiement;PA-2001;Client Fictif B;;Desjardins — opérations;3 449,25 $;
+;;;;;Comptes clients;;3 449,25 $
+
+20/02/2026;Dépense;D-14;Station Fictive;Carburant camion (fictif);Carburant;250,00 $;
+;;;;;TPS/TVH à payer;12,50 $;
+;;;;;TVQ à payer;24,94 $;
+;;;;;Desjardins — opérations;;287,44 $
+
+25/02/2026;Facture fournisseur;FF-88;Traiteur Fictif;Dîner d'équipe (fictif);Repas et représentation;80,00 $;
+;;;;;Comptes fournisseurs;;80,00 $
+
+28/02/2026;Écriture de journal;EJ-2;;Frais février (fictif);Frais bancaires;15,00 $;
+;;;;;Desjardins — opérations;;15,00 $
+
+TOTAL;;;;;;17 280,94 $;17 280,94 $
+
+Comptabilité d'exercice jeudi 5 mars 2026 08 h 31 HNE

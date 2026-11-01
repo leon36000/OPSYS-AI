@@ -205,6 +205,7 @@ _FICHIERS = (
     "grand_livre",
     "grand_livre_beancount",
     "verdicts_grand_livre",
+    "import_quickbooks",  # import QuickBooks : surveillé en STRICT
 )
 
 

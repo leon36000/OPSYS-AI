@@ -41,7 +41,9 @@ from . import encodage, plan_comptable, taxes, verdicts_grand_livre
 __all__ = [
     "etat_grand_livre",
     "proposer_ecriture",
+    "proposer_ecritures_lot",
     "valider_ecriture",
+    "valider_ecritures_lot",
     "proposer_contre_passation",
     "clore_periode",
     "propositions_factures_clients",
@@ -73,7 +75,11 @@ _TYPES_PIECE = {
     "releve_bancaire": False,
     "recu": False,
     "manuelle": False,
+    # Reprise d'historique par les exports QuickBooks Online (`import_quickbooks.py`) : la pièce cite le numéro de
+    # transaction QBO et l'empreinte du fichier exporté ; rien dans M5 ne la vérifie (déclarée).
+    "import_quickbooks": False,
 }
+_LOT_MAX = 5000
 _TAXES_FACTURE = {"tps_federale": "tps_a_percevoir", "tvq_quebec": "tvq_a_percevoir"}
 
 
@@ -285,8 +291,8 @@ def _retrouver(registre_cible: Any, ligne_id: str) -> dict[str, Any]:
     raise RuntimeError("maillon du grand livre ajouté introuvable")
 
 
-def proposer_ecriture(
-    registre_cible: Any,
+def _preparer_proposition(
+    etat: Mapping[str, Any],
     plan: Mapping[str, Any],
     *,
     cle_piece: str,
@@ -295,20 +301,12 @@ def proposer_ecriture(
     date_effet: Any,
     libelle: Any,
     lignes_brutes: Any,
-    horodatage: Any,
-    origine: str,
     contre_passe: str | None = None,
     pieces_connues: Mapping[str, Iterable[str]] | None = None,
-) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
-    """Écrit un BROUILLON (jamais une définitive) : `({"statut": "proposee"|"deja_proposee", "ecriture": ...}, None)`
-    ou `(None, verdict)`. Rien n'est écrit sur un refus, ni sur une redite (même `cle_piece`, même contenu)."""
-    refus = _horodatage_valide(horodatage)
-    if refus is not None:
-        return None, refus
-    etat = etat_grand_livre(registre_cible.lire())
-    refus = _refus_anomalies(etat)
-    if refus is not None:
-        return None, refus
+) -> tuple[tuple[str, dict[str, Any]] | None, dict[str, str] | None]:
+    """Valide une proposition contre l'état lu : `(("deja", écriture existante), None)` pour une redite (même pièce,
+    même contenu), `(("nouvelle", corps complet avec ecriture_id et empreinte), None)`, ou `(None, verdict)`. N'écrit
+    rien : `proposer_ecriture` et `proposer_ecritures_lot` partagent ces règles, dans cet ordre."""
     if not isinstance(piece, Mapping) or piece.get("type") not in _TYPES_PIECE:
         return None, _verdict("REJ-GL-PIECE-INVALIDE", f"type de pièce attendu parmi {sorted(_TYPES_PIECE)}")
     reference = _texte_borne(piece.get("reference"), _REFERENCE_MAX)
@@ -342,24 +340,113 @@ def proposer_ecriture(
     existante = etat["ecritures"].get(ident)
     if existante is not None:
         if existante["empreinte_contenu"] == empreinte:
-            return {"statut": "deja_proposee", "ecriture": vue_ecriture(existante, plan)}, None
+            return ("deja", existante), None
         return None, _verdict("REJ-GL-PIECE-CONFLIT", f"la pièce {cle_piece!r} porte déjà l'écriture {ident}, "
                                                       "d'un autre contenu : contre-passer ou citer une autre pièce")
     refus = _refus_verrou(etat, jour)
     if refus is not None:
         return None, refus
-    entree = {
+    return ("nouvelle", {"ecriture_id": ident, **corps, "empreinte_contenu": empreinte}), None
+
+
+def _entree_proposee(prepare: Mapping[str, Any], plan: Mapping[str, Any], origine: str, horodatage: str) -> dict:
+    corps = {cle: valeur for cle, valeur in prepare.items() if cle not in ("ecriture_id", "empreinte_contenu")}
+    return {
         "type_entree": _TYPE_PROPOSEE,
-        "ecriture_id": ident,
+        "ecriture_id": prepare["ecriture_id"],
         **corps,
         "plan_comptable_version": plan["version_effective"],
         "origine": origine,
-        "empreinte_contenu": empreinte,
+        "empreinte_contenu": prepare["empreinte_contenu"],
         "horodatage": horodatage,
     }
-    maillon = _retrouver(registre_cible, registre_cible.ajouter(entree))
+
+
+def proposer_ecriture(
+    registre_cible: Any,
+    plan: Mapping[str, Any],
+    *,
+    cle_piece: str,
+    piece: Mapping[str, Any],
+    nature: str,
+    date_effet: Any,
+    libelle: Any,
+    lignes_brutes: Any,
+    horodatage: Any,
+    origine: str,
+    contre_passe: str | None = None,
+    pieces_connues: Mapping[str, Iterable[str]] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    """Écrit un BROUILLON (jamais une définitive) : `({"statut": "proposee"|"deja_proposee", "ecriture": ...}, None)`
+    ou `(None, verdict)`. Rien n'est écrit sur un refus, ni sur une redite (même `cle_piece`, même contenu)."""
+    refus = _horodatage_valide(horodatage)
+    if refus is not None:
+        return None, refus
+    etat = etat_grand_livre(registre_cible.lire())
+    refus = _refus_anomalies(etat)
+    if refus is not None:
+        return None, refus
+    prepare, refus = _preparer_proposition(
+        etat, plan, cle_piece=cle_piece, piece=piece, nature=nature, date_effet=date_effet, libelle=libelle,
+        lignes_brutes=lignes_brutes, contre_passe=contre_passe, pieces_connues=pieces_connues)
+    if refus is not None:
+        return None, refus
+    genre, contenu = prepare
+    if genre == "deja":
+        return {"statut": "deja_proposee", "ecriture": vue_ecriture(contenu, plan)}, None
+    maillon = _retrouver(registre_cible, registre_cible.ajouter(_entree_proposee(contenu, plan, origine, horodatage)))
     ecriture = {**maillon, "statut": _BROUILLON, "numero": None, "validation": None, "contre_passee_par": None}
     return {"statut": "proposee", "ecriture": vue_ecriture(ecriture, plan)}, None
+
+
+def proposer_ecritures_lot(
+    registre_cible: Any,
+    plan: Mapping[str, Any],
+    *,
+    propositions: list[Mapping[str, Any]],
+    horodatage: Any,
+    origine: str,
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    """Écrit un LOT de brouillons, tout ou rien : chaque proposition (`cle_piece`, `piece`, `nature`, `date_effet`,
+    `libelle`, `lignes_brutes`) passe exactement les règles de `proposer_ecriture`, contre l'état lu UNE fois ; au
+    premier refus, rien n'est écrit et le verdict dit quelle pièce (`cle_piece`). Une redite est rendue « déjà
+    proposée » sans rien écrire ; deux propositions du lot sur la même pièce sont refusées (`REJ-GL-PIECE-CONFLIT`).
+    Rend `{"proposees": [écritures], "deja_proposees": [écritures]}` (vues). Au plus `_LOT_MAX` propositions."""
+    refus = _horodatage_valide(horodatage)
+    if refus is not None:
+        return None, refus
+    if not isinstance(propositions, list) or len(propositions) > _LOT_MAX:
+        return None, _verdict("REJ-GL-LIMITE-INVALIDE", f"un lot est une liste d'au plus {_LOT_MAX} propositions")
+    etat = etat_grand_livre(registre_cible.lire())
+    refus = _refus_anomalies(etat)
+    if refus is not None:
+        return None, refus
+    nouvelles: list[dict[str, Any]] = []
+    deja: list[dict[str, Any]] = []
+    vues: set[str] = set()
+    for proposition in propositions:
+        cle = proposition.get("cle_piece") if isinstance(proposition, Mapping) else None
+        if not isinstance(cle, str) or not cle:
+            return None, _verdict("REJ-GL-PIECE-INVALIDE", "proposition sans cle_piece")
+        if cle in vues:
+            return None, _verdict("REJ-GL-PIECE-CONFLIT", f"la pièce {cle!r} figure deux fois dans le lot")
+        vues.add(cle)
+        prepare, refus = _preparer_proposition(
+            etat, plan, cle_piece=cle, piece=proposition.get("piece"), nature=proposition.get("nature"),
+            date_effet=proposition.get("date_effet"), libelle=proposition.get("libelle"),
+            lignes_brutes=proposition.get("lignes_brutes"))
+        if refus is not None:
+            return None, {**refus, "detail": f"{cle} : {refus['detail']}"}
+        genre, contenu = prepare
+        (deja if genre == "deja" else nouvelles).append(contenu)
+    ecrites = []
+    for contenu in nouvelles:
+        entree = _entree_proposee(contenu, plan, origine, horodatage)
+        registre_cible.ajouter(entree)
+        ecrites.append({**entree, "statut": _BROUILLON, "numero": None, "validation": None,
+                        "contre_passee_par": None})
+    return {"proposees": [vue_ecriture(e, plan) for e in ecrites],
+            "deja_proposees": [vue_ecriture(e, plan) for e in deja]}, None
 
 
 def valider_ecriture(
@@ -380,6 +467,21 @@ def valider_ecriture(
     refus = _refus_anomalies(etat)
     if refus is not None:
         return None, refus
+    ecriture, refus = _ecriture_validable(etat, plan, ecriture_id)
+    if refus is not None:
+        return None, refus
+    numero = etat["definitives"] + 1
+    registre_cible.ajouter(_entree_validee(ecriture, numero, humain, horodatage))
+    definitive = {**ecriture, "statut": _DEFINITIVE, "numero": numero, "validation": {
+        "par": humain["par"], "role": humain["role"], "voie": humain["voie"], "horodatage": horodatage}}
+    return {"statut": "validee", "ecriture": vue_ecriture(definitive, plan)}, None
+
+
+def _ecriture_validable(
+    etat: Mapping[str, Any], plan: Mapping[str, Any], ecriture_id: Any
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    """L'écriture si elle peut devenir définitive maintenant : brouillon connu, période ouverte, comptes utilisables au
+    plan COURANT, original encore définitif et non contre-passé ; sinon le refus nommé."""
     ecriture = etat["ecritures"].get(ecriture_id) if isinstance(ecriture_id, str) else None
     if ecriture is None:
         return None, _verdict("REJ-GL-ECRITURE-INTROUVABLE", f"écriture {ecriture_id!r} inconnue")
@@ -398,10 +500,13 @@ def valider_ecriture(
         if originale is None or originale["statut"] != _DEFINITIVE or originale["contre_passee_par"] is not None:
             return None, _verdict("REJ-GL-DEJA-CONTRE-PASSEE",
                                   f"l'écriture {ecriture['contre_passe']} n'est plus contre-passable")
-    numero = etat["definitives"] + 1
-    entree = {
+    return ecriture, None
+
+
+def _entree_validee(ecriture: Mapping[str, Any], numero: int, humain: Mapping[str, str], horodatage: str) -> dict:
+    return {
         "type_entree": _TYPE_VALIDEE,
-        "ecriture_id": ecriture_id,
+        "ecriture_id": ecriture["ecriture_id"],
         "empreinte_contenu": ecriture["empreinte_contenu"],
         "numero": numero,
         "valide_par": humain["par"],
@@ -409,10 +514,47 @@ def valider_ecriture(
         "voie": humain["voie"],
         "horodatage": horodatage,
     }
-    registre_cible.ajouter(entree)
-    definitive = {**ecriture, "statut": _DEFINITIVE, "numero": numero, "validation": {
-        "par": humain["par"], "role": humain["role"], "voie": humain["voie"], "horodatage": horodatage}}
-    return {"statut": "validee", "ecriture": vue_ecriture(definitive, plan)}, None
+
+
+def valider_ecritures_lot(
+    registre_cible: Any,
+    plan: Mapping[str, Any],
+    *,
+    ecriture_ids: list[str],
+    humain: Mapping[str, str],
+    horodatage: Any,
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    """Rend DÉFINITIVES, tout ou rien, les brouillons `ecriture_ids` (une seule décision humaine, établie par
+    l'appelant comme pour `valider_ecriture`) : chacun passe les règles de `valider_ecriture` contre l'état lu UNE
+    fois ; au premier refus, rien n'est écrit. Les numéros suivent l'ordre (date d'effet, rang de proposition). Ne
+    contient pas de contre-passation (une contre-passation se valide seule, après lecture de l'original)."""
+    refus = _horodatage_valide(horodatage)
+    if refus is not None:
+        return None, refus
+    if (not isinstance(ecriture_ids, list) or not ecriture_ids or len(ecriture_ids) > _LOT_MAX
+            or len(set(ecriture_ids)) != len(ecriture_ids)):
+        return None, _verdict("REJ-GL-LIMITE-INVALIDE", f"de 1 à {_LOT_MAX} écritures distinctes par lot")
+    etat = etat_grand_livre(registre_cible.lire())
+    refus = _refus_anomalies(etat)
+    if refus is not None:
+        return None, refus
+    retenues = []
+    for ident in ecriture_ids:
+        ecriture, refus = _ecriture_validable(etat, plan, ident)
+        if refus is not None:
+            return None, {**refus, "detail": f"{ident} : {refus['detail']}"}
+        if ecriture["contre_passe"] is not None:
+            return None, _verdict("REJ-GL-CONTRE-PASSATION-INVALIDE",
+                                  f"{ident} : une contre-passation se valide seule, jamais en lot")
+        retenues.append(ecriture)
+    rang = {ident: index for index, ident in enumerate(etat["ordre"])}
+    retenues.sort(key=lambda e: (e["date_effet"], rang[e["ecriture_id"]]))
+    numero = etat["definitives"]
+    for ecriture in retenues:
+        numero += 1
+        registre_cible.ajouter(_entree_validee(ecriture, numero, humain, horodatage))
+    return {"statut": "validees", "validees": len(retenues), "premier_numero": etat["definitives"] + 1,
+            "dernier_numero": numero}, None
 
 
 def proposer_contre_passation(

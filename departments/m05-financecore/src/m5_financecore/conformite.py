@@ -838,7 +838,18 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "grand_livre": None,
     "grand_livre_beancount": None,
     "verdicts_grand_livre": None,
+    # Import QuickBooks : des brouillons et des validations au grand livre, jamais un mouvement d'argent.
+    "import_quickbooks": None,
     "outils": (
+        "_lire_export_qbo",
+        "_exports_qbo",
+        "_registre_import_qbo",
+        "_contexte_import_qbo",
+        "analyser_exports_quickbooks",
+        "valider_correspondance_quickbooks",
+        "importer_quickbooks",
+        "lire_import_quickbooks",
+        "valider_import_quickbooks",
         "_registre_grand_livre",
         "_plan_comptable_effectif",
         "_contexte_grand_livre",

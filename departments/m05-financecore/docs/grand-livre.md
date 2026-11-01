@@ -30,7 +30,7 @@ brouillon validé), `gl_periode_cloturee` (mois, fin, qui, totaux).
 | Champ | Règle |
 |---|---|
 | `date_effet` | `AAAA-MM-JJ` ; postérieure à la date de verrouillage (fin du dernier mois clos). |
-| `piece` | `facture_client` ou `facture_fournisseur` (existence vérifiée dans le registre M5) ; `paie_preparatoire`, `releve_bancaire`, `recu`, `manuelle` (déclarées : `verification = declaree_non_verifiee`). |
+| `piece` | `facture_client` ou `facture_fournisseur` (existence vérifiée dans le registre M5) ; `paie_preparatoire`, `releve_bancaire`, `recu`, `manuelle` (déclarées : `verification = declaree_non_verifiee`) ; `import_quickbooks` (déclarée, créée par l'import seulement, `import-quickbooks.md`). |
 | `cle_piece` | Idempotence : `auto:facture_client:<id>:emission|paiement`, `saisie:<type>:<référence>`, `contre_passation:<écriture>`. Une clé = une écriture. |
 | `lignes` | Au moins deux ; chacune un débit OU un crédit, texte décimal, strictement positif, au cent, sur un compte ACTIF du plan. |
 | Équilibre | Somme des débits = somme des crédits, sinon rien n'est écrit. |
@@ -71,6 +71,8 @@ Une facture illisible ou incohérente est ignorée avec `REJ-GL-SOURCE-ILLISIBLE
   aucune dépendance à beancount ici.
 
 Portée d'appareil : **fermée** pour les huit outils ; une identité d'appareil est refusée dans le code.
+
+Reprise d'un historique QuickBooks Online (exports CSV/Excel, brouillons en lot, validation en lot N4) : `import-quickbooks.md`. Les lots passent par `proposer_ecritures_lot` et `valider_ecritures_lot` (tout ou rien, mêmes règles que l'écriture unitaire) ; la pièce `import_quickbooks` n'est jamais saisie à la main.
 
 ## Plan comptable
 

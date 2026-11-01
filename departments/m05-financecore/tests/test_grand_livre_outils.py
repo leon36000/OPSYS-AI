@@ -177,7 +177,10 @@ def test_les_huit_outils_ont_leur_niveau_et_aucune_portee_d_appareil(par_nom):
         assert not outil.frontiere_humaine and outil.parametres["additionalProperties"] is False
     assert par_nom["m5_valider_ecriture_comptable"].niveau is Niveau.N4, "le niveau est déclaré, pas déduit"
     assert par_nom["m5_valider_ecriture_comptable"].autonomie is Autonomie.T2
-    assert set(OUTILS_GL) == analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
+    # Les cinq outils de l'import QuickBooks sont aussi des sorties comptables (test_import_quickbooks_outils.py).
+    outils_import = {nom for nom in analyse.SORTIES_COMPTABLES if nom.endswith("_quickbooks")}
+    assert len(outils_import) == 5
+    assert set(OUTILS_GL) | outils_import == analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
 
 
 @pytest.mark.parametrize("nom", OUTILS_GL)

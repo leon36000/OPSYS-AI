@@ -53,6 +53,12 @@ _TYPE_ENTREE_VALIDES = {
     "gl_ecriture_proposee",
     "gl_ecriture_validee",
     "gl_periode_cloturee",
+    # Import QuickBooks (import_quickbooks.py), dans son registre DÉDIÉ `import_quickbooks` : une version de la
+    # correspondance des comptes validée par un humain (N4), un import proposé (ses fichiers, sa vérification, ses
+    # écritures brouillons), un lot validé (N4). Aucun n'est un mouvement financier.
+    "qbo_correspondance_validee",
+    "qbo_import_propose",
+    "qbo_lot_valide",
 }
 
 _CHAMPS_MOUVEMENT = (

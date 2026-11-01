@@ -40,6 +40,12 @@ SORTIES_COMPTABLES = frozenset({
     "m5_proposer_contre_passation",  # le brouillon qui corrigerait une définitive : une proposition
     "m5_valider_ecriture_comptable",  # l'écriture rendue définitive par un humain (N4) : reste à valider par le CPA
     "m5_clore_periode_comptable",  # la clôture décidée par un humain (N4) et ses totaux : à valider par le CPA
+    # Import QuickBooks (repli « exports ») : lectures et propositions de reprise d'historique, à valider par le CPA.
+    "m5_analyser_exports_quickbooks",  # lecture des exports et correspondance PROPOSÉE : un brouillon à interpréter
+    "m5_valider_correspondance_quickbooks",  # la correspondance validée par un humain (N4) : reste à valider par le CPA
+    "m5_importer_quickbooks",  # des brouillons d'écritures repris d'un autre logiciel : des propositions
+    "m5_lire_import_quickbooks",  # un import, sa vérification et ses soldes attendus : un contrôle à interpréter
+    "m5_valider_import_quickbooks",  # les écritures reprises rendues définitives (N4) : reste à valider par le CPA
 })
 
 # Les outils dont la réponse acceptée est une analyse, un calcul interprété ou une proposition : elle porte la mention
