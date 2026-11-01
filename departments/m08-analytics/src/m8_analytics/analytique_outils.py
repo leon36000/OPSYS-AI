@@ -120,8 +120,10 @@ def construire(
         registres = lire_registres()
         brutes = moteur_mesures.lire(registres, catalogue)
         conf = fraicheur_mesures.lire_configuration(configuration().get(fraicheur_mesures.CLE_CONFIGURATION), catalogue)
+        cadences = fraicheur_mesures.lire_configuration(configuration().get(fraicheur_mesures.CLE_CADENCES), catalogue)
+        conf = {**conf, "cadences_refusees": cadences["refusees"], "cadences_ignorees": cadences["ignorees"]}
         mesures = fraicheur_mesures.lire_mesures_avec_fraicheur(
-            brutes, catalogue, instant, conf["fenetres"], plus_stricte
+            brutes, catalogue, instant, conf["fenetres"], plus_stricte, cadences["fenetres"]
         )
         return {
             "catalogue": catalogue,
@@ -137,6 +139,10 @@ def construire(
             extra["fraicheur_mesures_refusees"] = conf["refusees"]
         if conf["ignorees"]:
             extra["fraicheur_mesures_ignorees"] = conf["ignorees"]
+        if conf.get("cadences_refusees"):
+            extra["cadences_mesures_refusees"] = conf["cadences_refusees"]
+        if conf.get("cadences_ignorees"):
+            extra["cadences_mesures_ignorees"] = conf["cadences_ignorees"]
         return extra
 
     def sante_de(mesures: list[dict[str, Any]]) -> dict[str, Any]:

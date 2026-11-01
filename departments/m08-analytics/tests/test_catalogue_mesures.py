@@ -4,7 +4,7 @@ Prouve : le catalogue est fermé et validé (clé inconnue, énuméré hors list
 invalide,
 métrique non définie = refus typé) ; chaque entrée tient nom, unité, propriétaire et version de sa définition
 gouvernée ;
-le moteur lit les 38 mesures depuis les registres fictifs avec leur provenance, sans jamais inventer un zéro ; les
+le moteur lit les 56 mesures depuis les registres fictifs avec leur provenance, sans jamais inventer un zéro ; les
 mesures
 de synthèse (chantiers, écart d'équipe, signal de matériaux, cash libre) reprennent les verdicts des départements.
 """
@@ -35,7 +35,7 @@ def brut():
 def test_le_catalogue_livre_est_valide_ferme_et_complet():
     catalogue = catalogue_mesures.charger()
     ids = [entree["metric_id"] for entree in catalogue["mesures"]]
-    assert len(ids) == len(set(ids)) == 38  # 18 de la tranche 1 + 20 interdépartements
+    assert len(ids) == len(set(ids)) == 56  # 18 de la tranche 1 + 20 interdépartements + 18 de la phase 2
     assert set(ids) == set(catalogue_mesures.definitions_gouvernees())  # toute métrique gouvernée est au catalogue
     assert len(catalogue["version_catalogue"]) == 64
     for entree in catalogue["mesures"]:
@@ -51,7 +51,8 @@ def test_aucune_mesure_du_catalogue_n_est_personnelle():
         "m8_carnet_signe_cad", "m8_cash_libre_cad", "m8_marge_reelle_cumulee_cad", "m8_ecart_marge_cumule_cad",
         "m8_creances_ouvertes_cad", "m8_creances_90_jours_plus_cad", "m8_comptes_a_payer_cad",
         "m8_releves_depense_pub_cad", "m8_ecart_depense_pub_comptabilisee_cad", "m8_solde_tresorerie_cad",
-        "m8_taxes_a_remettre_cad",
+        "m8_taxes_a_remettre_cad", "m8_depense_pub_comptabilisee_cad", "m8_facturation_emise_cad",
+        "m8_valeur_ponderee_pipeline_cad", "m8_cout_par_lead_pub_cad",
     }
     for entree in catalogue["mesures"]:
         assert "technicien" not in entree["metric_id"] and "client" not in entree["metric_id"]
@@ -64,6 +65,11 @@ def test_la_version_du_catalogue_change_si_et_seulement_si_une_entree_change(tmp
     modifie = copy.deepcopy(brut)
     modifie["mesures"][0]["sens"] = "moins_est_mieux"
     assert catalogue_mesures.charger(_ecrire(tmp_path, modifie))["version_catalogue"] != a["version_catalogue"]
+
+
+def _fraicheur(valeur):
+    """Une mutation du catalogue : la fraîcheur de la première entrée devient `valeur`."""
+    return lambda c: c["mesures"][0].update({"fraicheur": valeur})
 
 
 @pytest.mark.parametrize(
@@ -85,6 +91,13 @@ def test_la_version_du_catalogue_change_si_et_seulement_si_une_entree_change(tmp
             "REJ-CATALOGUE-INVALIDE",
         ),
         (lambda c: c["mesures"][0].update({"fraicheur": {"terminale": False}}), "REJ-CATALOGUE-INVALIDE"),
+        # D7 : la cadence est OBLIGATOIRE (null quand la source est sporadique et non déclarée), valide, et seule.
+        (_fraicheur({"fenetre_s": 86400}), "REJ-CATALOGUE-INVALIDE"),
+        (_fraicheur({"fenetre_s": 86400, "cadence_s": 0}), "REJ-CATALOGUE-INVALIDE"),
+        (_fraicheur({"fenetre_s": 86400, "cadence_s": True}), "REJ-CATALOGUE-INVALIDE"),
+        (_fraicheur({"fenetre_s": 86400, "cadence_s": "7 j"}), "REJ-CATALOGUE-INVALIDE"),
+        (_fraicheur({"cadence_s": 86400}), "REJ-CATALOGUE-INVALIDE"),
+        (_fraicheur({"terminale": True, "cadence_s": 86400}), "REJ-CATALOGUE-INVALIDE"),
         (lambda c: c.update({"schema": "autre"}), "REJ-CATALOGUE-INVALIDE"),
         (lambda c: c.update({"extra": 1}), "REJ-CATALOGUE-INVALIDE"),
         (lambda c: c.update({"mesures": []}), "REJ-CATALOGUE-INVALIDE"),
@@ -116,10 +129,10 @@ def test_la_normalisation_replie_accents_casse_et_ponctuation():
 # ---------------------------------------------------------------------------
 # Le moteur : les registres deviennent des mesures, une seule fois
 # ---------------------------------------------------------------------------
-def test_le_moteur_lit_les_trente_huit_mesures_avec_provenance():
+def test_le_moteur_lit_les_cinquante_six_mesures_avec_provenance():
     mesures = moteur_mesures.lire(jeux_fictifs.registres_fictifs())
     par_id = {m["metric_id"]: m for m in mesures}
-    assert len(mesures) == 38
+    assert len(mesures) == 56
     assert par_id["m8_leads_recus"]["valeur"] == "20" and par_id["m8_devis_acceptes"]["valeur"] == "6"
     assert par_id["m8_taux_acceptation_pct"]["valeur"] == "50.00"
     assert par_id["m8_carnet_signe_cad"]["valeur"] == "25000.00"  # 6 devis acceptés − 4 chantiers terminés = 2 × 12500
@@ -226,3 +239,19 @@ def test_les_definitions_de_synthese_sont_gouvernees_et_en_cad():
 def test_les_jeux_fictifs_refusent_des_comptes_incoherents(parametres):
     with pytest.raises(ValueError, match="incoh"):
         jeux_fictifs.registres_fictifs(**parametres)
+
+
+def test_la_cadence_est_declaree_la_ou_la_source_la_fixe_et_null_ailleurs():
+    """D7 : aucune cadence n'est inventée. La capacité d'équipe est constatée par semaine (604800 s) ; les sources
+    sporadiques
+    (factures, plaintes, relevés...) déclarent `null` et le propriétaire peut les fixer (`cadences_mesures_s`)."""
+    catalogue = catalogue_mesures.par_identifiant(catalogue_mesures.charger())
+    avec_cadence = {m: e["fraicheur"]["cadence_s"] for m, e in catalogue.items() if e["fraicheur"].get("cadence_s")}
+    assert avec_cadence == {
+        "m8_capacite_heures_disponibles": 604800,
+        "m8_capacite_heures_planifiees": 604800,
+        "m8_charge_planifiee_pct": 604800,
+    }
+    for metric_id, entree in catalogue.items():
+        if "terminale" not in entree["fraicheur"]:
+            assert "cadence_s" in entree["fraicheur"], metric_id

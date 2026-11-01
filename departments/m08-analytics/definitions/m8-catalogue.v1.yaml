@@ -11,7 +11,10 @@
 #   sensibilite     agregat (compte ou durée d'entreprise) | financier (montant : admin seulement). AUCUNE mesure du catalogue
 #                   n'est personnelle : ni technicien, ni client, ni contact.
 #   fraicheur       fenetre_s : fenêtre (secondes) dans laquelle le propriétaire attend le dernier fait (décision d'architecte r1
-#                   « fraîcheur M8 » : vue exécutive 24 h) ; OU terminale : true (mesure cumulée de chantiers TERMINÉS, « non
+#                   « fraîcheur M8 » : vue exécutive 24 h), ET cadence_s (D7) : la cadence à laquelle la SOURCE publie ses faits,
+#                   en secondes, ou null quand la source est sporadique et que personne ne l'a déclarée (aucune cadence n'est
+#                   inventée : null dit « non déclarée »). La fenêtre du producteur est alors max(fenetre_s, cadence_s) ; le
+#                   propriétaire déclare ou corrige une cadence par mesure (configuration.cadences_mesures_s) ; OU terminale : true (mesure cumulée de chantiers TERMINÉS, « non
 #                   applicable une fois le chantier terminé » : l'âge du dernier chantier ne la rend pas périmée). Le propriétaire
 #                   peut resserrer ou fixer une fenêtre par mesure : department.yaml, configuration.fraicheur_mesures_s.
 #   synonymes       formulations du français que le copilote reconnaît (accents et casse sans importance). Aucune ne sert à
@@ -23,85 +26,85 @@ mesures:
     domaine: ventes
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["leads", "leads reçus", "demandes reçues", "nouveaux leads", "nouvelles demandes"]
   - metric_id: m8_leads_qualifies
     domaine: ventes
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["leads qualifiés", "demandes qualifiées", "prospects qualifiés"]
   - metric_id: m8_devis_envoyes
     domaine: ventes
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["devis envoyés", "soumissions envoyées", "soumissions transmises"]
   - metric_id: m8_devis_acceptes
     domaine: ventes
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["devis acceptés", "soumissions acceptées", "soumissions signées", "ventes conclues"]
   - metric_id: m8_devis_sans_reponse
     domaine: ventes
     sens: moins_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["devis sans réponse", "soumissions sans réponse", "devis en attente de réponse", "devis à relancer"]
   - metric_id: m8_taux_acceptation_pct
     domaine: ventes
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["taux d'acceptation", "taux de conversion des devis", "taux de conversion des soumissions", "taux de signature"]
   - metric_id: m8_delai_lead_acceptation_jours
     domaine: clientele
     sens: moins_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["délai d'acceptation", "délai du lead à l'acceptation", "temps pour conclure une vente", "cycle de vente"]
   - metric_id: m8_carnet_signe_cad
     domaine: ventes
     sens: plus_est_mieux
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["carnet signé", "carnet de commandes", "travaux signés à réaliser", "valeur du carnet"]
   - metric_id: m8_contenus_exportes
     domaine: marketing
     sens: neutre
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["contenus exportés", "publications exportées", "contenus marketing"]
   - metric_id: m8_leads_par_contenu
     domaine: marketing
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["leads par contenu", "leads amenés par le marketing", "demandes provenant des contenus"]
   - metric_id: m8_devis_envoyes_par_contenu
     domaine: marketing
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["devis envoyés par contenu", "soumissions envoyées par contenu"]
   - metric_id: m8_devis_acceptes_par_contenu
     domaine: marketing
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["devis acceptés par contenu", "ventes par contenu", "soumissions acceptées par contenu"]
   - metric_id: m8_impressions_par_contenu
     domaine: marketing
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["impressions", "impressions par contenu", "portée des contenus"]
   - metric_id: m8_clics_par_contenu
     domaine: marketing
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["clics", "clics par contenu"]
   - metric_id: m8_chantiers_termines
     domaine: operations
@@ -125,7 +128,7 @@ mesures:
     domaine: finance
     sens: plus_est_mieux
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["cash libre", "liquidités libres", "argent disponible", "trésorerie libre"]
   # -- Interdépartements (M1, M3, M4, M5, M6, M7 -> entrepôt) : voir docs/architecture/M8-ENTREPOT-SOURCES.md ---------------
   - metric_id: m8_chantiers_marge_reelle
@@ -156,43 +159,43 @@ mesures:
     domaine: finance
     sens: neutre
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["créances ouvertes", "comptes à recevoir", "factures impayées", "argent à recevoir"]
   - metric_id: m8_creances_90_jours_plus_cad
     domaine: finance
     sens: moins_est_mieux
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["créances de quatre-vingt-dix jours", "créances de plus de quatre-vingt-dix jours", "créances de 90 jours", "comptes à recevoir en souffrance", "factures impayées depuis 90 jours"]
   - metric_id: m8_comptes_a_payer_cad
     domaine: finance
     sens: moins_est_mieux
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["comptes à payer", "factures fournisseurs à payer", "argent dû aux fournisseurs"]
   - metric_id: m8_releves_depense_pub_cad
     domaine: marketing
     sens: neutre
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["relevés de dépense publicitaire", "dépense publicitaire relevée", "somme des relevés publicitaires", "dépenses Google Ads et Meta"]
   - metric_id: m8_conversions_hors_ligne
     domaine: marketing
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["conversions hors ligne", "conversions importées", "appels et rendez-vous importés"]
   - metric_id: m8_anomalies_depense_critiques
     domaine: marketing
     sens: moins_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["anomalies de dépense critiques", "anomalies publicitaires critiques", "alertes critiques de dépense"]
   - metric_id: m8_ecart_depense_pub_comptabilisee_cad
     domaine: marketing
     sens: neutre
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["écart de dépense publicitaire", "dépense publicitaire relevée contre comptabilisée", "écart entre relevés et comptabilité"]
   - metric_id: m8_heures_sur_site_chantiers
     domaine: operations
@@ -204,47 +207,155 @@ mesures:
     domaine: operations
     sens: neutre
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["réceptions de matériaux", "livraisons de matériaux reçues", "matériaux reçus"]
   - metric_id: m8_receptions_avec_ecart
     domaine: qualite
     sens: moins_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["réceptions avec écart", "livraisons de matériaux non conformes", "réceptions non conformes"]
   - metric_id: m8_demandes_qualifiees_m1
     domaine: clientele
     sens: plus_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
-    synonymes: ["demandes qualifiées par le front office", "demandes transmises par M1", "demandes qualifiées de M1"]
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["demandes qualifiées par le front office", "demandes transmises par M1", "demandes qualifiées de M1", "volume de demandes", "nombre de demandes"]
   - metric_id: m8_demandes_m1_sans_lead_m2
     domaine: clientele
     sens: moins_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["demandes sans lead", "demandes de M1 sans lead chez M2", "demandes perdues entre M1 et M2"]
   - metric_id: m8_commandes_envoyees
     domaine: operations
     sens: neutre
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["commandes envoyées", "commandes de matériaux envoyées", "bons de commande envoyés"]
   - metric_id: m8_ecritures_en_attente
     domaine: finance
     sens: moins_est_mieux
     sensibilite: agregat
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["écritures en attente", "écritures comptables en attente de validation", "brouillons d'écriture en attente"]
   - metric_id: m8_solde_tresorerie_cad
     domaine: finance
     sens: plus_est_mieux
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["solde de trésorerie", "solde bancaire", "solde du compte"]
   - metric_id: m8_taxes_a_remettre_cad
     domaine: finance
     sens: moins_est_mieux
     sensibilite: financier
-    fraicheur: {fenetre_s: 86400}
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["taxes à remettre", "TPS et TVQ à remettre", "taxes de vente à remettre"]
+  - metric_id: m8_depense_pub_comptabilisee_cad
+    domaine: marketing
+    sens: neutre
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["dépense publicitaire comptabilisée", "publicité comptabilisée", "dépense de publicité au grand livre"]
+  - metric_id: m8_factures_emises
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["factures émises", "factures envoyées", "nombre de factures émises"]
+  - metric_id: m8_facturation_emise_cad
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["facturation émise", "montant facturé aux clients", "total facturé avant taxes"]
+  - metric_id: m8_clics_recherche
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["clics de recherche", "clics du site", "clics Search Console"]
+  - metric_id: m8_impressions_recherche
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["impressions de recherche", "impressions du site", "affichages dans les résultats de recherche"]
+  - metric_id: m8_visites_site
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["visites du site web", "achalandage du site", "fréquentation du site"]
+  - metric_id: m8_capacite_heures_disponibles
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: 604800}
+    synonymes: ["heures disponibles des équipes", "capacité des équipes", "heures d'équipe disponibles"]
+  - metric_id: m8_capacite_heures_planifiees
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: 604800}
+    synonymes: ["heures planifiées", "heures à la cédule", "heures de cédule planifiées"]
+  - metric_id: m8_charge_planifiee_pct
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: 604800}
+    synonymes: ["taux d'occupation des équipes", "charge planifiée des équipes", "part des heures planifiées"]
+  - metric_id: m8_pipeline_leads_ouverts
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["leads ouverts", "pipeline ouvert", "opportunités ouvertes"]
+  - metric_id: m8_taux_conversion_resolus_pct
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["taux de conversion des leads", "taux de conversion des leads résolus", "taux de conversion du pipeline"]
+  - metric_id: m8_valeur_ponderee_pipeline_cad
+    domaine: ventes
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["valeur pondérée du pipeline", "pipeline pondéré", "valeur du pipeline"]
+  - metric_id: m8_articles_en_rupture
+    domaine: operations
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["articles en rupture", "ruptures de stock", "matériaux en rupture"]
+  - metric_id: m8_articles_sur_reserves
+    domaine: operations
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["articles sur-réservés", "réservations non couvertes par le stock", "matériaux sur-réservés"]
+  - metric_id: m8_reservations_incompletes
+    domaine: operations
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["réservations incomplètes", "matériel pas prêt", "chantiers sans matériel prêt"]
+  - metric_id: m8_plaintes_periode
+    domaine: qualite
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["plaintes", "plaintes reçues", "nombre de plaintes"]
+  - metric_id: m8_leads_publicitaires
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["leads publicitaires", "leads venus des publicités", "leads de Google Ads et de Meta"]
+  - metric_id: m8_cout_par_lead_pub_cad
+    domaine: marketing
+    sens: moins_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["coût par lead", "coût par lead publicitaire", "coût d'acquisition d'un lead"]

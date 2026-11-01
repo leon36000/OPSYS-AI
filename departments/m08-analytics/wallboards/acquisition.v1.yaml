@@ -1,0 +1,20 @@
+# Wallboard « acquisition » (M8.8, phase 2 de l'entrepôt) : ce que les sources propres de M7 (clics, impressions et visites du SITE), la
+# correspondance déclarée par le propriétaire entre ses canaux publicitaires et les sources UTM (leads et coût par lead) et la dépense
+# publicitaire que M5 a COMPTABILISÉE donnent, telles que les départements les ont publiées. Définition DÉCLARATIVE : aucune mesure
+# n'est calculée ici, aucun seuil n'est inventé. Un jour sans fait n'est pas un zéro (couverture partielle dite) ; sans la
+# correspondance canaux -> sources UTM, leads et coût par lead sont « non calculables » et la tuile le dit. Montants : admin seulement.
+schema: opsys.m8.wallboard/v1
+id: acquisition
+version: 1
+titre: "Acquisition"
+description: "Clics, impressions, visites, leads publicitaires, coût par lead et dépense publicitaire comptabilisée."
+roles: [admin]
+rafraichissement: {intervalle_s: 60, flux_max: 60}
+rotation: {actif: false, intervalle_s: 20}
+tuiles:
+  - {id: clics-recherche, mesure: m8_clics_recherche, titre: "Clics de recherche"}
+  - {id: impressions-recherche, mesure: m8_impressions_recherche, titre: "Impressions de recherche"}
+  - {id: visites-site, mesure: m8_visites_site, titre: "Visites du site"}
+  - {id: leads-pub, mesure: m8_leads_publicitaires, titre: "Leads publicitaires"}
+  - {id: cout-par-lead, mesure: m8_cout_par_lead_pub_cad, titre: "Coût par lead publicitaire"}
+  - {id: depense-comptabilisee, mesure: m8_depense_pub_comptabilisee_cad, titre: "Dépense publicitaire comptabilisée"}

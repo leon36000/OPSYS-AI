@@ -50,7 +50,14 @@ def _definition(**surcharges):
 
 def test_les_wallboards_livres_sont_valides_et_ne_nomment_que_le_catalogue():
     definitions = wallboards.charger(_CAT)
-    assert set(definitions) == {"direction", "marketing", "finance-operations"}
+    assert set(definitions) == {
+        "direction",
+        "marketing",
+        "finance-operations",
+        "acquisition",
+        "ventes-clientele",
+        "equipes-materiel",
+    }
     connues = {e["metric_id"] for e in _CAT["mesures"]}
     for definition in definitions.values():
         assert {t["mesure"] for t in definition["tuiles"]} <= connues

@@ -23,6 +23,9 @@ FICTIF = True
 
 _FUSEAU = "-04:00"
 _DUREE_ESTIMEE_MINUTES = 100
+# D6 : la source UTM de certains leads (un quart de Google, un quart de Facebook ; les autres n'en ont pas).
+_SOURCE_UTM_FICTIVE = {1: "google", 2: "facebook"}
+CANAUX_FICTIFS = {"google_ads": ["google", "google-ads"], "meta": ["facebook", "instagram"]}
 
 
 def _instant(jour: str, heure: int, minute: int = 0) -> str:
@@ -55,7 +58,9 @@ def registres_fictifs(
     delai_acceptation_jours: int = 0,
     avec_operations: bool = False,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Les cinq registres (``chantier``, ``entonnoir``, ``contenus``, ``cash_libre``, ``operations``) d'une entreprise
+    """Les registres (``chantier``, ``entonnoir``, ``contenus``, ``cash_libre``, ``operations`` et, avec
+    ``avec_operations``, les
+    ``declarations`` du propriétaire) d'une entreprise
     fictive (``operations`` est vide ici : voir ``operations_fictives`` pour les constats de M5, M6 et M7).
 
     Les comptes sont des paramètres, jamais calculés au hasard : ``leads`` reçus, dont ``qualifies`` qualifiés ;
@@ -79,15 +84,14 @@ def registres_fictifs(
     faits_entonnoir: list[dict[str, Any]] = []
     arrivee = (date.fromisoformat(jour) - timedelta(days=delai_acceptation_jours)).isoformat()
     for rang in range(1, leads + 1):
-        faits_entonnoir.append(
-            entonnoir.fait_lead_recu(
-                {
-                    "lead_id": _id("lead", rang),
-                    "client_id": "a" * 64,
-                    "horodatage_association": _instant(arrivee, 8, rang % 60),
-                }
-            )
-        )
+        charge_lead: dict[str, Any] = {
+            "lead_id": _id("lead", rang),
+            "client_id": "a" * 64,
+            "horodatage_association": _instant(arrivee, 8, rang % 60),
+        }
+        if avec_operations and rang % 4 in _SOURCE_UTM_FICTIVE:
+            charge_lead["utm"] = {"utm_source": _SOURCE_UTM_FICTIVE[rang % 4]}
+        faits_entonnoir.append(entonnoir.fait_lead_recu(charge_lead))
     for rang in range(1, qualifies + 1):
         faits_entonnoir.append(
             entonnoir.fait_lead_qualifie(
@@ -273,7 +277,13 @@ def registres_fictifs(
         "contenus": faits_contenus,
         "cash_libre": faits_cash,
         "operations": operations_fictives(jour) if avec_operations else [],
+        "declarations": declarations_fictives() if avec_operations else [],
     }
+
+
+def declarations_fictives() -> list[dict[str, Any]]:
+    """La correspondance canaux -> sources UTM que le propriétaire FICTIF a déclarée (D6)."""
+    return [{"type_entree": "canaux_marketing", "canaux": {c: list(s) for c, s in CANAUX_FICTIFS.items()}}]
 
 
 def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
@@ -281,7 +291,12 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
     (``operations_recues.fait``) : trois jours de relevés de dépense Google Ads et un de Meta (hors taxes, sans trou),
     les signaux de M7 qui disent la fraîcheur de leurs sources, deux conversions hors ligne, trois anomalies (dont une
     critique), un constat comptable de M5 (créances de 7 210,55 $ dont rien à 90 jours et plus), trois réceptions de M6
-    (dont une avec écart) et deux commandes envoyées par le canal de M1."""
+    (dont une avec écart) et deux commandes envoyées par le canal de M1. Phase 2 : le constat de la dépense
+    comptabilisée
+    de M5 (300,00 $ pour 413,75 $ de relevés : l'écart de 113,75 $ est celui de deux brouillons en attente), trois
+    factures émises (deux comptent, une est annulée), les valeurs de signaux de trois sources propres de M7, la capacité
+    d'une semaine de M4 (80 h déclarées, 62 h planifiées), le pipeline de M2, la disponibilité du matériel de M6 et les
+    plaintes de M1."""
     veille = (date.fromisoformat(jour) - timedelta(days=1)).isoformat()
     avant_veille = (date.fromisoformat(jour) - timedelta(days=2)).isoformat()
     lu = _instant(jour, 6)
@@ -346,6 +361,38 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
             },
         )
 
+    def ordonne(type_entree: str, charge: dict[str, Any], heure: int) -> dict[str, Any]:
+        return operations_recues.fait(type_entree, charge, _instant(jour, heure))
+
+    lundi = (date.fromisoformat(jour) - timedelta(days=date.fromisoformat(jour).weekday())).isoformat()
+    il_y_a_six_jours = (date.fromisoformat(jour) - timedelta(days=6)).isoformat()
+
+    def facture(identifiant: str, statut: str, avant: str, taxes: str, apres: str, heure: int) -> dict[str, Any]:
+        return ordonne(
+            operations_recues.TYPE_FACTURE_EMISE,
+            {
+                "evenement_id": f"m5-facture-emise-{identifiant}-{statut}", "facture_id": identifiant, "statut": statut,
+                "emise_le": veille, "devise": "CAD", "montant_avant_taxes_cad": avant, "total_taxes_cad": taxes,
+                "montant_apres_taxes_cad": apres,
+            },
+            heure,
+        )
+
+    def performance(
+        source: str, clics: str | None, impressions: str | None, visites: str | None, couverts: int
+    ) -> dict[str, Any]:
+        return ordonne(
+            operations_recues.TYPE_PERFORMANCE,
+            {
+                "evenement_id": f"m7-perf-{source}-fictif", "source": source, "compte_ref": "site-fictif",
+                "periode_debut": il_y_a_six_jours, "periode_fin": jour, "jours_periode": 7, "jours_couverts": couverts,
+                "clics": clics, "impressions": impressions, "visites": visites, "derniere_observation_le": lu,
+                "fraicheur_fenetre_h": 24 if source == "umami" else 48, "fictif": False,
+                "version_donnees": f"{source[:4].encode().hex():0<16}",
+            },
+            8,
+        )
+
     return [
         depense("releve-g1", "google_ads", avant_veille, "120.00"),
         depense("releve-g2", "google_ads", veille, "135.50"),
@@ -378,6 +425,64 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
         reception(3, "RECEPTION_INFERIEURE"),
         commande(1),
         commande(2),
+        ordonne(
+            operations_recues.TYPE_DEPENSE_COMPTABILISEE,
+            {
+                "evenement_id": f"m5-depense-pub-1-{avant_veille}-{jour}-fictif", "sequence": 1, "date_reference": jour,
+                "periode_debut": avant_veille, "periode_fin": jour, "version_donnees": "fedcba9876543210",
+                "devise": "CAD",
+                "base_taxes": "HORS_TAXES", "comptabilise_cad": "300.00", "ecritures_definitives": 3,
+                "brouillons_en_attente": 2, "brouillons_en_attente_cad": "113.75",
+            },
+            7,
+        ),
+        facture("facture-fictive-1", "ENVOYEE", "10000.00", "1497.50", "11497.50", 9),
+        facture("facture-fictive-1", "PAYEE", "10000.00", "1497.50", "11497.50", 11),
+        facture("facture-fictive-2", "ENVOYEE", "2500.00", "374.38", "2874.38", 9),
+        facture("facture-fictive-3", "ENVOYEE", "800.00", "119.84", "919.84", 9),
+        facture("facture-fictive-3", "ANNULEE", "800.00", "119.84", "919.84", 12),
+        performance("search_console", "120", "4300", None, 7),
+        performance("bing_webmaster", "15", "600", None, 7),
+        performance("umami", None, None, "410", 6),
+        ordonne(
+            operations_recues.TYPE_CAPACITE,
+            {
+                "evenement_id": f"m4-capacite-{lundi}-fictif", "semaine_debut": lundi,
+                "portee": "journees_datees_seulement", "calculable": True, "heures_disponibles": "80",
+                "heures_planifiees": "62", "manque": [], "constate_le": _instant(jour, 7),
+                "version_donnees": "a1b2c3d4e5f60718",
+            },
+            7,
+        ),
+        ordonne(
+            operations_recues.TYPE_PIPELINE,
+            {
+                "evenement_id": f"m2-pipeline-{jour}-fictif", "date_reference": jour, "constate_le": _instant(jour, 7),
+                "version_donnees": "0f1e2d3c4b5a6978", "total": 40, "ouverts": 12,
+                "par_statut": {"nouveau": 4, "qualifie": 8, "converti": 9, "perdu": 15, "annule": 4},
+                "convertis_un_jour": 9, "perdus": 15, "resolus": 24, "taux_conversion_resolus_pct": "37.50",
+                "valeur_ponderee_cad": "41250.00",
+            },
+            7,
+        ),
+        ordonne(
+            operations_recues.TYPE_DISPONIBILITE,
+            {
+                "evenement_id": f"m6-disponibilite-{jour}-fictif", "date_reference": jour,
+                "constate_le": _instant(jour, 7),
+                "version_donnees": "1122334455667788", "articles_suivis": 42, "articles_en_rupture": 3,
+                "articles_sur_reserves": 1, "reservations_actives": 5, "reservations_incompletes": 2,
+            },
+            7,
+        ),
+        ordonne(
+            operations_recues.TYPE_PLAINTES,
+            {
+                "evenement_id": f"m1-plaintes-{jour}-30-fictif", "date_reference": jour, "jours": 30, "etat": "CONNUE",
+                "nombre": 2, "empreinte_contenu": "ab" * 32,
+            },
+            7,
+        ),
     ]
 
 
@@ -449,4 +554,12 @@ SCENARIOS_SANTE_FICTIFS: dict[str, dict[str, Any]] = {
 }
 
 
-__all__ = ["BORNES_SANTE_FICTIVES", "FICTIF", "SCENARIOS_SANTE_FICTIFS", "registres_fictifs"]
+__all__ = [
+    "BORNES_SANTE_FICTIVES",
+    "CANAUX_FICTIFS",
+    "FICTIF",
+    "SCENARIOS_SANTE_FICTIFS",
+    "declarations_fictives",
+    "operations_fictives",
+    "registres_fictifs",
+]

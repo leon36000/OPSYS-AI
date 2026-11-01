@@ -118,6 +118,51 @@ CAS = [
     ),
     ("demande-m1", M1, "m1.lead_qualifie", lambda v: ch.lead_qualifie_m1(f"lead-v{v}"), "faits_contenus"),
     ("lead-m2", M2, "m2.client_associe", lambda v: ch.client_associe(lead_id=f"lead-v{v}"), "faits_entonnoir"),
+    # Phase 2 : les résumés agrégés que les producteurs publient pour M8 (aucune lecture croisée, aucun droit
+    # d'appareil)
+    (
+        "depense-comptabilisee",
+        M5,
+        "m5.depense_publicitaire_constatee",
+        lambda v: ch.depense_comptabilisee(sequence=v),
+        "faits_operations",
+    ),
+    (
+        "facture-emise",
+        M5,
+        "m5.facture_emise_constatee",
+        lambda v: ch.facture_emise(f"facture-v{v}"),
+        "faits_operations",
+    ),
+    (
+        "performance",
+        M7,
+        "m7.performance_signaux_constatee",
+        lambda v: ch.performance_signaux(version=f"{v:016x}"),
+        "faits_operations",
+    ),
+    (
+        "capacite",
+        M4,
+        "m4.capacite_equipe_constatee",
+        lambda v: ch.capacite_equipe(version=f"{v:016x}"),
+        "faits_operations",
+    ),
+    ("pipeline", M2, "m2.pipeline_constate", lambda v: ch.pipeline_constate(version=f"{v:016x}"), "faits_operations"),
+    (
+        "disponibilite",
+        M6,
+        "m6.disponibilite_constatee",
+        lambda v: ch.disponibilite_constatee(version=f"{v:016x}"),
+        "faits_operations",
+    ),
+    (
+        "plaintes",
+        M1,
+        "m1.plaintes_constatees",
+        lambda v: ch.plaintes_constatees(empreinte_contenu=f"{v:064x}"),
+        "faits_operations",
+    ),
 ]
 IDS = [c[0] for c in CAS]
 

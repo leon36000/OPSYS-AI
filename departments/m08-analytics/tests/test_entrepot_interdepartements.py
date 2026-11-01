@@ -7,7 +7,7 @@ Prouve :
   lisait pas) ;
 - la fenêtre de fraîcheur que le département SOURCE déclare (M7) s'ajoute à celles du catalogue et de l'appelant : la
 plus stricte des trois l'emporte, avec son origine ;
-- l'entrepôt reconstruit porte les 38 mesures avec valeur, source, version, dernier fait ; une valeur à couverture
+- l'entrepôt reconstruit porte les 56 mesures avec valeur, source, version, dernier fait ; une valeur à couverture
 partielle garde sa valeur ET le dit dans `detail` ; une mesure sans source reste sans valeur ; rien de personnel ;
 - le wallboard « finance et opérations » montre les valeurs exactes, marque une tuile partielle et ne dit pas « ok » ;
 - le copilote répond avec la valeur, dit la couverture partielle, et reste en lecture seule (« comptes à payer » est une
@@ -91,8 +91,14 @@ def test_les_valeurs_de_l_entreprise_fictive_viennent_de_leurs_departements():
     for metric_id, valeur in attendu.items():
         assert m[metric_id]["valeur"] == valeur, metric_id
         assert m[metric_id]["statut"] == "calculee" and m[metric_id]["couverture"] == {"etat": "complete"}, metric_id
+    # D1 : M5 publie la dépense comptabilisée (300,00 $) ; les relevés de M7 en font 413,75 $ : l'écart de 113,75 $ est
+    # celui
+    # des deux brouillons en attente de validation, et la couverture partielle le dit.
     ecart = m["m8_ecart_depense_pub_comptabilisee_cad"]
-    assert ecart["statut"] == "non_calculable" and ecart["valeur"] is None  # M5 ne publie pas la dépense comptabilisée
+    assert ecart["statut"] == "calculee" and ecart["valeur"] == "113.75" and ecart["couverture"]["etat"] == "partielle"
+    assert (
+        ecart["entrees"]["brouillons_en_attente_cad"] == "113.75" and ecart["entrees"]["comptabilise_cad"] == "300.00"
+    )
 
 
 def test_sans_les_constats_des_autres_departements_ces_mesures_sont_inconnues_pas_nulles():
@@ -191,15 +197,15 @@ def test_une_mesure_a_la_fenetre_resserree_par_m7_est_perimee_avant_celle_du_cat
 
 
 # ================================================================================================ entrepôt
-def test_l_entrepot_porte_les_trente_huit_mesures_sans_personne_ni_zero_invente():
+def test_l_entrepot_porte_les_cinquante_six_mesures_sans_personne_ni_zero_invente():
     registres = jeux_fictifs.registres_fictifs(avec_operations=True)
     resultat = entrepot.construire(registres, CAT, construit_le=INSTANT, rang_precedent=0)
     lignes = {ligne["metric_id"]: ligne for ligne in resultat["tables"][entrepot.TABLE_MESURES]}
-    assert len(lignes) == resultat["construction"]["nb_mesures"] == 38
+    assert len(lignes) == resultat["construction"]["nb_mesures"] == 56
     assert lignes["m8_creances_ouvertes_cad"]["valeur"] == "7210.55"
     assert lignes["m8_creances_ouvertes_cad"]["source"].startswith("M5 m5.mesures_comptables_constatees")
-    assert lignes["m8_ecart_depense_pub_comptabilisee_cad"]["valeur"] is None
-    assert "décision requise" in lignes["m8_ecart_depense_pub_comptabilisee_cad"]["detail"]
+    assert lignes["m8_ecart_depense_pub_comptabilisee_cad"]["valeur"] == "113.75"
+    assert "couverture partielle" in lignes["m8_ecart_depense_pub_comptabilisee_cad"]["detail"]
     texte = json.dumps(resultat["tables"], ensure_ascii=False)
     for interdit in ("tech-fictif", "technicien", "example.test", "fournisseur"):
         assert interdit not in texte
@@ -279,11 +285,21 @@ def test_une_tuile_partielle_le_dit_et_la_banniere_ne_dit_pas_ok():
     assert any("couverture partielle" in message for message in etat["banniere"]["messages"])
 
 
-def test_la_tuile_de_l_ecart_de_depense_dit_non_calculable_et_jamais_un_zero():
+def test_la_tuile_de_l_ecart_de_depense_montre_la_valeur_et_dit_sa_couverture_partielle():
     etat, t = _tuiles("marketing")
     tuile = t["ecart-depense"]
+    assert tuile["valeur"] == "113.75" and tuile["statut_mesure"] == "calculee" and tuile["partielle"] is True
+    assert "brouillon" in tuile["detail"]
+    assert "ecart-depense" in etat["banniere"]["partielles"]
+
+
+def test_la_tuile_de_l_ecart_de_depense_dit_non_calculable_et_jamais_un_zero_sans_constat_de_m5():
+    registres = jeux_fictifs.registres_fictifs(avec_operations=True)
+    registres["operations"] = [f for f in registres["operations"] if f["type_entree"] != "depense_pub_comptabilisee"]
+    etat = _etat_wallboard("marketing", registres)
+    tuile = {t["id"]: t for t in etat["tuiles"]}["ecart-depense"]
     assert tuile["valeur"] is None and tuile["statut_mesure"] == "non_calculable" and tuile["a_jour"] is False
-    assert "décision requise" in tuile["detail"]
+    assert "m5.depense_publicitaire_constatee" in tuile["detail"]
     assert "ecart-depense" in etat["banniere"]["non_calculables"]
 
 
@@ -325,16 +341,14 @@ def test_comptes_a_payer_est_une_mesure_paye_est_un_ordre():
         assert refus["statut"] == "refuse" and refus["refus"]["code"] == copilote.REJ_ACTION
 
 
-def test_l_ecart_de_depense_est_nomme_et_dit_non_calculable_par_le_copilote():
+def test_l_ecart_de_depense_est_nomme_et_sa_couverture_partielle_est_dite_par_le_copilote():
     reponse = _repondre("Quel est l'écart de dépense publicitaire ?")
-    assert reponse["statut"] == "repondu" and reponse["mesures"][0]["valeur"] is None
-    assert "non calculable" in reponse["texte"] and reponse["mesures"][0]["manque"] == [
-        "charges_marketing_comptabilisees"
-    ]
+    assert reponse["statut"] == "repondu" and reponse["mesures"][0]["valeur"] == "113.75"
+    assert "Couverture PARTIELLE" in reponse["texte"] and "brouillon" in reponse["texte"]
 
 
-def test_les_dix_huit_premieres_mesures_disent_aussi_leur_couverture():
-    """Complète quand calculée, inconnue quand non calculable : la même forme pour les 38 mesures."""
+def test_toutes_les_mesures_disent_leur_couverture():
+    """Complète quand calculée, inconnue quand non calculable : la même forme pour les 56 mesures."""
     lues = {
         m["metric_id"]: m
         for m in moteur_mesures.lire(jeux_fictifs.registres_fictifs(cash_libre_cad=None, avec_operations=True), CAT)

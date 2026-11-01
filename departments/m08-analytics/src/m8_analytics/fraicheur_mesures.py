@@ -10,7 +10,9 @@ la
   dit ``terminale`` (mesure cumulée de chantiers terminés : non applicable une fois le chantier terminé) ; le
   propriétaire
   peut la resserrer ou la fixer par mesure (``department.yaml``, ``configuration.fraicheur_mesures_s``, vide à la
-  livraison : aucune valeur n'y est inventée) ;
+  livraison : aucune valeur n'y est inventée) ; la CADENCE de la source (D7 : ``cadence_s`` du catalogue, ou
+  ``configuration.cadences_mesures_s`` du propriétaire, vide à la livraison) relève la fenêtre au-dessus de 24 h : la
+  fenêtre du producteur est ``max(fenetre_s, cadence)``, jamais plus courte que le rythme de la source ;
 * l'APPELANT peut demander plus strict (``fraicheur_max_s``) ; le département SOURCE peut déclarer sa propre fenêtre
   (M7 dit combien de temps ses relevés publicitaires restent frais : ``fenetre_source_s`` de la mesure) ; la précédence
   est la PLUS STRICTE des trois, jamais la plus indulgente ;
@@ -42,6 +44,7 @@ STATUT_NON_APPLICABLE = "non_applicable"
 _STATUTS_SANS_MENTION = frozenset({STATUT_A_JOUR, STATUT_NON_APPLICABLE})
 
 CLE_CONFIGURATION = "fraicheur_mesures_s"
+CLE_CADENCES = "cadences_mesures_s"
 
 REJ_MAINTENANT_INVALIDE = "REJ-FRAICHEUR-MAINTENANT-INVALIDE"
 REJ_FENETRE_APPELANT_INVALIDE = "REJ-FRAICHEUR-FENETRE-APPELANT-INVALIDE"
@@ -50,6 +53,7 @@ ORIGINE_APPELANT = "appelant"
 ORIGINE_SOURCE = "source"
 ORIGINE_CONFIGURATION = "configuration"
 ORIGINE_CATALOGUE = "catalogue"
+ORIGINE_CADENCE = "cadence"
 ORIGINE_TERMINALE = "terminale"
 
 
@@ -111,11 +115,19 @@ def fenetre_effective(
     fenetres_proprietaire: dict[str, int],
     fraicheur_max_s: int | None = None,
     fenetre_source_s: int | None = None,
+    cadences_proprietaire: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    """La fenêtre qui s'applique à une mesure : le producteur (configuration du propriétaire, sinon catalogue), le
-    département source qui déclare la sienne (``fenetre_source_s``) et l'appelant, la PLUS STRICTE des trois. À égalité,
-    le producteur garde la main, puis la source. ``secondes`` vaut ``None`` seulement pour une mesure terminale que ni
-    l'appelant ni la source ne resserrent."""
+    """La fenêtre qui s'applique à une mesure : le producteur, le département source qui déclare la sienne
+    (``fenetre_source_s``) et l'appelant, la PLUS STRICTE des trois. À égalité, le producteur garde la main, puis la
+    source.
+    ``secondes`` vaut ``None`` seulement pour une mesure terminale que ni l'appelant ni la source ne resserrent.
+
+    Le producteur (D7) : la fenêtre que le propriétaire fixe pour la mesure (``configuration.fraicheur_mesures_s``) la
+    remplace ; sinon c'est ``max(fenetre_s du catalogue, cadence)``, où la cadence est celle que le propriétaire déclare
+    (``configuration.cadences_mesures_s``) ou, à défaut, celle que le catalogue déclare (``null`` : aucune, la fenêtre
+    du
+    catalogue s'applique). Une source qui publie une fois par semaine n'est pas « périmée » au bout de 24 h : sa fenêtre
+    ne peut pas être plus courte que son rythme. Aucune cadence n'est inventée."""
     metric_id = entree["metric_id"]
     if metric_id in fenetres_proprietaire:
         producteur: int | None = fenetres_proprietaire[metric_id]
@@ -123,6 +135,9 @@ def fenetre_effective(
     elif "fenetre_s" in entree["fraicheur"]:
         producteur = entree["fraicheur"]["fenetre_s"]
         origine_producteur = ORIGINE_CATALOGUE
+        cadence = (cadences_proprietaire or {}).get(metric_id, entree["fraicheur"].get("cadence_s"))
+        if cadence is not None and cadence > producteur:
+            producteur, origine_producteur = cadence, ORIGINE_CADENCE
     else:
         producteur, origine_producteur = None, ORIGINE_TERMINALE
     retenue: dict[str, Any] = {"secondes": producteur, "origine": origine_producteur}
@@ -209,6 +224,7 @@ def lire_mesures_avec_fraicheur(
     maintenant: datetime,
     fenetres_proprietaire: dict[str, int],
     fraicheur_max_s: int | None = None,
+    cadences_proprietaire: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """Les mesures lues, chacune enrichie de sa ``fraicheur`` (statut, âge, fenêtre et son origine, motif). Une seule
     boucle pour toutes les surfaces : aucune ne réinvente la règle."""
@@ -216,15 +232,21 @@ def lire_mesures_avec_fraicheur(
     enrichies = []
     for mesure in mesures:
         fenetre = fenetre_effective(
-            entrees[mesure["metric_id"]], fenetres_proprietaire, fraicheur_max_s, mesure.get("fenetre_source_s")
+            entrees[mesure["metric_id"]],
+            fenetres_proprietaire,
+            fraicheur_max_s,
+            mesure.get("fenetre_source_s"),
+            cadences_proprietaire,
         )
         enrichies.append({**mesure, "fraicheur": evaluer(mesure, maintenant, fenetre)})
     return enrichies
 
 
 __all__ = [
+    "CLE_CADENCES",
     "CLE_CONFIGURATION",
     "ORIGINE_APPELANT",
+    "ORIGINE_CADENCE",
     "ORIGINE_CATALOGUE",
     "ORIGINE_CONFIGURATION",
     "ORIGINE_SOURCE",

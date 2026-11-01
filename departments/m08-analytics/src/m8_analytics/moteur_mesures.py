@@ -19,8 +19,9 @@ calculable),
 ``fraicheur_declaree`` (la fenêtre ou ``terminale`` du catalogue), ``couverture`` (``complete``, ``partielle`` avec ce
 qui est couvert et ce qui ne l'est pas, ou ``inconnue`` pour une mesure non calculable) et ``fenetre_source_s`` (la
 fenêtre de fraîcheur que le département SOURCE déclare lui-même, ``None`` sinon : ``fraicheur_mesures`` retient la
-plus stricte des fenêtres). Les mesures interdépartements (``mesures_interdepartements``) lisent aussi le registre
-``operations`` des constats de M7, M5, M3 et M6.
+plus stricte des fenêtres). Les mesures interdépartements (``mesures_interdepartements``, ``mesures_constats``) lisent
+aussi le registre
+``operations`` des constats de M7, M5, M3, M6, M4, M2 et M1.
 """
 
 from __future__ import annotations
@@ -30,6 +31,10 @@ from typing import Any
 from . import catalogue_mesures, contenus, encodage, entonnoir, mesures_interdepartements, synthese
 
 _CLES_REGISTRES = ("chantier", "entonnoir", "contenus", "cash_libre", "operations")
+# Ce que le PROPRIÉTAIRE déclare et que M8 lit sans l'interpréter (D6 : la correspondance canal publicitaire -> sources
+# UTM).
+# Facultatif : un appelant qui n'en donne pas n'a rien déclaré, et les mesures qui en dépendent sont non calculables.
+_CLES_FACULTATIVES = ("declarations",)
 
 # Événements dont chaque métrique par contenu a besoin (l'instant du dernier fait vient du plus récent d'entre eux).
 _EVENEMENTS_CONTENUS = {
@@ -43,17 +48,19 @@ _EVENEMENTS_CONTENUS = {
 
 
 def normaliser_registres(registres: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
-    """Les cinq registres sous forme de listes de faits (copie), chacun présent. Une clé inconnue ou un registre qui
-    n'est pas une liste de faits est un refus : une lecture ne devine jamais un registre vide."""
-    inconnues = set(registres) - set(_CLES_REGISTRES)
+    """Les cinq registres de faits (et les déclarations du propriétaire, facultatives) sous forme de listes de faits
+    (copie). Une clé inconnue ou un registre qui n'est pas une liste de faits est un refus : une lecture ne devine
+    jamais
+    un registre vide ; les déclarations absentes valent « rien déclaré »."""
+    inconnues = set(registres) - set(_CLES_REGISTRES) - set(_CLES_FACULTATIVES)
     manquantes = set(_CLES_REGISTRES) - set(registres)
     if inconnues or manquantes:
         raise ValueError(
             f"REJ-MOTEUR-REGISTRES : clés inconnues {sorted(inconnues)} ou manquantes {sorted(manquantes)}"
         )
     normalises: dict[str, list[dict[str, Any]]] = {}
-    for cle in _CLES_REGISTRES:
-        faits = registres[cle]
+    for cle in (*_CLES_REGISTRES, *_CLES_FACULTATIVES):
+        faits = registres.get(cle, []) if cle in _CLES_FACULTATIVES else registres[cle]
         if not isinstance(faits, (list, tuple)) or not all(isinstance(fait, dict) for fait in faits):
             raise ValueError(f"REJ-MOTEUR-REGISTRES : le registre {cle} doit être une liste de faits")
         normalises[cle] = [dict(fait) for fait in faits]
@@ -61,10 +68,11 @@ def normaliser_registres(registres: dict[str, Any]) -> dict[str, list[dict[str, 
 
 
 def empreinte_registres(registres: dict[str, Any]) -> str:
-    """Empreinte déterministe du contenu des cinq registres : la même suite de faits donne la même empreinte, un fait
+    """Empreinte déterministe du contenu des registres (déclarations du propriétaire comprises) : la même suite de
+    faits donne la même empreinte, un fait
     de plus (ou de moins, ou changé) en donne une autre. C'est ce qui dit qu'un entrepôt construit est en retard."""
     lus = normaliser_registres(registres)
-    return encodage.empreinte([lus[cle] for cle in _CLES_REGISTRES])
+    return encodage.empreinte([lus[cle] for cle in (*_CLES_REGISTRES, *_CLES_FACULTATIVES)])
 
 
 def _plus_recent(instants: list[str | None]) -> str | None:

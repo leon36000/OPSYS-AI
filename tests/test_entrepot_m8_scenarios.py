@@ -234,9 +234,9 @@ def test_de_l_evenement_du_departement_producteur_jusqu_au_wallboard_au_copilote
     assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
     assert monde.quarantaines() == [] and monde.ecritures_hors_propriete() == []
 
-    # 1. l'entrepôt : une construction, les 38 mesures, la provenance, la couverture partielle dite
+    # 1. l'entrepôt : une construction, les 56 mesures, la provenance, la couverture partielle dite
     construction = _m8(monde, "m8_construire_entrepot", maintenant=MAINTENANT)
-    assert construction["statut"] == "construit" and construction["construction"]["nb_mesures"] == 38
+    assert construction["statut"] == "construit" and construction["construction"]["nb_mesures"] == 56
     with stockage.transaction() as cnx:
         lignes = {ligne["metric_id"]: ligne for ligne in entrepot_stockage.lire_mesures_courantes(cnx)}
     for metric_id, valeur in ATTENDU.items():
@@ -269,9 +269,9 @@ def test_de_l_evenement_du_departement_producteur_jusqu_au_wallboard_au_copilote
     compte = _m8(monde, "m8_repondre_question", question="Combien de comptes à payer ?", maintenant=MAINTENANT)
     assert compte["mesures"][0]["valeur"] == "459.91" and compte["mention"]
 
-    # 5. la mémoire : M10 mémorise les 38 mesures telles que M8 les publie ; M9 reçoit le résumé
+    # 5. la mémoire : M10 mémorise les 56 mesures telles que M8 les publie ; M9 reçoit le résumé
     publication = _m8(monde, "m8_publier_faits_consolides", maintenant=MAINTENANT)
-    assert publication["nouvelle"] is True and publication["n_mesures"] == 38
+    assert publication["nouvelle"] is True and publication["n_mesures"] == 56
     monde.repartir(departements=(M9, M10))
     (fait,) = monde.registre(M10, "faits_analytiques")
     memorisees = {m["metric_id"]: m for m in fait["mesures"]}

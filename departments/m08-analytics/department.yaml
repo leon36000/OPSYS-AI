@@ -104,6 +104,17 @@ evenements:
     - m3.mesure_vision_validee
     - m6.reception_enregistree
     - m1.commande_courriel_envoyee
+    # Phase 2 (D1 à D3, docs/architecture/M8-ENTREPOT-SOURCES.md) : aucune lecture croisée ni droit d'appareil de plus. Les
+    # départements PUBLIENT un résumé agrégé et minimisé sur le bus, M8 le consomme (registre `faits_operations`, version
+    # la plus récemment publiée) : dépense publicitaire comptabilisée et factures émises de M5, valeurs de signaux de M7,
+    # capacité des équipes de M4, pipeline de M2, disponibilité du matériel de M6, plaintes de M1.
+    - m5.depense_publicitaire_constatee
+    - m5.facture_emise_constatee
+    - m7.performance_signaux_constatee
+    - m4.capacite_equipe_constatee
+    - m2.pipeline_constate
+    - m6.disponibilite_constatee
+    - m1.plaintes_constatees
   publie: [m8.alerte_proposee, m8.snapshot_chantier, m8.fait_consolide]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11
@@ -146,6 +157,14 @@ configuration:
   # (zéro, négatif, décimal, texte, booléen) : refusée et dite (`fraicheur_mesures_refusees`) ; clé hors catalogue : dite
   # (`fraicheur_mesures_ignorees`). Jamais corrigée en silence.
   fraicheur_mesures_s: {}
+  # Cadence de la SOURCE d'une mesure (D7, M8-ENTREPOT-SOURCES.md) : en secondes, par mesure, le rythme auquel le
+  # département source publie ses faits. La fenêtre du producteur devient max(24 h, cadence) : une source qui publie une fois par
+  # semaine n'est pas « périmée » au bout de 24 h. VIDE à dessein : le catalogue déclare une cadence là où la nature de la
+  # source la fixe (la capacité d'équipe est constatée par semaine : 604800) et `null` ailleurs (source sporadique, cadence non
+  # déclarée) ; aucune cadence n'est inventée. Forme : {<metric_id>: <entier de secondes, 1 à 315360000>}, elle remplace celle du
+  # catalogue. Valeur invalide : refusée et dite (`cadences_mesures_refusees`) ; clé hors catalogue : dite
+  # (`cadences_mesures_ignorees`). Une fenêtre fixée dans `fraicheur_mesures_s` l'emporte sur toute cadence.
+  cadences_mesures_s: {}
   # Score de santé de l'entreprise (M8.11). VIDE à dessein (GATE propriétaire : DEFINITION-PRODUIT.md §13 point 11) : les
   # bornes sont des seuils d'affaires que M8 n'invente jamais. Forme :
   #   sante:

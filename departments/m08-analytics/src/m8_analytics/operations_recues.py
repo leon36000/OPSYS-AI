@@ -1,10 +1,11 @@
-"""Ce que M7, M5, M3 et M6 ont constaté et que M8 range tel quel (interconnexion des départements, bus d'événements).
+"""Ce que M7, M5, M3, M6, M4, M2 et M1 ont constaté et que M8 range tel quel (interconnexion des départements, bus
+d'événements).
 
 Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge (« aujourd'hui » vient de l'appelant). ``outils.py``,
 seul point de contact avec le socle, reçoit les événements, range les faits au registre ``faits_operations`` et lit ce
 registre pour la section « operations_recues » de la vue exécutive.
 
-Huit types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
+Quinze types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
 
 - ``m7.signaux_marketing_constates`` : quelle source de données propres a été lue, sur quelle période, avec quelle
   fraîcheur (aucune valeur de mesure : les faits eux-mêmes se lisent chez M7) ;
@@ -20,6 +21,23 @@ action) ;
   fournisseur, ni ligne de prix, ni quantité) ;
 - ``m1.commande_courriel_envoyee`` : le courriel d'un bon de commande de M6 est parti (après l'approbation humaine du
   sas de M1) : le bon de commande et l'instant, ni le brouillon ni l'adresse.
+
+Sept types de la phase 2 (D1 à D3 de ``docs/architecture/M8-ENTREPOT-SOURCES.md`` : les producteurs publient des RÉSUMÉS
+agrégés, M8 n'appelle aucun de leurs outils et n'a obtenu aucun droit nouveau) :
+
+- ``m5.depense_publicitaire_constatee`` (D1) : ce que le grand livre de M5 a COMPTABILISÉ des dépenses publicitaires
+  de M7 sur une période, et ce qui attend encore sa validation ; le plus grand ``sequence`` fait foi ;
+- ``m5.facture_emise_constatee`` (D3) : une facture ENVOYÉE (puis payée ou annulée), sans client : l'état le plus avancé
+  fait foi ;
+- ``m7.performance_signaux_constatee`` : les clics, impressions et visites du SITE d'une source propre pour une période
+;
+- ``m4.capacite_equipe_constatee`` : les heures d'équipe DÉCLARÉES et les heures de cédule planifiées d'une semaine ;
+- ``m2.pipeline_constate`` : les comptes du pipeline commercial, le taux de conversion des résolus, la valeur pondérée ;
+- ``m6.disponibilite_constatee`` : cinq comptes de disponibilité du matériel ;
+- ``m1.plaintes_constatees`` : l'ÉTAT de la lecture des plaintes et leur nombre seulement s'il est CONNUE.
+Pour ces sept types, la version qui fait foi est celle de la publication la plus récente (``publie_le``, donné par le
+bus) : l'ordre de livraison n'est pas garanti. Aucun n'entre dans la section « operations_recues » de la vue exécutive ;
+ils se lisent par leurs mesures du catalogue.
 
 Principes :
 
@@ -60,6 +78,13 @@ TYPE_MESURES_COMPTABLES = "mesures_comptables_constatees"
 TYPE_MESURE_VISION = "mesure_vision_validee"
 TYPE_RECEPTION = "reception_materiaux"
 TYPE_COMMANDE = "commande_envoyee"
+TYPE_DEPENSE_COMPTABILISEE = "depense_pub_comptabilisee"
+TYPE_FACTURE_EMISE = "facture_emise"
+TYPE_PERFORMANCE = "performance_signaux"
+TYPE_CAPACITE = "capacite_equipe"
+TYPE_PIPELINE = "pipeline_commercial"
+TYPE_DISPONIBILITE = "disponibilite_materiel"
+TYPE_PLAINTES = "plaintes_constatees"
 
 EVENEMENT_PAR_TYPE = {
     "m7.signaux_marketing_constates": TYPE_SIGNAUX,
@@ -70,6 +95,13 @@ EVENEMENT_PAR_TYPE = {
     "m3.mesure_vision_validee": TYPE_MESURE_VISION,
     "m6.reception_enregistree": TYPE_RECEPTION,
     "m1.commande_courriel_envoyee": TYPE_COMMANDE,
+    "m5.depense_publicitaire_constatee": TYPE_DEPENSE_COMPTABILISEE,
+    "m5.facture_emise_constatee": TYPE_FACTURE_EMISE,
+    "m7.performance_signaux_constatee": TYPE_PERFORMANCE,
+    "m4.capacite_equipe_constatee": TYPE_CAPACITE,
+    "m2.pipeline_constate": TYPE_PIPELINE,
+    "m6.disponibilite_constatee": TYPE_DISPONIBILITE,
+    "m1.plaintes_constatees": TYPE_PLAINTES,
 }
 _EVENEMENT_DU_TYPE = {type_entree: evenement for evenement, type_entree in EVENEMENT_PAR_TYPE.items()}
 
@@ -90,6 +122,105 @@ _CLES_UNICITE = {
     TYPE_MESURE_VISION: ("candidat_id",),
     TYPE_RECEPTION: ("po_id", "hash_maillon"),
     TYPE_COMMANDE: ("po_id",),
+    # Phase 2. La clé est celle du CONTENU constaté : le même constat rejoué sous un autre `evenement_id` n'ajoute rien
+    # ;
+    # un retour à une version antérieure des données (autre `sequence`, autre `constate_le`) est un fait de plus.
+    TYPE_DEPENSE_COMPTABILISEE: ("periode_debut", "periode_fin", "sequence"),
+    TYPE_FACTURE_EMISE: ("facture_id", "statut"),
+    TYPE_PERFORMANCE: ("source", "compte_ref", "periode_debut", "periode_fin", "version_donnees"),
+    TYPE_CAPACITE: ("semaine_debut", "portee", "version_donnees", "constate_le"),
+    TYPE_PIPELINE: ("date_reference", "version_donnees", "constate_le"),
+    TYPE_DISPONIBILITE: ("date_reference", "version_donnees", "constate_le"),
+    TYPE_PLAINTES: ("date_reference", "jours", "empreinte_contenu"),
+}
+# Les types dont deux versions du même objet ne s'ordonnent que par l'instant de PUBLICATION donné par le bus
+# (`publie_le`).
+_TYPES_ORDONNES_PAR_PUBLICATION = frozenset(
+    {
+        TYPE_MESURES_COMPTABLES,
+        TYPE_DEPENSE_COMPTABILISEE,
+        TYPE_FACTURE_EMISE,
+        TYPE_PERFORMANCE,
+        TYPE_CAPACITE,
+        TYPE_PIPELINE,
+        TYPE_DISPONIBILITE,
+        TYPE_PLAINTES,
+    }
+)
+# Phase 2 : ce que M8 garde de chaque résumé, exactement les propriétés fermées du catalogue d'événements (une propriété
+# de plus ne traverse jamais : la charge est réduite à cette liste avant d'être rangée).
+_CLES_PHASE_2 = {
+    TYPE_DEPENSE_COMPTABILISEE: (
+        "sequence",
+        "date_reference",
+        "periode_debut",
+        "periode_fin",
+        "version_donnees",
+        "devise",
+        "base_taxes",
+        "comptabilise_cad",
+        "ecritures_definitives",
+        "brouillons_en_attente",
+        "brouillons_en_attente_cad",
+    ),
+    TYPE_FACTURE_EMISE: (
+        "facture_id",
+        "statut",
+        "emise_le",
+        "devise",
+        "montant_avant_taxes_cad",
+        "total_taxes_cad",
+        "montant_apres_taxes_cad",
+    ),
+    TYPE_PERFORMANCE: (
+        "source",
+        "compte_ref",
+        "periode_debut",
+        "periode_fin",
+        "jours_periode",
+        "jours_couverts",
+        "clics",
+        "impressions",
+        "visites",
+        "derniere_observation_le",
+        "fraicheur_fenetre_h",
+        "fictif",
+        "version_donnees",
+    ),
+    TYPE_CAPACITE: (
+        "semaine_debut",
+        "portee",
+        "calculable",
+        "heures_disponibles",
+        "heures_planifiees",
+        "manque",
+        "constate_le",
+        "version_donnees",
+    ),
+    TYPE_PIPELINE: (
+        "date_reference",
+        "constate_le",
+        "version_donnees",
+        "total",
+        "ouverts",
+        "par_statut",
+        "convertis_un_jour",
+        "perdus",
+        "resolus",
+        "taux_conversion_resolus_pct",
+        "valeur_ponderee_cad",
+    ),
+    TYPE_DISPONIBILITE: (
+        "date_reference",
+        "constate_le",
+        "version_donnees",
+        "articles_suivis",
+        "articles_en_rupture",
+        "articles_sur_reserves",
+        "reservations_actives",
+        "reservations_incompletes",
+    ),
+    TYPE_PLAINTES: ("date_reference", "jours", "etat", "nombre", "empreinte_contenu"),
 }
 # Ce que M8 garde d'une mesure de vision : ni la photo, ni le modèle, ni l'empreinte de décision.
 _CLES_VISION = (
@@ -109,6 +240,8 @@ _CLES_RECEPTION = ("po_id", "hash_maillon", "horodatage_reception", "verdict_rec
 # Ce que M8 garde d'une commande envoyée par M1 : le bon de commande et l'instant. Ni le brouillon, ni l'empreinte du
 # courriel.
 _CLES_COMMANDE = ("po_id", "envoye_le")
+TYPES_PHASE_2 = frozenset(_CLES_PHASE_2)
+_TYPES_HORS_SECTION = frozenset({TYPE_RECEPTION, TYPE_COMMANDE, *TYPES_PHASE_2})
 _ANOMALIES_LISTEES = 5
 _ORDRE_SEVERITE = {"critique": 0, "attention": 1, "info": 2}
 
@@ -116,8 +249,10 @@ _ORDRE_SEVERITE = {"critique": 0, "attention": 1, "info": 2}
 def fait(type_entree: str, charge: dict[str, Any], publie_le: str | None = None) -> dict[str, Any]:
     """Le fait rangé : la charge validée par le catalogue du socle, avec son type d'entrée. La vision est réduite à
     l'essentiel (ni photo ni modèle). `publie_le` : instant de PUBLICATION donné par le bus, gardé pour les constats
-    comptables seulement (deux versions du même jour ne s'ordonnent que par lui : l'ordre de livraison n'est pas
-    garanti) ; il n'entre dans aucune clé de contenu."""
+    dont
+    deux versions du même objet ne s'ordonnent que par lui (comptables et résumés de la phase 2 : l'ordre de livraison
+    n'est
+    pas garanti) ; il n'entre dans aucune clé de contenu."""
     if type_entree not in _CLES_UNICITE:
         raise ValueError(f"type d'entrée inconnu : {type_entree!r}")
     provenance = {
@@ -131,8 +266,15 @@ def fait(type_entree: str, charge: dict[str, Any], publie_le: str | None = None)
         return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_COMMANDE}, "provenance": provenance}
     if type_entree == TYPE_RECEPTION:
         return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_RECEPTION}, "provenance": provenance}
-    rangee = {"type_entree": type_entree, **charge, "provenance": provenance}
-    if type_entree == TYPE_MESURES_COMPTABLES and publie_le is not None:
+    if type_entree in _CLES_PHASE_2:
+        rangee = {
+            "type_entree": type_entree,
+            **{cle: charge[cle] for cle in _CLES_PHASE_2[type_entree]},
+            "provenance": provenance,
+        }
+    else:
+        rangee = {"type_entree": type_entree, **charge, "provenance": provenance}
+    if type_entree in _TYPES_ORDONNES_PAR_PUBLICATION and publie_le is not None:
         rangee["publie_le"] = publie_le
     return rangee
 
@@ -305,9 +447,10 @@ def _mesures_comptables(faits: list[dict[str, Any]], aujourd_hui: str | None) ->
 
 def section(faits: list[dict[str, Any]], aujourd_hui: str | None = None) -> dict[str, Any] | None:
     """La section « operations_recues » de la vue exécutive, ou ``None`` sans aucun fait (la vue reste inchangée). Les
-    réceptions de matériaux de M6 et les commandes envoyées n'y figurent pas : elles se lisent par leurs mesures du
-    catalogue."""
-    faits = [f for f in faits if f.get("type_entree") not in (TYPE_RECEPTION, TYPE_COMMANDE)]
+    réceptions de matériaux de M6, les commandes envoyées et les résumés de la phase 2 n'y figurent pas : ils se lisent
+    par
+    leurs mesures du catalogue."""
+    faits = [f for f in faits if f.get("type_entree") not in _TYPES_HORS_SECTION]
     if not faits:
         return None
     visions = _de_type(faits, TYPE_MESURE_VISION)
@@ -398,9 +541,17 @@ __all__ = [
     "TYPE_DEPENSE",
     "TYPE_MESURES_COMPTABLES",
     "TYPE_MESURE_VISION",
+    "TYPE_CAPACITE",
     "TYPE_COMMANDE",
+    "TYPE_DEPENSE_COMPTABILISEE",
+    "TYPE_DISPONIBILITE",
+    "TYPE_FACTURE_EMISE",
+    "TYPE_PERFORMANCE",
+    "TYPE_PIPELINE",
+    "TYPE_PLAINTES",
     "TYPE_RECEPTION",
     "TYPE_SIGNAUX",
+    "TYPES_PHASE_2",
     "cles_unicite",
     "dernier_constat_comptable",
     "fait",

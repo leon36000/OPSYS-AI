@@ -40,7 +40,7 @@ ANOMALIE_DEVENUE_NON_CALCULABLE = "devenue_non_calculable"
 ANOMALIE_PERIMEE = "perimee"
 PASSAGE_MAX = 280
 PASSAGES_MAX = 3
-MESURES_MAX = 40
+MESURES_MAX = 80
 
 
 def identifiant_evenement(empreinte_registres: str, version_catalogue: str) -> str:

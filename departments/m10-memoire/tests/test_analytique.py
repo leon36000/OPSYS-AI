@@ -93,7 +93,7 @@ def test_la_charge_valide_est_gardee_par_liste_blanche_et_posee_financiere():
     [
         (lambda c: c.pop("mesures"), "mesures"),
         (lambda c: c.update({"mesures": []}), "mesures"),
-        (lambda c: c.update({"mesures": [_mesure()] * 41}), "mesures"),
+        (lambda c: c.update({"mesures": [_mesure()] * 81}), "mesures"),
         (lambda c: c.update({"evenement_id": "m8-faits-xyz"}), "evenement_id"),
         (lambda c: c.update({"consolide_le": "hier"}), "consolide_le"),
         (lambda c: c.update({"empreinte_registres": "A" * 64}), "empreinte_registres"),

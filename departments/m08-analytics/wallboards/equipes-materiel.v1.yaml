@@ -1,0 +1,20 @@
+# Wallboard « équipes et matériel » (M8.8, phase 2 de l'entrepôt) : la capacité d'équipe de la semaine que M4 a constatée (heures
+# DÉCLARÉES, heures planifiées, part planifiée) et la disponibilité du matériel que M6 a constatée (articles en rupture, articles
+# réservés au-delà de ce qui est en main, réservations incomplètes). Définition DÉCLARATIVE : aucune mesure n'est calculée ici, aucun
+# seuil n'est inventé. Une semaine que M4 ne peut pas chiffrer est NON CALCULABLE et cite ses causes ; la capacité se rafraîchit à la
+# semaine (cadence de la source), pas aux 24 heures.
+schema: opsys.m8.wallboard/v1
+id: equipes-materiel
+version: 1
+titre: "Équipes et matériel"
+description: "Capacité des équipes de la semaine et disponibilité du matériel, telles que M4 et M6 les ont publiées."
+roles: [admin]
+rafraichissement: {intervalle_s: 60, flux_max: 60}
+rotation: {actif: false, intervalle_s: 20}
+tuiles:
+  - {id: heures-disponibles, mesure: m8_capacite_heures_disponibles, titre: "Heures d'équipe disponibles"}
+  - {id: heures-planifiees, mesure: m8_capacite_heures_planifiees, titre: "Heures planifiées"}
+  - {id: charge-planifiee, mesure: m8_charge_planifiee_pct, titre: "Part des heures planifiées"}
+  - {id: ruptures, mesure: m8_articles_en_rupture, titre: "Articles en rupture"}
+  - {id: sur-reserves, mesure: m8_articles_sur_reserves, titre: "Articles sur-réservés"}
+  - {id: reservations-incompletes, mesure: m8_reservations_incompletes, titre: "Réservations incomplètes"}

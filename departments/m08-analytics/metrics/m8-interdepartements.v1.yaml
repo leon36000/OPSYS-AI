@@ -35,6 +35,24 @@ proprietaires:
   m8_receptions_avec_ecart: m06-material-control
   m8_demandes_qualifiees_m1: m01-front-office
   m8_demandes_m1_sans_lead_m2: m01-front-office
+  m8_depense_pub_comptabilisee_cad: m05-financecore
+  m8_factures_emises: m05-financecore
+  m8_facturation_emise_cad: m05-financecore
+  m8_clics_recherche: m07-marketing
+  m8_impressions_recherche: m07-marketing
+  m8_visites_site: m07-marketing
+  m8_capacite_heures_disponibles: m04-field-ops
+  m8_capacite_heures_planifiees: m04-field-ops
+  m8_charge_planifiee_pct: m04-field-ops
+  m8_pipeline_leads_ouverts: m02-revenue-crm
+  m8_taux_conversion_resolus_pct: m02-revenue-crm
+  m8_valeur_ponderee_pipeline_cad: m02-revenue-crm
+  m8_articles_en_rupture: m06-material-control
+  m8_articles_sur_reserves: m06-material-control
+  m8_reservations_incompletes: m06-material-control
+  m8_plaintes_periode: m01-front-office
+  m8_leads_publicitaires: m07-marketing
+  m8_cout_par_lead_pub_cad: m07-marketing
 metrics:
   - id: m8_chantiers_marge_reelle
     nom: "Chantiers à marge réelle chiffrée"
@@ -129,10 +147,10 @@ metrics:
     consommateur: "wallboard marketing, copilote analytique, entrepôt"
   - id: m8_ecart_depense_pub_comptabilisee_cad
     nom: "Écart entre relevés publicitaires et dépense comptabilisée"
-    definition: "ÉCART DE DÉFINITION entre M7 (somme des relevés reçus des plateformes) et M5 (dépense publicitaire réellement comptabilisée au grand livre). Aujourd'hui NON CALCULABLE par construction : M5 range un brouillon de charge pour chaque relevé (la validation est humaine, N4) mais ne publie aucun total comptabilisé, et M8 ne lit pas le grand livre de M5. La mesure existe pour que cet écart soit visible et nommé, jamais moyenné ni deviné. Décision requise : voir docs/architecture/M8-ENTREPOT-SOURCES.md."
+    definition: "ÉCART DE DÉFINITION, en dollars canadiens hors taxes, entre M7 (somme des dernières révisions des relevés reçus des plateformes) et M5 (dépense publicitaire que le grand livre a comptabilisée), sur la période du dernier constat de M5. Positif : les relevés dépassent ce qui est comptabilisé. Seuls les relevés HORS_TAXES dont la période tient entière dans celle du constat sont comparés ; les relevés à cheval sur ses bornes et les relevés TAXES_INCLUSES (que M5 ne comptabilise pas) sont écartés, et les brouillons de charge qui attendent la validation d'une personne expliquent une partie de l'écart : la couverture dit tout cela. Ce n'est pas une erreur : ce sont deux définitions de deux départements, jamais moyennées. Non calculable sans constat de M5, sans relevé comparable ou si un relevé est illisible. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
     unite: "CAD"
-    source_donnees: "M5 (aucun événement ne publie les charges de marketing comptabilisées) ; M7 m7.depenses_marketing_constatees"
-    frequence: "sans objet tant que M5 ne publie pas la dépense comptabilisée"
+    source_donnees: "M5 m5.depense_publicitaire_constatee (periode, comptabilise_cad, brouillons_en_attente) ; M7 m7.depenses_marketing_constatees (releve_id, revision, canal, periode, montant_cad, base_taxes)"
+    frequence: "à chaque constat de M5 ou relevé de dépense de M7"
     consommateur: "wallboard marketing, copilote analytique, entrepôt"
   - id: m8_heures_sur_site_chantiers
     nom: "Heures sur site des chantiers terminés"
@@ -176,3 +194,129 @@ metrics:
     source_donnees: "M1 m1.commande_courriel_envoyee (po_id, envoye_le)"
     frequence: "à chaque commande envoyée"
     consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_depense_pub_comptabilisee_cad
+    nom: "Dépense publicitaire comptabilisée"
+    definition: "Dernier constat que M5 a publié de la dépense publicitaire COMPTABILISÉE sur une période : le solde net (débits moins crédits), en dollars canadiens hors taxes, des écritures DÉFINITIVES du grand livre qui viennent d'un relevé de M7 ou qui le contre-passent, à leur date d'effet. M8 le reprend tel quel (le plus grand `sequence` de M5 fait foi) et ne lit pas le grand livre. Les brouillons de charge qui attendent la validation d'une personne ne sont PAS comptabilisés : leur nombre et leur montant sont dits, et la couverture est partielle tant qu'il en reste. Ce n'est PAS la dépense réelle de l'entreprise (seules les dépenses de M7 y sont, hors taxes). Aucun constat reçu : non calculable. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.depense_publicitaire_constatee (sequence, periode, comptabilise_cad, brouillons_en_attente, brouillons_en_attente_cad, base_taxes)"
+    frequence: "à chaque constat de M5 (m5_constater_depense_publicitaire)"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_factures_emises
+    nom: "Factures clients émises"
+    definition: "Nombre de factures clients (facture_id distincts) qu'une personne a envoyées (N4) et que M5 a constatées, sans celles annulées après l'envoi ; l'état le plus avancé de chaque facture fait foi (payée ou annulée après envoyée), quel que soit l'ordre de livraison. Une facture en brouillon n'est pas émise. M8 ne garde ni client, ni chantier, ni ligne. Aucune facture émise reçue : non calculable, M8 ne peut pas distinguer « aucune facture » de « rien livré »."
+    unite: "factures"
+    source_donnees: "M5 m5.facture_emise_constatee (facture_id, statut, emise_le)"
+    frequence: "à chaque facture envoyée, payée ou annulée après envoi"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_facturation_emise_cad
+    nom: "Facturation émise avant taxes"
+    definition: "Somme, en dollars canadiens AVANT taxes, des montants des factures émises que M5 a arrêtés (factures non annulées, état courant de chacune). Les taxes et le montant après taxes sont dits dans les entrées, jamais recalculés par M8. Ce n'est PAS le chiffre d'affaires de l'entreprise ni un revenu comptable : c'est ce que M5 a facturé aux clients. Aucune facture émise reçue, ou toutes annulées : non calculable. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.facture_emise_constatee (montant_avant_taxes_cad, total_taxes_cad, montant_apres_taxes_cad, statut)"
+    frequence: "à chaque facture envoyée, payée ou annulée après envoi"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_clics_recherche
+    nom: "Clics de recherche du site"
+    definition: "Somme des clics du SITE (pas des annonces) que les sources de données propres de recherche (Search Console, Bing Webmaster) ont donnés à M7, sur les jours que leurs faits couvrent. Un jour sans fait n'est pas un zéro : la couverture (jours couverts sur jours de la période) est dite. Deux périodes qui se chevauchent pour une même source : aucune somme. Aucune requête, page ni référent n'est gardé. Aucune source lue : non calculable."
+    unite: "clics"
+    source_donnees: "M7 m7.performance_signaux_constatee (source, periode, jours_couverts, clics, derniere_observation_le, fraicheur_fenetre_h)"
+    frequence: "à chaque résumé de performance publié par M7"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_impressions_recherche
+    nom: "Impressions de recherche du site"
+    definition: "Somme des impressions du SITE dans les résultats de recherche (Search Console, Bing Webmaster) que M7 a résumées, sur les jours que leurs faits couvrent. Même règles que les clics : un jour sans fait n'est pas un zéro, deux périodes qui se chevauchent n'ont aucune somme, rien de nominatif n'est gardé. Aucune source lue : non calculable."
+    unite: "impressions"
+    source_donnees: "M7 m7.performance_signaux_constatee (source, periode, jours_couverts, impressions, derniere_observation_le, fraicheur_fenetre_h)"
+    frequence: "à chaque résumé de performance publié par M7"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_visites_site
+    nom: "Visites du site"
+    definition: "Somme des visites du SITE que l'outil d'audience (Umami ou Matomo) a données à M7, sur les jours que ses faits couvrent. Deux outils d'audience comptent chacun les mêmes visiteurs : si les deux sont lus, aucune somme n'est faite. Un jour sans fait n'est pas un zéro (couverture dite). Aucune source lue : non calculable."
+    unite: "visites"
+    source_donnees: "M7 m7.performance_signaux_constatee (source, periode, jours_couverts, visites, derniere_observation_le, fraicheur_fenetre_h)"
+    frequence: "à chaque résumé de performance publié par M7"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_capacite_heures_disponibles
+    nom: "Heures d'équipe déclarées disponibles (semaine)"
+    definition: "Total, en heures, des heures d'équipe DÉCLARÉES au profil de l'entreprise pour la semaine ISO (lundi, America/Montréal) la plus récente dont M4 a constaté la capacité aux journées datées de la cédule. Ce ne sont pas des heures-personnes ni une présence réelle. Une semaine que M4 ne peut pas chiffrer (profil des équipes absent, cédule non appliquée, journée non datée) est non calculable et cite les causes de M4 : une capacité absente n'est jamais zéro."
+    unite: "heures"
+    source_donnees: "M4 m4.capacite_equipe_constatee (semaine_debut, portee, calculable, heures_disponibles, manque)"
+    frequence: "à chaque constat de capacité de M4 (une semaine à la fois)"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_capacite_heures_planifiees
+    nom: "Heures planifiées à la cédule (semaine)"
+    definition: "Total, en heures, des créneaux de la cédule appliquée que M4 a planifiés pour la semaine ISO la plus récente constatée (journées datées). Ce sont des heures d'équipe planifiées, pas des heures travaillées. Même règle que les heures disponibles : une semaine non calculable cite les causes de M4, jamais un zéro."
+    unite: "heures"
+    source_donnees: "M4 m4.capacite_equipe_constatee (semaine_debut, portee, calculable, heures_planifiees, manque)"
+    frequence: "à chaque constat de capacité de M4 (une semaine à la fois)"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_charge_planifiee_pct
+    nom: "Part des heures d'équipe planifiées (semaine)"
+    definition: "Rapport, en pourcentage, des heures planifiées à la cédule sur les heures d'équipe déclarées disponibles, tirés du MÊME constat de M4 (semaine la plus récente, journées datées). Arrondi au centième (ROUND_HALF_UP). Un pourcentage au-dessus de 100 % est possible (cédule qui dépasse la capacité déclarée) et est dit tel quel. Sans heure disponible déclarée, ou semaine non calculable : non calculable."
+    unite: "pourcentage"
+    source_donnees: "M4 m4.capacite_equipe_constatee (heures_disponibles, heures_planifiees)"
+    frequence: "à chaque constat de capacité de M4 (une semaine à la fois)"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_pipeline_leads_ouverts
+    nom: "Leads ouverts au pipeline"
+    definition: "Nombre de leads ouverts (nouveau ou qualifié) que M2 compte dans son pipeline, d'après son dernier constat du jour le plus récent. Tous les leads de M2, sans vendeur ni contact. Aucun constat reçu : non calculable."
+    unite: "leads"
+    source_donnees: "M2 m2.pipeline_constate (date_reference, ouverts, total, par_statut)"
+    frequence: "à chaque constat du pipeline de M2"
+    consommateur: "wallboard ventes, copilote analytique, entrepôt"
+  - id: m8_taux_conversion_resolus_pct
+    nom: "Taux de conversion des leads résolus"
+    definition: "Part, en pourcentage, des leads RÉSOLUS (convertis ou perdus) de M2 qui ont été convertis, telle que M2 l'établit. M2 refuse de conclure sous son seuil d'échantillon : la mesure est alors non calculable et dit combien de leads sont résolus (ce n'est pas 0 %). Un lead encore ouvert n'est ni gagné ni perdu. Autre définition que le taux d'acceptation des devis (m8_taux_acceptation_pct)."
+    unite: "pourcentage"
+    source_donnees: "M2 m2.pipeline_constate (taux_conversion_resolus_pct, resolus, convertis_un_jour, perdus)"
+    frequence: "à chaque constat du pipeline de M2"
+    consommateur: "wallboard ventes, copilote analytique, entrepôt"
+  - id: m8_valeur_ponderee_pipeline_cad
+    nom: "Valeur pondérée du pipeline"
+    definition: "Valeur DÉCLARÉE par les vendeurs sur les leads ouverts, pondérée par la probabilité de conversion que M2 estime depuis ses leads résolus, en dollars canadiens (le centre de l'estimation de M2, sans son intervalle). C'est une estimation commerciale, pas un prix de M3 ni un montant comptable. M2 ne la chiffre pas sans valeur déclarée ou sans échantillon suffisant : non calculable (ce n'est pas 0 $). Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M2 m2.pipeline_constate (valeur_ponderee_cad, ouverts)"
+    frequence: "à chaque constat du pipeline de M2"
+    consommateur: "wallboard ventes, copilote analytique, entrepôt"
+  - id: m8_articles_en_rupture
+    nom: "Articles en rupture"
+    definition: "Nombre d'articles que le stock de M6 suit et dont le disponible (en main moins réservé) est nul ou négatif, d'après le dernier constat de M6. Aucun article, quantité ni prix n'est gardé. Si M6 ne suit encore aucun article : non calculable (un zéro ne dirait rien du stock)."
+    unite: "articles"
+    source_donnees: "M6 m6.disponibilite_constatee (articles_suivis, articles_en_rupture, date_reference)"
+    frequence: "à chaque constat de disponibilité de M6"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_articles_sur_reserves
+    nom: "Articles réservés au-delà de ce qui est en main"
+    definition: "Nombre d'articles dont le réservé dépasse l'en main, d'après le dernier constat de M6 : une réservation que le stock ne couvre plus. Rien d'autre n'est gardé (ni article, ni quantité, ni chantier). Si M6 ne suit encore aucun article : non calculable."
+    unite: "articles"
+    source_donnees: "M6 m6.disponibilite_constatee (articles_suivis, articles_sur_reserves, date_reference)"
+    frequence: "à chaque constat de disponibilité de M6"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_reservations_incompletes
+    nom: "Réservations de chantier incomplètes"
+    definition: "Nombre de réservations de matériel actives dont le matériel n'est pas prêt (partiel ou à commander), d'après le dernier constat de M6. Aucun chantier, article ni quantité n'est gardé. Aucun constat reçu : non calculable ; sans réservation active, la mesure vaut 0 et le dit dans ses entrées."
+    unite: "réservations"
+    source_donnees: "M6 m6.disponibilite_constatee (reservations_actives, reservations_incompletes, date_reference)"
+    frequence: "à chaque constat de disponibilité de M6"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_plaintes_periode
+    nom: "Plaintes reçues sur la période du dernier constat"
+    definition: "Nombre de plaintes que M1 a lues dans son registre pour la période de son dernier constat (jours dans les entrées), SEULEMENT quand l'état de la lecture est CONNUE. « Aucune déclarée par la source » n'est pas « zéro plainte » (une plainte que les règles de M1 ne reconnaissent pas n'y figure pas) et « non branchée » n'est pas zéro : la mesure est alors non calculable et dit l'état. Aucun pseudonyme, catégorie ni texte de client n'est gardé."
+    unite: "plaintes"
+    source_donnees: "M1 m1.plaintes_constatees (date_reference, jours, etat, nombre, empreinte_contenu)"
+    frequence: "à chaque constat des plaintes de M1"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_leads_publicitaires
+    nom: "Leads venus d'un canal publicitaire"
+    definition: "Nombre de leads reçus de M2 dont la source UTM correspond à un canal publicitaire (Google Ads, Meta) selon la correspondance que le PROPRIÉTAIRE a déclarée dans entreprise.yaml (clé canaux_marketing). Sans déclaration, la mesure est non calculable : M8 ne devine aucune correspondance. Les leads sans source UTM ne sont pas classés : la couverture (leads avec source sur leads reçus) est dite. Aucun contact ni campagne n'est gardé."
+    unite: "leads"
+    source_donnees: "M2 m2.client_associe (lead_id, utm_source) ; propriétaire entreprise.yaml (canaux_marketing)"
+    frequence: "à chaque lead reçu de M2 ou changement de la déclaration"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_cout_par_lead_pub_cad
+    nom: "Coût par lead publicitaire"
+    definition: "Dépense publicitaire (somme des dernières révisions des relevés de M7) divisée par le nombre de leads de M2 que la correspondance déclarée par le propriétaire (canaux_marketing) rattache aux mêmes canaux, sur la période que les relevés de chaque canal couvrent, en dollars canadiens par lead (ROUND_HALF_UP). La dépense est celle des relevés, pas la dépense comptabilisée (voir m8_ecart_depense_pub_comptabilisee_cad). Non calculable sans déclaration, sans relevé, sans lead rattaché dans la période (division par zéro refusée), ou si les relevés se chevauchent ou mélangent les bases de taxes. Un canal sans source UTM déclarée n'y entre pas, et c'est dit. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M7 m7.depenses_marketing_constatees (canal, periode, montant_cad) ; M2 m2.client_associe (lead_id, utm_source, horodatage) ; propriétaire entreprise.yaml (canaux_marketing)"
+    frequence: "à chaque relevé de dépense, lead reçu ou changement de la déclaration"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
