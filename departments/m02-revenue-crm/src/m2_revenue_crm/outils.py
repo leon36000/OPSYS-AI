@@ -1930,6 +1930,8 @@ _PROCHAINE_ACTION_OBLIGATOIRE = {
 
 def outils() -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
+    from . import outils_ventes  # à l'appel, jamais à l'import : `outils_ventes` importe ce module (pas de cycle)
+
     return (
         Outil(
             nom="m2_ingerer_lead",
@@ -2488,6 +2490,7 @@ def outils() -> tuple[Outil, ...]:
         ),
         *_outils_agenda(),
         *_outils_onboarding(),
+        *outils_ventes.outils_ventes(),
     )
 
 # CRM03 : port admin console privé. Aucune portée appareil ou agent ajoutée.

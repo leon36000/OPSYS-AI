@@ -197,6 +197,11 @@ d'outil d'action dans une lecture et la validation humaine N3+ de tout acte irr�
 - **Date de consultation.** Fixée par le serveur à l'instant de l'ingestion ; l'agent ne la fournit pas.
 - **Journal d'audit.** Chaque ingestion, revue, publication et retrait écrit au journal d'audit du socle (identifiants, empreintes,
   compteurs, jamais le texte d'une source).
+- **Premier consommateur applicatif : le coach de vente de M2** (`m2_contexte_coach`, [M2-VICTOR.md](M2-VICTOR.md) § 3). Il appelle
+  `rechercher_pour` pour la base de M2 et celles de ses `dependances` (le droit de lecture ci-dessus, rien de plus), cite la
+  provenance de chaque extrait, et refuse (`REJ-COACH-SOURCE-INCONNUE`) une source non publiée, non lisible par M2 ou périmée à la
+  date de la suggestion. Il n'écrit jamais dans la base. Les outils du coach n'ont aucun rôle d'appareil : la base reste fermée aux
+  téléphones.
 
 ## 9. Console et CLI (lecture seule)
 

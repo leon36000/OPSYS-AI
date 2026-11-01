@@ -52,6 +52,13 @@ OUTILS_M2_DU_VENDEUR = {
     "m2_evaluer_readiness", "m2_transitionner_statut", "m2_enregistrer_interaction",
     # T4.9 : « relances autorisées » (§9.4), SES leads seulement ; le consentement est inscrit par une personne
     "m2_lister_relances", "m2_preparer_relance", "m2_enregistrer_consentement_contact",
+    # M2 « ventes » (m2-victor) : profil de propriété, score, file classée, valeur déclarée, analytique,
+    # prévisions, reçu rejouable, journal du coach ; SES leads seulement. Le coach (contexte, proposition) n'a
+    # aucune portée d'appareil.
+    "m2_proposer_profil_propriete", "m2_proposer_profil_propriete_depuis_courriel", "m2_confirmer_profil_propriete",
+    "m2_lire_profil_propriete", "m2_calculer_score_lead", "m2_classer_file_leads", "m2_lire_modele_scoring",
+    "m2_declarer_valeur_pipeline", "m2_analyser_pipeline", "m2_prevoir_pipeline", "m2_rejouer_recu_commercial",
+    "m2_decider_suggestion_coach", "m2_lister_suggestions_coach",
 }
 OUTILS_M3_DU_VENDEUR = {
     "m3_lister_devis",  # Inventaire courant de ses devis, sans devoir connaître leur numéro.
@@ -63,6 +70,7 @@ OUTILS_M2_DE_L_ADMIN = {
     "m2_reassigner_lead", "m2_republier_assignations",  # T1.4-m
     "m2_corriger_contact_client", "m2_lister_historique_contact_client",
     "m2_reconcilier_memoire_contact_client",  # CRM-04 : admin actif, coordonnées privées
+    "m2_proposer_profil_propriete_depuis_onboarding",  # brouillon de propriété à l'adresse d'une fiche importée
 }
 
 

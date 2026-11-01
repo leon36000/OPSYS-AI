@@ -136,6 +136,12 @@ def _extraire_conditions(registre_cible, lead_id):
     }
 
 
+def conditions(registre_cible, lead_id):
+    """Les conditions de readiness d'un lead qualifié (owner, service, ville, interaction), ou None s'il ne l'est pas :
+    l'accès public d'`_extraire_conditions`, pour que le score de lead (M2.4) lise les MÊMES conditions que la gate."""
+    return _extraire_conditions(registre_cible, lead_id)
+
+
 def evaluer(registre_cible, lead_id):
     """Évalue si le lead est prêt pour M3 (readiness gate).
 
