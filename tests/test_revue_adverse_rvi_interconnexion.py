@@ -206,3 +206,25 @@ def test_m5_pure_decision_revision_perimee_et_autres_relevés_inchanges():
     assert cmr.decision(base, {}) is None  # appel historique (sans les révisions vues)
     # taxes incluses : la raison fiscale prime, rien n'est proposé non plus
     assert cmr.decision({**base, "base_taxes": "TAXES_INCLUSES"}, {}, {base["releve_id"]: 2}) == cmr.A_COMPLETER_TAXES
+
+
+# ------------------------------------------------------------------------------------------------ M9 (rvi-04)
+def test_m9_la_derniere_consolidation_est_la_plus_recente_dans_le_temps_pas_dans_l_alphabet():
+    """Au changement d'heure d'automne, `01:30-04:00` (05:30 UTC) précède `01:10-05:00` (06:10 UTC)."""
+    from m9_strategic_intelligence import signaux_gestion as sg
+
+    def consolidation(graine, consolide_le, calculees):
+        charge = ch.fait_consolide(graine=graine, consolide_le=consolide_le)
+        fait = sg.fait_consolidation(charge)
+        return {**fait, "calculees": calculees}
+
+    avant = consolidation("a", "2026-11-01T01:30:00-04:00", 1)
+    apres = consolidation("b", "2026-11-01T01:10:00-05:00", 2)
+    for ordre in ([avant, apres], [apres, avant]):
+        section = sg.section(ordre, "2026-11-02T08:00:00-05:00", 7)
+        assert section["derniere_consolidation_m8"]["calculees"] == 2
+    # un instant illisible ou sans fuseau ne devance jamais un instant valide
+    sans_fuseau = {**consolidation("c", "2026-11-03T01:00:00-05:00", 9), "consolide_le": "2026-11-03T01:00:00"}
+    illisible = {**sans_fuseau, "consolide_le": "pas une date", "calculees": 8}
+    section = sg.section([apres, sans_fuseau, illisible], "2026-11-04T08:00:00-05:00", 7)
+    assert section["derniere_consolidation_m8"]["calculees"] == 2
