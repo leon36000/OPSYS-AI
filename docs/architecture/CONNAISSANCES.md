@@ -8,7 +8,8 @@ migration `0041`. Tests : `tests/test_connaissances_*.py`. Corpus de mesure :
 > console, CLI) et le prouve par des tests, avec un double déterministe d'embeddings. Elle ne livre **aucun contenu comptable,
 > fiscal, juridique ou d'investissement réel** : seule une base de démonstration FICTIVE (la juridiction de « Valdoré ») existe,
 > et elle est marquée comme telle partout. Aucun vrai modèle d'embeddings ni de reranker n'est raccordé ; aucun appel réseau n'est
-> fait. PostgreSQL/pgvector est un plan (section 10), non exécuté en production.
+> fait. PostgreSQL : la recherche LEXICALE est portée et qualifiée sur un vrai PostgreSQL 17 (section 10, rapport
+> `docs/qualification/QUALIFICATION-POSTGRESQL.md`) ; pgvector/HNSW reste un plan (section 10), non exécuté.
 
 ## 1. Pourquoi, et où cela se place
 
@@ -18,7 +19,7 @@ Chaque département a deux mémoires :
 |---|---|---|
 | Mémoire propre (couche A) | préférences, façons de faire, épisodes du département | OpenClaw natif ([RAG-PREMIUM](../memory/RAG-PREMIUM.md) §2.1) |
 | Mémoire d'entreprise (couche B) | faits et documents de l'entreprise (clients, chantiers, barèmes), effacement Loi 25 | `opsys.memoire`, PostgreSQL seulement |
-| **Base de connaissances par département** (ce document) | documents de RÉFÉRENCE externes ou normatifs (normes, textes officiels, barèmes publiés) : sourcés, versionnés, datés, avec licence et échéance | `opsys.connaissances`, SQLite en phase 1 |
+| **Base de connaissances par département** (ce document) | documents de RÉFÉRENCE externes ou normatifs (normes, textes officiels, barèmes publiés) : sourcés, versionnés, datés, avec licence et échéance | `opsys.connaissances`, SQLite (FTS5) ou PostgreSQL (tsvector) |
 
 La couche B répond à « qu'a-t-on convenu avec ce client ? » ; la base de connaissances répond à « que dit la norme, et d'où
 le sait-on ? ». La différence est la **provenance obligatoire** (éditeur, référence, dates, licence, empreinte) et le
@@ -31,7 +32,8 @@ et de M5, lit les deux.
 
 ## 2. Modèle de données (migration 0041)
 
-Huit tables SQLAlchemy Core (`src/opsys/stockage/schema.py`), portables SQLite/PostgreSQL, plus l'index lexical SQLite.
+Huit tables SQLAlchemy Core (`src/opsys/stockage/schema.py`), portables SQLite/PostgreSQL, plus l'index lexical propre à chaque
+moteur (FTS5 sur SQLite, `connaissances_lexique` sur PostgreSQL : migration 0053).
 
 | Table | Rôle | Écriture |
 |---|---|---|
@@ -44,10 +46,12 @@ Huit tables SQLAlchemy Core (`src/opsys/stockage/schema.py`), portables SQLite/P
 | `connaissances_vecteurs` | un vecteur float32 par (fragment, espace) ; la taille est vérifiée par la base | append-only |
 | `connaissances_indexations` | journal des indexations (lexical, vectoriel, bascule) : « dernier index » | append-only |
 | `connaissances_fts` | table virtuelle FTS5 (SQLite seulement) : termes normalisés par fragment, classement `bm25()` | dérivée, reconstructible |
+| `connaissances_lexique` | PostgreSQL seulement (migration 0053) : mêmes termes normalisés, colonne `tsvector` générée (`simple`), index GIN, classement `ts_rank_cd` | dérivée, append-only |
 
 **Append-only, imposé par la base.** Des déclencheurs refusent tout `UPDATE` ou `DELETE` des sept tables de contenu (SQLite et
 PostgreSQL). Une version n'est jamais réécrite ; son état n'est pas un champ mais le **dernier événement** de `connaissances_etats`
-(une transition est un `INSERT` conditionnel à l'état courant : deux soumissions simultanées n'en appliquent qu'une). Un retrait est
+(une transition est un `INSERT` conditionnel à l'état courant : deux soumissions simultanées n'en appliquent qu'une, par l'écrivain
+unique de SQLite ou, sur PostgreSQL, par le verrou de ligne de la version, voir `QUALIFICATION-POSTGRESQL.md`). Un retrait est
 un événement motivé : le texte reste lisible pour l'audit.
 
 **États et transitions.** `∅ → brouillon → revu → publié`, et `brouillon | revu | publié → retiré`. Rien ne sort de `retiré` :
@@ -212,23 +216,45 @@ d'outil d'action dans une lecture et la validation humaine N3+ de tout acte irr�
 - CLI : `opsys-metier connaissances etat | sources | mesurer` (aussi `opsys metier connaissances …`). `mesurer` exécute le harnais
   (section 11) dans une base temporaire jetable ; il ne touche jamais l'instance. Aucune écriture dans l'instance.
 
-## 10. Plan PostgreSQL + pgvector + BM25 (NON exécuté)
+## 10. PostgreSQL : recherche lexicale portée ; pgvector et BM25 restent un plan (NON exécuté)
 
-Cible de production (FEUILLE DE ROUTE A) : PostgreSQL + pgvector (`halfvec`, HNSW) + `pg_textsearch` (BM25). Aucune de ces étapes
-n'est faite ; la migration 0041 crée déjà les huit tables portables sur PostgreSQL (testée sur PostgreSQL éphémère), mais pas l'index
-lexical ni la colonne vectorielle.
+**Fait et qualifié (2026-11-01, PostgreSQL 17.11 + pgvector 0.8.7 réel, conteneur éphémère).** La recherche lexicale passe par
+un adaptateur par moteur (`src/opsys/connaissances/lexical.py`) derrière les MÊMES filtres, provenances et refus :
+
+- SQLite : FTS5 (`connaissances_fts`), classement `bm25()` ;
+- PostgreSQL : table `connaissances_lexique` (migration 0053) dont la colonne `tsv` est GÉNÉRÉE (`to_tsvector('simple', terme)`)
+  et indexée en GIN ; requête `websearch_to_tsquery('simple', '"t1" or "t2"')` (chaque terme entre guillemets : le mot « or » du
+  français n'est jamais l'opérateur OU) ; classement `ts_rank_cd` (normalisation 1). Les termes sont NORMALISÉS EN PYTHON
+  (`normalisation.termes` : accents repliés, mots vides retirés, radicaux légers) avant l'indexation ET avant la requête, sur les
+  deux moteurs : les ensembles de fragments retrouvés sont donc les mêmes, seul l'ordre de fragments voisins diffère (BM25 contre
+  densité de couverture).
+- Configuration `simple` et non `french` : la configuration `french` existe dans l'image (vérifiée) mais empiler son racinisateur
+  sur des termes déjà réduits les réduit une seconde fois. Mesurée sur le corpus de mesure (section 11) : `french` gagne une question
+  au rang 1 en lexical seul (recall@1 0,76 → 0,80, MRR 0,7933 → 0,8133), rien en hybride ; `simple` donne les MÊMES métriques que
+  SQLite dans les trois modes. Changer de configuration est un changement de la colonne générée (migration) ET de
+  `lexical.CONFIG_PG` : un test (`test_connaissances_postgresql.py`) vérifie que les deux concordent.
+- Seuil de couverture, rétrogradation des sources périmées, fusion RRF, reranker et vecteurs sont inchangés (Python) : l'adaptateur
+  ne décide ni de ce qui est publié ni de ce qui est assez couvert.
+- Le champ de score rendu porte le nom de la mesure du moteur : `scores.lexical.bm25` (SQLite) ou `scores.lexical.ts_rank_cd`
+  (PostgreSQL, plus grand = meilleur). Les deux ne sont PAS comparables entre elles ; seul le rang l'est.
+
+**Toujours un plan, non exécuté.** pgvector 0.8.7 est présent dans l'image locale (`CREATE EXTENSION vector`, `halfvec`, index HNSW
+vérifiés à la main, sans être branchés au code) ; la similarité reste EXACTE EN PYTHON sur PostgreSQL comme sur SQLite
+(plafond de 20 000 vecteurs par espace).
 
 1. `vecteur` : remplacer le `BLOB` par une colonne pgvector `halfvec(N)` par espace (une table par dimension, ou une colonne par espace
    actif), index HNSW `halfvec_cosine_ops`, `hnsw.iterative_scan = relaxed_order` pour que les filtres (base, états) n'appauvrissent pas
-   les résultats. Le plafond de 20 000 vecteurs disparaît ; l'identifiant d'espace reste la clé de non-mélange.
-2. Index lexical : `pg_textsearch` (BM25) sur le texte indexé (même normalisation, ou la configuration française `unaccent` +
-   `french_stem` de `opsys.memoire`), à la place de FTS5. Le service lexical sera une implémentation du même port que `_candidats_lexicaux`.
+   les résultats. Le plafond de 20 000 vecteurs disparaît ; l'identifiant d'espace reste la clé de non-mélange. À mesurer : rappel de
+   l'index approximatif contre la similarité exacte actuelle, sur nos corpus.
+2. Index lexical BM25 : `pg_textsearch` (BM25) n'est PAS dans l'image (`pg_available_extensions` : `vector`, `pg_trgm`, `unaccent`
+   seulement) ; il remplacerait `ts_rank_cd` derrière le même adaptateur, avec la même normalisation.
 3. Fusion RRF et seuils : en SQL (`FULL OUTER JOIN` des deux classements) ou en Python ; les seuils sont à recalibrer.
 4. Convergence avec la couche B (`opsys.memoire`) : un seul schéma, un seul service d'embeddings bge-m3 ; les sources de la base de
    connaissances deviennent des documents de portée `connaissances`, la provenance fine migre dans `metadonnees`.
 5. Migration des données : les versions et fragments étant append-only et leurs identifiants déterministes, un export/import est rejouable.
 6. Prérequis non faits : extensions installées par un rôle administrateur (`vector` n'est pas « trusted »), EFVP Loi 25 si un embeddeur
-   en nuage est retenu, qualification de la latence (cible RAG-PREMIUM §1 : p95 ≤ 150 ms hors embedding à 100 000 fragments).
+   en nuage est retenu, qualification de la latence (cible RAG-PREMIUM §1 : p95 ≤ 150 ms hors embedding à 100 000 fragments ; l'index
+   GIN n'a été éprouvé qu'à quelques dizaines de fragments).
 
 ## 11. Mesure : recall@k et MRR
 
@@ -262,9 +288,14 @@ Par type, `exacte` et `variante` sont retrouvées à 100 % (recall@5) par les tr
   est écrasé à ~0, d'où les départages par couverture et ordre de lecture.
 - Les reranker et embeddings réels, la latence et le volume n'ont **pas** été mesurés.
 
-## 12. Migration 0041
+## 12. Migrations 0041 et 0053
 
-Succède à 0040. Additive, montée et descente testées sur SQLite et sur PostgreSQL éphémère. La descente est refusée dès qu'une table
+**0053** (qualification PostgreSQL, `0053_parite_postgresql.py`) succède à 0052 : sur PostgreSQL seulement, crée `connaissances_lexique`
+(colonne `tsv` générée, index GIN, déclencheur d'immuabilité), pose l'immuabilité de deux tables qui ne l'avaient que sur SQLite et
+élargit `evenement_id` à 512 caractères ; sur SQLite, aucune opération. Descente refusée dès qu'une ligne existe ou qu'un
+identifiant dépasse 128 caractères.
+
+**0041.** Succède à 0040. Additive, montée et descente testées sur SQLite et sur PostgreSQL éphémère. La descente est refusée dès qu'une table
 contient une ligne (elle détruirait des sources et leur historique : suppression définitive = frontière humaine). Sur des tables vides
 elle retire déclencheurs, table FTS5 et tables. L'index FTS5 ajoute des tables « fantômes » (`connaissances_fts_*`) dans la liste des
 tables SQLite : les tests qui comparent cette liste au schéma déclaré les ignorent.
@@ -275,8 +306,10 @@ tables SQLite : les tests qui comparent cette liste au schéma déclaré les ign
 - Aucun contenu fiscal, comptable ou juridique réel. La revue humaine est un mécanisme (N3, prouvé avec la vraie file d'approbation),
   pas une qualification de contenu par un CPA.
 - La mesure porte sur un petit corpus fictif écrit par l'équipe du moteur ; pas d'intervalle de confiance, pas de corpus tiers.
-- Phase 1 SQLite : la recherche lexicale n'existe qu'en SQLite (FTS5), la vectorielle est exacte jusqu'à 20 000 vecteurs. PostgreSQL :
-  tables migrées et testées, recherche non portée.
+- La recherche lexicale existe sur SQLite (FTS5) et sur PostgreSQL (tsvector, section 10) ; la vectorielle est exacte en Python jusqu'à
+  20 000 vecteurs sur les deux. L'ordre des fragments de score voisin diffère entre moteurs (BM25 contre `ts_rank_cd`) ; sur le corpus de
+  mesure 3 questions sur 28 voient leur ordre bouger, jamais l'ensemble des 10 premiers.
+- PostgreSQL : index GIN éprouvé à l'échelle du corpus de mesure seulement (pas de latence à 100 000 fragments) ; pgvector non branché.
 - Le PDF passe par le worker isolé existant (bubblewrap, Linux) : sur cette machine l'isolation est absente, donc le chemin PDF
   n'est prouvé qu'avec un extracteur simulé et par ses refus typés.
 - Le filtre anti-injection est un ensemble de motifs (français et anglais) : une injection qu'il ne reconnaît pas passe.

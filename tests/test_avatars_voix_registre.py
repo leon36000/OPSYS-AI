@@ -205,7 +205,7 @@ def test_toute_ecriture_exige_un_administrateur_actif(session, scenario, acteur,
 def test_un_compte_desactive_ne_peut_plus_ecrire(session, scenario):
     with session() as cnx:
         identite.creer_personne(cnx, "ancien_admin", "Ancien admin", aide.MOT_DE_PASSE, ["admin"])
-        cnx.execute(text("UPDATE personnes SET actif = 0 WHERE identifiant = 'ancien_admin'"))
+        cnx.execute(text("UPDATE personnes SET actif = false WHERE identifiant = 'ancien_admin'"))
     with pytest.raises(AvatarRefus) as exc, session() as cnx:
         registre.inscrire_entree(cnx, acteur="ancien_admin", identifiant="voix.lea.autre")
     assert exc.value.code == "REJ-AVATAR-ADMIN-REQUIS"

@@ -3,6 +3,7 @@
 - `dossier_opsys()` : racine `OPSYS_HOME` (défaut `~/.opsys`) — la base par défaut, l'ancien
   `etat.db` (migration, voir `opsys.etat`) et les fichiers de configuration y vivent tous.
 - URL : `OPSYS_BASE_URL`, sinon SQLite `opsys.db` dans ce dossier.
+- PostgreSQL : fuseau de session épinglé à UTC (les `timestamptz` des registres se lisent alors toujours en UTC).
 - SQLite : WAL, clés étrangères, déclencheurs récursifs (sans eux, `INSERT OR REPLACE` supprime la ligne en conflit
   SANS déclencher les `BEFORE DELETE` d'immuabilité des journaux), attente de 5 s sur verrou, `BEGIN IMMEDIATE`
   (l'écrivain prend le verrou dès le début : pas d'échec de promotion lecture → écriture entre deux processus).
@@ -56,7 +57,13 @@ def moteur(url: str | None = None) -> Engine:
         existant = _MOTEURS.get(cible)
         if existant is not None:
             return existant
-        nouveau = create_engine(cible, pool_pre_ping=True)
+        options: dict[str, Any] = {}
+        if make_url(cible).get_backend_name() == "postgresql":
+            # Les dates des registres (`registres_maillons.cree_le`, `timestamptz`) sont rendues dans le fuseau de la
+            # SESSION : sans cette épinglette, un fuseau de base ou de rôle autre que UTC change leur `isoformat()`,
+            # donc les empreintes qui le hachent. SQLite n'a pas de fuseau de session.
+            options["connect_args"] = {"options": "-c timezone=UTC"}
+        nouveau = create_engine(cible, pool_pre_ping=True, **options)
         if nouveau.dialect.name == "sqlite":
             event.listen(nouveau, "connect", _preparer_sqlite)
             event.listen(nouveau, "begin", _debuter_sqlite)

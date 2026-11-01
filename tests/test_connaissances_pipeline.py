@@ -35,6 +35,7 @@ from opsys.stockage.schema import (
     CONNAISSANCES_FRAGMENTS,
     CONNAISSANCES_VECTEURS,
     CONNAISSANCES_VERSIONS,
+    META,
 )
 
 FICTIF = True
@@ -58,6 +59,20 @@ def _refus(code):
     return pytest.raises(ErreurConnaissances, match=code)
 
 
+def _table_lexique(cnx):
+    """Table de l'index lexical du moteur de `cnx` : FTS5 sur SQLite, `connaissances_lexique` sur PostgreSQL."""
+    return "connaissances_lexique" if cnx.dialect.name == "postgresql" else "connaissances_fts"
+
+
+def _lever_immuabilite_fragments(cnx):
+    """Retire les gardes d'immuabilité des fragments et de leur index (base restaurée d'une sauvegarde piégée)."""
+    if cnx.dialect.name == "postgresql":
+        cnx.execute(text("DROP TRIGGER connaissances_lexique_immuable ON connaissances_lexique"))
+        cnx.execute(text("DROP TRIGGER connaissances_fragments_immuable ON connaissances_fragments"))
+    else:
+        cnx.execute(text("DROP TRIGGER connaissances_fragments_no_delete"))
+
+
 # -- 1. ingestion
 # --------------------------------------------------------------------------------------------------------
 def test_l_ingestion_cree_un_brouillon_avec_provenance_empreintes_fragments_et_index(cnx):
@@ -70,7 +85,7 @@ def test_l_ingestion_cree_un_brouillon_avec_provenance_empreintes_fragments_et_i
         "Éditeur fictif", "fictive", "interne", "2026-10-31")
     assert etats.etat_courant(cnx, r["version_id"]) == "brouillon"
     assert index.verifier_integrite(cnx, r["version_id"]) == []
-    assert cnx.execute(text("SELECT count(*) FROM connaissances_fts")).scalar_one() == 2
+    assert cnx.execute(text(f"SELECT count(*) FROM {_table_lexique(cnx)}")).scalar_one() == 2
     assert len(cnx.execute(select(CONNAISSANCES_VECTEURS)).all()) == 2
     # Un brouillon n'est JAMAIS recherchable.
     assert _rechercher(cnx, "taux de la taxe de vente")["statut"] == "aucune_source"
@@ -92,7 +107,7 @@ def test_les_identifiants_sont_deterministes_donc_la_recherche_est_reproductible
 def test_double_soumission_identique_est_un_rejeu_sans_ecriture(cnx):
     premier = ingerer(cnx, embeddeur=DOUBLE)
     avant = {t: cnx.execute(text(f"SELECT count(*) FROM {t}")).scalar_one() for t in (
-        "connaissances_versions", "connaissances_fragments", "connaissances_etats", "connaissances_fts",
+        "connaissances_versions", "connaissances_fragments", "connaissances_etats", _table_lexique(cnx),
         "connaissances_vecteurs", "connaissances_indexations")}
     second = ingerer(cnx, embeddeur=DOUBLE)
     assert second["rejeu"] is True and second["version_id"] == premier["version_id"]
@@ -338,12 +353,12 @@ def test_la_publication_reverifie_une_source_devenue_expiree_depuis_la_revue(cnx
 def test_la_revue_detecte_un_texte_altere_apres_coup(cnx):
     r = ingerer(cnx, domaine="technique", departement="m03-estimation", cle="norme", contenu=NORME)
     # Altération hors du service (accès direct) : les déclencheurs d'immuabilité la bloquent déjà...
-    with pytest.raises(DBAPIError):
+    with pytest.raises(DBAPIError), cnx.begin_nested():  # point de sauvegarde (PostgreSQL annule la transaction)
         cnx.execute(update(CONNAISSANCES_VERSIONS).values(texte="autre"))
     # ... et même si un fragment disparaissait (base restaurée d'une sauvegarde piégée), l'intégrité le dit.
-    cnx.execute(text("DROP TRIGGER connaissances_fragments_no_delete"))
-    cnx.execute(text("DELETE FROM connaissances_fts WHERE chunk_id = (SELECT chunk_id FROM connaissances_fragments "
-                     "LIMIT 1)"))
+    _lever_immuabilite_fragments(cnx)
+    cnx.execute(text(f"DELETE FROM {_table_lexique(cnx)} WHERE chunk_id = (SELECT chunk_id FROM "
+                     "connaissances_fragments WHERE rang = 0)"))
     cnx.execute(text("DELETE FROM connaissances_fragments WHERE rang = 0"))
     assert index.verifier_integrite(cnx, r["version_id"])
     with _refus(codes.REVUE_INCOMPLETE):
@@ -438,8 +453,9 @@ def test_double_soumission_de_la_meme_transition_ne_l_applique_qu_une_fois(cnx):
                                    "connaissances_indexations"])
 def test_les_tables_de_contenu_refusent_update_et_delete(cnx, table):
     ingerer_et_publier(cnx, embeddeur=DOUBLE)
-    for instruction in (f"UPDATE {table} SET rowid = rowid", f"DELETE FROM {table}"):
-        with pytest.raises(DBAPIError, match="immuable"):
+    colonne = next(iter(META.tables[table].columns)).name  # une vraie colonne : « rowid » n'existe que sur SQLite
+    for instruction in (f"UPDATE {table} SET {colonne} = {colonne}", f"DELETE FROM {table}"):
+        with pytest.raises(DBAPIError, match="immuable"), cnx.begin_nested():  # point de sauvegarde (PostgreSQL)
             cnx.execute(text(instruction))
 
 

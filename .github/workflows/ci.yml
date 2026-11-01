@@ -327,12 +327,28 @@ jobs:
           assert all(c.find("failure") is None and c.find("error") is None for c in cas)
           print(f"{len(cas)} frontières PostgreSQL réelles qualifiées ; verticale C02 complète bloquée")
           PYTHON
+      - name: Qualification PostgreSQL (parité des états, concurrence multi-processus, recherche lexicale, migrations, sauvegarde)
+        run: |
+          python -m pytest tests/test_postgresql_parite_cas.py tests/test_postgresql_parite_schema.py tests/test_postgresql_concurrence_processus.py tests/test_connaissances_postgresql.py tests/test_postgresql_migrations_chaine.py tests/test_postgresql_sauvegarde_restauration.py --junitxml="$RUNNER_TEMP/qualification-postgresql.xml"
+          python - <<'PYTHON'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "qualification-postgresql.xml")
+          cas = list(rapport.iter("testcase"))
+          assert len(cas) == 89, "89 cas de qualification PostgreSQL sont requis (59 recherche lexicale et migration 0053, 8 états concurrents, 7 parité de schéma, 10 processus concurrents, 3 chaîne de migrations, 2 sauvegarde et restauration)"
+          assert all(c.find("skipped") is None for c in cas), "PostgreSQL ne doit pas être ignoré sur le runner"
+          assert all(c.find("failure") is None and c.find("error") is None for c in cas)
+          print(f"{len(cas)} cas de qualification PostgreSQL réels")
+          PYTHON
       - name: Conserver les preuves PostgreSQL, y compris rouges
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
         with:
           name: frontiere-postgresql-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/frontiere-postgresql.xml
+          path: |
+            ${{ runner.temp }}/frontiere-postgresql.xml
+            ${{ runner.temp }}/qualification-postgresql.xml
           if-no-files-found: error
 
   # Le contexte requis juge les groupes Python et les cinq appels du même run/commit.

@@ -1,9 +1,10 @@
-"""Indexation : lexicale (SQLite FTS5) et vectorielle (un ESPACE par modèle et configuration), réindexation, intégrité.
+"""Indexation : lexicale (SQLite FTS5 ou PostgreSQL tsvector) et vectorielle (un ESPACE par modèle et configuration),
+réindexation, intégrité.
 
-**Lexical.** La table virtuelle `connaissances_fts` (migration 0041) reçoit, par fragment, les termes normalisés
-(`normalisation.termes`) du titre de la source, de la section et du texte : le « préfixe de contexte » déterministe de
-RAG-PREMIUM §3. Classement `bm25()`. SQLite seulement ; sur un autre backend, refus typé (le plan PostgreSQL est dans
-CONNAISSANCES.md).
+**Lexical.** L'index (adaptateur de `lexical.py` selon le moteur : table virtuelle `connaissances_fts` de la migration
+0041 sur SQLite, table `connaissances_lexique` de la migration 0053 sur PostgreSQL) reçoit, par fragment, les termes
+normalisés (`normalisation.termes`) du titre de la source, de la section et du texte : le « préfixe de contexte »
+déterministe de RAG-PREMIUM §3. Tout autre moteur est un refus typé.
 
 **Vectoriel.** Un vecteur appartient à un espace (`ports.ProfilEmbeddings.espace_id`). La base a UN espace actif
 (`connaissances_bases.espace_actif`). Écrire un vecteur d'un autre espace que l'actif est refusé ; la recherche ne lit
@@ -19,7 +20,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
-from sqlalchemy import Connection, func, insert, select, text, update
+from sqlalchemy import Connection, func, insert, select, update
 
 from ..stockage.schema import (
     CONNAISSANCES_BASES,
@@ -31,19 +32,11 @@ from ..stockage.schema import (
     CONNAISSANCES_VECTEURS,
     CONNAISSANCES_VERSIONS,
 )
-from . import normalisation, ports, vecteurs
-from .codes import BACKEND_NON_PRIS_EN_CHARGE, ESPACE_INCOMPATIBLE, INTEGRITE, PLAFOND_VOLUME, ErreurConnaissances
+from . import lexical, normalisation, ports, vecteurs
+from .codes import ESPACE_INCOMPATIBLE, INTEGRITE, PLAFOND_VOLUME, ErreurConnaissances
 from .modele import ETAT_RETIRE, VECTEURS_PLAFOND
 
 LOT_EMBEDDINGS = 32
-
-
-def exiger_sqlite(cnx: Connection) -> None:
-    if cnx.dialect.name != "sqlite":
-        raise ErreurConnaissances(
-            BACKEND_NON_PRIS_EN_CHARGE,
-            "l'index lexical FTS5 est propre à SQLite en phase 1 ; PostgreSQL (pg_textsearch, pgvector) est un plan "
-            "documenté dans CONNAISSANCES.md, non exécuté")
 
 
 def texte_indexe(titre: str, section: str | None, texte: str) -> str:
@@ -66,10 +59,7 @@ def journaliser_indexation(cnx: Connection, *, departement: str, version_id: str
 
 def indexer_lexical(cnx: Connection, *, departement: str, version_id: str, titre: str,
                     fragments: list[dict[str, Any]], par: str, quand: str) -> None:
-    exiger_sqlite(cnx)
-    for f in fragments:
-        cnx.execute(text("INSERT INTO connaissances_fts(terme, chunk_id) VALUES (:t, :c)"),
-                    {"t": texte_indexe(titre, f["section"], f["texte"]), "c": f["chunk_id"]})
+    lexical.pour(cnx).indexer(cnx, [(f["chunk_id"], texte_indexe(titre, f["section"], f["texte"])) for f in fragments])
     journaliser_indexation(cnx, departement=departement, version_id=version_id, genre="lexical", espace_id=None,
                            nb_fragments=len(fragments), par=par, quand=quand)
 

@@ -11,7 +11,7 @@ import httpx
 import pytest
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-from sqlalchemy import MetaData, Table, select, update
+from sqlalchemy import MetaData, Table, inspect, select, update
 
 from opsys import admission_agents, agents, departements, identite
 from opsys.capacites import Capacites
@@ -40,7 +40,7 @@ def _sql_encoder(value):
 def snapshot(session):
     with session() as cnx:
         result = {}
-        for name in cnx.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").scalars():
+        for name in sorted(inspect(cnx).get_table_names()):
             table = schema.META.tables.get(name)
             if table is None:
                 table = Table(name, MetaData(), autoload_with=cnx)

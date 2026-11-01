@@ -18,7 +18,7 @@ import yaml
 from m1_front_office import digest, transferts
 from m1_front_office import outils as m1
 from m1_front_office.registre import Registre
-from sqlalchemy import MetaData, Table, select, update
+from sqlalchemy import MetaData, Table, inspect, select, update
 
 from opsys import agents, canaux, departements, identite, stockage, taxonomie
 from opsys.reception_sms_runtime import valider_commande
@@ -51,7 +51,7 @@ def _sql_value(v):
 
 def census(cnx):
     """Toutes tables réellement présentes, toutes lignes/contenus et empreintes."""
-    names = cnx.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").scalars().all()
+    names = sorted(inspect(cnx).get_table_names())
     result = {}
     for name in names:
         table = schema.META.tables.get(name)

@@ -59,11 +59,20 @@ def ajouter_etat(cnx: Connection, version_id: str, nouvel_etat: str, *, attendu:
             raise ErreurConnaissances(TRANSITION_INTERDITE, "cette version a déjà un état")
         cnx.execute(insert(ETATS_T).values(**valeurs))
         return
+    # PostgreSQL (READ COMMITTED) : sans verrou, deux transactions lisent TOUTES DEUX l'état « attendu » (l'événement
+    # de l'autre n'est pas encore validé) et écrivent chacune leur transition : une version retirée pouvait redevenir
+    # « revue ». Le verrou de ligne de la version sérialise les transitions ; le second écrivain attend, puis relit
+    # l'état validé par le premier (nouvel instantané à chaque instruction) et se voit refuser. SQLite : sans effet
+    # (écrivain unique).
+    cnx.execute(select(VERSIONS_T.c.version_id).where(VERSIONS_T.c.version_id == version_id).with_for_update())
     colonnes = list(valeurs)
     sel = select(*(literal(valeurs[c]) if valeurs[c] is not None else literal(None) for c in colonnes)).where(
         courant == bindparam("attendu", attendu))
-    resultat = cnx.execute(insert(ETATS_T).from_select(colonnes, sel))
-    if resultat.rowcount != 1:
+    # RETURNING plutôt que `rowcount` : sur PostgreSQL (psycopg), `rowcount` d'un INSERT … SELECT vaut -1, ce qui
+    # rejetait TOUTE transition légitime. Une ligne rendue = la condition « état courant == attendu » tenait au moment
+    # de l'écriture.
+    resultat = cnx.execute(insert(ETATS_T).from_select(colonnes, sel).returning(ETATS_T.c.id))
+    if resultat.first() is None:
         raise ErreurConnaissances(
             TRANSITION_INTERDITE, f"l'état courant n'est plus « {attendu} » : transition {nouvel_etat} non appliquée")
 

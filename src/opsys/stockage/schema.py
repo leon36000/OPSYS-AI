@@ -32,6 +32,10 @@ TABLES_VIRTUELLES_SQLITE = frozenset({
     "connaissances_fts_docsize", "connaissances_fts_idx",
 })
 
+# Longueur déclarée des identifiants d'événements (migration 0053 : 512 sur PostgreSQL, qui fait respecter la longueur ;
+# SQLite ne la fait pas respecter). Un identifiant d'opportunité répétée dépasse 128 caractères (M2, T4.18).
+LONGUEUR_ID_EVENEMENT = 512
+
 META = MetaData(
     naming_convention={
         "ix": "ix_%(column_0_label)s",
@@ -297,7 +301,7 @@ MODES_DEPARTEMENTS = Table(
 EVENEMENTS_SORTANTS = Table(
     "evenements_sortants",
     META,
-    Column("evenement_id", String(128), primary_key=True),
+    Column("evenement_id", String(LONGUEUR_ID_EVENEMENT), primary_key=True),
     Column("type_evenement", String(128), nullable=False),
     Column("producteur", String(64), nullable=False),
     Column("charge", Text, nullable=False),
@@ -313,7 +317,8 @@ EVENEMENTS_SORTANTS = Table(
 EVENEMENTS_RECUS = Table(
     "evenements_recus",
     META,
-    Column("evenement_id", String(128), ForeignKey("evenements_sortants.evenement_id"), primary_key=True),
+    Column("evenement_id", String(LONGUEUR_ID_EVENEMENT), ForeignKey("evenements_sortants.evenement_id"),
+           primary_key=True),
     Column("consommateur", String(64), primary_key=True),
     Column("statut", String(16), nullable=False),
     Column("tentatives", Integer, nullable=False, server_default=text("0")),
@@ -761,7 +766,7 @@ SERVICE_AUDIT = Table(
     Column('consommateur', String(128), nullable=False),
     Column('operation', String(64), nullable=False),
     Column('revision', Integer, nullable=False),
-    Column('evenement_id', String(128)),
+    Column('evenement_id', String(LONGUEUR_ID_EVENEMENT)),
     Column('action', String(24), nullable=False),
     CheckConstraint("action IN ('usage','revocation')", name='service_audit_action'),
 )
@@ -1100,7 +1105,7 @@ SERVICE_ATTESTATIONS_M4 = Table(
     'service_attestations_m4', META,
     Column('audit_id', Integer, ForeignKey('service_audit.id'), primary_key=True),
     Column('instance_id', String(36), nullable=False),
-    Column('evenement_id', String(128), nullable=False),
+    Column('evenement_id', String(LONGUEUR_ID_EVENEMENT), nullable=False),
     Column('revision', Integer, nullable=False),
     Column('trace_rang', Integer, nullable=False),
     Column('trace_sha256', String(64), nullable=False),
@@ -1190,7 +1195,7 @@ WCT_ATTENTES = Table(
     META,
     Column(
         "evenement_id",
-        String(128),
+        String(LONGUEUR_ID_EVENEMENT),
         ForeignKey("evenements_sortants.evenement_id"),
         primary_key=True,
     ),
@@ -1222,7 +1227,7 @@ WCT_ATTENTES_AUDIT = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column(
         "evenement_id",
-        String(128),
+        String(LONGUEUR_ID_EVENEMENT),
         ForeignKey("wct_attentes.evenement_id"),
         nullable=False,
     ),

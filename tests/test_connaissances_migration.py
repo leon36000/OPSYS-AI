@@ -194,8 +194,9 @@ def test_migration_0041_sur_postgresql(monkeypatch):
             tete = ScriptDirectory.from_config(stockage._config()).get_current_head()
             assert stockage.moteur(url).dialect.name == "postgresql" and stockage.revision_courante(url) == tete
             with stockage.transaction() as cnx:
+                # pas de FTS5 hors SQLite ; + `connaissances_lexique`, l'index lexical tsvector (migration 0053)
                 assert cnx.execute(text("SELECT count(*) FROM information_schema.tables WHERE table_name LIKE "
-                                        "'connaissances_%'")).scalar_one() == len(TABLES)  # pas de FTS5 hors SQLite
+                                        "'connaissances_%'")).scalar_one() == len(TABLES) + 1
                 _inserer_chaine(cnx, vrai="true")
             for instruction in ("UPDATE connaissances_versions SET texte = 'autre'", "DELETE FROM connaissances_etats",
                                 "UPDATE connaissances_fragments SET texte = 'x'", "DELETE FROM connaissances_vecteurs"):

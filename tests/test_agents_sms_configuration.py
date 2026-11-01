@@ -9,7 +9,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from sqlalchemy import MetaData, Table, select
+from sqlalchemy import MetaData, Table, inspect, select
 
 from opsys import agents, departements, identite
 from opsys.stockage import schema
@@ -33,7 +33,7 @@ def _encoder(valeur):
 
 
 def snapshot_sql(cnx):
-    noms = cnx.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").scalars()
+    noms = sorted(inspect(cnx).get_table_names())
     resultat = {}
     for nom in noms:
         table = schema.META.tables.get(nom)
