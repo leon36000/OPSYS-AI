@@ -159,7 +159,13 @@ aucun maillon de plus ; panne de M8 au milieu du lot puis reprise. Durée mesur�
 
 ## 4. Mutations (preuve que les tests tuent)
 
-Voir le rapport de livraison : dix mutations et plus, chacune faisant échouer au moins un test nommé.
+Dix-neuf mutations appliquées une à une au code livré, chacune TUÉE par au moins un test (aucune ne survit) : consommateur
+non idempotent (M8), taxes incluses ventilées et doublon sur révision (M5), journal rejoué sans clé de contenu (M5), écriture dans
+le registre d'un autre département (M6 -> M5), déclaration sans handler (M9) et handler sans déclaration (M2), rejeu du même sceau
+refusé donc quarantaine (M10), propriété ambiguë devinée (M3), profil repris sans lien lead -> client (M3), retrait de
+consentement ignoré (M1), source non normalisée comptée (M2), vue de M8 sans réduction de borne, attente M6 aussi pour un état
+concordant, dossier CPA non FINANCIAL, pièce du brouillon M5 faussement « vérifiée », anomalie fictive admise (M9), audit qui
+compte un déclaré comme réel, audit qui ne voit plus une lecture directe.
 
 ## 5. Lectures croisées (hors événements)
 
