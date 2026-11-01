@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m5.rapprochement_po_constate",
+  "title": "M5 — Rapprochement facture fournisseur / commande constaté",
+  "description": "Émis par M5 (outils_operations.py::avancer_flux_fournisseur, M5.1/M5.2) quand le flux d'une facture fournisseur SUR BON DE COMMANDE avance (outil m5_avancer_flux_fournisseur) : l'état du rapprochement PO, réception et facture, PROPOSÉ par comptes_a_payer (jamais appliqué). M6 (contrôle des matériaux, propriétaire de la commande et de la réception) peut ainsi voir si ce qu'il a réceptionné est facturé tel quel. Le verdict est celui de M5 (CONCORDANT, ECART, SANS_FACTURE, INCOMPLET) avec son sens, les montants avant taxes (texte décimal ou null quand non calculable) et les codes de réserve (dont REJ-AP-UNITE-PRIX-NON-CONFIRMEE tant que l'unité des prix de M6 n'est pas confirmée). Aucun nom de fournisseur, aucun numéro de facture, aucun prix unitaire. Un événement par (facture, état du rapprochement) : evenement_id = m5-rappo-<facture_fournisseur_id>-<16 premiers caractères de l'empreinte de l'état>. Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "facture_fournisseur_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$"
+    },
+    "po_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "CONCORDANT",
+        "ECART",
+        "SANS_FACTURE",
+        "INCOMPLET"
+      ]
+    },
+    "sens": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "FACTURE_SUPERIEURE_AU_RECU",
+        "FACTURE_INFERIEURE_AU_RECU",
+        null
+      ]
+    },
+    "facture_avant_taxes": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+          "maxLength": 24,
+          "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recu_avant_taxes": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+          "maxLength": 24,
+          "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ecart_avant_taxes": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+          "maxLength": 24,
+          "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reserves": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "string",
+        "pattern": "^REJ-[A-Z0-9-]+$",
+        "maxLength": 80
+      }
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    }
+  },
+  "required": [
+    "facture_fournisseur_id",
+    "po_id",
+    "verdict",
+    "sens",
+    "facture_avant_taxes",
+    "recu_avant_taxes",
+    "ecart_avant_taxes",
+    "reserves",
+    "date_reference"
+  ]
+}

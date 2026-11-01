@@ -283,7 +283,10 @@ def test_l_outil_est_un_t1_n3_pour_l_admin_seulement_avec_ses_arguments_et_sa_me
 
 
 def test_m5_declare_publier_le_constat_et_le_catalogue_le_connait(dep):
-    assert dep.evenements_publie == ("m5.rentabilite_chantier", TYPE)
+    # puis les quatre types des opérations comptables
+    assert dep.evenements_publie[:2] == ("m5.rentabilite_chantier", TYPE)
+    assert dep.evenements_publie[2:] == ("m5.creance_relance_preparee", "m5.mesures_comptables_constatees",
+                                         "m5.rapprochement_po_constate", "m5.dossier_cpa_scelle")
     assert TYPE in evenements.types_connus()
     assert evenements.verifier_coherence({DEPARTEMENT: dep}) == []
 

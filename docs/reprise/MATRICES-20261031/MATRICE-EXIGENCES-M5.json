@@ -27,7 +27,8 @@
  "run_summary": {
   "suite_du_departement": "departments/m05-financecore/tests rejoué le 2026-10-31 sur la base_sha : 2702 passed, 0 failed, 0 skipped",
   "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
-  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue",
+  "vague3_claude_m5_sophie": "2026-11-01, branche claude/m5-sophie (base 1b58f4e6c) : departments/m05-financecore/tests 3653 passed, 0 failed ; socle ciblé (registre MCP, portées d'appareil, CI départements, départements, gabarit d'évaluation, matrices, paquets déclarés, garde-fou texte, commande métier, RAG fiscal, packs, événements, connaissances) 710 passed, 0 failed ; ruff src tests departments propre ; opsys-metier verifier OK ; 23 mutations toutes tuées (dont 2 lacunes de test fermées). Statuts relevés à PARTIEL (M5.1, M5.6, M5.13, M5.15, M5.18) : jamais FAIT_PROUVE, tout est en mode ombre avec données fictives."
  },
  "requirements": [
   {
@@ -37,7 +38,12 @@
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M5) : Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois, simulations camion/équipement/bâtiment, emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.",
    "reuse_read_first": [
     "departments/m05-financecore/src/m5_financecore/registre.py",
-    "departments/m05-financecore/src/m5_financecore/soldes.py"
+    "departments/m05-financecore/src/m5_financecore/soldes.py",
+    "departments/m05-financecore/src/m5_financecore/operations_comptables.py",
+    "departments/m05-financecore/src/m5_financecore/operations_periodes.py",
+    "departments/m05-financecore/src/m5_financecore/operations_registre.py",
+    "departments/m05-financecore/src/m5_financecore/outils_operations.py",
+    "departments/m05-financecore/src/m5_financecore/grand_livre.py"
    ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
@@ -46,17 +52,26 @@
    ],
    "proofs": [
     {
-     "tests": [],
-     "docs": [
-      "departments/m05-financecore/README.md"
+     "tests": [
+      "departments/m05-financecore/tests/test_grand_livre.py",
+      "departments/m05-financecore/tests/test_grand_livre_outils.py",
+      "departments/m05-financecore/tests/test_operations_comptables.py",
+      "departments/m05-financecore/tests/test_operations_periodes.py",
+      "departments/m05-financecore/tests/test_operations_outils.py",
+      "departments/m05-financecore/tests/test_evaluation_vague3.py"
      ],
-     "niveau": "-"
+     "docs": [
+      "departments/m05-financecore/README.md",
+      "departments/m05-financecore/docs/grand-livre.md",
+      "docs/architecture/M5-SOPHIE.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Il existe un registre des mouvements append-only (registre.py, soldes.py) mais aucun module de partie double, de plan comptable, de période verrouillée ni de multi-entités ; les modules dérivés disent explicitement ne pas être le grand livre.",
-   "verification": "grep grand livre|plan_comptable|partie double dans src M5 : seulement des docstrings qui nient en être un ; multi-entit : 0"
+   "verified_commit": "f2d44f1bd",
+   "current_status": "PARTIEL",
+   "limite": "Grand livre en partie double, plan comptable, écritures en BROUILLON validées par un humain (N4), période close verrouillée, contre-passation (existant) ; vague 3 : relances, notes de crédit client et fournisseur, dépenses d'employés, pièces justificatives liées (fichier déposé par un humain), flux fournisseur facture→PO M6→brouillon→paiement PRÉPARÉ (N3 humain), jugements et estimations, ouverture et préclôture à 9 contrôles, mesures pour M8, cycle autonome jusqu'au brouillon, le tout idempotent et rejouable avec reçu. Prouvé en processus sur SQLite réelle, file d'approbation et bus réels ; consommateurs M2/M6/M8/M10 simulés. Absent : OCR, multi-entités, clôture d'exercice complète, passerelle bancaire en ligne, états financiers, parcours HTTP/Core natif/navigateur ; décision build vs QuickBooks encore ouverte ; agent seul jamais validé ni clos ni payé.",
+   "verification": "grep des modules operations_*.py ; 23 mutations tuées dont écriture déséquilibrée et période close (docs/architecture/M5-SOPHIE.md)"
   },
   {
    "id": "M5.2",
@@ -65,7 +80,8 @@
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M5) : Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois, simulations camion/équipement/bâtiment, emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.",
    "reuse_read_first": [
     "departments/m05-financecore/src/m5_financecore/facturation.py",
-    "departments/m05-financecore/src/m5_financecore/comptes_a_payer.py"
+    "departments/m05-financecore/src/m5_financecore/comptes_a_payer.py",
+    "departments/m05-financecore/src/m5_financecore/operations_comptables.py"
    ],
    "initial_status": "PARTIEL",
    "gates_to_resolve_or_keep_open": [
@@ -86,16 +102,20 @@
       "departments/m05-financecore/tests/test_revision_facture_fournisseur.py",
       "tests/e2e/test_comptes_a_payer_appareil.py",
       "tests/e2e/test_correction_facture_appareil.py",
-      "tests/e2e/test_m5_envoi_facture_concurrent.py"
+      "tests/e2e/test_m5_envoi_facture_concurrent.py",
+      "departments/m05-financecore/tests/test_operations_comptables.py",
+      "departments/m05-financecore/tests/test_operations_outils.py"
      ],
-     "docs": [],
+     "docs": [
+      "docs/architecture/M5-SOPHIE.md"
+     ],
      "niveau": "S+H+P"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "f2d44f1bd",
    "current_status": "PARTIEL",
-   "limite": "Cycle de facture et AP avec saisie humaine, rapprochement PO-réception-facture proposé, âge des créances ; aucun PDF de facture, aucune relance AR, aucun décaissement (voulu, N5). Les variantes de concurrence tests/e2e/test_m5_*_concurrent*.py sont PostgreSQL : présentes, non rejouées ici.",
-   "verification": "grep relance|pdf dans src M5 : aucun hit hors paie ; calculer_age_creances présent"
+   "limite": "Cycle de facture et AP avec saisie humaine, rapprochement PO-réception-facture proposé, âge des créances (existant) ; vague 3 : relances client en BROUILLON selon la politique du propriétaire (M1 envoie sous approbation, événement pour M2), notes de crédit, dépenses d'employés, paiement fournisseur PRÉPARÉ net des notes de crédit (N3 humain, jamais exécuté). Toujours absent : PDF de facture, OCR de factures fournisseurs, décaissement (voulu, N5). Les variantes de concurrence tests/e2e/test_m5_*_concurrent*.py sont PostgreSQL : présentes, non rejouées ici.",
+   "verification": "relances : outil m5_preparer_relances_clients et test_operations_outils ; PDF/OCR : toujours aucun hit"
   },
   {
    "id": "M5.3",
@@ -103,7 +123,10 @@
    "target": "Plaid, CSV, Stripe, QuickBooks avec score de confiance.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M5) : Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois, simulations camion/équipement/bâtiment, emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.",
    "reuse_read_first": [
-    "departments/m05-financecore/src/m5_financecore/reconciliation_bancaire_csv.py"
+    "departments/m05-financecore/src/m5_financecore/reconciliation_bancaire_csv.py",
+    "departments/m05-financecore/src/m5_financecore/releve_bancaire.py",
+    "departments/m05-financecore/src/m5_financecore/rapprochement_bancaire.py",
+    "departments/m05-financecore/src/m5_financecore/outils_bancaire.py"
    ],
    "initial_status": "PARTIEL",
    "gates_to_resolve_or_keep_open": [
@@ -113,18 +136,22 @@
    "proofs": [
     {
      "tests": [
-      "departments/m05-financecore/tests/test_reconciliation_bancaire_csv.py"
+      "departments/m05-financecore/tests/test_reconciliation_bancaire_csv.py",
+      "departments/m05-financecore/tests/test_releve_bancaire.py",
+      "departments/m05-financecore/tests/test_rapprochement_bancaire.py",
+      "departments/m05-financecore/tests/test_operations_outils.py"
      ],
      "docs": [
-      "departments/m05-financecore/docs/M5.3-a-CSV-AR.md"
+      "departments/m05-financecore/docs/M5.3-a-CSV-AR.md",
+      "docs/architecture/M5-SOPHIE.md"
      ],
-     "niveau": "T"
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "f2d44f1bd",
    "current_status": "PARTIEL",
-   "limite": "CSV CAD vers créances avec candidat partiel unique ; splits, frais, multi-lignes, surpaiements hors périmètre ; 0 occurrence QuickBooks/CCube/Stripe/Plaid.",
-   "verification": "grep quickbooks|qbo|ccube|stripe|plaid dans src M5 : 0"
+   "limite": "Rapprochement CSV de créances (existant) ; vague 3 : relevés CSV (synonymes fr/en, montant ou date ambigus refusés) et OFX (bibliothèque standard) déposés par un humain, contre le compte Banque du grand livre, cinq règles explicables avec confiance fixée par la règle, écarts nommés avec pistes jamais appliquées, reçu rejouable aux têtes de registre, confirmation N4 humaine, neutralisation des formules CSV. Les splits sont couverts par la règle de somme (2 à 4 lignes). Plaid, Stripe, QuickBooks Online, CCube, relevés PDF, devises étrangères : absents (gate DEFINITION §7 M5).",
+   "verification": "grep quickbooks|stripe|plaid dans les modules de rapprochement : aucun appel réseau ; 23 mutations dont fenêtre de dates, formule CSV, montant ambigu"
   },
   {
    "id": "M5.4",
@@ -203,23 +230,31 @@
    "title": "Dossier CPA et fin d'année",
    "target": "Dossier de période, balances, anomalies, export.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M5) : Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois, simulations camion/équipement/bâtiment, emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m05-financecore/src/m5_financecore/dossier_cpa.py",
+    "departments/m05-financecore/src/m5_financecore/outils_dossier.py"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
    "proofs": [
     {
-     "tests": [],
-     "docs": [
-      "departments/m05-financecore/docs/m54d-dossier-webras-manuel.md"
+     "tests": [
+      "departments/m05-financecore/tests/test_dossier_cpa.py",
+      "departments/m05-financecore/tests/test_operations_outils.py",
+      "departments/m05-financecore/tests/test_operations_periodes.py"
      ],
-     "niveau": "-"
+     "docs": [
+      "departments/m05-financecore/docs/m54d-dossier-webras-manuel.md",
+      "docs/architecture/M5-SOPHIE.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun module ; seul un dossier WebRAS manuel pour la paie (m54d).",
-   "verification": "aucun module dossier CPA"
+   "verified_commit": "f2d44f1bd",
+   "current_status": "PARTIEL",
+   "limite": "Dossier de période de 14 fichiers déterministes (balance, soldes d'ouverture, grand livre, brouillons, rapprochements, relevés TPS/TVQ PRÉPARÉS sans ligne de formulaire officiel, pièces, jugements et estimations, corrections, sous-comptes, export Beancount, liste de contrôle) + manifeste scellé par SHA-256 (fichiers et têtes de registres), vérificateur, événement pour M10. Ce n'est ni une compilation, ni un examen, ni un audit ni une déclaration : la nature de la mission et la question juridique de ce qu'on peut remettre à une banque ou un investisseur restent au CPA, non tranchées. Pas de signature cryptographique du sceau ; pas d'états financiers.",
+   "verification": "modules dossier_cpa.py, outils_dossier.py ; sceau et altération testés ; mutations M11, M21"
   },
   {
    "id": "M5.7",
@@ -342,14 +377,32 @@
    "title": "Conseiller en dette, financement et investissement",
    "target": "Dette, financement, investissement.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M5) : Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois, simulations camion/équipement/bâtiment, emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m05-financecore/src/m5_financecore/conseiller_financement.py",
+    "departments/m05-financecore/src/m5_financecore/moteur_calcul.py"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun module."
+   "proofs": [
+    {
+     "tests": [
+      "departments/m05-financecore/tests/test_moteur_financement.py",
+      "departments/m05-financecore/tests/test_conseiller_financement.py",
+      "departments/m05-financecore/tests/test_conseillers_outils.py",
+      "departments/m05-financecore/tests/test_evaluation_vague3.py"
+     ],
+     "docs": [
+      "departments/m05-financecore/docs/moteur-calcul.md",
+      "docs/architecture/M5-SOPHIE.md"
+     ],
+     "niveau": "T+S"
+    }
+   ],
+   "verified_commit": "f2d44f1bd",
+   "current_status": "PARTIEL",
+   "limite": "Comparaison achat comptant / prêt (amortissement canadien, TRI) / location par la valeur actuelle des coûts, remboursement anticipé de prêt, échelonnement de placements à terme fixe de la trésorerie aux taux SAISIS par l'utilisateur, reçus rejouables, hypothèses explicites, sensibilité aux seules variations nommées, garde NC 31-103 (objet de la liste fermée, demande en texte libre). Aucun effet fiscal (DPA/CCA, TPS/TVQ), aucun taux ni produit ni institution fournis, AUCUNE recommandation de titres ni conseil en placement : le volet « investissement » de la cible n'est volontairement pas livré. Pas de stratégie de dette multi-prêts ni de refinancement.",
+   "verification": "mutations M05, M17 (titres) ; test_evaluation_vague3 (sonde de refus de recommandation)"
   },
   {
    "id": "M5.14",
@@ -386,14 +439,30 @@
    "title": "Conseiller fiscal et comptable stratégique",
    "target": "Salaire/dividendes, CCA, structure (préparatoire).",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M5) : Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois, simulations camion/équipement/bâtiment, emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m05-financecore/src/m5_financecore/conseiller_fiscal.py",
+    "departments/m05-financecore/src/m5_financecore/outils_conseillers.py"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun module ; réservé au CPA (N5)."
+   "proofs": [
+    {
+     "tests": [
+      "departments/m05-financecore/tests/test_conseiller_fiscal.py",
+      "departments/m05-financecore/tests/test_conseillers_outils.py",
+      "departments/m05-financecore/tests/test_evaluation_vague3.py"
+     ],
+     "docs": [
+      "docs/architecture/M5-SOPHIE.md"
+     ],
+     "niveau": "T+S"
+    }
+   ],
+   "verified_commit": "f2d44f1bd",
+   "current_status": "PARTIEL",
+   "limite": "Trois analyses (TPS/TVQ à remettre depuis le grand livre, échéances, contrôle des taux appliqués) et cinq pistes à discuter avec le CPA (rémunération, DPA/CCA, acomptes, régimes de taxes, structure) ; chaque affirmation cite sa source (base fiscale versionnée, calendrier, base de connaissances) et son statut de revue ; source non approuvée = ESSAI/non approuvé, refus en mode officiel ; règle non renseignée = refus qui nomme la source officielle ; mention CPA obligatoire ; aucune recommandation. La base fiscale compte 0 règle approuvée : en mode officiel, presque toutes les analyses chiffrées refusent aujourd'hui. Aucune règle réelle n'a été saisie dans cette vague.",
+   "verification": "mutations M03, M04, M06, M13 ; test_evaluation_vague3 (source non approuvée, règle non renseignée)"
   },
   {
    "id": "M5.16",
@@ -452,14 +521,33 @@
    "title": "Base de connaissances fiscale et comptable (RAG)",
    "target": "ARC/Revenu Québec/CNESST versionnés, golden set, séparée des données privées.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M5) : Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois, simulations camion/équipement/bâtiment, emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m05-financecore/src/m5_financecore/connaissances_fiscales.py",
+    "docs/architecture/CONNAISSANCES.md"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Les sources figurent dans les YAML de taux/calendrier ; aucun RAG fiscal ni golden set."
+   "proofs": [
+    {
+     "tests": [
+      "departments/m05-financecore/tests/test_connaissances_fiscales_pur.py",
+      "tests/test_m5_connaissances_fiscales.py",
+      "departments/m05-financecore/tests/test_conseillers_outils.py",
+      "departments/m05-financecore/tests/test_evaluation_vague3.py"
+     ],
+     "docs": [
+      "departments/m05-financecore/evals/connaissances-fiscales-demo.v1.yaml",
+      "docs/architecture/M5-SOPHIE.md",
+      "docs/architecture/CONNAISSANCES.md"
+     ],
+     "niveau": "T+S"
+    }
+   ],
+   "verified_commit": "f2d44f1bd",
+   "current_status": "PARTIEL",
+   "limite": "Mécanisme : recherche hybride de M10 limitée à la base de Sophie (fiscalité et comptabilité), passages publiés seulement, citations complètes, second seuil de couverture, « aucune source » = inconnu, états de revue, autorité officielle requise pour être approuvé, démonstration fictive marquée, texte cité traité en donnée non fiable ; Sophie ne peut ni ingérer, ni publier, ni retirer (revue humaine dans M10). Corpus de démonstration ENTIÈREMENT FICTIF (19 questions) : mesuré 15/16 bonnes citations et 3/3 inconnus corrects de bout en bout, double d'embeddings déterministe. Aucune source officielle réelle n'est publiée ; la qualité sur de vraies sources et un vrai modèle d'embeddings n'est pas mesurée.",
+   "verification": "opsys-metier connaissances mesurer sur le corpus de démonstration ; mutations M12, M18"
   },
   {
    "id": "M5.19",

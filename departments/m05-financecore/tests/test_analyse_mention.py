@@ -102,6 +102,10 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
     attendues |= {
         "m5_lire_etat_base_fiscale", "m5_lire_regle_fiscale", "m5_lire_statut_campagne_paie",
         "m5_apparier_subventions", "m5_verifier_demande_investissement"}
+    # Opérations comptables, rapprochement bancaire, dossier CPA, conseillers : mêmes deux mentions, prouvées par
+    # test_operations_outils.py et par tests/test_m5_conseillers_outils.py.
+    attendues |= analyse.SORTIES_OPERATIONS | analyse.SORTIES_CONSEIL
+    assert len(analyse.SORTIES_OPERATIONS) == 17 and len(analyse.SORTIES_CONSEIL) == 6
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert analyse.SORTIES_CALCUL <= analyse.SORTIES_D_ANALYSE
     assert analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
@@ -257,7 +261,8 @@ def _la_mention(reponse, nom):
 # Celles du moteur de calcul par test_moteur_calcul_outils.py (chaque outil, un appel accepté).
 @pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE - analyse.SORTIES_COMPTABLES
                                        - analyse.SORTIES_ONBOARDING - analyse.SORTIES_CALCUL
-                                       - analyse.SORTIES_FISCALES))
+                                       - analyse.SORTIES_FISCALES - analyse.SORTIES_OPERATIONS
+                                       - analyse.SORTIES_CONSEIL))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
     ident, revision = _preparer_une_facture(par_nom)

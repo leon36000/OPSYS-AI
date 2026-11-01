@@ -283,6 +283,23 @@ Règles communes aux sept outils :
   chaque appel. La garde `conformite.verifier_aucun_decaissement` couvre les modules en mode strict, et le Monte-Carlo
   en lecture seule, car il ouvre le registre des mouvements pour le solde, comme `m5_prevoir_tresorerie`.
 
+## Vague 3 : trois outils de conseil en financement (T0, N0)
+
+Deux moteurs s'ajoutent au registre `MOTEURS` (donc rejouables par `m5_verifier_recu_calcul`) et un composite s'y inscrit au
+chargement de `conseiller_financement.py` :
+
+| Moteur (`moteur`, version) | Outil | Rend |
+|---|---|---|
+| `remboursement_anticipe_pret` | `m5_simuler_remboursement_anticipe` | Jusqu'à 4 stratégies de remboursement accéléré comparées à l'échéancier normal : versements et intérêts économisés, solde final. Pénalité de remboursement anticipé : seulement celle que l'appelant déclare |
+| `echelonnement_placements_terme_fixe` | `m5_echelonner_placements_terme_fixe` | Jusqu'à 12 échelons de trésorerie à terme fixe (intérêt simple ou composé annuellement, aux taux SAISIS par l'appelant) : valeur à l'échéance, taux et terme moyens pondérés, couverture de jusqu'à 12 besoins de liquidités. Rachat anticipé et impôt non modélisés |
+| `comparaison_financement` | `m5_comparer_financement_achat` | Achat comptant, prêt (amortissement canadien, frais de dossier compris, taux effectif = TRI mensuel annualisé) et location, par la valeur actuelle de leurs coûts ; jusqu'à 6 variations nommées pour la sensibilité ; le reçu cite l'empreinte des calculs qu'il compose |
+
+Ils obéissent aux mêmes règles que les sept outils de la tranche 1 : `Decimal` pur, entrées en texte décimal, refus typés
+(`REJ-CALC-*`), `objet` de la liste fermée, garde NC 31-103 sur le texte libre `demande`
+(`REJ-CONSEIL-RECOMMANDATION-TITRES`), aucune écriture, aucun rôle d'appareil, mentions obligatoires. Le scénario « au coût
+actualisé le plus bas » est un fait de calcul sous les hypothèses, pas une recommandation ; aucun effet fiscal (DPA, TPS/TVQ,
+déductibilité) n'est modélisé. Détail et preuves : [M5-SOPHIE](../../../docs/architecture/M5-SOPHIE.md).
+
 ## Garde NC 31-103
 
 M5 n'est pas un conseiller inscrit.

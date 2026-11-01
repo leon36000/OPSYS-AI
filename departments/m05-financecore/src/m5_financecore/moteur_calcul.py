@@ -30,8 +30,8 @@ from . import monte_carlo_tresorerie as mc
 
 __all__ = [
     "AVERTISSEMENT_FISCAL", "AVERTISSEMENT_NC_31_103", "MOTEURS", "OBJETS_ADMIS", "analyser_sensibilite",
-    "calculer_amortissement", "calculer_point_mort", "calculer_rentabilite", "comparer_credit_bail_achat", "rejouer",
-    "simuler_tresorerie",
+    "calculer_amortissement", "calculer_echelonnement_termes", "calculer_point_mort", "calculer_remboursement_anticipe",
+    "calculer_rentabilite", "comparer_credit_bail_achat", "rejouer", "simuler_tresorerie",
 ]
 
 VERSION = "1.0.0"
@@ -742,6 +742,264 @@ def analyser_sensibilite(entrees: Any, parametres: Any = None):
                           normalisees, resultat, avertissements)}, None
 
 
+# ------------------------------------------------------------------ 7. remboursement anticipé d'un prêt
+_METHODE_ANTICIPE = (
+    "Tableau d'amortissement à versement constant (conventions de amortissement_pret) auquel la stratégie ajoute un "
+    "versement additionnel par période et/ou des remboursements forfaitaires à des périodes données ; intérêt de "
+    "chaque "
+    "période = solde × i arrondi au cent ; le dernier paiement solde exactement ; les frais saisis par l'appelant "
+    "s'ajoutent au total payé ; économie = intérêts de la stratégie « base » − intérêts de la stratégie."
+)
+STRATEGIES_MAX = 4
+FORFAITS_MAX = 12
+
+
+def _simuler_pret(principal: Decimal, i: Decimal, n: int, versement: Decimal, extra: Decimal,
+                  forfaits: Mapping[int, Decimal]) -> dict[str, Any]:
+    with localcontext(mf.CONTEXTE):
+        solde, interets, paye, dernier, nombre = principal, Decimal(0), Decimal(0), Decimal(0), 0
+        for periode in range(1, n + 1):
+            interet = mf.au_cent(solde * i)
+            paiement = versement + extra + forfaits.get(periode, Decimal(0))
+            if periode == n or paiement >= solde + interet:
+                paiement = solde + interet
+            solde -= paiement - interet
+            interets, paye, dernier, nombre = interets + interet, paye + paiement, paiement, periode
+            if solde == 0:
+                break
+        return {"nombre": nombre, "interets": interets, "paye": paye, "dernier": dernier, "solde_final": solde}
+
+
+def calculer_remboursement_anticipe(entrees: Any, parametres: Any = None):
+    """Compare des stratégies de remboursement accéléré d'un prêt à la stratégie « base » (échéancier normal)."""
+    cles = {"objet", "montant_emprunte", "taux_annuel", "frequence", "convention", "amortissement_annees", "strategies"}
+    brut, verdict = _cles(entrees, cles, cles)
+    if verdict:
+        return None, verdict
+    objet, verdict = _objet(brut["objet"])
+    if verdict:
+        return None, verdict
+    principal, verdict = _montant(brut["montant_emprunte"], "montant_emprunte", strictement_positif=True)
+    if verdict:
+        return None, verdict
+    taux_annuel, verdict = _taux(brut["taux_annuel"], "taux_annuel")
+    if verdict:
+        return None, verdict
+    if type(brut["frequence"]) is not str or brut["frequence"] not in mf.FREQUENCES:
+        return _refus(
+            "REJ-CALC-FREQUENCE-INCONNUE", f"frequence {brut['frequence']!r} : une de {sorted(mf.FREQUENCES)}"
+        )
+    if type(brut["convention"]) is not str or brut["convention"] not in mf.CONVENTIONS_TAUX:
+        return _refus("REJ-CALC-CONVENTION-INCONNUE",
+                      f"convention {brut['convention']!r} : une de {sorted(mf.CONVENTIONS_TAUX)}")
+    annees, verdict = _entier(brut["amortissement_annees"], "amortissement_annees", "REJ-CALC-DUREE-INVALIDE", 1,
+                              ANNEES_MAX)
+    if verdict:
+        return None, verdict
+    strategies = brut["strategies"]
+    if not isinstance(strategies, list) or not 1 <= len(strategies) <= STRATEGIES_MAX:
+        return _refus("REJ-CALC-SCENARIO-INVALIDE", f"strategies : 1 à {STRATEGIES_MAX} stratégies")
+    n = annees * mf.FREQUENCES[brut["frequence"]]
+    i = mf.taux_periodique(taux_annuel, brut["frequence"], brut["convention"])
+    try:
+        versement = mf.versement_constant(principal, i, n)
+        if versement <= mf.au_cent(principal * i):
+            raise ArithmeticError("le versement arrondi ne couvre pas l'intérêt de la première période")
+    except ArithmeticError as exc:
+        return _refus("REJ-CALC-AMORTISSEMENT-IMPOSSIBLE", str(exc))
+    base = _simuler_pret(principal, i, n, versement, Decimal(0), {})
+    lues = []
+    noms: set[str] = {"base"}
+    for index, brute in enumerate(strategies):
+        cles_s = {"nom", "versement_additionnel", "remboursements_forfaitaires", "frais"}
+        lu, verdict = _cles(brute, cles_s, {"nom"}, "REJ-CALC-SCENARIO-INVALIDE")
+        if verdict:
+            return None, verdict
+        nom = lu["nom"]
+        if type(nom) is not str or _RE_NOM_SCENARIO.fullmatch(nom) is None or nom in noms:
+            return _refus(
+                "REJ-CALC-SCENARIO-INVALIDE",
+                f"strategies[{index}].nom : minuscules, chiffres, - _ ; unique, et différent de « base »",
+            )
+        noms.add(nom)
+        extra, verdict = _montant(lu.get("versement_additionnel", "0"), f"{nom}.versement_additionnel",
+                                  minimum=Decimal(0))
+        if verdict:
+            return None, verdict
+        frais, verdict = _montant(lu.get("frais", "0"), f"{nom}.frais", minimum=Decimal(0))
+        if verdict:
+            return None, verdict
+        forfaits_bruts = lu.get("remboursements_forfaitaires", [])
+        if not isinstance(forfaits_bruts, list) or len(forfaits_bruts) > FORFAITS_MAX:
+            return _refus("REJ-CALC-SCENARIO-INVALIDE", f"{nom}.remboursements_forfaitaires : au plus {FORFAITS_MAX}")
+        forfaits: dict[int, Decimal] = {}
+        for k, f in enumerate(forfaits_bruts):
+            lu_f, verdict = _cles(f, {"periode", "montant"}, {"periode", "montant"}, "REJ-CALC-SCENARIO-INVALIDE")
+            if verdict:
+                return None, verdict
+            periode, verdict = _entier(lu_f["periode"], f"{nom}.forfait[{k}].periode", "REJ-CALC-DUREE-INVALIDE", 1, n)
+            if verdict:
+                return None, verdict
+            montant, verdict = _montant(lu_f["montant"], f"{nom}.forfait[{k}].montant", strictement_positif=True)
+            if verdict:
+                return None, verdict
+            forfaits[periode] = forfaits.get(periode, Decimal(0)) + montant
+        if extra == 0 and not forfaits:
+            return _refus("REJ-CALC-SCENARIO-INVALIDE", f"{nom} : sans versement additionnel ni remboursement "
+                                                        "forfaitaire, c'est la stratégie « base »")
+        lues.append((nom, extra, forfaits, frais))
+    resultats = []
+    for nom, extra, forfaits, frais in lues:
+        s = _simuler_pret(principal, i, n, versement, extra, forfaits)
+        resultats.append({
+            "nom": nom, "nombre_versements": s["nombre"], "dernier_versement": _txt_cent(s["dernier"]),
+            "total_interets": _txt_cent(s["interets"]), "frais": _txt_cent(frais),
+            "total_paye": _txt_cent(s["paye"] + frais),
+            "versements_economises": base["nombre"] - s["nombre"],
+            "economie_interets": _txt_cent(base["interets"] - s["interets"]),
+            "economie_nette_des_frais": _txt_cent(base["interets"] - s["interets"] - frais),
+            "solde_final": _txt_cent(s["solde_final"]),
+        })
+    resultat = {
+        "taux_periodique": _txt_taux(i), "versement_normal": _txt_cent(versement),
+        "base": {"nombre_versements": base["nombre"], "total_interets": _txt_cent(base["interets"]),
+                 "total_paye": _txt_cent(base["paye"])},
+        "strategies": resultats,
+    }
+    avertissements = [
+        AVERTISSEMENT_NC_31_103, AVERTISSEMENT_FISCAL,
+        "Les pénalités et frais de remboursement anticipé du prêteur ne sont comptés que s'ils sont saisis (« "
+        "frais ») : "
+        "lire le contrat de prêt.",
+        "Un remboursement anticipé réduit les liquidités de l'entreprise : comparer avec sa trésorerie (cash "
+        "libre) avant "
+        "d'en tirer quoi que ce soit.",
+    ]
+    normalisees = {
+        "objet": objet, "montant_emprunte": format(principal, ".2f"), "taux_annuel": _txt_norme(taux_annuel),
+        "frequence": brut["frequence"], "convention": brut["convention"], "amortissement_annees": annees,
+        "strategies": [{"nom": nom, "versement_additionnel": format(extra, ".2f"), "frais": format(frais, ".2f"),
+                        "remboursements_forfaitaires": [{"periode": p, "montant": format(m, ".2f")}
+                                                         for p, m in sorted(forfaits.items())]}
+                       for nom, extra, forfaits, frais in lues]}
+    return {"recu": _recu("remboursement_anticipe_pret", _METHODE_ANTICIPE, {"versements_par_an": dict(mf.FREQUENCES)},
+                          normalisees, resultat, avertissements)}, None
+
+
+# -------------------------------------------------- 8. échelonnement de placements à terme fixe (trésorerie)
+_METHODE_ECHELONNEMENT = (
+    "Pour chaque échelon, valeur à l'échéance = montant + intérêts ; intérêt simple : montant × r × terme/12 ; composé "
+    "annuellement : montant × (1+r)^(années entières) × (1 + r × mois restants/12) ; arrondi au cent (ROUND_HALF_UP). "
+    "Taux moyen pondéré par les montants ; terme moyen pondéré en mois ; couverture de chaque besoin de liquidités = "
+    "valeur cumulée des échelons échus au plus tard ce mois-là − besoins cumulés."
+)
+ECHELONS_MAX = 12
+BESOINS_MAX = 12
+TERME_MAX_MOIS = 120
+_CAPITALISATIONS = ("simple", "compose_annuellement")
+
+
+def _valeur_echeance(montant: Decimal, taux: Decimal, mois: int, capitalisation: str) -> Decimal:
+    with localcontext(mf.CONTEXTE):
+        if capitalisation == "simple":
+            return mf.au_cent(montant * (Decimal(1) + taux * Decimal(mois) / Decimal(12)))
+        annees, reste = divmod(mois, 12)
+        return mf.au_cent(montant * (Decimal(1) + taux) ** annees * (Decimal(1) + taux * Decimal(reste) / Decimal(12)))
+
+
+def calculer_echelonnement_termes(entrees: Any, parametres: Any = None):
+    """Échelonnement de placements à terme fixe de la TRÉSORERIE (taux saisis par l'appelant, jamais fournis par M5) :
+    valeurs à l'échéance, taux et terme moyens pondérés, couverture des besoins de liquidités. Aucun produit, aucune
+    institution : information générale (NC 31-103)."""
+    brut, verdict = _cles(entrees, {"montant_total", "echelons", "besoins"}, {"montant_total", "echelons"})
+    if verdict:
+        return None, verdict
+    total, verdict = _montant(brut["montant_total"], "montant_total", strictement_positif=True)
+    if verdict:
+        return None, verdict
+    echelons_bruts = brut["echelons"]
+    if not isinstance(echelons_bruts, list) or not 1 <= len(echelons_bruts) <= ECHELONS_MAX:
+        return _refus("REJ-CALC-SCENARIO-INVALIDE", f"echelons : 1 à {ECHELONS_MAX} échelons")
+    echelons = []
+    noms: set[str] = set()
+    for index, e in enumerate(echelons_bruts):
+        cles_e = {"nom", "montant", "terme_mois", "taux_annuel", "interets"}
+        lu, verdict = _cles(e, cles_e, cles_e, "REJ-CALC-SCENARIO-INVALIDE")
+        if verdict:
+            return None, verdict
+        nom = lu["nom"]
+        if type(nom) is not str or _RE_NOM_SCENARIO.fullmatch(nom) is None or nom in noms:
+            return _refus("REJ-CALC-SCENARIO-INVALIDE", f"echelons[{index}].nom : minuscules, chiffres, - _ ; unique")
+        noms.add(nom)
+        montant, verdict = _montant(lu["montant"], f"{nom}.montant", strictement_positif=True)
+        if verdict:
+            return None, verdict
+        terme, verdict = _entier(lu["terme_mois"], f"{nom}.terme_mois", "REJ-CALC-DUREE-INVALIDE", 1, TERME_MAX_MOIS)
+        if verdict:
+            return None, verdict
+        taux, verdict = _taux(lu["taux_annuel"], f"{nom}.taux_annuel")
+        if verdict:
+            return None, verdict
+        if lu["interets"] not in _CAPITALISATIONS:
+            return _refus("REJ-CALC-CONVENTION-INCONNUE", f"{nom}.interets : un de {list(_CAPITALISATIONS)}")
+        echelons.append((nom, montant, terme, taux, lu["interets"]))
+    if sum((e[1] for e in echelons), Decimal(0)) != total:
+        return _refus("REJ-CALC-FLUX-INVALIDES", "la somme des montants des échelons ne vaut pas montant_total")
+    besoins = []
+    for index, b in enumerate(brut.get("besoins", [])):
+        if not isinstance(brut.get("besoins"), list) or len(brut["besoins"]) > BESOINS_MAX:
+            return _refus("REJ-CALC-BORNE-DEPASSEE", f"besoins : au plus {BESOINS_MAX}")
+        lu, verdict = _cles(b, {"mois", "montant"}, {"mois", "montant"}, "REJ-CALC-SCENARIO-INVALIDE")
+        if verdict:
+            return None, verdict
+        mois, verdict = _entier(lu["mois"], f"besoins[{index}].mois", "REJ-CALC-DUREE-INVALIDE", 1, TERME_MAX_MOIS)
+        if verdict:
+            return None, verdict
+        montant, verdict = _montant(lu["montant"], f"besoins[{index}].montant", strictement_positif=True)
+        if verdict:
+            return None, verdict
+        besoins.append((mois, montant))
+    besoins.sort()
+    valeurs = [(nom, montant, terme, taux, cap, _valeur_echeance(montant, taux, terme, cap))
+               for nom, montant, terme, taux, cap in echelons]
+    with localcontext(mf.CONTEXTE):
+        taux_moyen = sum((v[1] * v[3] for v in valeurs), Decimal(0)) / total
+        terme_moyen = sum((v[1] * v[2] for v in valeurs), Decimal(0)) / total
+    couverture = []
+    cumul = Decimal(0)
+    for mois, montant in besoins:
+        cumul += montant
+        disponible = sum((v[5] for v in valeurs if v[2] <= mois), Decimal(0))
+        couverture.append({"mois": mois, "besoin": _txt_cent(montant), "besoin_cumule": _txt_cent(cumul),
+                           "valeur_echue_cumulee": _txt_cent(disponible), "ecart": _txt_cent(disponible - cumul),
+                           "couvert": disponible >= cumul})
+    resultat = {
+        "echelons": [{"nom": v[0], "montant": _txt_cent(v[1]), "terme_mois": v[2], "taux_annuel": _txt_norme(v[3]),
+                      "interets": v[4], "valeur_a_l_echeance": _txt_cent(v[5]),
+                      "interets_gagnes": _txt_cent(v[5] - v[1])} for v in valeurs],
+        "total_investi": _txt_cent(total),
+        "valeur_totale_aux_echeances": _txt_cent(sum((v[5] for v in valeurs), Decimal(0))),
+        "interets_totaux": _txt_cent(sum((v[5] - v[1] for v in valeurs), Decimal(0))),
+        "taux_moyen_pondere": _txt_taux(taux_moyen), "taux_moyen_pondere_pourcentage": _txt_pourcent(taux_moyen),
+        "terme_moyen_pondere_mois": format(terme_moyen.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), "f"),
+        "couverture_des_besoins": couverture,
+    }
+    avertissements = [
+        AVERTISSEMENT_NC_31_103, AVERTISSEMENT_FISCAL,
+        "Les taux sont ceux que l'appelant a saisis (soumissions de son institution) : M5 n'en fournit aucun et ne "
+        "compare ni produit ni institution.",
+        "Le rachat avant l'échéance (pénalités, produits non rachetables) et la protection des dépôts ne sont pas "
+        "modélisés : lire les conditions du produit.",
+        "L'impôt sur les intérêts gagnés n'est pas modélisé.",
+    ]
+    normalisees = {"montant_total": format(total, ".2f"),
+                   "echelons": [{"nom": n, "montant": format(m, ".2f"), "terme_mois": t, "taux_annuel": _txt_norme(r),
+                                 "interets": c} for n, m, t, r, c in echelons],
+                   "besoins": [{"mois": m, "montant": format(a, ".2f")} for m, a in besoins]}
+    return {"recu": _recu("echelonnement_placements_terme_fixe", _METHODE_ECHELONNEMENT, {"capitalisations": list(
+        _CAPITALISATIONS)}, normalisees, resultat, avertissements)}, None
+
+
 # ---------------------------------------------------------------------------------------------------- rejeu
 MOTEURS: dict[tuple[str, str], tuple[Callable[..., Any], tuple[str, ...]]] = {
     ("rentabilite_investissement", VERSION): (calculer_rentabilite, ()),
@@ -750,6 +1008,8 @@ MOTEURS: dict[tuple[str, str], tuple[Callable[..., Any], tuple[str, ...]]] = {
     ("point_mort", VERSION): (calculer_point_mort, ()),
     ("monte_carlo_tresorerie", VERSION): (simuler_tresorerie, ("graine", "tirages", "semaines", "distributions")),
     ("sensibilite_projet", VERSION): (analyser_sensibilite, ()),
+    ("remboursement_anticipe_pret", VERSION): (calculer_remboursement_anticipe, ()),
+    ("echelonnement_placements_terme_fixe", VERSION): (calculer_echelonnement_termes, ()),
 }
 
 

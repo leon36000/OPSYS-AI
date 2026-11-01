@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m5.dossier_cpa_scelle",
+  "title": "M5 — Dossier CPA scellé",
+  "description": "Émis par M5 (outils_operations.py::preparer_dossier_cpa, M5.6) quand l'agent finance PRÉPARE et SCELLE le dossier d'une période (outil m5_preparer_dossier_cpa) : balance, grand livre, rapprochements, relevés TPS/TVQ préparés, pièces, jugements, corrections, export Beancount, liste de contrôle. Le sceau est le SHA-256 du manifeste (fichiers, empreintes, têtes des registres). Le dossier est un BROUILLON pour le CPA : ni compilation, ni examen, ni audit, ni déclaration ; l'attestation est hors d'OPSYS. Aucun chemin, aucune donnée de client : seulement l'identifiant du dossier, la période, le sceau, des comptes de fichiers et les totaux de la liste de contrôle. evenement_id = m5-dossier-<dossier_id>. Consommateur prévu : M10 (mémoire des décisions et des clôtures). Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "dossier_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$"
+    },
+    "periode_debut": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "periode_fin": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "scelle": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fichiers": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 40
+    },
+    "liste_de_controle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "FAIT": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        },
+        "A_FAIRE": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        },
+        "A_VERIFIER": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        }
+      },
+      "required": [
+        "FAIT",
+        "A_FAIRE",
+        "A_VERIFIER"
+      ]
+    },
+    "statut": {
+      "type": "string",
+      "enum": [
+        "BROUILLON_POUR_CPA"
+      ]
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    }
+  },
+  "required": [
+    "dossier_id",
+    "periode_debut",
+    "periode_fin",
+    "scelle",
+    "fichiers",
+    "liste_de_controle",
+    "statut",
+    "date_reference"
+  ]
+}
