@@ -442,6 +442,20 @@ def _public(appel: Mapping[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in appel.items() if not k.startswith("_")}
 
 
+def _etat_de_production(departements: Mapping[str, Any], departement: str) -> None:
+    """Remet le module d'outils du département dans son état de PRODUCTION (registre adossé au stockage durable de
+    l'instance) : des tests antérieurs du même processus le laissent parfois sur le registre EN MÉMOIRE
+    (`reinitialiser_registre`), ce qui ferait refuser des outils qui exigent le stockage durable."""
+    entree = departements.get(departement)
+    nom_module = getattr(entree, "module_outils", None)
+    if not nom_module:
+        return
+    module = importlib.import_module(nom_module)
+    remise = getattr(module, "utiliser_stockage_durable", None)
+    if callable(remise):
+        remise()
+
+
 def evaluer_departement(entree: Mapping[str, Any], repondant: Repondant, departements: Mapping[str, Any], *,
                         horloge: Callable[[], float] | None = None, avec_references: bool = False) -> dict[str, Any]:
     corpus = entree["corpus"]
@@ -455,6 +469,7 @@ def evaluer_departement(entree: Mapping[str, Any], repondant: Repondant, departe
     appels_tous: list[dict[str, Any]] = []
     sondes: list[dict[str, Any]] = []
     with instance_fictive():
+        _etat_de_production(departements, corpus["departement"])
         banc = _Banc(departements, corpus["departement"])
         _verifier_coherence_registre(corpus, banc)
         for cas in corpus["cas"]:
