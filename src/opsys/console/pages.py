@@ -36,6 +36,7 @@ ONGLETS = (
     ("fusion", "Fusion opérationnelle"),
     ("strategie", "Suivis stratégiques"),
     ("direction", "Direction IA"),
+    ("reglages", "Réglages de direction"),
     ("plateforme/fournisseurs", "Plateforme"),
     ("observabilite", "Observabilité"),
     ("wallboards", "Wallboards"),

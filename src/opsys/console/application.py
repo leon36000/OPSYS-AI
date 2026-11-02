@@ -98,6 +98,7 @@ from . import (
     plateforme_ui,
     politiques_service_ui,
     reception_digest_ui,
+    reglages_ui,
     ressources,
     securite,
     strategie_suivis_ui,
@@ -465,6 +466,7 @@ def creer_application(
     app.include_router(marketing_performance_ui.creer_router(**callbacks_metier))
     app.include_router(strategie_suivis_ui.creer_router(**callbacks_metier))
     app.include_router(direction_ui.creer_router(**callbacks_metier, verifier_formulaire=verifier_formulaire))
+    app.include_router(reglages_ui.creer_router(**callbacks_metier, verifier_formulaire=verifier_formulaire))
     app.include_router(marketing_cmo_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_growth_ui.creer_router(**callbacks_metier))
     app.include_router(brand_ui.creer_router(**callbacks_metier))

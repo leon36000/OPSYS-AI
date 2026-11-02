@@ -29,10 +29,10 @@ modifiables pour votre entreprise (clé `avatars` du profil d'entreprise).
 | M6 | Material Control | Rosalie | Inventaire, achats, fournisseurs, sorties sur le terrain, écarts entre le prévu et l'utilisé. | 48 |
 | M7 | Marketing | Chloé | Visibilité, site, contenu, réseaux sociaux, annonces, création visuelle. Rien ne se publie sans vous. | 98 |
 | M8 | Analytics | Olivier | Mesures gouvernées, tableaux de bord, alertes, qualité des données : « peut-on se fier à ce chiffre ? » | 26 |
-| M9 | Strategic Intelligence | Athéna | Conseil de direction : scénarios, risques, priorités, suivi des décisions. Elle propose, vous décidez. | 87 |
+| M9 | Strategic Intelligence | Athéna | Conseil de direction : scénarios, risques, priorités, suivi des décisions. Elle propose, vous décidez. | 90 |
 | M10 | Mémoire | Mnémo | Garde ce qui a été fait, décidé et appris ; base de connaissances sourcée. | 62 |
 
-Total : **627 outils** (un outil = un geste précis qu'un département sait faire). **248** de ces outils sont ouverts à un téléphone
+Total : **630 outils** (un outil = un geste précis qu'un département sait faire). **248** de ces outils sont ouverts à un téléphone
 appairé (employé, vendeur ou administrateur) ; les autres sont réservés à l'ordinateur et aux agents.
 
 Le cœur du système est **générique pour une PME**. Le vocabulaire d'un métier vient d'un « pack sectoriel » : `generique-pme` par défaut,
@@ -106,6 +106,10 @@ jamais approuver à votre place.
 - **Vos décisions ouvertes** : poids et seuils de pointage des pistes, minimum de rentabilité, barèmes, seuils de revue, politiques de
   consentement (SMS, appels, photos, GPS). Les outils concernés **refusent de deviner** tant que vous n'avez pas décidé. La liste complète est
   dans les [limites connues](LIMITES-CONNUES.md).
+- **Vos réglages de direction** : l'écran « Réglages de direction » de la console liste ce qui manque (délais de relance et de dormance de M2,
+  bornes du score de santé de M8), ce que chaque réglage débloque et, quand il existe, une valeur proposée « recommandation, non validée ».
+  Vous adoptez (ou changez) la valeur avec une raison, en un geste de niveau N3 qui n'appartient qu'au propriétaire, et vous pouvez
+  revenir en arrière en un geste. Rien ne s'applique sans vous. Voir [REGLAGES-DIRECTION](../architecture/REGLAGES-DIRECTION.md).
 - **Vos accès** (Google, Microsoft, QuickBooks, réseaux sociaux) : ils passent par le coffre de secrets, jamais en clair, jamais vus par
   les agents. Voir le [guide d'administration](GUIDE-ADMINISTRATION.md).
 - **Votre comptable (CPA) et votre avocat** : tout avis comptable, fiscal, juridique ou de placement porte la mention

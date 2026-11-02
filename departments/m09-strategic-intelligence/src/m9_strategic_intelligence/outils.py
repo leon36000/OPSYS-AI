@@ -98,6 +98,7 @@ from . import (
     outils_questions_scenario,
     outils_radars,
     outils_reaudit_conseil,
+    outils_reglages,
     outils_semantique,
     outils_tendances,
     outils_tissu,
@@ -1378,4 +1379,5 @@ def outils(
             plans_cible=plans_cible,
             experiences_cible=experiences_cible,
         ),
+        *outils_reglages.construire_outils(budget_sortie=BUDGET_SORTIE),
     )

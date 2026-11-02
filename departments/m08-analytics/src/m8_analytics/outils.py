@@ -64,6 +64,7 @@ from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.departements import charger_departements
 from opsys.evenements import constats
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.reglages import lecture as reglages_lecture
 
 from . import (
     alertes,
@@ -216,10 +217,12 @@ _ROLE_ADMIN = identite.Role.ADMIN.value
 
 def _configuration() -> dict[str, Any]:
     """`department.yaml/configuration` (même source que M6 pour ses seuils : le manifeste, que
-    l'admin peut éditer sans toucher au code). Absente : dictionnaire vide, jamais un défaut."""
+    l'admin peut éditer sans toucher au code), avec par-dessus les réglages ADOPTÉS par la direction (`opsys.reglages` :
+    adopté > fichier > absence ; rien d'adopté = le fichier tel quel). Absente : dictionnaire vide, jamais un défaut."""
     donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
     configuration = donnees.get("configuration")
-    return configuration if isinstance(configuration, dict) else {}
+    configuration = configuration if isinstance(configuration, dict) else {}
+    return reglages_lecture.superposer(donnees, ("configuration",), configuration)
 
 
 def _seuils_alerte() -> dict[str, Any]:

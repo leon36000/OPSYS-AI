@@ -62,6 +62,7 @@ packages = [
     "opsys.observabilite",
     "opsys.retention",
     "opsys.registre_mcp",
+    "opsys.reglages",
     "opsys.pont_bi",
     "opsys.avatars_voix",
     "opsys.ingestion_onboarding",

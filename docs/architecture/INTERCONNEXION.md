@@ -257,6 +257,10 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
   alimentent 20 mesures gouvernées du catalogue fermé (sans migration : les lignes de `m8_ent_mesures_*` changent de contenu, pas de
   forme). Ce qui reste hors de l'entrepôt, mesure par mesure et décision par décision : [`M8-ENTREPOT-SOURCES.md`](M8-ENTREPOT-SOURCES.md) §4 et §5.
   Le **score de santé** n'est pas modifié (pondérations et bornes : décision du propriétaire).
+- **Réglages de direction (CFG-1)** : aucun événement, volontairement. Les départements (M2, M8) relisent à chaque appel la couche du socle
+  `opsys.reglages.lecture` (valeur adoptée > `department.yaml` > absence) ; rien n'est mis en cache, donc rien à invalider ni personne à
+  prévenir, et l'audit des lectures croisées n'a rien de nouveau à déclarer (aucun département n'y lit le registre d'un autre).
+  [`REGLAGES-DIRECTION.md`](REGLAGES-DIRECTION.md) §6.
 - **M10 : aucun outil de lecture dédié** pour `dossiers_cpa_scelles` (aucun nouvel outil, par choix) ; le registre existe et est
   append-only, sa lecture passera par un outil à venir.
 

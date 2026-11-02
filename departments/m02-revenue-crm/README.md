@@ -223,3 +223,14 @@ suivantes requises. [Audit et limites](../../docs/reprise/NOTES-M2-2026-10-08/AU
 **Déclenchement.** Ce constat est déclaré par `constats_planifies` du `department.yaml` et lancé par le planificateur durable
 (exécuteur `m2.constat.pipeline`, inactif par défaut, cadence par défaut dérivée du catalogue de M8) : `horodatage` = le début du créneau. Aucun agent n'a besoin de le
 faire à la main. Voir `docs/architecture/PLANIFICATION.md` §9.
+
+## Réglages de direction : les délais et les bandes se décident dans la console (CFG-1)
+
+Les trois délais de `configuration.segments` / `configuration.relances` et les bandes de valeur de `configuration.scoring` ne
+s'éditent plus seulement dans ce fichier : le manifeste les DÉCLARE (bloc `reglages:` : `m2.jours_inactivite_dormant`,
+`m2.jours_soumission_perimee`, `m2.jours_entre_relances`, `m2.bandes_valeur_cents`) et le propriétaire les adopte depuis l'écran
+« Réglages de direction » de la console (geste N3, retour arrière possible). M2 lit ses blocs par `_bloc_configuration`, qui
+passe par la couche unique `opsys.reglages.lecture` : **valeur adoptée > valeur déjà écrite dans `department.yaml` > absence**
+(« seuil à configurer », `REJ-RELANCES-A-CONFIGURER`, exactement comme avant). Rien d'adopté = aucun changement de comportement.
+Les trois délais portent une proposition « recommandation, non validée » (les exemples chiffrés de ce manifeste, illustratifs,
+jamais calibrés) ; les bandes de valeur n'en ont aucune. Voir `docs/architecture/REGLAGES-DIRECTION.md`.

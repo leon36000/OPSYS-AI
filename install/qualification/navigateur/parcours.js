@@ -164,8 +164,8 @@ async function g_tableau(br) {
     pastille: ((document.querySelector(".pastille") || {}).textContent) || null,
     session: (document.querySelector(".session span") || {}).textContent,
   }));
-  constat(G, "structure", "tableau de bord : h1, 17 onglets, onglet courant, une carte par département (10 réels + 1 fictif)",
-    d.h1 === "Départements" && d.nav.length === 17 && d.courant === "Départements" && d.cartes === 11, d);
+  constat(G, "structure", "tableau de bord : h1, 18 onglets, onglet courant, une carte par département (10 réels + 1 fictif)",
+    d.h1 === "Départements" && d.nav.length === 18 && d.courant === "Départements" && d.cartes === 11, d);
   constat(G, "pastille", "la pastille d'approbations annonce les 4 demandes en attente", d.pastille === "4", d.pastille);
   constat(G, "session-nommee", "la personne connectée est nommée", /proprio-fictif/.test(d.session || ""), d.session);
   await cap(p, "04-tableau-de-bord");
@@ -551,7 +551,7 @@ async function g_entetes(br) {
 async function g_a11y(br) {
   const G = "accessibilite";
   const pagesAdmin = ["departements", "approbations", "budgets", "modeles", "connecteurs", "agents", "memoire", "reception", "marketing", "finance", "fusion", "strategie",
-    "plateforme/fournisseurs", "plateforme/secrets", "plateforme/avatars", "plateforme/connaissances", "plateforme/connecteurs", "observabilite", "wallboards"];
+    "plateforme/fournisseurs", "plateforme/secrets", "plateforme/avatars", "plateforme/connaissances", "plateforme/connecteurs", "observabilite", "wallboards", "reglages"];
   const echecs = {}, balayees = new Set(), reflux = [], contrastes = {};
   for (const schema of ["light", "dark"]) {
     for (const w of [375, 768, 1280]) {
@@ -693,6 +693,92 @@ async function g_responsive(br) {
   await ctx.close();
 }
 
+async function g_reglages(br) {
+  const G = "reglages";
+  // Le propriétaire (rôle nathan_owner seulement) adopte, change de page, revient en arrière ; l'administrateur voit sans pouvoir agir.
+  const ctx = await nouveauContexte(br);
+  const p = await seConnecter(ctx, "proprio-fictif");
+  await p.goto(B + "/reglages");
+  const d = await p.evaluate(() => ({
+    h1: document.querySelector("h1").textContent, titre: document.title,
+    courant: (document.querySelector("nav a[aria-current=page]") || {}).textContent,
+    cartes: document.querySelectorAll("article.carte").length,
+    adopter: [...document.querySelectorAll("button")].filter((b) => /Adopter \(N3/.test(b.textContent)).length,
+    statuts: [...document.querySelectorAll("article.carte .badge")].filter((b) => /À décider|Adopté|fichier/.test(b.textContent)).map((b) => b.textContent),
+    propositions: [...document.querySelectorAll(".proposition")].map((x) => x.textContent.replace(/\s+/g, " ")),
+    resume: (document.querySelector("main > p") || {}).textContent,
+  }));
+  constat(G, "structure", "écran des réglages : h1, onglet courant, 10 réglages « À décider » (4 de M2, 6 de M8), un bouton d'adoption N3 chacun",
+    d.h1 === "Réglages de direction" && d.courant === "Réglages de direction" && d.cartes === 10 && d.adopter === 10 && d.statuts.length === 10 && d.statuts.every((x) => x === "À décider"), d);
+  constat(G, "propositions", "trois propositions seulement (les délais de M2), chacune étiquetée « recommandation, non validée » avec sa source ; aucune pour M8",
+    d.propositions.length === 3 && d.propositions.every((x) => /recommandation, non validée/.test(x) && /Source :/.test(x)), d.propositions);
+  await cap(p, "30-reglages-a-decider");
+
+  // Accessibilité : les règles maison sur la page avec formulaires, trois largeurs, deux thèmes.
+  const echecsA11y = {}, reflux = [];
+  for (const schema of ["light", "dark"]) {
+    for (const w of [375, 768, 1280]) {
+      const c2 = await nouveauContexte(br, { viewport: { width: w, height: 800 }, colorScheme: schema });
+      const q = await seConnecter(c2, "proprio-fictif");
+      await q.goto(B + "/reglages");
+      await q.evaluate(CONTROLES);
+      const r = await q.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, res: window.opsysControlesA11y() }));
+      if (r.sw > r.cw) reflux.push(w + "/" + schema + " (" + r.sw + ">" + r.cw + ")");
+      for (const x of r.res) if (!x.ok && !/bonne pratique/.test(x.wcag)) (echecsA11y[x.regle] ||= new Set()).add(w + "/" + schema + " " + JSON.stringify(x.details).slice(0, 140));
+      if (w === 375 && schema === "light") await cap(q, "32-reglages-mobile-375");
+      await c2.close();
+    }
+  }
+  const regles = Object.keys(echecsA11y);
+  constat(G, "a11y", "règles d'accessibilité (WCAG 2.1 AA maison) sur l'écran des réglages : 3 largeurs × 2 thèmes, aucune violation", regles.length === 0, regles.map((r) => [r, [...echecsA11y[r]].slice(0, 3)]));
+  constat(G, "reflow", "écran des réglages : aucun défilement horizontal de la page à 375, 768 et 1280 px", reflux.length === 0, reflux);
+
+  // Adoption de la proposition de M2 : le champ est prérempli, la raison reste à écrire, le clic adopte (N3, sas réel).
+  const carte = () => p.locator("article.carte").filter({ hasText: "m2.jours_entre_relances" });
+  const prerempli = await carte().locator("input[name=saisie]").inputValue();
+  constat(G, "prerempli", "la proposition (7 jours) PRÉREMPLIT le champ sans rien appliquer : l'état reste « À décider »", prerempli === "7" && /À décider/.test(await carte().innerText()), prerempli);
+  const sansRaison = await carte().locator("input[name=raison]").first().evaluate((i) => ({ requis: i.required, valide: i.checkValidity() }));
+  constat(G, "raison-requise", "la raison est obligatoire côté navigateur (champ requis, soumission vide bloquée)", sansRaison.requis && !sansRaison.valide, sansRaison);
+  await carte().locator("input[name=raison]").first().fill("Point de départ discuté au banc du navigateur");
+  await Promise.all([p.waitForURL(/ok=adopte/), carte().getByRole("button", { name: /Adopter \(N3/ }).click()]);
+  const apres = await p.evaluate(() => ({ bandeau: (document.querySelector(".message") || {}).textContent, role: (document.querySelector(".message") || {}).getAttribute && document.querySelector(".message").getAttribute("role"),
+    texte: document.body.innerText.replace(/\s+/g, " ") }));
+  constat(G, "adoption", "adopter : redirection, bandeau « Valeur adoptée (N3) » annoncé poliment, carte « Adopté », 9 réglages restants, journal rempli",
+    /Valeur adoptée \(N3\)/.test(apres.bandeau || "") && apres.role === "status" && /Adopté/.test(apres.texte) && /9 réglage\(s\) à décider sur 10/.test(apres.texte) && /Adoption.*aucune → 7/.test(apres.texte), { bandeau: apres.bandeau, role: apres.role });
+  await cap(p, "31-reglages-adopte");
+
+  // Hors bornes : le serveur refuse (400) et la page d'erreur est lisible ; rien n'est adopté.
+  const csrf = await p.evaluate(() => document.querySelector("input[name=csrf]").value);
+  const horsBornes = await ctx.request.post(B + "/reglages/geste", { form: { csrf: csrf, action: "adopter", cle: "m2.jours_soumission_perimee", saisie: "0", raison: "Essai hors bornes", version_attendue: "0" }, maxRedirects: 0 });
+  const texteRefus = await horsBornes.text();
+  constat(G, "hors-bornes", "valeur hors bornes : 400 et motif lisible (REJ-REGLAGE-HORS-BORNES), rien n'est adopté", horsBornes.status() === 400 && /HORS-BORNES/.test(texteRefus), { statut: horsBornes.status() });
+  const sansJeton = await ctx.request.post(B + "/reglages/geste", { form: { action: "adopter", cle: "m2.jours_soumission_perimee", saisie: "14", raison: "Essai sans jeton", version_attendue: "0" }, maxRedirects: 0 });
+  constat(G, "csrf", "adoption sans jeton CSRF : 403, rien n'est adopté", sansJeton.status() === 403, sansJeton.status());
+  const api = await ctx.request.get(B + "/api/reglages");
+  const etat = await api.json();
+  constat(G, "etat-serveur", "l'état du serveur après ces essais : 9 manquants, une seule valeur adoptée (jours_entre_relances), chaîne valide, une ligne au journal",
+    etat.manquants === 9 && etat.chaine.valide && etat.chaine.maillons === 1 && etat.journal.length === 1 && etat.journal[0].cle === "m2.jours_entre_relances", { manquants: etat.manquants, chaine: etat.chaine });
+
+  // Retour arrière en un geste.
+  await p.goto(B + "/reglages");
+  await carte().locator("form").filter({ hasText: "Revenir en arrière" }).locator("input[name=raison]").fill("Retour au point de départ du banc");
+  await Promise.all([p.waitForURL(/ok=retour_arriere/), carte().getByRole("button", { name: "Revenir en arrière" }).click()]);
+  const retour = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
+  constat(G, "retour-arriere", "revenir en arrière : la valeur est retirée, 10 réglages à décider de nouveau, le retour figure au journal",
+    /10 réglage\(s\) à décider sur 10/.test(retour) && /Retour arrière.*7 → aucune/.test(retour), null);
+  await ctx.close();
+
+  // L'administrateur (sans le rôle propriétaire) voit l'écran mais ne peut pas agir.
+  const ctxA = await nouveauContexte(br);
+  const a = await seConnecter(ctxA, "admin-fictif");
+  await a.goto(B + "/reglages");
+  const vueA = await a.evaluate(() => ({ champs: document.querySelectorAll("input[name=saisie]").length, boutons: [...document.querySelectorAll("button")].filter((b) => /Adopter/.test(b.textContent)).length, note: document.body.innerText.includes("Seul le propriétaire adopte ou annule") }));
+  const csrfA = await a.evaluate(() => document.querySelector("input[name=csrf]").value);
+  const refusA = await ctxA.request.post(B + "/reglages/geste", { form: { csrf: csrfA, action: "adopter", cle: "m2.jours_entre_relances", saisie: "7", raison: "Essai par un administrateur", version_attendue: "0" }, maxRedirects: 0 });
+  constat(G, "administrateur", "l'administrateur voit l'écran sans formulaire (note « Seul le propriétaire… ») et son POST direct est refusé (403)", vueA.champs === 0 && vueA.boutons === 0 && vueA.note && refusA.status() === 403, { vueA, statut: refusA.status() });
+  await ctxA.close();
+}
+
 async function g_journal(br) {
   const G = "journal";
   const ctx = await nouveauContexte(br);
@@ -706,7 +792,8 @@ async function g_journal(br) {
 }
 
 const TOUS = { connexion: g_connexion, tableau: g_tableau, approbations: g_approbations, plateforme: g_plateforme, wallboards: g_wallboards, cron: g_agents_cron, deconnexion: g_deconnexion,
-  journal: g_journal, expiration: g_expiration, csrf: g_csrf, entetes: g_entetes, a11y: g_a11y, clavier: g_clavier, responsive: g_responsive };
+  journal: g_journal, expiration: g_expiration, csrf: g_csrf, entetes: g_entetes, a11y: g_a11y, clavier: g_clavier, responsive: g_responsive,
+  reglages: g_reglages };
 
 (async () => {
   fs.mkdirSync(cfg.captures, { recursive: true });
