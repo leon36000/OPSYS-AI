@@ -42,6 +42,10 @@ MAX_AUDIT_SOURCES = 500
 MAX_AUDIT_EVENTS = 5_000
 MAX_AUDIT_RELATIONS = 10_000
 ROLES_AUTORISES = frozenset({"admin", "nathan_owner"})
+# Module des mémoires qui valent pour tout le projet (directives, ADR, règles d'agent ingérées :
+# `ingestion_projet.py`) :
+# un preflight de n'importe quel module les voit, dès qu'elles sont pertinentes pour la tâche.
+MODULE_TRANSVERSAL = "PROJET"
 EXTENSIONS_TEXTE = frozenset(
     {
         ".md",
@@ -529,6 +533,28 @@ def enregistrer_prompt(
     horodatage: str,
 ) -> dict[str, Any]:
     actor = _acteur()
+    charge = _charge_prompt(prompt_id, texte, version, module, objectif, source_refs, statut)
+    with _connexion() as cnx:
+        cnx.execute("BEGIN IMMEDIATE")
+        try:
+            retour = _ecrire_prompt(cnx, actor, charge, horodatage)
+            cnx.commit()
+            return retour
+        except Exception:
+            cnx.rollback()
+            raise
+
+
+def _charge_prompt(
+    prompt_id: str,
+    texte: str,
+    version: int,
+    module: str,
+    objectif: str,
+    source_refs: list[str] | tuple[str, ...],
+    statut: str,
+) -> dict[str, Any]:
+    """La charge d'un prompt, validée et expurgée (secrets et renseignements personnels masqués)."""
     if not prompt_id or not module or not objectif or version < 1 or statut not in STATUTS:
         raise ValueError("identifiant, module, objectif, version et statut valides requis")
     if not isinstance(texte, str) or not texte.strip() or len(texte) > MAX_PROMPT_CHARS:
@@ -537,7 +563,7 @@ def enregistrer_prompt(
     content, redacted = _nettoyer_texte(texte)
     safe_objective, objective_redacted = _nettoyer_texte(objectif)
     redacted |= objective_redacted
-    payload = {
+    return {
         "prompt_id": prompt_id,
         "version": version,
         "module": module.upper(),
@@ -548,33 +574,31 @@ def enregistrer_prompt(
         "status": "sensitive" if redacted else statut,
         "redacted": redacted,
     }
-    with _connexion() as cnx:
-        cnx.execute("BEGIN IMMEDIATE")
-        try:
-            current = _dernier(cnx, f"prompt:{prompt_id}")
-            if current and version <= current["version"]:
-                if version == current["version"] and json.loads(current["payload_json"]) == payload:
-                    cnx.commit()
-                    return _event_dict(current, replayed=True)["payload"] | {"replayed": True}
-                raise ConflitIdempotence("version de prompt déjà utilisée ou décroissante")
-            event = _ajouter_evenement(
-                cnx,
-                event_type="prompt",
-                entity_id=f"prompt:{prompt_id}",
-                version=version,
-                payload=payload,
-                actor=actor,
-                horodatage=horodatage,
-            )
-            for ref in safe_refs:
-                _relier(cnx, event["event_id"], ref, "source", horodatage)
-            if current:
-                _relier(cnx, current["event_id"], event["event_id"], "superseded_by", horodatage)
-            cnx.commit()
-            return payload | {"event_id": event["event_id"], "replayed": False}
-        except Exception:
-            cnx.rollback()
-            raise
+
+
+def _ecrire_prompt(
+    cnx: sqlite3.Connection, actor: tuple[str, str], payload: dict[str, Any], horodatage: str
+) -> dict[str, Any]:
+    prompt_id, version = payload["prompt_id"], payload["version"]
+    current = _dernier(cnx, f"prompt:{prompt_id}")
+    if current and version <= current["version"]:
+        if version == current["version"] and json.loads(current["payload_json"]) == payload:
+            return _event_dict(current, replayed=True)["payload"] | {"replayed": True}
+        raise ConflitIdempotence("version de prompt déjà utilisée ou décroissante")
+    event = _ajouter_evenement(
+        cnx,
+        event_type="prompt",
+        entity_id=f"prompt:{prompt_id}",
+        version=version,
+        payload=payload,
+        actor=actor,
+        horodatage=horodatage,
+    )
+    for ref in payload["source_refs"]:
+        _relier(cnx, event["event_id"], ref, "source", horodatage)
+    if current:
+        _relier(cnx, current["event_id"], event["event_id"], "superseded_by", horodatage)
+    return payload | {"event_id": event["event_id"], "replayed": False}
 
 
 def enregistrer_plan(
@@ -672,13 +696,40 @@ def enregistrer_decision(
     horodatage: str,
 ) -> dict[str, Any]:
     actor = _acteur()
+    charge = _charge_decision(
+        decision_id, version, module, contexte_decision, options, raisons, consequences, autorite, source_refs, statut
+    )
+    with _connexion() as cnx:
+        cnx.execute("BEGIN IMMEDIATE")
+        try:
+            retour = _ecrire_decision(cnx, actor, charge, horodatage)
+            cnx.commit()
+            return retour
+        except Exception:
+            cnx.rollback()
+            raise
+
+
+def _charge_decision(
+    decision_id: str,
+    version: int,
+    module: str,
+    contexte_decision: str,
+    options: list[str],
+    raisons: list[str],
+    consequences: list[str],
+    autorite: str,
+    source_refs: list[str],
+    statut: str,
+) -> dict[str, Any]:
+    """La charge d'une décision, validée et expurgée."""
     if not decision_id or version < 1 or not module or statut not in STATUTS or not raisons or not autorite:
         raise ValueError("décision, version, raison, autorité et statut valides requis")
     refs = _references_sures(source_refs)
     clean, redacted = _nettoyer(
         {"contexte": contexte_decision, "options": options, "raisons": raisons, "consequences": consequences}
     )
-    payload = {
+    return {
         "decision_id": decision_id,
         "version": version,
         "module": module.upper(),
@@ -688,33 +739,31 @@ def enregistrer_decision(
         "status": "sensitive" if redacted else statut,
         "redacted": redacted,
     }
-    with _connexion() as cnx:
-        cnx.execute("BEGIN IMMEDIATE")
-        try:
-            current = _dernier(cnx, f"decision:{decision_id}")
-            if current and version <= current["version"]:
-                if version == current["version"] and json.loads(current["payload_json"]) == payload:
-                    cnx.commit()
-                    return payload | {"event_id": current["event_id"], "replayed": True}
-                raise ConflitIdempotence("version de décision déjà utilisée ou décroissante")
-            event = _ajouter_evenement(
-                cnx,
-                event_type="decision",
-                entity_id=f"decision:{decision_id}",
-                version=version,
-                payload=payload,
-                actor=actor,
-                horodatage=horodatage,
-            )
-            for ref in refs:
-                _relier(cnx, event["event_id"], ref, "source", horodatage)
-            if current:
-                _relier(cnx, current["event_id"], event["event_id"], "superseded_by", horodatage)
-            cnx.commit()
-            return payload | {"event_id": event["event_id"], "replayed": False}
-        except Exception:
-            cnx.rollback()
-            raise
+
+
+def _ecrire_decision(
+    cnx: sqlite3.Connection, actor: tuple[str, str], payload: dict[str, Any], horodatage: str
+) -> dict[str, Any]:
+    decision_id, version = payload["decision_id"], payload["version"]
+    current = _dernier(cnx, f"decision:{decision_id}")
+    if current and version <= current["version"]:
+        if version == current["version"] and json.loads(current["payload_json"]) == payload:
+            return payload | {"event_id": current["event_id"], "replayed": True}
+        raise ConflitIdempotence("version de décision déjà utilisée ou décroissante")
+    event = _ajouter_evenement(
+        cnx,
+        event_type="decision",
+        entity_id=f"decision:{decision_id}",
+        version=version,
+        payload=payload,
+        actor=actor,
+        horodatage=horodatage,
+    )
+    for ref in payload["source_refs"]:
+        _relier(cnx, event["event_id"], ref, "source", horodatage)
+    if current:
+        _relier(cnx, current["event_id"], event["event_id"], "superseded_by", horodatage)
+    return payload | {"event_id": event["event_id"], "replayed": False}
 
 
 def enregistrer_postflight(
@@ -1127,7 +1176,7 @@ def _candidat_eligible(row: sqlite3.Row, module: str, remplaces: set[str]) -> di
     if row["event_type"] not in {"prompt", "plan", "decision", "postflight"}:
         return None
     payload = json.loads(row["payload_json"])
-    if payload.get("module", "").upper() != module.upper():
+    if payload.get("module", "").upper() not in {module.upper(), MODULE_TRANSVERSAL}:
         return None
     state = "superseded" if row["event_id"] in remplaces else payload.get("status", "active")
     if row["event_type"] in {"prompt", "plan", "decision"} and state not in {
@@ -1298,7 +1347,7 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
 
     sources_by_event: dict[str, list[sqlite3.Row]] = {}
     for source in source_rows:
-        if source["module"].upper() in {module.upper(), "CORE", "OPSYS"}:
+        if source["module"].upper() in {module.upper(), "CORE", "OPSYS", MODULE_TRANSVERSAL}:
             sources_by_event.setdefault(source["event_id"], []).append(source)
 
     sequence_by_event = {row["event_id"]: row["seq"] for row in rows}
@@ -1348,7 +1397,7 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
     candidates_omitted = max(0, len(candidates) - len(must_know))
     evidence = []
     for source in source_rows:
-        if source["module"].upper() not in {module.upper(), "CORE", "OPSYS"}:
+        if source["module"].upper() not in {module.upper(), "CORE", "OPSYS", MODULE_TRANSVERSAL}:
             continue
         source_text = f"{source['path']} {source['excerpt']}"
         score = _score(terms, source_text)

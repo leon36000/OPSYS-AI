@@ -32,6 +32,7 @@ LISTER = "m10_lister_affaires_a_consolider"
 CONSOLIDER = "m10_consolider_affaire"
 AUDIT = "m10_executer_audit_non_oubli"
 KPIS = "m10_calculer_kpis"
+RAFRAICHIR = "m10_rafraichir_contradictions"
 JOURS_AUDIT = 7
 
 
@@ -140,7 +141,39 @@ class KpisMemoire(ExecuteurRoutine):
         return {"etapes": 1, "rapports": 1 if calcul["ecrit"] else 0}
 
 
+class RafraichirContradictions(ExecuteurRoutine):
+    """Une fois par jour : détecte, range et marque les contradictions entre affirmations de sources différentes, et
+    ouvre au sas la demande d'approbation d'une contradiction critique. Ne supprime rien, ne tranche rien seule.
+
+    En ombre, seul le calcul à blanc est appelé (`ecrire` faux) : l'exécuteur dit ce qu'il AURAIT rangé et demandé."""
+
+    def ressources(self, ctx: Contexte) -> list[str]:
+        super().ressources(ctx)
+        self._verifier(ctx)
+        due, jour = self.echeance(ctx)
+        return [jour] if due and not self.deja_fait(jour, ctx) else []
+
+    def constater(self, ressource: str, ctx: Contexte) -> dict[str, Any]:
+        bilan = self.resultat(self._appeler(ctx, RAFRAICHIR, {"horodatage": self.instant_iso(ctx), "ecrire": False}))
+        self._journaliser_aurait(
+            ressource, aurait=1, contradictions=int(bilan["nouvelles"]), demandes=int(bilan["demandes_a_ouvrir"]),
+            traites=int(bilan["auto_resolues"]),
+        )
+        return {"aurait": 1}
+
+    def traiter(self, ressource: str, ctx: Contexte, bail: Bail) -> dict[str, Any]:
+        ctx.exiger_actif(bail)
+        bilan = self.resultat(self._appeler(ctx, RAFRAICHIR, {"horodatage": self.instant_iso(ctx)}))
+        resume = {
+            "etapes": 1, "contradictions": int(bilan["nouvelles"]), "traites": int(bilan["auto_resolues"]),
+            "demandes": int(bilan["demandes_ouvertes"]), "differees": int(bilan["demandes_differees"]),
+        }
+        self._clore(ressource, None, **resume)
+        return resume
+
+
 ROUTINES = {
+    "m10:contradictions-memoire": RafraichirContradictions,
     "m10:consolidation-affaires": ConsolidationAffaires,
     "m10:audit-non-oubli": AuditNonOubli,
     "m10:kpis-memoire": KpisMemoire,

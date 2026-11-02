@@ -308,6 +308,14 @@ TOURS: tuple[Tour, ...] = (
          "clé (jour, empreinte du contenu) : un calcul identique n'ajoute rien", "aucun", "brancher_maintenant",
          "Deux KPI sur cinq calculables, trois dits non calculables avec ce qui manque (jamais zéro).",
          "m10.routine.kpis-memoire"),
+    Tour("m10.rafraichir_contradictions", "M10 : contradictions de la mémoire (file consultable, sas pour le critique)",
+         _OPS + "m10-memoire/src/m10_memoire/contradictions_outils.py", "rafraichir_contradictions", "N2",
+         "identifiant de contradiction = empreinte (clé, deux affirmations) : rejouer n'ajoute rien ; une demande "
+         "d'approbation par contradiction critique", "aucun", "brancher_maintenant",
+         "Range et marque, propose selon l'ordre de vérité (une donnée) ; la contradiction critique attend une "
+         "personne "
+         "(N3). Les domaines affaires et développement ne se croisent jamais.",
+         "m10.routine.contradictions-memoire"),
 )
 
 # Péremptions évaluées À LA LECTURE (rien n'écrit, donc rien à balayer ; le constat planifié est

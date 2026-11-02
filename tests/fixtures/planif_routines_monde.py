@@ -34,7 +34,12 @@ ROUTINES_M1 = (
     "m1.routine.urgences",
     "m1.routine.kpis-reception",
 )
-ROUTINES_M10 = ("m10.routine.consolidation-affaires", "m10.routine.audit-non-oubli", "m10.routine.kpis-memoire")
+ROUTINES_M10 = (
+    "m10.routine.consolidation-affaires",
+    "m10.routine.audit-non-oubli",
+    "m10.routine.kpis-memoire",
+    "m10.routine.contradictions-memoire",
+)
 TOUTES = ROUTINES_M1 + ROUTINES_M10
 # Ce qui ne doit JAMAIS apparaître dans un journal, une attente ou un avis : un numéro, un texte de client.
 PERSONNEL = ("+1514", "5145550", "@example.test", "gouttières fuient", "fil électrique", "Danger", "déçu")

@@ -32,10 +32,15 @@ def test_types_entree_valides_sont_exactement_ceux_de_m10():
         "dossier_cpa_scelle",  # interconnexion M5 -> M10 : dossiers de période scellés
         "rapport_routine",  # routines planifiées : audit « non-oubli » et KPI (registre `rapports_routine`)
         "fait_marketing",  # M7-MEMOIRE : observations minimales d'apprentissage marketing
+        # M10-04 : registres `affirmations` et `contradictions` (contradictions.py)
+        "affirmation_enregistree", "affirmation_retiree",
+        "contradiction_detectee", "contradiction_marque", "contradiction_demande", "contradiction_decidee",
+        # Mémoire d'expérience des agents, jalon J1 (opsys.mnemo.experience) : registre `experiences`
+        "experience_proposee", "experience_refusee",
     }
 
     assert types_attendus.issubset(registre._TYPE_ENTREE_VALIDES)
-    assert len(registre._TYPE_ENTREE_VALIDES) == 22
+    assert len(registre._TYPE_ENTREE_VALIDES) == 30
     assert "mouvement_enregistre" not in registre._TYPE_ENTREE_VALIDES
     assert "demande_creee" not in registre._TYPE_ENTREE_VALIDES
     assert "transition_approbation" not in registre._TYPE_ENTREE_VALIDES

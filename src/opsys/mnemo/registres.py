@@ -29,6 +29,11 @@ def lecons() -> Any:
     return _registre("lecons")
 
 
+def experiences() -> Any:
+    """Mémoire d'expérience des agents (J1) : éléments candidats et refus d'admission, append-only."""
+    return _registre("experiences")
+
+
 def evenements() -> Any:
     return _registre("evenements")
 

@@ -36,6 +36,11 @@ _TYPE_ENTREE_VALIDES = {
     "rapport_routine",  # routines planifiées (routines.py) : audit « non-oubli » et KPI, registre `rapports_routine`
     "dossier_cpa_scelle",  # interconnexion M5 -> M10 : dossiers_cpa.py, mémoire des périodes scellées (registre dédié)
     "fait_marketing",  # M7-MEMOIRE : apprentissage_marketing.py, observations minimales de M7 (registre dédié)
+    # M10-04 (contradictions.py) : registres `affirmations` et `contradictions`, append-only, état rejoué.
+    "affirmation_enregistree", "affirmation_retiree",
+    "contradiction_detectee", "contradiction_marque", "contradiction_demande", "contradiction_decidee",
+    # Mémoire d'expérience des agents, jalon J1 (opsys.mnemo.experience) : registre `experiences`.
+    "experience_proposee", "experience_refusee",
 }
 
 

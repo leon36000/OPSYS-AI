@@ -1,0 +1,36 @@
+{
+  "schema": "opsys.m10.ordre_verite/v1",
+  "version": "2026-11-02.1",
+  "source": "Condensé M10 du prompt de Nathan (juin 2026), section « Résolveur de vérité canonique » : constitution > décisions explicites de Nathan > matrice vivante > rapports récents validés > tests et sondes runtime > code actuel > documentation > journaux > mémoires anciennes > hypothèses.",
+  "avertissement": "Cet ordre est une DONNÉE : le code (verite.py, contradictions.py) ne connaît aucune classe par son nom, il lit la position. Changer l'ordre = changer ce fichier (son empreinte entre dans chaque contradiction rangée). L'arbitrage d'architecte ANALYSE-M10 §3 point 5 propose de placer la preuve exécutée (tests et sondes, code) au-dessus de l'étiquette d'une matrice : décision de Nathan en attente, ce fichier suit le condensé tel qu'écrit.",
+  "classes": [
+    {"id": "constitution", "libelle": "Constitution du projet (ADR acceptés, règles d'agent)", "admission": ["developpement:ingestion"]},
+    {"id": "decision_proprietaire", "libelle": "Décision explicite du propriétaire", "admission": ["developpement:ingestion", "affaires:humain"]},
+    {"id": "matrice_vivante", "libelle": "Matrice d'exigences vivante", "admission": ["developpement:ingestion"]},
+    {"id": "rapport_valide", "libelle": "Rapport récent validé", "admission": ["developpement:ingestion", "affaires:humain"]},
+    {"id": "test_sonde", "libelle": "Test ou sonde runtime", "admission": ["developpement:ingestion"]},
+    {"id": "code", "libelle": "Code actuel", "admission": ["developpement:ingestion"]},
+    {"id": "documentation", "libelle": "Documentation", "admission": ["developpement:ingestion", "affaires:agent"]},
+    {"id": "journal", "libelle": "Journal d'événements", "admission": ["developpement:ingestion", "affaires:agent"]},
+    {"id": "memoire_ancienne", "libelle": "Mémoire ancienne (condensé, ancien rapport)", "admission": ["developpement:ingestion", "affaires:agent"]},
+    {"id": "hypothese", "libelle": "Hypothèse", "admission": ["developpement:ingestion", "affaires:agent"]}
+  ],
+  "criticite": {
+    "classes": ["constitution", "decision_proprietaire"],
+    "attributs": ["gate_humain", "regle_permanente", "niveau_approbation", "confidentialite"]
+  },
+  "sujets": {
+    "affaires": ["affaire", "devis", "chantier", "wct", "regle"],
+    "developpement": ["exigence", "adr", "regle", "module", "directive"]
+  },
+  "sources_fichiers": [
+    {"motif": "docs/produit/DIRECTIVES-NATHAN.md", "classe": "decision_proprietaire", "genre": "directive"},
+    {"motif": "docs/decisions/ADR-*.md", "classe": "constitution", "genre": "adr"},
+    {"motif": "AGENTS.md", "classe": "constitution", "genre": "regle"},
+    {"motif": "CLAUDE.md", "classe": "constitution", "genre": "regle"},
+    {"motif": "docs/reprise/MATRICES-*/MATRICE-EXIGENCES-*.json", "classe": "matrice_vivante", "genre": "matrice"},
+    {"motif": "docs/reprise/PROMPTS-NATHAN-ANCIENS/M*-*.md", "classe": "memoire_ancienne", "genre": "condense"},
+    {"motif": "docs/produit/*.md", "classe": "documentation", "genre": "document"},
+    {"motif": "docs/architecture/*.md", "classe": "documentation", "genre": "document"}
+  ]
+}

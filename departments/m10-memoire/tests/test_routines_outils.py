@@ -65,7 +65,8 @@ def test_les_quatre_outils_sont_declares_n0_ou_n2_agent_seulement_et_le_manifest
         ).read_text(encoding="utf-8")
     )
     declares = {o for r in manifeste["routines_planifiees"] for o in r["outils"]}
-    assert declares == set(attendus) - {"m10_lire_rapports_routine"}  # la lecture sert aux personnes, pas à une routine
+    # la lecture sert aux personnes, pas à une routine ; le rafraîchissement des contradictions a son propre test
+    assert declares == (set(attendus) - {"m10_lire_rapports_routine"}) | {"m10_rafraichir_contradictions"}
     assert {k["id"] for k in manifeste["kpis"]} == set(routines.kpi_ids())
 
 

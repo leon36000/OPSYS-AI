@@ -148,7 +148,7 @@ PLAN T4.18-b ajoute une forme d'affaire COMMUNE et deux blocs au paquet, sans to
 `src/opsys/mnemo/` (socle). Trois pièces : le **modèle de soi** de l'entreprise (énoncés versionnés, sourcés, confirmés par une
 personne, dérive = révision proposée), un **graphe d'entités** natif (migration 0052, schéma fermé, arêtes sensibles confirmées par
 une personne, port `MoteurGraphe`) et des **leçons** mesurées hors ligne, promues par une personne (canari, retour arrière, aucune
-application seule). 21 outils M10 + 2 outils communs, aucun rôle d'appareil. Documentation, mesures et limites :
+application seule). 21 outils M10 + 2 outils communs, aucun rôle d'appareil (7 outils de plus pour les contradictions et la mémoire d'expérience : voir plus bas). Documentation, mesures et limites :
 [docs/architecture/M10-SOI-GRAPHE.md](../../docs/architecture/M10-SOI-GRAPHE.md). Statut : PARTIEL (aucun modèle réel, aucune donnée
 réelle, aucun département ne consomme encore les leçons).
 
@@ -183,3 +183,33 @@ Résultats au registre `rapports_routine` (hash-chaîné, idempotent par genre, 
 seulement. Statut : PARTIEL, prouvé sur SQLite avec horloge injectée, vrai bus et données fictives
 (`tests/test_routines_m10_e2e.py`) ; jamais sur PostgreSQL ni sur la boucle réelle pendant des jours.
 
+
+## Contradictions, ordre de vérité et ingestion de la mémoire de projet (M10-03 et M10-04, 2026-11-02)
+
+Documentation et limites : [docs/architecture/M10-CONTRADICTIONS.md](../../docs/architecture/M10-CONTRADICTIONS.md). Deux mémoires de sources
+différentes qui se contredisent ne sont plus tranchées au hasard ni détectées à la main seulement :
+
+- **L'ordre de vérité est une donnée** (`contracts/ordre-verite.v1.json`, lu par `verite.py`) : constitution > décisions du propriétaire > matrice
+  vivante > rapports validés > tests et sondes > code > documentation > journaux > mémoires anciennes > hypothèses (l'ordre du condensé de Nathan ; la
+  divergence avec l'arbitrage de l'analyse d'écart est dite dans le document). La classe d'une source dépend du canal qui l'a écrite : un agent ne se
+  donne pas une autorité haute.
+- **Deux registres append-only chaînés**, `affirmations` (faits à clé, sourcés, par domaine) et `contradictions` (détection, marques `retenue` / `dominee` /
+  `contestee`, demande d'approbation, décision). Une contradiction non critique de rangs différents est résolue (l'autre source est *marquée*, jamais supprimée) ;
+  une contradiction **critique** ouvre une demande au sas N3 dont les arguments sont la proposition ; rejouer la détection n'ajoute rien.
+- **Cinq outils** (`contradictions_outils.py`) : `m10_consigner_affirmation` (N2), `m10_declarer_affirmation_humaine` (N3), `m10_lire_contradictions` (N0),
+  `m10_rafraichir_contradictions` (N2, écriture réservée au planificateur), `m10_decider_contradiction` (N3) ; aucun droit d'appareil.
+- **Une cinquième routine planifiée** `contradictions-memoire` (cron `10 4 * * *`, à valider, **inactive par défaut**, en ombre « aurait » sans rien écrire).
+- **Ingestion de la mémoire de projet** (`ingestion_projet.py`, `opsys-metier memoire-developpement ingerer-projet --depot …`) : directives de Nathan (une décision par
+  section), ADR (statut, remplacement total lié, partiel consigné), règles d'agent, condensés (prompts versionnés), matrices (une affirmation par exigence), sources
+  avec chemin + empreinte + date + sensibilité classée ; idempotente, sans suppression (versions, archives, retraits), bornée ; consultable par le preflight de
+  développement existant (module `PROJET`).
+
+Statut : PARTIEL. Prouvé sur SQLite avec le vrai bus, la vraie file d'approbation et le vrai planificateur à horloge injectée
+(`tests/test_contradictions_m10_e2e.py`) et par des mutations (voir le compte rendu de la livraison) ; jamais sur PostgreSQL ni avec des données réelles.
+
+## Mémoire d'expérience des agents : jalons J1 et J2 (2026-11-02)
+
+[docs/architecture/MEMOIRE-EXPERIENCE-AGENTS-J1-J2.md](../../docs/architecture/MEMOIRE-EXPERIENCE-AGENTS-J1-J2.md). `experience_outils.py` : `m10_proposer_experience`
+(N2) passe la **garde d'admission** (`opsys.mnemo.experience` : schéma fermé, noms vérifiés contre le registre MCP scellé, aucune valeur, aucun chiffre, aucun renseignement
+personnel, aucun conseil de contourner l'approbation) ; l'élément reste `candidat`, aucun département ne le lit. `m10_lire_experiences` (N0). Le **banc** « avec / sans mémoire »
+(`opsys.evaluation.memoire_experience`, cas `evals/experience.v1.yaml`) se valide par un répondant double sensible à la mémoire. **Aucun modèle réel n'a été mesuré.**

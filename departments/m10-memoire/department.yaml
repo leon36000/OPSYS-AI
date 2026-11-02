@@ -75,14 +75,21 @@ routines_planifiees:
     outils: [m10_calculer_kpis]
     cadence: {cron: "45 4 * * *"}   # après la consolidation, à valider par la direction
     description: Calcule les KPI de mémoire du manifeste (ceux que les registres permettent de calculer) vers un résultat consultable.
+  - nom: contradictions-memoire
+    outils: [m10_rafraichir_contradictions]
+    cadence: {cron: "10 4 * * *"}   # après la consolidation, avant l'audit et les KPI ; à valider par la direction
+    description: >-
+      Détecte les contradictions entre affirmations de sources différentes (domaines affaires et développement, jamais mêlés),
+      les range, marque les mémoires touchées et propose selon l'ordre de vérité ; une contradiction critique ouvre une demande
+      d'approbation. Rien n'est supprimé ni tranché sans personne.
 budget:
   tokens_jour: 200000
   tokens_mois: 2500000
   alerte_pct: 80
 memoire:
-  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques, registre_dossiers_cpa, registre_soi, registre_lecons, registre_faits_marketing]
+  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques, registre_dossiers_cpa, registre_soi, registre_lecons, registre_faits_marketing, registre_affirmations, registre_contradictions]
   ecriture: [registre_evenements, registre_affaires, registre_references_configuration, registre_faits_analytiques, registre_dossiers_cpa,
-    registre_soi, registre_lecons, registre_faits_marketing]
+    registre_soi, registre_lecons, registre_faits_marketing, registre_affirmations, registre_contradictions]
 kpis:
   - id: taux_revisions_arbitrees
     description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.

@@ -203,6 +203,7 @@ La descente est refusée dès qu'une ligne existe. Aucune table existante n'est 
 | `src/opsys/connecteurs_planification/routines.py`, `exec_m1.py`, `exec_m10.py`, `departements.py` (blocs `routines_planifiees` et `remplacee_par`) | routines planifiées (§10) |
 | `departments/m01-front-office/src/m1_front_office/{reception_interne,reception_interne_outils}.py` | lecture, avis « À voir » et KPI de la réception |
 | `departments/m10-memoire/src/m10_memoire/{routines,routines_outils}.py` | énumérateur, audit hebdomadaire, KPI de M10 |
+| `departments/m10-memoire/src/m10_memoire/{verite,contradictions,contradictions_outils}.py` | ordre de vérité (donnée), contradictions, rafraîchissement planifié (M10-04) |
 | `tests/test_routines_planifiees.py`, `tests/test_routines_m1_e2e.py`, `tests/test_routines_m10_e2e.py`, `tests/fixtures/planif_routines_monde.py`, tests des deux départements | preuves des routines |
 
 ## 9. Constats planifiés pour M8 : un département déclare, le planificateur déclenche
@@ -359,6 +360,7 @@ que la routine existe et la suit. Remplacées : `digest-front-office` (M1) et `c
 | `m10.routine.consolidation-affaires` | cron de `consolidation-nocturne` (3 h), sondé 15 min | `m10_lister_affaires_a_consolider` (N0), `m10_consolider_affaire` (N2) | L'énumérateur désigne les affaires touchées la veille dont le fait durable manque ou ne cite pas toutes les sources ; chacune est consolidée sous son propre bail. |
 | `m10.routine.audit-non-oubli` | cron déclaré lundi 4 h 30 | `m10_executer_audit_non_oubli` (N2) | L'audit hebdomadaire, rapport consultable. |
 | `m10.routine.kpis-memoire` | cron déclaré 4 h 45 | `m10_calculer_kpis` (N2) | Les KPI du manifeste de M10, calculables ou dits non calculables. |
+| `m10.routine.contradictions-memoire` | cron déclaré 4 h 10 | `m10_rafraichir_contradictions` (N2) | Détecte et range les contradictions entre affirmations de sources différentes (domaines affaires et développement, jamais mêlés), marque les mémoires, propose selon l'ordre de vérité (une donnée) ; une contradiction critique ouvre UNE demande d'approbation N3 (5 par passage, 20 ouvertes au plus). En ombre : « aurait » avec des compteurs, rien n'est écrit. Voir `M10-CONTRADICTIONS.md`. |
 
 **Outils ajoutés (sept, tous agent seulement, aucun droit d'appareil ; registre MCP révision 14).** Quand un outil de lecture
 existait, il a été réutilisé : le digest existant (`digest.produire_digest`) est repris tel quel pour les jours couverts,
