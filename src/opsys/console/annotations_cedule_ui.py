@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from .. import identite, stockage
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import metier, pages
 
 CLES = ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')
@@ -108,7 +109,7 @@ async def _formulaire(request, champ="texte_libre"):
 def ecriture_qualifiee(cnx_factory):
     """Même frontière que le writer; aucun formulaire trompeur sur un backend fermé."""
     with cnx_factory() as cnx:
-        return cnx.dialect.name == "sqlite"
+        return cnx.dialect.name in DIALECTES_QUALIFIES
 
 
 def verifier_lecture(cnx, session):

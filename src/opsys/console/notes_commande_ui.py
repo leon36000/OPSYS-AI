@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from .. import contexte, idempotence, identite, notes_commande_affaire, notes_commande_memoire
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import metier, pages
 
 IDENTIFIANT = re.compile(r'[\w.:@\-]{1,200}')
@@ -125,7 +126,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
     def appeler(session, nom, args, mutation=None):
         try:
             with cnx_factory() as cnx:
-                if mutation is not None and cnx.dialect.name != 'sqlite':
+                if mutation is not None and cnx.dialect.name not in DIALECTES_QUALIFIES:
                     raise HTTPException(503, 'Écriture des notes indisponible sur cette instance')
                 return extraire(metier.executer(cnx, deps, session, nom, args, mutation_id=mutation))
         except PermissionError:
@@ -221,7 +222,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
         if vue['suivant'] is not None:
             corps += f'<a href="{pages.e(url)}?decalage={vue["suivant"]}">Page suivante</a>'
         with cnx_factory() as cnx:
-            disponible = cnx.dialect.name == 'sqlite'
+            disponible = cnx.dialect.name in DIALECTES_QUALIFIES
         corps += (edition(url, session.csrf) if disponible else '<p>Écriture indisponible sur cette instance.</p>')
         return rendre(session, 'Notes d’achat', corps+'</section>')
 
@@ -251,7 +252,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
             corps += f'<a href="{pages.e(lien)}?revision={note["revision"]+1}">Révision suivante</a> '
         corps += f'<a href="{pages.e(lien)}">Version courante</a>'
         with cnx_factory() as cnx:
-            disponible = cnx.dialect.name == 'sqlite'
+            disponible = cnx.dialect.name in DIALECTES_QUALIFIES
         if revision is None and disponible:
             corps += edition(lien, session.csrf, note)
         return rendre(session, 'Historique de la note', corps+'</section>')

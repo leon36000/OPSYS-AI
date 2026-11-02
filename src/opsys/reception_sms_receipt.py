@@ -14,6 +14,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from opsys import agents, canaux, stockage
 from opsys.reception_sms_runtime import valider_commande
 
+from .stockage.concurrence import relire_si_conflit
+from .stockage.portabilite import DIALECTES_QUALIFIES
+
 _RECEVOIR = 'opsys_runtime_recevoir_sms'
 _LIRE = 'opsys_runtime_lire_reception_sms'
 _OPERATIONS = {_RECEVOIR: 'recevoir', _LIRE: 'lire'}
@@ -245,10 +248,16 @@ def executer(cnx, arguments, *, operation, m1):
         except (ValueError, TypeError, RecursionError):
             raise _Refus('forme_invalide') from None
         _exiger(isinstance(cnx, Connection) and cnx is stockage.connexion_courante()
-                and not cnx.closed and cnx.in_transaction() and cnx.dialect.name == 'sqlite'
+                and not cnx.closed and cnx.in_transaction() and cnx.dialect.name in DIALECTES_QUALIFIES
                 and cnx.engine.url == stockage.moteur().url)
-        with cnx.begin_nested():
-            return _executer(cnx, arguments, cmd, m1)
+        def dans_un_point_de_sauvegarde():
+            with cnx.begin_nested():
+                return _executer(cnx, arguments, cmd, m1)
+
+        # PostgreSQL : deux réceptions simultanées du même SMS lisent « pas encore de reçu » puis s'ajoutent toutes
+        # deux au registre M1 ; la perdante est REJOUÉE, relit le reçu de la gagnante et rend le même ACK (rejeu), comme
+        # sous SQLite (écrivain unique). Rien ne change sous SQLite.
+        return relire_si_conflit(dans_un_point_de_sauvegarde)
     except _Refus as refusal:
         etat = refusal.etat
     except (ValueError, TypeError, KeyError, AttributeError, ArithmeticError,

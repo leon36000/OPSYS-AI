@@ -12,10 +12,12 @@ from typing import Any
 
 import yaml
 from m5_financecore import encodage, outils
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import stockage
 from opsys.stockage.schema import REGISTRES
+
+from ..stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 
 _DEPARTEMENT = "m05-financecore"
 _REGISTRES = ("principal", "factures", "comptes_a_payer")
@@ -59,9 +61,9 @@ def _file_digest(path: Path) -> str:
 
 def _guard_registers(cnx: Any) -> None:
     """Préborne avant l'appel aux lecteurs natifs; transaction SQLite bloque les auteurs."""
-    if cnx.dialect.name != "sqlite":
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise ValueError("backend non qualifié")
-    octets = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    octets = nb_octets(REGISTRES.c.maillon)
     count_expr = func.count()
     total_expr = func.coalesce(func.sum(octets), 0)
     max_expr = func.coalesce(func.max(octets), 0)
@@ -250,7 +252,7 @@ def capturer_snapshot_prive(cnx: Any) -> CaptureFinancePrivee:
 
     Le caller autorisé projette ensuite avec `journal.lire_rapprochements(cnx, capture.snapshot_builder)`.
     """
-    if stockage.connexion_courante() is not cnx or cnx.dialect.name != "sqlite":
+    if stockage.connexion_courante() is not cnx or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise ValueError("capture financière indisponible")
     if not getattr(outils, "_stockage_durable_actif", False):
         raise ValueError("capture financière indisponible")
@@ -286,7 +288,7 @@ def capturer_snapshot_prive(cnx: Any) -> CaptureFinancePrivee:
         try:
             return (
                 stockage.connexion_courante() is cnx
-                and cnx.dialect.name == "sqlite"
+                and cnx.dialect.name in DIALECTES_QUALIFIES
                 and getattr(outils, "_stockage_durable_actif", False)
                 and hashlib.sha256(outils._MANIFESTE.read_bytes()).hexdigest() == config_hash
                 and _file_digest(Path(outils._CHEMIN_CALENDRIER_FISCAL)) == fiscal_hashes["calendrier"]

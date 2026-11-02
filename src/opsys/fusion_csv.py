@@ -26,6 +26,7 @@ from sqlalchemy.exc import OperationalError
 from . import etat, identite, stockage
 from .console import banque_metier
 from .departements import Departement
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import FUSION_COMMANDES, FUSION_LIGNES, FUSION_LOTS, FUSION_QUOTA
 
 ENV_CLE = "OPSYS_INGESTION_CLE"
@@ -258,9 +259,9 @@ def _exiger_personne(cnx: Connection, acteur: str):
 
 
 def _isoler_transaction(cnx: Connection) -> None:
-    if cnx.dialect.name != "sqlite":
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise FusionErreur(
-            "STOCKAGE_NON_QUALIFIE", "Fusion opérationnelle est qualifiée SQLite seulement", 503
+            "STOCKAGE_NON_QUALIFIE", "Fusion opérationnelle est qualifiée SQLite et PostgreSQL seulement", 503
         )
 
 

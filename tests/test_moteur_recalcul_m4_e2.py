@@ -298,21 +298,21 @@ def test_le_verrou_d_ecriture_est_reellement_pris_par_la_transaction(base_durabl
 
 
 # -------------------------------------------------------------------------------------------
-# PostgreSQL : refus explicite
+# Moteur non qualifié : refus explicite (SQLite et PostgreSQL sont qualifiés : `test_postgresql_portage_services_m4`)
 # -------------------------------------------------------------------------------------------
-def test_postgresql_refuse_explicitement_sans_aucun_acces_a_la_base():
+def test_un_moteur_non_qualifie_refuse_explicitement_sans_aucun_acces_a_la_base():
     from types import SimpleNamespace
 
     class Connexion(SimpleNamespace):
         def execute(self, *a, **k):  # pragma: no cover - ne doit jamais être appelé
             raise AssertionError("aucun accès base attendu sur un backend non qualifié")
 
-    cnx = Connexion(engine=SimpleNamespace(dialect=SimpleNamespace(name="postgresql")))
+    cnx = Connexion(engine=SimpleNamespace(dialect=SimpleNamespace(name="mysql")))
     session = Session("nathan", frozenset({"admin"}), "csrf-fictif", int(time.time()) + 3600)
     with pytest.raises(moteur.RefusRecalculM4) as exc:
         moteur.recalculer(cnx, session, acteur="nathan", wct_id="a" * 64, devis_id="DEVIS", intention_id="b" * 64)
-    assert exc.value.code == moteur.BACKEND_NON_SQLITE
-    assert "SQLite" in str(exc.value)
+    assert exc.value.code == moteur.BACKEND_NON_QUALIFIE
+    assert "SQLite et PostgreSQL" in str(exc.value)
 
 
 # -------------------------------------------------------------------------------------------

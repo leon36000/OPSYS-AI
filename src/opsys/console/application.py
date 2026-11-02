@@ -53,6 +53,7 @@ from ..capacites import Capacites
 from ..departements import Departement, charger_departements
 from ..pont_bi import http as pont_bi_http
 from ..stockage import base_cron_operateur
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE
 from . import (
     agents_etat,
@@ -721,7 +722,7 @@ def creer_application(
             if ident and profil and profil["departement"] == "m05-financecore":
                 from .. import agent_cfo_grants
 
-                if cnx.dialect.name == "sqlite":
+                if cnx.dialect.name in DIALECTES_QUALIFIES:
                     instance = agent_cfo_grants.instance_id(cnx)
                     grant = agent_cfo_grants.lire(cnx, ident, instance_id=instance)
             en_attente = tableau_de_bord.nombre_en_attente(cnx, pages.PLAFOND_PASTILLE)

@@ -15,13 +15,14 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import LargeBinary, cast, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 
 from . import fusion_csv, fusion_pdf, identite
 from .ocr_candidat import ContexteOCR, OCRContratErreur, decoder_candidat
 from .ocr_profil import MODELE_SHA256, PDFIUM_SHA256, OCRProfilErreur, valider_bundle
 from .ocr_runtime import OCRRuntimeErreur, contexte_ocr, extraire_candidat
 from .ocr_worker import CONFIGURATION_SHA256
+from .stockage.portabilite import est_texte, nb_octets, type_stockage
 from .stockage.schema import (
     FUSION_PDF_LOTS,
     FUSION_PDF_OCR_COMMANDES,
@@ -107,13 +108,13 @@ def _meta_pdf(cnx, lot_id: str) -> dict[str, Any]:
     if not _uuid(lot_id):
         raise _erreur("LOT_INCONNU", 404)
     t = FUSION_PDF_LOTS
-    taille = func.length(cast(t.c.source_cipher, LargeBinary))
+    taille = nb_octets(t.c.source_cipher)
     stmt = select(
         t.c.lot_id, t.c.acteur, t.c.type_source, t.c.classe, t.c.extracteur, t.c.configuration_sha256,
         t.c.source_sha256, t.c.source_octets, t.c.source_cipher_octets,
-        func.typeof(t.c.source_cipher).label("source_cipher_type"), taille.label("source_cipher_taille"),
-        func.typeof(t.c.source_nonce).label("source_nonce_type"),
-        func.length(cast(t.c.source_nonce, LargeBinary)).label("source_nonce_taille"),
+        type_stockage(t.c.source_cipher).label("source_cipher_type"), taille.label("source_cipher_taille"),
+        type_stockage(t.c.source_nonce).label("source_nonce_type"),
+        nb_octets(t.c.source_nonce).label("source_nonce_taille"),
         t.c.cle_reference, t.c.version_format, t.c.statut, t.c.revision, t.c.code,
     ).where(t.c.lot_id == lot_id)
     row = cnx.execute(stmt).mappings().one_or_none()
@@ -147,10 +148,10 @@ def _meta_pdf(cnx, lot_id: str) -> dict[str, Any]:
     payload = cnx.execute(select(
         t.c.source_nonce, t.c.source_cipher,
     ).where(
-        (t.c.lot_id == lot_id) & (func.typeof(t.c.source_cipher) == "text")
-        & (func.typeof(t.c.source_nonce) == "text")
-        & (func.length(cast(t.c.source_nonce, LargeBinary)) == 16)
-        & (func.length(cast(t.c.source_cipher, LargeBinary)) <= _SOURCE_B64_MAX)
+        (t.c.lot_id == lot_id) & (est_texte(t.c.source_cipher))
+        & (est_texte(t.c.source_nonce))
+        & (nb_octets(t.c.source_nonce) == 16)
+        & (nb_octets(t.c.source_cipher) <= _SOURCE_B64_MAX)
         & t.c.source_cipher_octets.between(17, _SOURCE_CIPHER_MAX)
     )).one_or_none()
     if payload is None or type(payload[0]) is not str or type(payload[1]) is not str:
@@ -216,10 +217,10 @@ def _run(cnx, run_id: str) -> dict[str, Any]:
         t.c.configuration_sha256, t.c.profil_id, t.c.cle_reference, t.c.version_format,
         t.c.revision_run, t.c.statut, t.c.reserve_octets, t.c.resultat_cipher_octets, t.c.code,
         t.c.cree_le, t.c.modifie_le,
-        func.typeof(t.c.resultat_cipher).label("cipher_type"),
-        func.length(cast(t.c.resultat_cipher, LargeBinary)).label("cipher_taille"),
-        func.typeof(t.c.resultat_nonce).label("nonce_type"),
-        func.length(cast(t.c.resultat_nonce, LargeBinary)).label("nonce_taille"),
+        type_stockage(t.c.resultat_cipher).label("cipher_type"),
+        nb_octets(t.c.resultat_cipher).label("cipher_taille"),
+        type_stockage(t.c.resultat_nonce).label("nonce_type"),
+        nb_octets(t.c.resultat_nonce).label("nonce_taille"),
     ).where(t.c.ocr_run_id == run_id)).mappings().one_or_none()
     if row is None:
         raise _erreur("OCR_RUN_INCONNU", 404)
@@ -270,11 +271,11 @@ def _ciphertext_resultat(cnx, run: dict[str, Any]) -> tuple[str, str]:
     t = FUSION_PDF_OCR_RUNS
     row = cnx.execute(select(t.c.resultat_nonce, t.c.resultat_cipher).where(
         (t.c.ocr_run_id == run["ocr_run_id"]) & (t.c.statut == "A_REVOIR")
-        & (func.typeof(t.c.resultat_cipher) == "text")
-        & (func.typeof(t.c.resultat_nonce) == "text")
-        & (func.length(cast(t.c.resultat_cipher, LargeBinary)) <= _CIPHER_B64_MAX)
+        & (est_texte(t.c.resultat_cipher))
+        & (est_texte(t.c.resultat_nonce))
+        & (nb_octets(t.c.resultat_cipher) <= _CIPHER_B64_MAX)
         & t.c.resultat_cipher_octets.between(17, _CIPHER_MAX)
-        & (func.length(cast(t.c.resultat_nonce, LargeBinary)) == 16)
+        & (nb_octets(t.c.resultat_nonce) == 16)
     )).one_or_none()
     if row is None or type(row[0]) is not str or type(row[1]) is not str:
         raise _erreur("OCR_RESULTAT_INDISPONIBLE", 503)

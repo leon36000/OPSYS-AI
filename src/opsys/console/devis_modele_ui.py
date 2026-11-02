@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import lignes_catalogue_ui, metier, pages, prefill_ui
 from . import modeles_soumission_ui as modeles
 
@@ -79,7 +80,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
         session = session_page(request)
         verifier_lead(session, lead_id)
         with cnx_factory() as cnx:
-            if cnx.dialect.name != 'sqlite':
+            if cnx.dialect.name not in DIALECTES_QUALIFIES:
                 raise HTTPException(503, 'Création non qualifiée sur cette instance')
         base = prefixe + '/crm/lead/' + pages._segment(lead_id) + '/nouvelle-soumission'
         p = request.query_params

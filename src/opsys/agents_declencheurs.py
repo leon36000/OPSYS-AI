@@ -1,6 +1,6 @@
 """Intentions humaines et projection cron native ; aucun transport ni génération exécuté.
 
-Cette phase SQLite conserve l'état de remise, sans dupliquer le canon de profils. Ses fonctions
+Cette phase (SQLite et PostgreSQL) conserve l'état de remise, sans dupliquer le canon de profils. Ses fonctions
 gèrent leur transaction canonique ; une projection n'est ni une remise ni une exécution Core.
 """
 
@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import LargeBinary, cast, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.engine import make_url
 
 from . import admission_agents, agents, agents_base, identite, stockage
@@ -25,6 +25,8 @@ from .departements import Departement
 from .etat import journaliser
 from .memoire import autorite
 from .outils import Autonomie, Niveau
+from .stockage.concurrence import verrou_consultatif
+from .stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from .stockage.schema import AGENTS_CONFIGURABLES as PROFILS
 from .stockage.schema import AGENTS_DECLENCHEURS_COMMANDES as COMMANDES
 from .stockage.schema import AGENTS_DECLENCHEURS_INTENTIONS as INTENTIONS
@@ -84,12 +86,15 @@ def _decoder(texte: str, maximum: int = 32768) -> Any:
 
 @contextmanager
 def _transaction():
-    if make_url(stockage.url_base()).get_backend_name() != "sqlite":
-        raise DeclencheurRefuse("CRON-SQLITE-REQUIS")
-    # stockage.moteur pose BEGIN IMMEDIATE avant toute lecture/écriture, y compris l'autorité.
+    if make_url(stockage.url_base()).get_backend_name() not in DIALECTES_QUALIFIES:
+        raise DeclencheurRefuse("CRON-MOTEUR-NON-QUALIFIE")
+    # SQLite : stockage.moteur pose BEGIN IMMEDIATE avant toute lecture/écriture, y compris l'autorité.
+    # PostgreSQL : toutes les opérations cron (demande, retrait, remise, reçu) passent par ici ; le verrou consultatif
+    # nommé les sérialise entre elles, comme l'écrivain unique de SQLite, jusqu'à la fin de la transaction.
     with stockage.transaction() as cnx:
-        if cnx.dialect.name != "sqlite":
-            raise DeclencheurRefuse("CRON-SQLITE-REQUIS")
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
+            raise DeclencheurRefuse("CRON-MOTEUR-NON-QUALIFIE")
+        verrou_consultatif(cnx, "cron-operateur")
         yield cnx
 
 
@@ -143,7 +148,7 @@ def _cron(expression: str) -> None:
 def _profil(cnx, deps: Mapping[str, Departement], ident: str, revision: int, *, actif=True):
     # Ne pas matérialiser le JSON libre avant la borne SQL en octets.
     tailles = cnx.execute(select(*[
-        func.length(cast(PROFILS.c[key], LargeBinary)) for key in ("responsabilite", "outils", "declencheurs")
+        nb_octets(PROFILS.c[key]) for key in ("responsabilite", "outils", "declencheurs")
     ]).where(PROFILS.c.id == ident)).first()
     if tailles is None or any(type(n) is not int or n > cap
                               for n, cap in zip(tailles, (8192, 32768, 32768), strict=True)):

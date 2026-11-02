@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 
 from . import etat, stockage
 from .reception_courriel_contrat import COORDONNEES, identifier_source, valider_original
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import OPSYS_INSTANCE
 from .stockage.schema import RECEPTIONS_COURRIEL as RECEPTIONS
 
@@ -37,7 +38,7 @@ def _coords(arguments):
 
 
 def _autoriser(cnx, coords, operation, callback):
-    if (cnx is not stockage.connexion_courante() or cnx.dialect.name != "sqlite"
+    if (cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES
             or not cnx.in_transaction() or not callable(callback)):
         raise PermissionError("COURRIEL-AUTORITE-REFUSEE")
     try:

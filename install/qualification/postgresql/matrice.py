@@ -5,6 +5,11 @@ Usage : python3 matrice.py DOSSIER_PG DOSSIER_SQLITE [DOSSIER_SQLITE_PLUS_RECENT
 SORTIE.json] (les dossiers SQLite suivants remplacent, fichier par fichier, les entrées du premier : reprise partielle
 après correctif)
 
+Preuve de portage : python3 matrice.py --portage DOSSIER_PG [DOSSIER_PG …] [--md SORTIE.md] [--json SORTIE.json]
+Une garde levée n'est comptée « portée » que si au moins un test PostgreSQL RÉEL (au moins un ordre SQL émis vers
+PostgreSQL), RÉUSSI, a franchi son point de passage (`suivi_gardes.py`) ; sinon elle est « non prouvée », et la commande
+sort avec le code 1. Plusieurs dossiers s'additionnent (une exécution par tranche).
+
 Lit, pour chaque fichier de test, l'issue de chaque test : le JSONL du plugiciel pour PostgreSQL (qui porte aussi la
 mesure « ordres SQL réellement émis contre PostgreSQL » : un test qui n'a émis aucun ordre PostgreSQL ne prouve rien sur
 PostgreSQL), la dernière ligne du journal pytest (« 3 failed, 120 passed, 2 skipped in 41s ») pour SQLite. Regroupe par
@@ -158,14 +163,55 @@ def markdown(lignes: list[dict]) -> str:
     return texte
 
 
+def preuves_portage(dossiers: list[Path], portees: list[dict]) -> list[dict]:
+    """Par point de contrôle porté : les tests PostgreSQL réussis qui l'ont franchi (cinq cités, total compté)."""
+    franchis: dict[str, list[str]] = collections.defaultdict(list)
+    for dossier in dossiers:
+        for jsonl in dossier.glob("*.jsonl"):
+            for ligne in jsonl.read_text(encoding="utf-8").splitlines():
+                d = json.loads(ligne)
+                if d["phase"] != "call" or d["issue"] != "passed" or d.get("ordres_pg", 0) <= 0:
+                    continue
+                for ident in d.get("gardes_passees", ()):
+                    franchis[ident].append(d["nodeid"])
+    return [{**p, "tests": len(franchis[p["id"]]), "exemples": franchis[p["id"]][:5]} for p in portees]
+
+
+def markdown_portage(preuves: list[dict]) -> str:
+    prouvees = [p for p in preuves if p["tests"]]
+    texte = (f"{len(prouvees)} points de contrôle portés prouvés sur {len(preuves)} "
+             f"({len(preuves) - len(prouvees)} non prouvés)\n\n"
+             "| Fichier | Fonction | Ligne | Tests PostgreSQL réussis qui l'ont franchi | Premier test |\n"
+             "|---|---|---:|---:|---|\n")
+    for p in preuves:
+        premier = p["exemples"][0] if p["exemples"] else "**NON PROUVÉ**"
+        texte += f"| `{p['fichier']}` | `{p['fonction']}` | {p['ligne']} | {p['tests']} | `{premier}` |\n"
+    return texte
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("pg", type=Path)
-    ap.add_argument("sqlite", type=Path, nargs="+")
+    ap.add_argument("pg", type=Path, nargs="?")
+    ap.add_argument("sqlite", type=Path, nargs="*")
+    ap.add_argument("--portage", type=Path, nargs="+", metavar="DOSSIER_PG",
+                    help="preuve de portage des gardes levées, à partir d'un ou plusieurs dossiers `suites`")
     ap.add_argument("--redirige", type=Path, help="dossier de l'exécution `suites --redirige`")
     ap.add_argument("--md", type=Path)
     ap.add_argument("--json", type=Path)
     a = ap.parse_args()
+    if a.portage:
+        import gardes
+
+        preuves = preuves_portage(a.portage, gardes.portees())
+        texte = markdown_portage(preuves)
+        if a.md:
+            a.md.write_text(texte, encoding="utf-8")
+        if a.json:
+            a.json.write_text(json.dumps(preuves, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(texte.splitlines()[0])
+        return 0 if all(p["tests"] for p in preuves) else 1
+    if a.pg is None or not a.sqlite:
+        ap.error("DOSSIER_PG et au moins un DOSSIER_SQLITE sont requis (ou --portage)")
     lignes = matrice(a.pg, a.sqlite, a.redirige)
     texte = markdown(lignes)
     if a.md:

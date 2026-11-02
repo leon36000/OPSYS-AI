@@ -92,7 +92,7 @@ Le navigateur futur ne fournira ni coût, ni description, ni unité résolue : s
 quantité, choix fournisseur et références de sélection. Source modifiée, couverture
 incomplète, doublon ou champ supplémentaire refusent sans effet. La copie privée fige
 les sources; un rejeu identique après changement de prix restitue le reçu original,
-tout en revérifiant l’autorité. Les écritures restent non qualifiées sur PostgreSQL.
+tout en revérifiant l’autorité. Depuis le portage du 1er novembre 2026 ([QUALIFICATION-POSTGRESQL §16](../../qualification/QUALIFICATION-POSTGRESQL.md)), les écritures tournent aussi sur PostgreSQL 17 (verrou d’écriture de console, rejeu à deux moteurs).
 
 Chaque ligne matériau transmet son `materiau_id` dans `reference_besoin_materiau`, selon
 le contrat M3/M6 existant. À l’acceptation ultérieure, le consommateur M6 construit les

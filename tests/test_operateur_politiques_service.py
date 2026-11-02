@@ -218,9 +218,9 @@ def test_primitive_interne_couvre_les_trois_operations(client_finance):
             sc._revoquer(cnx, instance, "m05-financecore", "m4.autre")
 
 
-def test_postgresql_refuse(monkeypatch):
+def test_un_moteur_non_qualifie_refuse(monkeypatch):
     class Dialecte:
-        name = "postgresql"
+        name = "mysql"
 
     class Moteur:
         dialect = Dialecte()
@@ -229,8 +229,8 @@ def test_postgresql_refuse(monkeypatch):
         engine = Moteur()
 
     with pytest.raises(service_politiques.RefusOperateur) as exc:
-        service_politiques.octroyer(Cnx(), _session_admin(), "m4.verifier_v3", motif="pg fictif")
-    assert exc.value.code == "BACKEND_NON_SQLITE"
+        service_politiques.octroyer(Cnx(), _session_admin(), "m4.verifier_v3", motif="moteur fictif")
+    assert exc.value.code == "BACKEND_NON_QUALIFIE"
 
 
 def test_migration_0036_monte_sans_octroi_et_descend_seulement_vide(tmp_path):

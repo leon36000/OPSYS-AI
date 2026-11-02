@@ -34,8 +34,8 @@ annulé, la transaction de l'appelant reste utilisable.
 
 | Garde | Code de refus | Où |
 |---|---|---|
-| PostgreSQL | `BACKEND_NON_SQLITE` | première vérification, sans aucun accès à la base |
-| Verrou d'écriture `BEGIN IMMEDIATE` (écouteur `begin` de l'engine), comme `service_lecture_m4` | `VERROU_ECRITURE_ABSENT` | à l'entrée et à chaque `_verifier` de la portée |
+| Moteur autre que SQLite et PostgreSQL | `BACKEND_NON_QUALIFIE` (ex-`BACKEND_NON_SQLITE` : PostgreSQL est désormais qualifié, vague 6) | première vérification, sans aucun accès à la base |
+| Exclusion d'écriture VÉRIFIÉE, comme `service_lecture_m4` : SQLite, `BEGIN IMMEDIATE` (écouteur `begin` de l'engine) ; PostgreSQL, verrou consultatif d'instance détenu par la session (`pg_locks`), cf. `opsys.stockage.exclusion` | `VERROU_ECRITURE_ABSENT` | à l'entrée et à chaque `_verifier` de la portée |
 | Acteur et intention en paramètres, validés strictement ; l'acteur doit être l'utilisateur de la session admin | `ACTEUR_INVALIDE`, `INTENTION_INVALIDE`, `IDENTIFIANT_INVALIDE` | avant tout accès |
 | Politique `m4.recalculer_v3` **et** `m4.verifier_v3` : absente, révoquée, expirée | `POLITIQUE_ABSENTE`, `POLITIQUE_REVOQUEE`, `POLITIQUE_EXPIREE` (nomme l'opération) | avant tout savepoint |
 | Revue finale du chantier en attente | `REVUE_EN_ATTENTE` | à la première projection M4 |
@@ -59,13 +59,13 @@ Les sections ci-dessus décrivent le moteur tel que livré en E2 ; il est désor
 |---|---|---|
 | E4 / D1 | `src/opsys/service_politiques.py`, console `/administration/politiques-service` (`console/politiques_service_ui.py`), migration `0036` | Octroi, renouvellement, révocation des trois politiques (`m4.verifier_v3`, `m4.recalculer_v3`, `m4.relire_faits_pour_m5_v1`) par un admin actif relu en base, CSRF ; jamais par un agent (MCP, département, appareil refusés). Expiration exacte à 90 jours, renouvellement sans cumul, révocation immédiate (révision inactive + audit), journal append-only `service_politiques_journal`. |
 | D2 | `src/opsys/service_acteur_systeme.py` | Acteur système `opsys-systeme` : jeton non fabricable hors du réconciliateur, lié à son fil, refusé sous MCP / identité d'appel / livraison du bus ; aucune personne en base ; une personne nommée `opsys-systeme` est refusée par le moteur. |
-| E6 | `service_recalcul_m4.ouvrir`, `service_lecture_m4.ouvrir` / `ouvrir_appareil` | Les portes publiques délèguent au moteur qualifié (session console admin) ; refus typé sans politique, sur PostgreSQL, sans verrou. Les coutures QA `_executer_qa`, `_ouvrir_qa`, `_ouvrir_appareil_qa` sont retirées. Route console à la demande : `POST /crm/lead/{lead}/soumissions/{devis}/couts-travaux/recalcul-certifie` (CSRF, aucun champ métier). |
+| E6 | `service_recalcul_m4.ouvrir`, `service_lecture_m4.ouvrir` / `ouvrir_appareil` | Les portes publiques délèguent au moteur qualifié (session console admin) ; refus typé sans politique, sur un moteur non qualifié, sans exclusion d'écriture. Les coutures QA `_executer_qa`, `_ouvrir_qa`, `_ouvrir_appareil_qa` sont retirées. Route console à la demande : `POST /crm/lead/{lead}/soumissions/{devis}/couts-travaux/recalcul-certifie` (CSRF, aucun champ métier). |
 | E5 / E8 | `src/opsys/evenements/reconciliateur_cout_certifie.py`, appelé à la fin de `repartiteur.repartir` | Réconciliateur piloté par l'état, lot borné, intention déterministe, une transaction BEGIN IMMEDIATE par candidat. `OPSYS_COUT_CERTIFIE_RECONCILIATEUR` = `ombre` (défaut, zéro écriture) / `actif` / `inactif` (valeur inconnue = inactif). Journal `cout_certifie_reconciliations` en mode actif. |
 | D3 | `m5_financecore.outils._vue_cout_certifie`, console « Coûts des travaux » | `m5_lire_rentabilite_chantier` et la console exposent `cout_certifie.statut` = `a_jour` / `perime_recalcul_en_attente` / `inconnu` et la dernière trace certifiée (montants masqués sans droit de voir les coûts). |
 
 Pour activer en production (SQLite) : un admin octroie `m4.verifier_v3` et `m4.recalculer_v3` depuis la console ;
 le réconciliateur tourne d'abord en `ombre` (journal « aurait publié ») ; passer `OPSYS_COUT_CERTIFIE_RECONCILIATEUR=actif`
-pour qu'il publie. PostgreSQL reste refusé (D5).
+pour qu'il publie. **PostgreSQL (vague 6, `docs/qualification/QUALIFICATION-POSTGRESQL.md` §16)** : le moteur, la relecture courante, l'historique, les politiques et l'acteur système tournent sur PostgreSQL 17 réel ; l'exclusion d'écriture est un verrou consultatif d'instance (sérialise les portées de la famille, pas les écrivains M3/M4/M5 ordinaires : le protocole optimiste des services — relecture identique avant et après — porte le reste) ; la verticale d'affaire complète (HTTP MCP, bus, recalcul certifié) passe sur les deux moteurs.
 
 ### Décisions r5
 

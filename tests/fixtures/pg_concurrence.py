@@ -155,3 +155,178 @@ def reclamer_cle(cle: str, attendre) -> tuple:
         time.sleep(0.4)
         idempotence.finaliser(cnx, meta, {"ok": True, "resultat": {"x": 1}})
     return ("frais",)
+
+
+# -- 6. N processus de console écrivent la MÊME révision d'une fiche matériau M6 --------------------------------------
+def ecrire_materiau_console(cle: str, revision_attendue: int, nom: str, attendre) -> tuple:
+    """Un écrivain HUMAIN de la console (chemin de production : `console.metier.executer` -> `executer_atomique`)."""
+    from opsys import stockage
+    from opsys.console import metier
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+
+    deps = charger_departements()
+    session = Session("admin.fictif", frozenset({"admin"}), "csrf-fictif", 4102444800)
+    arguments = dict(materiau_id="mat-fictif", nom=nom, unite="pi", actif=True, raison="Fiche FICTIVE",
+                     revision_attendue=revision_attendue)
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction() as cnx:
+        reponse = metier.executer(cnx, deps, session, "m6_enregistrer_materiau_console", arguments, mutation_id=cle)
+    resultat = reponse["resultat"]
+    return ("accepte",) if resultat["accepte"] else ("refus", resultat["raison"])
+
+
+# -- 6 bis. N processus de console corrigent la MÊME fiche FOURNISSEUR M6 depuis la même source ------------------------
+def corriger_fournisseur_console(cle: str, source_attendue: str, nom: str, attendre) -> tuple:
+    """Écrivain HUMAIN d'une fiche fournisseur : lecture de la fiche puis ajout d'un maillon, sans clé unique qui
+    protège la lecture (c'est le verrou d'écriture de console qui évite la mise à jour perdue)."""
+    from opsys import stockage
+    from opsys.console import metier
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+
+    deps = charger_departements()
+    session = Session("admin.fictif", frozenset({"admin"}), "csrf-fictif", 4102444800)
+    arguments = dict(fournisseur_id="fourn-fictif", modifications={"nom": nom}, source_attendue=source_attendue)
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction() as cnx:
+        reponse = metier.executer(cnx, deps, session, "m6_enregistrer_fournisseur_console", arguments, mutation_id=cle)
+    resultat = reponse["resultat"]
+    if resultat["accepte"]:
+        return ("accepte", resultat["resultat"]["source_empreinte"])
+    return ("refus", resultat["raison"])
+
+
+# -- 7. relire_si_conflit : N processus lisent « registre vide ? » puis écrivent, sans verrou -------------------------
+def ajouter_si_vide(registre: str, i: int, attendre) -> tuple:
+    """Lire-puis-écrire sans verrou : SQLite l'exclut (écrivain unique), PostgreSQL le départage par la clé du rang ;
+    `relire_si_conflit` rejoue la perdante, qui relit alors le registre non vide et ne l'écrit pas."""
+    from opsys import stockage
+    from opsys.stockage.concurrence import relire_si_conflit
+
+    def corps():
+        journal = stockage.maillons("m09-demo", registre)
+        if len(journal) == 0:
+            time.sleep(0.5)  # élargit la fenêtre : tous les processus ont lu « vide » avant la première écriture
+            journal.append({"i": i})
+            return "ecrit"
+        return "relu"
+
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction():
+        return (relire_si_conflit(corps),)
+
+
+# -- 8. verrou_consultatif : N processus font « si absent, écrire + auditer » ------------------------------------------
+def auditer_une_fois(nom: str, attendre) -> tuple:
+    """Le motif de L10 : lire l'état, puis écrire et auditer. Sans verrou, PostgreSQL audite autant de fois qu'il y a
+    de processus ; avec le verrou nommé (pris AVANT la lecture), une seule fois."""
+    from sqlalchemy import func, select
+
+    from opsys import stockage
+    from opsys.etat import journaliser
+    from opsys.stockage.concurrence import verrou_consultatif
+    from opsys.stockage.schema import JOURNAL
+
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction() as cnx:
+        verrou_consultatif(cnx, "essai-" + nom)
+        deja = cnx.execute(select(func.count()).select_from(JOURNAL).where(
+            JOURNAL.c.action == "essai.verrou", JOURNAL.c.cible == nom)).scalar_one()
+        if deja:
+            return ("relu",)
+        time.sleep(0.5)
+        journaliser(cnx, "essai", "essai.verrou", nom, {})
+    return ("ecrit",)
+
+
+# -- 9. N processus de l'opérateur cron demandent la même déclaration -------------------------------------------------
+def demander_cron(mutation: str, revision: int, attendre) -> tuple:
+    """`agents_declencheurs.demander` : lit le profil, vérifie, crée l'intention et mémorise la commande. Le verrou
+    nommé `cron-operateur` sérialise les opérations cron sous PostgreSQL (SQLite : `BEGIN IMMEDIATE`)."""
+    from opsys import agents_declencheurs, stockage
+    from opsys.departements import charger_departements
+
+    deps = charger_departements()
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    try:
+        reponse = agents_declencheurs.demander(
+            deps, "dossiers-fictifs", par="nathan", revision_attendue=revision, fuseau="America/Toronto",
+            mutation_id=mutation)
+    except agents_declencheurs.DeclencheurRefuse as exc:
+        return ("refus", str(exc)[:80])
+    return ("ok", tuple(reponse["intentions"]))
+
+
+# -- 10. N processus demandent le recalcul certifié (moteur M4) -------------------------------------------------------
+def recalculer_certifie(wct_id: str, devis_id: str, intention: str, attendre) -> tuple:
+    """`moteur_recalcul_m4.recalculer` (console admin). L'exclusion d'écriture de la famille (verrou d'instance sous
+    PostgreSQL, `BEGIN IMMEDIATE` sous SQLite) sérialise les portées : la première publie, les suivantes relisent."""
+    import time
+
+    import m2_revenue_crm.outils as m2_outils
+    import m5_financecore.outils as m5_outils
+
+    from opsys import moteur_recalcul_m4 as moteur
+    from opsys import stockage
+    from opsys.console.securite import Session
+
+    m2_outils.utiliser_stockage_durable()
+    m5_outils.utiliser_stockage_durable()
+    acteur = "admin-t15d-certifie-fictif"
+    session = Session(acteur, frozenset({"admin"}), "csrf-fictif", int(time.time()) + 3600)
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    try:
+        with stockage.transaction() as cnx:
+            reponse = moteur.recalculer(cnx, session, acteur=acteur, wct_id=wct_id, devis_id=devis_id,
+                                        intention_id=intention)
+    except moteur.RefusRecalculM4 as exc:
+        return ("refus", exc.code)
+    return (reponse["statut"],)
+
+
+# -- 11. N processus octroient la même politique de service (opérateur) -----------------------------------------------
+def octroyer_politique(operation: str, attendre) -> tuple:
+    from opsys import service_politiques, stockage
+    from opsys.console.securite import Session
+
+    session = Session("admin.fictif", frozenset({"admin"}), "csrf-fictif", 4102444800)
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    try:
+        with stockage.transaction() as cnx:
+            resultat = service_politiques.octroyer(cnx, session, operation, motif="octroi concurrent fictif")
+    except service_politiques.RefusOperateur as exc:
+        return ("refus", exc.code)
+    return ("octroyee", resultat["revision"])
+
+
+# -- 12. N processus publient la même référence de note de commande M6 (console) -------------------------------------
+def publier_reference_note(source_hash: str, attendre) -> tuple:
+    """`notes_commande_memoire.publier` : lire l'état, publier la référence sortante (idempotent) puis AUDITER. Le motif
+    de L10 : sans verrou, PostgreSQL auditait autant de fois qu'il y avait de publications simultanées."""
+    from m2_revenue_crm import outils as m2
+
+    from opsys import contexte, notes_commande_memoire, stockage
+
+    m2.utiliser_stockage_durable()
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction(), contexte.appele_par_appareil(
+            contexte.IdentiteAppelante("admin-fictif", "admin", source="console")):
+        etat = notes_commande_memoire.publier("note-fictive", 1, "devis-fictif-lie", "lead-fictif-lie", source_hash)
+    return (etat["etat"],)

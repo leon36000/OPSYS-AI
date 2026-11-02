@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .. import approbations, contexte, idempotence, identite, stockage
 from ..etat import journaliser
 from ..outils import Autonomie, Niveau, executer_atomique, valider_arguments
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import pages, securite
 
 LECTURE = "m5_lire_couts_marketing_affectes"
@@ -72,7 +73,7 @@ def executer_action(cnx, deps, session, nom, arguments, mutation_id=None):
         raise KeyError("action coûts inconnue")
     ecriture = nom in ECRITURES
     personne = autoriser(cnx, session, ecriture=ecriture)
-    if cnx.dialect.name != "sqlite":
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise ValueError("REJ-COUT-MARKETING-BACKEND-NON-PRIS-EN-CHARGE")
     if stockage.connexion_courante() is not cnx:
         raise ValueError("REJ-COUT-MARKETING-TRANSACTION-REQUISE")

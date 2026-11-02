@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from . import codec
 from .moteur import connexion_courante, transaction
+from .portabilite import nb_octets
 from .schema import REGISTRES
 
 
@@ -55,6 +56,9 @@ def _verrouiller_m2_principal(cnx: Connection, *, partage: bool = False) -> None
         cnx.execute(select(verrou(_CLE_VERROU_M2_PRINCIPAL)))
     elif cnx.dialect.name != "sqlite":
         raise ValueError("backend non qualifié pour la garde M2")
+
+
+verrouiller_m2_principal = _verrouiller_m2_principal  # nom public : les écrivains humains de M2 le prennent
 
 
 class MaillonsDurables:
@@ -206,16 +210,18 @@ def copier_maillons_stricts(
     cnx: Connection, *, departement: str, registre: str, max_lignes: int,
     max_octets_ligne: int, max_octets_total: int,
 ) -> SnapshotMaillons:
-    """Snapshot SQLite borné, transaction courante ; rangs contigus depuis zéro.
+    """Snapshot borné (SQLite ou PostgreSQL), transaction courante ; rangs contigus depuis zéro.
 
     Codec typé inchangé, mais JSON ambigu et nombres non finis refusés.
     Aucun contrôle de droit n'est ajouté à cette lecture.
     """
-    from sqlalchemy import LargeBinary, cast
+    from .exclusion import transaction_driver_ouverte
+    from .portabilite import DIALECTES_QUALIFIES
+
     if (not isinstance(cnx, Connection) or cnx is not connexion_courante() or cnx.closed
-            or cnx.dialect.name != 'sqlite' or not cnx.in_transaction()
-            or not cnx.connection.dbapi_connection.in_transaction):
-        raise ValueError('transaction SQLite courante requise')
+            or cnx.dialect.name not in DIALECTES_QUALIFIES or not cnx.in_transaction()
+            or not transaction_driver_ouverte(cnx)):
+        raise ValueError('transaction courante (SQLite ou PostgreSQL) requise')
     if (type(departement) is not str or not departement.strip()
             or type(registre) is not str or not registre.strip()):
         raise ValueError('source de registre invalide')
@@ -226,7 +232,7 @@ def copier_maillons_stricts(
         raise ValueError('bornes invalides')
     condition = (REGISTRES.c.departement == departement) & (REGISTRES.c.registre == registre)
     try:
-        meta = cnx.execute(select(REGISTRES.c.rang, func.length(cast(REGISTRES.c.maillon, LargeBinary)))
+        meta = cnx.execute(select(REGISTRES.c.rang, nb_octets(REGISTRES.c.maillon))
             .where(condition).order_by(REGISTRES.c.rang).limit(max_lignes + 1)).all()
         if len(meta) > max_lignes:
             raise ValueError('trop de lignes')

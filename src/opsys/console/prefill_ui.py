@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import catalogue_memoire_ui, pages
 from . import modeles_soumission_ui as modeles
 
@@ -96,7 +97,7 @@ def creer_router(*, session_page, cnx_factory, prefixe, verifier_formulaire, ver
             raise HTTPException(400, 'Modèle incohérent')
         m = modele_exact(session, p)  # vérifie aussi l'admin SQL actif
         with cnx_factory() as cnx:
-            if cnx.dialect.name != 'sqlite':
+            if cnx.dialect.name not in DIALECTES_QUALIFIES:
                 raise HTTPException(503, 'Écriture non qualifiée sur cette instance')
         return session, p, m
 

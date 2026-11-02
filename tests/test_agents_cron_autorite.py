@@ -323,11 +323,11 @@ def test_declaration_complete_refuse_ecarts_avant_preparation(mandat, session, c
         assert cnx.scalar(select(_table(module).c.intention_id)) is None
 
 
-def test_pg_refuse_avant_transaction(mandat, monkeypatch):
+def test_un_moteur_non_qualifie_refuse_avant_transaction(mandat, monkeypatch):
     module, owner = _owner(mandat)
-    monkeypatch.setattr(stockage, "url_base", lambda: "postgresql://fictif.invalid/base")
+    monkeypatch.setattr(stockage, "url_base", lambda: "mysql://fictif.invalid/base")
     monkeypatch.setattr(stockage, "transaction", lambda: pytest.fail("aucune transaction PG autorisée"))
-    with pytest.raises(module.DeclencheurRefuse, match="SQLITE-REQUIS"):
+    with pytest.raises(module.DeclencheurRefuse, match="MOTEUR-NON-QUALIFIE"):
         _preparer(owner, mandat)
 
 

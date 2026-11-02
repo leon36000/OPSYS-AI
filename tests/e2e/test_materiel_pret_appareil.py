@@ -39,7 +39,7 @@ from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_SORTANTS
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 M6 = "m06-material-control"
 DEVIS = "DEVIS-E2E-MP-1"
 CHANTIER = "CHANTIER-E2E-MP-1"

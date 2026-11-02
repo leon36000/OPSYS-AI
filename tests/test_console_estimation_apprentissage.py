@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 
 from opsys import contexte, identite, stockage
 from opsys.console import application, pages
@@ -213,15 +213,14 @@ def test_source_invalide_409_sans_reflection_ni_compteur(clients, producteur, id
 
 def test_schema_source_absent_ne_migre_pas(clients):
     with stockage.transaction() as cnx:
-        cnx.exec_driver_sql("DROP TABLE evenements_sortants")
+        # PostgreSQL refuse de supprimer une table que des clés étrangères référencent, sauf en cascade
+        cnx.exec_driver_sql("DROP TABLE evenements_sortants" + (" CASCADE" if cnx.dialect.name == "postgresql" else ""))
     with clients[0]() as client:
         response = client.get(API)
         assert response.status_code == 503
         assert response.json()["detail"] == "sources_lecture_indisponibles"
     with stockage.transaction() as cnx:
-        assert cnx.exec_driver_sql(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='evenements_sortants'"
-        ).fetchall() == []
+        assert "evenements_sortants" not in inspect(cnx).get_table_names()
 
 
 def test_exemples_bornes_et_aucun_parametre_de_filtrage(clients):

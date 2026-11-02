@@ -1,0 +1,1757 @@
+[
+ {
+  "fichier": "src/opsys/agent_cfo_grants.py",
+  "ligne": 42,
+  "fonction": "_moteur_qualifie",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 41,
+  "fonction_fin": 43,
+  "id": "src/opsys/agent_cfo_grants.py::_moteur_qualifie::42",
+  "tests": 66,
+  "exemples": [
+   "tests/test_console_observabilite.py::test_l_application_reelle_sert_la_page_aux_administrateurs_seulement",
+   "tests/test_cloture_suivi_m9_cible_core.py::test_ticket_cloture_originale_exige_son_n3_et_un_seul_effet",
+   "tests/test_serveur_mcp_http.py::test_ticket_cfo_stale_profile_est_refuse_avant_consommation",
+   "tests/test_console_agent_cfo_grants.py::test_reservation_active_persistante_bloque_un_nouveau_cycle_et_est_visible_apres_reouverture",
+   "tests/test_console_agent_cfo_grants.py::test_listing_reservations_est_borne_avec_total_et_ne_rend_pas_raison_libre"
+  ]
+ },
+ {
+  "fichier": "src/opsys/agents_declencheurs.py",
+  "ligne": 89,
+  "fonction": "_transaction",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 94,
+  "fonction_debut": 88,
+  "fonction_fin": 98,
+  "id": "src/opsys/agents_declencheurs.py::_transaction::89",
+  "tests": 312,
+  "exemples": [
+   "tests/test_cron_operateur_http.py::test_rpc_operateur_prepare_ack_sur_sqlite_et_rejeu",
+   "tests/test_cron_operateur_http.py::test_rpc_revision_sha256_preimage_et_cible_distinctes_rejeu_exact",
+   "tests/test_cron_operateur_http.py::test_jetons_operateur_et_runtime_sont_des_audiences_distinctes",
+   "tests/test_cron_operateur_http.py::test_credential_operateur_refuse_collision_avec_audience_effective[jeton-public-fictif-long-abcdefghijklmnopqrstuvwxyz]",
+   "tests/test_cron_operateur_http.py::test_credential_operateur_refuse_collision_avec_audience_effective[jeton-contexte-fictif-long-abcdefghijklmnopqrstuvwxyz]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/agents_declencheurs.py",
+  "ligne": 95,
+  "fonction": "_transaction",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 97,
+  "fonction_debut": 88,
+  "fonction_fin": 98,
+  "id": "src/opsys/agents_declencheurs.py::_transaction::95",
+  "tests": 312,
+  "exemples": [
+   "tests/test_cron_operateur_http.py::test_rpc_operateur_prepare_ack_sur_sqlite_et_rejeu",
+   "tests/test_cron_operateur_http.py::test_rpc_revision_sha256_preimage_et_cible_distinctes_rejeu_exact",
+   "tests/test_cron_operateur_http.py::test_jetons_operateur_et_runtime_sont_des_audiences_distinctes",
+   "tests/test_cron_operateur_http.py::test_credential_operateur_refuse_collision_avec_audience_effective[jeton-public-fictif-long-abcdefghijklmnopqrstuvwxyz]",
+   "tests/test_cron_operateur_http.py::test_credential_operateur_refuse_collision_avec_audience_effective[jeton-contexte-fictif-long-abcdefghijklmnopqrstuvwxyz]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/agenda_ui.py",
+  "ligne": 134,
+  "fonction": "ecriture",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 132,
+  "fonction_fin": 134,
+  "id": "src/opsys/console/agenda_ui.py::ecriture::134",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/annotations_cedule_ui.py",
+  "ligne": 112,
+  "fonction": "ecriture_qualifiee",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 109,
+  "fonction_fin": 112,
+  "id": "src/opsys/console/annotations_cedule_ui.py::ecriture_qualifiee::112",
+  "tests": 12,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m4_couleurs_cedule.py::test_couleur_exacte_historique_rejeu_et_retrait_sans_changement_metier",
+   "tests/test_postgresql_rejeu_m4_couleurs_cedule.py::test_carte_formulaire_complet_et_legend",
+   "tests/test_console_observabilite.py::test_l_application_reelle_sert_la_page_aux_administrateurs_seulement",
+   "tests/test_console_annotations_cedule.py::test_note_exacte_badge_historique_et_planning_intact",
+   "tests/test_console_annotations_cedule.py::test_report_annotation_ne_reconfirme_pas"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/application.py",
+  "ligne": 725,
+  "fonction": "page_agents",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 694,
+  "fonction_fin": 739,
+  "id": "src/opsys/console/application.py::page_agents::725",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/comptes_terrain.py",
+  "ligne": 52,
+  "fonction": "_capturer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 55,
+  "fonction_debut": 51,
+  "fonction_fin": 77,
+  "id": "src/opsys/console/comptes_terrain.py::_capturer::52",
+  "tests": 28,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m4_lectures.py::test_source_canonique_minimisee_et_roles_sans_doublons",
+   "tests/test_postgresql_rejeu_m4_lectures.py::test_pages_source_et_renommage_ne_modifient_pas_histoire",
+   "tests/test_postgresql_rejeu_m4_lectures.py::test_quotas_avant_chargement_noms_ou_roles[comptes]",
+   "tests/test_postgresql_rejeu_m4_lectures.py::test_quotas_avant_chargement_noms_ou_roles[octets]",
+   "tests/test_postgresql_rejeu_m4_lectures.py::test_quotas_avant_chargement_noms_ou_roles[roles]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/couts_marketing.py",
+  "ligne": 76,
+  "fonction": "executer_action",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 78,
+  "fonction_debut": 70,
+  "fonction_fin": 119,
+  "id": "src/opsys/console/couts_marketing.py::executer_action::76",
+  "tests": 24,
+  "exemples": [
+   "tests/test_console_couts_marketing.py::test_post_reel_n4_owner_rejeu_et_sources_durables",
+   "tests/test_console_couts_marketing.py::test_rbac_csrf_et_html_sans_montants_non_autorises",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[centimes]",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[plafond]",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[periode]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/crm_ui.py",
+  "ligne": 653,
+  "fonction": "dates_plan",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 643,
+  "fonction_fin": 682,
+  "id": "src/opsys/console/crm_ui.py::dates_plan::653",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/crm_ui.py",
+  "ligne": 695,
+  "fonction": "confirmer_dates_plan",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 697,
+  "fonction_debut": 685,
+  "fonction_fin": 718,
+  "id": "src/opsys/console/crm_ui.py::confirmer_dates_plan::695",
+  "tests": 52,
+  "exemples": [
+   "tests/test_console_meteo_dates_chantier.py::test_ancienne_prevision_citee_ne_devient_pas_fraiche",
+   "tests/test_console_meteo_dates_chantier.py::test_profil_aba_reellement_utilise_ne_peut_etre_substitue",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[24-ok]",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[25-validation_requise]",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[40-bloquant]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/crm_ui.py",
+  "ligne": 731,
+  "fonction": "dossier",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 721,
+  "fonction_fin": 750,
+  "id": "src/opsys/console/crm_ui.py::dossier::731",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/devis_modele_ui.py",
+  "ligne": 83,
+  "fonction": "nouveau",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 79,
+  "fonction_fin": 119,
+  "id": "src/opsys/console/devis_modele_ui.py::nouveau::83",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/finance_snapshot_prive.py",
+  "ligne": 64,
+  "fonction": "_guard_registers",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 66,
+  "fonction_debut": 62,
+  "fonction_fin": 79,
+  "id": "src/opsys/console/finance_snapshot_prive.py::_guard_registers::64",
+  "tests": 2,
+  "exemples": [
+   "tests/test_console_rapprochement_e2e.py::test_reel_legacy_exact_cash_source_stale_reconfirmation_et_frontieres",
+   "tests/test_console_rapprochement_e2e.py::test_reel_nouvelle_composante_credit_provision_et_classement_hors_paies"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/finance_snapshot_prive.py",
+  "ligne": 255,
+  "fonction": "capturer_snapshot_prive",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 257,
+  "fonction_debut": 250,
+  "fonction_fin": 302,
+  "id": "src/opsys/console/finance_snapshot_prive.py::capturer_snapshot_prive::255",
+  "tests": 2,
+  "exemples": [
+   "tests/test_console_rapprochement_e2e.py::test_reel_legacy_exact_cash_source_stale_reconfirmation_et_frontieres",
+   "tests/test_console_rapprochement_e2e.py::test_reel_nouvelle_composante_credit_provision_et_classement_hors_paies"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/finance_snapshot_prive.py",
+  "ligne": 291,
+  "fonction": "verifier_sources_courantes",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 286,
+  "fonction_fin": 300,
+  "id": "src/opsys/console/finance_snapshot_prive.py::verifier_sources_courantes::291",
+  "tests": 4,
+  "exemples": [
+   "tests/test_console_rapprochement_e2e.py::test_reel_legacy_exact_cash_source_stale_reconfirmation_et_frontieres",
+   "tests/test_console_rapprochement_e2e.py::test_reel_nouvelle_composante_credit_provision_et_classement_hors_paies",
+   "tests/test_console_observabilite.py::test_l_application_reelle_sert_la_page_aux_administrateurs_seulement",
+   "tests/test_trace_documentaire_m10.py::test_console_api_html_et_app_lectures_reelles_sans_canari"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/frontoffice_marketing.py",
+  "ligne": 80,
+  "fonction": "dans_source_suivi",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 82,
+  "fonction_debut": 75,
+  "fonction_fin": 108,
+  "id": "src/opsys/console/frontoffice_marketing.py::dans_source_suivi::80",
+  "tests": 117,
+  "exemples": [
+   "tests/test_console_suivi_rappel.py::test_cas_perime_refuse_prise_en_charge_sans_effet",
+   "tests/test_console_suivi_rappel.py::test_prise_tentative_file_ouverte_cloture_distincte_et_rejeu[api]",
+   "tests/test_console_suivi_rappel.py::test_prise_tentative_file_ouverte_cloture_distincte_et_rejeu[formulaire]",
+   "tests/test_console_suivi_rappel.py::test_reprise_exacte_et_conflit_cle_cas_sans_ajout",
+   "tests/test_console_suivi_rappel.py::test_rejette_champs_forges_avant_toute_ecriture[par-api]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/memoire_apprentissage_ui.py",
+  "ligne": 89,
+  "fonction": "_backend_qualifie",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 88,
+  "fonction_fin": 90,
+  "id": "src/opsys/console/memoire_apprentissage_ui.py::_backend_qualifie::89",
+  "tests": 14,
+  "exemples": [
+   "tests/test_console_observabilite.py::test_l_application_reelle_sert_la_page_aux_administrateurs_seulement",
+   "tests/test_postgresql_rejeu_memoire_apprentissage.py::test_get_admin_est_borne_no_store_sans_affaires_ni_ecriture",
+   "tests/test_postgresql_rejeu_memoire_apprentissage.py::test_head_change_pendant_aperçu_donne_409",
+   "tests/test_postgresql_rejeu_memoire_apprentissage.py::test_retrait_role_avant_rendu_refuse_la_reponse",
+   "tests/test_postgresql_rejeu_memoire_apprentissage.py::test_preflight_sql_refuse_maillon_trop_gros_avant_codec"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/memoire_chantier.py",
+  "ligne": 18,
+  "fonction": "_admin",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 20,
+  "fonction_debut": 17,
+  "fonction_fin": 23,
+  "id": "src/opsys/console/memoire_chantier.py::_admin::18",
+  "tests": 991,
+  "exemples": [
+   "tests/test_console_proposition_chantier_http.py::test_devis_pret_proposition_reelle_et_revue_http_sans_affectation",
+   "tests/test_console_proposition_chantier_http.py::test_revue_historique_signale_profil_change_et_rejeu_sans_action",
+   "tests/test_console_proposition_chantier_http.py::test_rendu_revue_echappe_textes_et_borne_html",
+   "tests/test_console_historique_prix_m6.py::test_vrai_t0_dispatcher_sql_reouvert_et_comparaison_pure",
+   "tests/test_console_historique_prix_m6.py::test_pages_et_source_perimee_apres_autre_couple_sans_ecriture_lecture"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/meteo_dates_chantier.py",
+  "ligne": 19,
+  "fonction": "preparer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 21,
+  "fonction_debut": 15,
+  "fonction_fin": 53,
+  "id": "src/opsys/console/meteo_dates_chantier.py::preparer::19",
+  "tests": 70,
+  "exemples": [
+   "tests/test_console_meteo_dates_chantier.py::test_meteo_dates_explicitement_verifiees_sans_fournisseur_ni_ecriture",
+   "tests/test_console_meteo_dates_chantier.py::test_ancienne_prevision_citee_ne_devient_pas_fraiche",
+   "tests/test_console_meteo_dates_chantier.py::test_profil_aba_reellement_utilise_ne_peut_etre_substitue",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[24-ok]",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[25-validation_requise]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 210,
+  "fonction": "_executer_edition_texte",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 202,
+  "fonction_fin": 255,
+  "id": "src/opsys/console/metier.py::_executer_edition_texte::210",
+  "tests": 98,
+  "exemples": [
+   "tests/test_console_observabilite.py::test_l_application_reelle_sert_la_page_aux_administrateurs_seulement",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_propose_modifiable_sans_rejet_et_autres_plateformes_intactes",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_post_edition_forgé_est_un_refus_metier_pas_action_inconnue",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[facebook]",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[instagram]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 222,
+  "fonction": "_executer_edition_texte",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 230,
+  "fonction_debut": 202,
+  "fonction_fin": 255,
+  "id": "src/opsys/console/metier.py::_executer_edition_texte::222",
+  "tests": 50,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_propose_modifiable_sans_rejet_et_autres_plateformes_intactes",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_post_edition_forgé_est_un_refus_metier_pas_action_inconnue",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[facebook]",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[instagram]",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[fiche_google]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 268,
+  "fonction": "_port_cmo",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 271,
+  "fonction_debut": 265,
+  "fonction_fin": 274,
+  "id": "src/opsys/console/metier.py::_port_cmo::268",
+  "tests": 29,
+  "exemples": [
+   "tests/test_console_cmo_strategies.py::test_cycle_synergy_fictif_http_rouverture_baseline_decision_revue",
+   "tests/test_console_cmo_strategies.py::test_unknown_ne_devient_pas_zero_et_cible_reste_declaration",
+   "tests/test_console_cmo_strategies.py::test_rejeu_exact_ne_refait_pas_cas_ni_timestamp_et_conflit_refuse",
+   "tests/test_console_cmo_strategies.py::test_admin_propose_owner_decide_et_revocation_interdit_rejeu",
+   "tests/test_console_cmo_strategies.py::test_revision_ne_reprend_jamais_approbation_et_hash_exact_requis"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 380,
+  "fonction": "_executer_observation_growth_humaine",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 382,
+  "fonction_debut": 376,
+  "fonction_fin": 422,
+  "id": "src/opsys/console/metier.py::_executer_observation_growth_humaine::380",
+  "tests": 17,
+  "exemples": [
+   "tests/test_console_growth.py::test_saisie_growth_http_reel_provenance_rejeu_et_reouverture[owner_growth]",
+   "tests/test_console_growth.py::test_saisie_growth_http_reel_provenance_rejeu_et_reouverture[admin_growth]",
+   "tests/test_console_growth.py::test_saisie_growth_html_csrf_formulaire_et_post_threadpool",
+   "tests/test_console_growth.py::test_saisie_growth_head_et_mutation_changed_refuses_sans_append",
+   "tests/test_console_growth.py::test_saisie_growth_retrait_role_avant_append_annule_reclamation"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 445,
+  "fonction": "_executer_note_commande",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 447,
+  "fonction_debut": 426,
+  "fonction_fin": 476,
+  "id": "src/opsys/console/metier.py::_executer_note_commande::445",
+  "tests": 117,
+  "exemples": [
+   "tests/test_console_notes_commande.py::test_formulaire_texte_exact_versions_rejeu_et_historique",
+   "tests/test_console_notes_commande.py::test_long_texte_20000_sans_artefact",
+   "tests/test_console_notes_commande.py::test_ancres_croisees_inconnues_et_absentes",
+   "tests/test_console_notes_commande.py::test_conflit_cas_et_mutation_sans_fuite",
+   "tests/test_console_notes_commande.py::test_revocation_et_desactivation_avant_rejeu"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/modeles_soumission_ui.py",
+  "ligne": 102,
+  "fonction": "ecriture",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 100,
+  "fonction_fin": 102,
+  "id": "src/opsys/console/modeles_soumission_ui.py::ecriture::102",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/notes_commande_ui.py",
+  "ligne": 129,
+  "fonction": "appeler",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 131,
+  "fonction_debut": 126,
+  "fonction_fin": 139,
+  "id": "src/opsys/console/notes_commande_ui.py::appeler::129",
+  "tests": 117,
+  "exemples": [
+   "tests/test_console_notes_commande.py::test_formulaire_texte_exact_versions_rejeu_et_historique",
+   "tests/test_console_notes_commande.py::test_long_texte_20000_sans_artefact",
+   "tests/test_console_notes_commande.py::test_ancres_croisees_inconnues_et_absentes",
+   "tests/test_console_notes_commande.py::test_conflit_cas_et_mutation_sans_fuite",
+   "tests/test_console_notes_commande.py::test_revocation_et_desactivation_avant_rejeu"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/notes_commande_ui.py",
+  "ligne": 225,
+  "fonction": "index",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 205,
+  "fonction_fin": 227,
+  "id": "src/opsys/console/notes_commande_ui.py::index::225",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/notes_commande_ui.py",
+  "ligne": 255,
+  "fonction": "detail",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 230,
+  "fonction_fin": 258,
+  "id": "src/opsys/console/notes_commande_ui.py::detail::255",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/prefill_ui.py",
+  "ligne": 100,
+  "fonction": "lecture",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 91,
+  "fonction_fin": 102,
+  "id": "src/opsys/console/prefill_ui.py::lecture::100",
+  "tests": 3005,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-02-30]",
+   "tests/test_console_reception_digest.py::test_digest_refuse_query_invalide[?date_reference=2026-10-04&date_reference=2026-10-04]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/preparation_chantier.py",
+  "ligne": 110,
+  "fonction": "lire",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 112,
+  "fonction_debut": 103,
+  "fonction_fin": 184,
+  "id": "src/opsys/console/preparation_chantier.py::lire::110",
+  "tests": 190,
+  "exemples": [
+   "tests/test_console_proposition_chantier_http.py::test_devis_pret_proposition_reelle_et_revue_http_sans_affectation",
+   "tests/test_console_proposition_chantier_http.py::test_plan_rechaine_avec_sortie_incoherente_est_refuse",
+   "tests/test_console_proposition_chantier_http.py::test_csrf_formulaire_ferme_borne_et_sans_effets",
+   "tests/test_console_proposition_chantier_http.py::test_not_ready_sans_bouton_et_post_refuse",
+   "tests/test_console_proposition_chantier_http.py::test_source_retiree_apres_affichage_refuse_http"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/reprise_visite.py",
+  "ligne": 92,
+  "fonction": "preparer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 95,
+  "fonction_debut": 89,
+  "fonction_fin": 131,
+  "id": "src/opsys/console/reprise_visite.py::preparer::92",
+  "tests": 5,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m4_reprise_visite.py::test_reprise_type_travaux_utilise_plan_historique_ancre",
+   "tests/test_postgresql_rejeu_m4_reprise_visite.py::test_proposition_reprise_choisit_equipe_declaree_et_rejoue",
+   "tests/test_console_logs_visites.py::test_serveur_http_access_log_sans_cookie_ni_csrf",
+   "tests/test_console_reprise_visite.py::test_reprise_type_travaux_utilise_plan_historique_ancre",
+   "tests/test_console_reprise_visite.py::test_proposition_reprise_choisit_equipe_declaree_et_rejoue"
+  ]
+ },
+ {
+  "fichier": "src/opsys/console/temps_pointes.py",
+  "ligne": 36,
+  "fonction": "_cible",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 38,
+  "fonction_debut": 35,
+  "fonction_fin": 44,
+  "id": "src/opsys/console/temps_pointes.py::_cible::36",
+  "tests": 26,
+  "exemples": [
+   "tests/test_console_temps_pointes.py::test_vrai_t0_port_http_minutes_sans_doubles_comptes_ou_gps",
+   "tests/test_console_temps_pointes.py::test_sans_source_ou_sequence_incomplete_pas_zero_heure[False]",
+   "tests/test_console_temps_pointes.py::test_sans_source_ou_sequence_incomplete_pas_zero_heure[True]",
+   "tests/test_console_temps_pointes.py::test_jour_hors_source_et_utc_pendant_repli_dst",
+   "tests/test_console_temps_pointes.py::test_cible_courante_admissible_avant_lecture_registre[inactif]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/documents_affaire_lecture_appareil.py",
+  "ligne": 68,
+  "fonction": "_connexion",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 65,
+  "fonction_fin": 69,
+  "id": "src/opsys/documents_affaire_lecture_appareil.py::_connexion::68",
+  "tests": 93,
+  "exemples": [
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_affaire_connue_index_vide_couple_entier_sans_rejoue_et49tables",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_index_et_detail_octets_originaux_sans_trace_claim_ou_publication",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_pages_courantes_v2_activation_et_retrait_puis_reopen",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_autorite_avant_toute_copie_source[None]",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_autorite_avant_toute_copie_source[actor1]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/documents_affaire_transactions.py",
+  "ligne": 83,
+  "fonction": "_connexion",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 74,
+  "fonction_fin": 84,
+  "id": "src/opsys/documents_affaire_transactions.py::_connexion::83",
+  "tests": 240,
+  "exemples": [
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_premier_effet_seulement_quatre_tables_et_ack_sans_corps",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_autorite_ambiante_rejetee_avant_sources_claim[None]",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_autorite_ambiante_rejetee_avant_sources_claim[actor1]",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_autorite_ambiante_rejetee_avant_sources_claim[actor2]",
+   "tests/test_postgresql_rejeu_documents_affaire.py::test_quota_inadmissible_ou_minimum_ne_laisse_aucun_claim[40]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/evenements/inventaire_calibration.py",
+  "ligne": 41,
+  "fonction": "_connexion",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 43,
+  "fonction_debut": 37,
+  "fonction_fin": 43,
+  "id": "src/opsys/evenements/inventaire_calibration.py::_connexion::41",
+  "tests": 14,
+  "exemples": [
+   "tests/test_console_estimation_apprentissage.py::test_html_et_api_jointes_sans_identite_appareil_ni_mutation[admin]",
+   "tests/test_console_estimation_apprentissage.py::test_html_et_api_jointes_sans_identite_appareil_ni_mutation[nathan_owner]",
+   "tests/test_console_estimation_apprentissage.py::test_univers_vide_ne_devient_pas_calibration_reussie",
+   "tests/test_console_estimation_apprentissage.py::test_role_retire_apres_lecture_refuse_tout_resultat[/estimation/apprentissage/couverture]",
+   "tests/test_console_estimation_apprentissage.py::test_role_retire_apres_lecture_refuse_tout_resultat[/api/estimation/apprentissage/couverture]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/evenements/reconciliateur_cout_certifie.py",
+  "ligne": 264,
+  "fonction": "reconcilier",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 267,
+  "fonction_debut": 244,
+  "fonction_fin": 351,
+  "id": "src/opsys/evenements/reconciliateur_cout_certifie.py::reconcilier::264",
+  "tests": 508,
+  "exemples": [
+   "tests/test_console_proposition_chantier_http.py::test_devis_pret_proposition_reelle_et_revue_http_sans_affectation",
+   "tests/test_console_proposition_chantier_http.py::test_plan_rechaine_avec_sortie_incoherente_est_refuse",
+   "tests/test_console_proposition_chantier_http.py::test_csrf_formulaire_ferme_borne_et_sans_effets",
+   "tests/test_console_proposition_chantier_http.py::test_not_ready_sans_bouton_et_post_refuse",
+   "tests/test_console_proposition_chantier_http.py::test_source_retiree_apres_affichage_refuse_http"
+  ]
+ },
+ {
+  "fichier": "src/opsys/fusion_csv.py",
+  "ligne": 262,
+  "fonction": "_isoler_transaction",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 261,
+  "fonction_fin": 265,
+  "id": "src/opsys/fusion_csv.py::_isoler_transaction::262",
+  "tests": 191,
+  "exemples": [
+   "tests/test_m4_revue_humaine_autonome.py::test_agent_autonome_sans_signature_ne_resout_pas_la_revue[verifiee]",
+   "tests/test_deploy_install_readiness.py::test_projection_reelle_valide_est_ready[ollama]",
+   "tests/test_acces_par_proprietaire.py::test_le_core_garde_a_chaque_role_ses_outils_m2_et_m3",
+   "tests/test_openclaw_base_agents_budget.py::test_dix_departements_provisionnes_generes_sans_mutation_cachee",
+   "tests/test_postgresql_rejeu_provenance_m8.py::test_catalogue_m8_ferme_role_admin_n0_et_schema_quatre_arguments"
+  ]
+ },
+ {
+  "fichier": "src/opsys/liaison_cibles.py",
+  "ligne": 133,
+  "fonction": "_moteur_qualifie",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 132,
+  "fonction_fin": 134,
+  "id": "src/opsys/liaison_cibles.py::_moteur_qualifie::133",
+  "tests": 165,
+  "exemples": [
+   "tests/test_taxonomie.py::test_cli_services_declare_puis_liste_et_signe_au_journal",
+   "tests/test_deploy_install_readiness.py::test_projection_reelle_valide_est_ready[ollama]",
+   "tests/test_liaison_cibles.py::test_le_ticket_de_creation_m3_est_emis_sans_creer_le_devis_et_revalide_lead_et_collision",
+   "tests/test_liaison_cibles.py::test_ticket_refuse_une_chaine_m2_corrompue_sans_ticket_ni_brouillon[m3_creer_devis-m03-estimation-arguments0]",
+   "tests/test_liaison_cibles.py::test_ticket_refuse_une_chaine_m2_corrompue_sans_ticket_ni_brouillon[m2_enregistrer_interaction-m02-revenue-crm-arguments1]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/memoire_liaison.py",
+  "ligne": 43,
+  "fonction": "main",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 48,
+  "fonction_debut": 22,
+  "fonction_fin": 78,
+  "id": "src/opsys/memoire_liaison.py::main::43",
+  "tests": 4,
+  "exemples": [
+   "tests/test_liaison_cibles.py::test_cli_revoquer_n_accepte_pas_identite_en_argument_et_authentifie_l_admin",
+   "tests/test_liaison_cibles.py::test_cli_refuse_un_cas_perime_apres_une_nouvelle_liaison_sans_effet",
+   "tests/test_postgresql_rejeu_grants_liaison.py::test_cli_revoquer_n_accepte_pas_identite_en_argument_et_authentifie_l_admin",
+   "tests/test_postgresql_rejeu_grants_liaison.py::test_cli_refuse_un_cas_perime_apres_une_nouvelle_liaison_sans_effet"
+  ]
+ },
+ {
+  "fichier": "src/opsys/moteur_recalcul_m4.py",
+  "ligne": 112,
+  "fonction": "_verifier",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 114,
+  "fonction_debut": 111,
+  "fonction_fin": 114,
+  "id": "src/opsys/moteur_recalcul_m4.py::_verifier::112",
+  "tests": 17,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_mode_ombre_calcule_journalise_et_n_ecrit_rien"
+  ]
+ },
+ {
+  "fichier": "src/opsys/moteur_recalcul_m4.py",
+  "ligne": 248,
+  "fonction": "_recalculer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 250,
+  "fonction_debut": 247,
+  "fonction_fin": 282,
+  "id": "src/opsys/moteur_recalcul_m4.py::_recalculer::248",
+  "tests": 21,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_mode_ombre_calcule_journalise_et_n_ecrit_rien"
+  ]
+ },
+ {
+  "fichier": "src/opsys/notes_commande_affaire.py",
+  "ligne": 42,
+  "fonction": "resoudre",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 44,
+  "fonction_debut": 28,
+  "fonction_fin": 96,
+  "id": "src/opsys/notes_commande_affaire.py::resoudre::42",
+  "tests": 86,
+  "exemples": [
+   "tests/test_console_notes_commande.py::test_formulaire_texte_exact_versions_rejeu_et_historique",
+   "tests/test_console_notes_commande.py::test_long_texte_20000_sans_artefact",
+   "tests/test_console_notes_commande.py::test_identifiant_m6_existant_avec_espace_et_slash_accessible[note fictive / mat\\xe9riel ? # \\U0001f600]",
+   "tests/test_console_notes_commande.py::test_identifiant_m6_existant_avec_espace_et_slash_accessible[.]",
+   "tests/test_console_notes_commande.py::test_identifiant_m6_existant_avec_espace_et_slash_accessible[..]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/reception_courriel_stockage.py",
+  "ligne": 41,
+  "fonction": "_autoriser",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 44,
+  "fonction_debut": 40,
+  "fonction_fin": 52,
+  "id": "src/opsys/reception_courriel_stockage.py::_autoriser::41",
+  "tests": 28,
+  "exemples": [
+   "tests/test_reception_courriel_stockage.py::test_stockage_original_survit_reouverture_et_ne_cree_pas_fait_M1",
+   "tests/test_reception_courriel_stockage.py::test_rejeu_exact_historique_sans_nouvel_audit",
+   "tests/test_reception_courriel_stockage.py::test_meme_identite_autres_octets_est_conflit",
+   "tests/test_reception_courriel_stockage.py::test_autorite_avant_select_recu_et_rejeu",
+   "tests/test_reception_courriel_stockage.py::test_revocation_apres_insert_annule_original_et_audit"
+  ]
+ },
+ {
+  "fichier": "src/opsys/reception_sms_receipt.py",
+  "ligne": 251,
+  "fonction": "executer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 240,
+  "fonction_fin": 266,
+  "id": "src/opsys/reception_sms_receipt.py::executer::251",
+  "tests": 120,
+  "exemples": [
+   "tests/test_reception_sms_receipt.py::test_recu_reel_session_hote_rejeu_et_lire_purs",
+   "tests/test_reception_sms_receipt.py::test_sept_decisions_pipeline_reel_et_references",
+   "tests/test_reception_sms_receipt.py::test_meme_intention_autre_C_conflit_sans_delta[texte]",
+   "tests/test_reception_sms_receipt.py::test_meme_intention_autre_C_conflit_sans_delta[recu_le]",
+   "tests/test_reception_sms_receipt.py::test_meme_intention_autre_C_conflit_sans_delta[preuve_sha256]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/receptions_tarifs.py",
+  "ligne": 34,
+  "fonction": "_connexion",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "condition",
+  "passage": null,
+  "fonction_debut": 33,
+  "fonction_fin": 35,
+  "id": "src/opsys/receptions_tarifs.py::_connexion::34",
+  "tests": 361,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_proposition_chantier_http.py::test_devis_pret_proposition_reelle_et_revue_http_sans_affectation",
+   "tests/test_console_prefill_ports.py::test_devis_sql_sources_rejeu_et_reouverture",
+   "tests/test_deploy_install_readiness.py::test_projection_reelle_valide_est_ready[ollama]",
+   "tests/test_postgresql_rejeu_catalogue_m6.py::test_crud_versions_rejeu_et_reouverture"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_acteur_systeme.py",
+  "ligne": 126,
+  "fonction": "verifier",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 115,
+  "fonction_fin": 127,
+  "id": "src/opsys/service_acteur_systeme.py::verifier::126",
+  "tests": 19,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/test_cablage_mcp.py::test_les_outils_de_m1_sont_listes_et_l_outil_du_sas_ne_l_est_pas[/mcp/m01-front-office]",
+   "tests/test_console_observabilite.py::test_l_application_reelle_sert_la_page_aux_administrateurs_seulement",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_cloture_suivi_m9_cible_core.py::test_mcp_prive_propose_la_cloture_sans_decider_a_la_place_du_proprietaire"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 78,
+  "fonction": "_verifier",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 89,
+  "fonction_debut": 69,
+  "fonction_fin": 116,
+  "id": "src/opsys/service_capability.py::_verifier::78",
+  "tests": 120,
+  "exemples": [
+   "tests/test_console_rentabilite_chantier_ventilation_http.py::test_plusieurs_wct_bloquent_volet_ventilation_et_export",
+   "tests/test_console_rentabilite_chantier_ventilation_http.py::test_departement_m4_absent_est_signale_sans_import",
+   "tests/e2e/test_usine_contenu_appareil.py::test_terminer_avec_consentement_donne_cinq_contenus_en_attente_que_le_proprietaire_lit[postgresql]",
+   "tests/e2e/test_usine_contenu_appareil.py::test_un_texte_du_modele_avec_un_prix_est_refuse_en_nommant_la_regle_puis_corrige[postgresql]",
+   "tests/e2e/test_usine_contenu_appareil.py::test_le_proprietaire_approuve_puis_prend_le_paquet_a_publier_lui_meme[postgresql]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 138,
+  "fonction": "courante",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 140,
+  "fonction_debut": 133,
+  "fonction_fin": 171,
+  "id": "src/opsys/service_capability.py::courante::138",
+  "tests": 120,
+  "exemples": [
+   "tests/test_console_rentabilite_chantier_ventilation_http.py::test_plusieurs_wct_bloquent_volet_ventilation_et_export",
+   "tests/test_console_rentabilite_chantier_ventilation_http.py::test_departement_m4_absent_est_signale_sans_import",
+   "tests/e2e/test_usine_contenu_appareil.py::test_terminer_avec_consentement_donne_cinq_contenus_en_attente_que_le_proprietaire_lit[postgresql]",
+   "tests/e2e/test_usine_contenu_appareil.py::test_un_texte_du_modele_avec_un_prix_est_refuse_en_nommant_la_regle_puis_corrige[postgresql]",
+   "tests/e2e/test_usine_contenu_appareil.py::test_le_proprietaire_approuve_puis_prend_le_paquet_a_publier_lui_meme[postgresql]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 221,
+  "fonction": "_base",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 226,
+  "fonction_debut": 219,
+  "fonction_fin": 229,
+  "id": "src/opsys/service_capability.py::_base::221",
+  "tests": 122,
+  "exemples": [
+   "tests/test_console_rentabilite_chantier_ventilation_http.py::test_plusieurs_wct_bloquent_volet_ventilation_et_export",
+   "tests/test_console_rentabilite_chantier_ventilation_http.py::test_departement_m4_absent_est_signale_sans_import",
+   "tests/e2e/test_usine_contenu_appareil.py::test_terminer_avec_consentement_donne_cinq_contenus_en_attente_que_le_proprietaire_lit[postgresql]",
+   "tests/e2e/test_usine_contenu_appareil.py::test_un_texte_du_modele_avec_un_prix_est_refuse_en_nommant_la_regle_puis_corrige[postgresql]",
+   "tests/e2e/test_usine_contenu_appareil.py::test_le_proprietaire_approuve_puis_prend_le_paquet_a_publier_lui_meme[postgresql]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 307,
+  "fonction": "_projection_m4",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 309,
+  "fonction_debut": 305,
+  "fonction_fin": 346,
+  "id": "src/opsys/service_capability.py::_projection_m4::307",
+  "tests": 29,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_probe_preparation"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 484,
+  "fonction": "_revoquer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 486,
+  "fonction_debut": 477,
+  "fonction_fin": 519,
+  "id": "src/opsys/service_capability.py::_revoquer::484",
+  "tests": 1,
+  "exemples": [
+   "tests/test_operateur_politiques_service.py::test_primitive_interne_couvre_les_trois_operations"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_history_m4.py",
+  "ligne": 127,
+  "fonction": "attester",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 129,
+  "fonction_debut": 93,
+  "fonction_fin": 145,
+  "id": "src/opsys/service_history_m4.py::attester::127",
+  "tests": 28,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_probe_preparation"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_history_m4.py",
+  "ligne": 158,
+  "fonction": "lire_historique",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 162,
+  "fonction_debut": 148,
+  "fonction_fin": 272,
+  "id": "src/opsys/service_history_m4.py::lire_historique::158",
+  "tests": 6,
+  "exemples": [
+   "tests/test_postgresql_rejeu_services_m4.py::test_probe_preparation",
+   "tests/test_postgresql_rejeu_services_m4.py::test_la_sonde_m4_m5_dans_ses_cas_d_historique_sur_postgresql[v2_apres_tarif]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_la_sonde_m4_m5_dans_ses_cas_d_historique_sur_postgresql[lecture_revocation]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_la_sonde_m4_m5_dans_ses_cas_d_historique_sur_postgresql[historique_ancien]",
+   "tests/test_qa_m4_core_m5.py::test_probe_preparation"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_lecture_m4.py",
+  "ligne": 120,
+  "fonction": "_verifier",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 130,
+  "fonction_debut": 110,
+  "fonction_fin": 142,
+  "id": "src/opsys/service_lecture_m4.py::_verifier::120",
+  "tests": 8,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_parcours_automatique_wct_variance_verification_facture_puis_changement_de_prix",
+   "tests/e2e/test_travaux_termines_appareil.py::test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources_lues[postgresql]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_lecture_m4.py",
+  "ligne": 543,
+  "fonction": "_ouvrir_interne",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 549,
+  "fonction_debut": 536,
+  "fonction_fin": 583,
+  "id": "src/opsys/service_lecture_m4.py::_ouvrir_interne::543",
+  "tests": 8,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_parcours_automatique_wct_variance_verification_facture_puis_changement_de_prix",
+   "tests/e2e/test_travaux_termines_appareil.py::test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources_lues[postgresql]"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_politiques.py",
+  "ligne": 61,
+  "fonction": "_exiger_contexte",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 63,
+  "fonction_debut": 53,
+  "fonction_fin": 81,
+  "id": "src/opsys/service_politiques.py::_exiger_contexte::61",
+  "tests": 14,
+  "exemples": [
+   "tests/test_postgresql_rejeu_services_m4.py::test_mode_ombre_calcule_journalise_et_n_ecrit_rien",
+   "tests/test_postgresql_rejeu_services_m4.py::test_mode_actif_publie_par_l_acteur_systeme_puis_converge_sans_ecriture",
+   "tests/test_postgresql_rejeu_services_m4.py::test_un_refus_est_journalise_une_seule_fois_et_ne_reecrit_rien",
+   "tests/test_postgresql_rejeu_services_m4.py::test_deux_executions_simultanees_n_ecrivent_qu_une_fois",
+   "tests/test_postgresql_rejeu_services_m4.py::test_un_defaut_du_reconciliateur_ne_touche_ni_la_facture_ni_la_livraison"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_recalcul_m4.py",
+  "ligne": 79,
+  "fonction": "_verifier",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 89,
+  "fonction_debut": 70,
+  "fonction_fin": 117,
+  "id": "src/opsys/service_recalcul_m4.py::_verifier::79",
+  "tests": 17,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_mode_ombre_calcule_journalise_et_n_ecrit_rien"
+  ]
+ },
+ {
+  "fichier": "src/opsys/service_recalcul_m4.py",
+  "ligne": 338,
+  "fonction": "lire_historique_v2",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 343,
+  "fonction_debut": 332,
+  "fonction_fin": 395,
+  "id": "src/opsys/service_recalcul_m4.py::lire_historique_v2::338",
+  "tests": 16,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_mode_ombre_calcule_journalise_et_n_ecrit_rien"
+  ]
+ },
+ {
+  "fichier": "src/opsys/stockage/lecture_m1.py",
+  "ligne": 18,
+  "fonction": "borner",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 20,
+  "fonction_debut": 13,
+  "fonction_fin": 32,
+  "id": "src/opsys/stockage/lecture_m1.py::borner::18",
+  "tests": 312,
+  "exemples": [
+   "tests/test_console_reception_digest.py::test_digest_reception_http_initial_oracle_proprietaire_et_date",
+   "tests/test_console_reception_digest.py::test_digest_prive_json_compteurs_sans_ecriture_ni_payload",
+   "tests/test_console_reception_digest.py::test_digest_dates_distinctes_utilisent_appels_m1_durables",
+   "tests/test_console_reception_digest.py::test_digest_date_utc_par_defaut_est_exposee",
+   "tests/test_console_reception_digest.py::test_digest_accepte_jour_bissextile_valide"
+  ]
+ },
+ {
+  "fichier": "src/opsys/stockage/maillons.py",
+  "ligne": 222,
+  "fonction": "copier_maillons_stricts",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 225,
+  "fonction_debut": 209,
+  "fonction_fin": 263,
+  "id": "src/opsys/stockage/maillons.py::copier_maillons_stricts::222",
+  "tests": 29,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_probe_preparation"
+  ]
+ },
+ {
+  "fichier": "departments/m01-front-office/src/m1_front_office/outils.py",
+  "ligne": 1557,
+  "fonction": "_lire_registre_suivi_rappel",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 1563,
+  "fonction_debut": 1547,
+  "fonction_fin": 1568,
+  "id": "departments/m01-front-office/src/m1_front_office/outils.py::_lire_registre_suivi_rappel::1557",
+  "tests": 173,
+  "exemples": [
+   "tests/test_console_suivi_rappel.py::test_cas_perime_refuse_prise_en_charge_sans_effet",
+   "tests/test_console_suivi_rappel.py::test_prise_tentative_file_ouverte_cloture_distincte_et_rejeu[api]",
+   "tests/test_console_suivi_rappel.py::test_prise_tentative_file_ouverte_cloture_distincte_et_rejeu[formulaire]",
+   "tests/test_console_suivi_rappel.py::test_reprise_exacte_et_conflit_cle_cas_sans_ajout",
+   "tests/test_console_suivi_rappel.py::test_rejette_champs_forges_avant_toute_ecriture[par-api]"
+  ]
+ },
+ {
+  "fichier": "departments/m01-front-office/src/m1_front_office/outils.py",
+  "ligne": 2051,
+  "fonction": "registre_sms_hote",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 2054,
+  "fonction_debut": 2044,
+  "fonction_fin": 2060,
+  "id": "departments/m01-front-office/src/m1_front_office/outils.py::registre_sms_hote::2051",
+  "tests": 96,
+  "exemples": [
+   "tests/test_reception_sms_receipt.py::test_recu_reel_session_hote_rejeu_et_lire_purs",
+   "tests/test_reception_sms_receipt.py::test_sept_decisions_pipeline_reel_et_references",
+   "tests/test_reception_sms_receipt.py::test_meme_intention_autre_C_conflit_sans_delta[texte]",
+   "tests/test_reception_sms_receipt.py::test_meme_intention_autre_C_conflit_sans_delta[recu_le]",
+   "tests/test_reception_sms_receipt.py::test_meme_intention_autre_C_conflit_sans_delta[preuve_sha256]"
+  ]
+ },
+ {
+  "fichier": "departments/m01-front-office/src/m1_front_office/rappels_appareil.py",
+  "ligne": 96,
+  "fonction": "_acteur",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 101,
+  "fonction_debut": 86,
+  "fonction_fin": 101,
+  "id": "departments/m01-front-office/src/m1_front_office/rappels_appareil.py::_acteur::96",
+  "tests": 57,
+  "exemples": [
+   "tests/test_rappels_appareil_atomique.py::test_cap_sql_reponse_perdue_restart_meme_uuid_own_ack",
+   "tests/test_rappels_appareil_atomique.py::test_cap_sql_revocation_avant_rejeu_puis_restoration_exacte",
+   "tests/test_rappels_appareil_atomique.py::test_cap_sql_quota_cache_retient_confirmation_puis_exacte",
+   "tests/test_rappels_appareil_atomique.py::test_refus_metier_frais_perdu_rejoue_le_meme_refus_certain",
+   "tests/test_rappels_appareil_atomique.py::test_cache_succes_remplace_par_refus_certain_reste_inconnu[TRANSFERT-CLOS]"
+  ]
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py",
+  "ligne": 691,
+  "fonction": "reconcilier_memoire_contact_client",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 694,
+  "fonction_debut": 684,
+  "fonction_fin": 738,
+  "id": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py::reconcilier_memoire_contact_client::691",
+  "tests": 18,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m2_crm.py::test_diagnostic_memoire_contact_admin_lisible_sans_donnee_privee",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_reconciliation_observe_attente_puis_memoire_sans_ecriture",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_reconciliation_historique_exclut_projet_tardif_et_borne_revisions",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_reconciliation_refuse_agent_sans_identite_et_parametres_invalides",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_reconciliation_recu_sans_fait_ne_vaut_pas_memoire[echec-ECHEC_LIVRAISON]"
+  ]
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py",
+  "ligne": 751,
+  "fonction": "corriger_contact_client",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 756,
+  "fonction_debut": 741,
+  "fonction_fin": 768,
+  "id": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py::corriger_contact_client::751",
+  "tests": 52,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m2_crm.py::test_contact_corrige_conserve_projets_historique_recherche_et_rejeu",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_contact_refuse_agent_csrf_champs_invalides_et_rejeu_revoque",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_contact_formulaire_echappe_revision_bornee_et_historique",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_contact_seller_courant_sans_autre_projet_et_rollback",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_contact_deux_transactions_sqlite_ne_perdent_pas_une_correction"
+  ]
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py",
+  "ligne": 2591,
+  "fonction": "enregistrer_rendez_vous",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 2593,
+  "fonction_debut": 2586,
+  "fonction_fin": 2620,
+  "id": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py::enregistrer_rendez_vous::2591",
+  "tests": 28,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m2_crm.py::test_parcours_creation_deplacement_annulation_historique",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_conflit_horaire_pas_de_double_reservation",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_rejeu_admin_revoque",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_quota_identite_appareil_refus_avant_effet",
+   "tests/test_postgresql_rejeu_m2_crm.py::test_audit_rollback"
+  ]
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/outils.py",
+  "ligne": 2621,
+  "fonction": "enregistrer_modele_soumission",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 2623,
+  "fonction_debut": 2616,
+  "fonction_fin": 2648,
+  "id": "departments/m03-estimation/src/m3_estimation/outils.py::enregistrer_modele_soumission::2621",
+  "tests": 131,
+  "exemples": [
+   "tests/test_console_prefill_ports.py::test_devis_sql_sources_rejeu_et_reouverture",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[prix_change]",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[source]",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[doublon]",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[quantite]"
+  ]
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/outils.py",
+  "ligne": 2761,
+  "fonction": "creer_devis_depuis_modele",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 2763,
+  "fonction_debut": 2755,
+  "fonction_fin": 2810,
+  "id": "departments/m03-estimation/src/m3_estimation/outils.py::creer_devis_depuis_modele::2761",
+  "tests": 34,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m3_modeles.py::test_creation_modele_fige_documents_et_acceptation",
+   "tests/test_postgresql_rejeu_m3_modeles.py::test_refus_source_et_saisie_sans_effet[modele_source-0000000000000000000000000000000000000000000000000000000000000000]",
+   "tests/test_postgresql_rejeu_m3_modeles.py::test_refus_source_et_saisie_sans_effet[modele_revision-2]",
+   "tests/test_postgresql_rejeu_m3_modeles.py::test_refus_source_et_saisie_sans_effet[quantite_0--1]",
+   "tests/test_postgresql_rejeu_m3_modeles.py::test_refus_source_et_saisie_sans_effet[cout_unitaire_0-NaN]"
+  ]
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/outils.py",
+  "ligne": 2894,
+  "fonction": "_mutation_prefill",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 2896,
+  "fonction_debut": 2892,
+  "fonction_fin": 2902,
+  "id": "departments/m03-estimation/src/m3_estimation/outils.py::_mutation_prefill::2894",
+  "tests": 72,
+  "exemples": [
+   "tests/test_console_prefill_ports.py::test_devis_sql_sources_rejeu_et_reouverture",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[prix_change]",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[source]",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[doublon]",
+   "tests/test_console_prefill_ports.py::test_refus_sans_effet[quantite]"
+  ]
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/service_attente_devis.py",
+  "ligne": 44,
+  "fonction": "_verifier_commun",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 49,
+  "fonction_debut": 32,
+  "fonction_fin": 117,
+  "id": "departments/m03-estimation/src/m3_estimation/service_attente_devis.py::_verifier_commun::44",
+  "tests": 8,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_parcours_automatique_wct_variance_verification_facture_puis_changement_de_prix",
+   "tests/e2e/test_travaux_termines_appareil.py::test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources_lues[postgresql]"
+  ]
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/absences_durables.py",
+  "ligne": 18,
+  "fonction": "capturer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 20,
+  "fonction_debut": 17,
+  "fonction_fin": 25,
+  "id": "departments/m04-field-ops/src/m4_field_ops/absences_durables.py::capturer::18",
+  "tests": 107,
+  "exemples": [
+   "tests/test_console_absences_personnes_http.py::test_http_reel_source_temporalites_et_retrait_historise_sans_ecriture",
+   "tests/test_console_absences_personnes_http.py::test_aucun_signalement_ne_dit_pas_present",
+   "tests/test_console_absences_personnes_http.py::test_revocation_pendant_rendu_ne_divulgue_pas_signalement",
+   "tests/test_console_absences_personnes_http.py::test_source_modifiee_pendant_rendu_ne_repond_pas_historique_perime",
+   "tests/test_console_absences_personnes_http.py::test_pagination_source_et_page_terminale_sans_fausse_absence"
+  ]
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/composition_durable.py",
+  "ligne": 18,
+  "fonction": "capturer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 20,
+  "fonction_debut": 17,
+  "fonction_fin": 25,
+  "id": "departments/m04-field-ops/src/m4_field_ops/composition_durable.py::capturer::18",
+  "tests": 164,
+  "exemples": [
+   "tests/test_console_absences_personnes_http.py::test_formulaire_get_journal_utile_sans_copie_ou_compteur_absences",
+   "tests/test_console_composition_formulaire.py::test_formulaire_reel_declaration_correction_retrait_redeclaration_et_rejeu",
+   "tests/test_console_composition_formulaire.py::test_formulaire_malforme_non_signe_ou_identites_inconnues_refuses[modif0]",
+   "tests/test_console_composition_formulaire.py::test_formulaire_malforme_non_signe_ou_identites_inconnues_refuses[modif1]",
+   "tests/test_console_composition_formulaire.py::test_formulaire_malforme_non_signe_ou_identites_inconnues_refuses[modif2]"
+  ]
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/journal_durable.py",
+  "ligne": 24,
+  "fonction": "capturer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 26,
+  "fonction_debut": 23,
+  "fonction_fin": 31,
+  "id": "departments/m04-field-ops/src/m4_field_ops/journal_durable.py::capturer::24",
+  "tests": 117,
+  "exemples": [
+   "tests/test_console_absences_personnes_http.py::test_formulaire_get_journal_utile_sans_copie_ou_compteur_absences",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/test_postgresql_rejeu_m4_lectures.py::test_navigation_separee_et_fallback_id_conserve"
+  ]
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/outils.py",
+  "ligne": 1502,
+  "fonction": "confirmer_dates_cedule",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 1505,
+  "fonction_debut": 1497,
+  "fonction_fin": 1519,
+  "id": "departments/m04-field-ops/src/m4_field_ops/outils.py::confirmer_dates_cedule::1502",
+  "tests": 264,
+  "exemples": [
+   "tests/test_console_meteo_dates_chantier.py::test_meteo_dates_explicitement_verifiees_sans_fournisseur_ni_ecriture",
+   "tests/test_console_meteo_dates_chantier.py::test_ancienne_prevision_citee_ne_devient_pas_fraiche",
+   "tests/test_console_meteo_dates_chantier.py::test_profil_aba_reellement_utilise_ne_peut_etre_substitue",
+   "tests/test_console_meteo_dates_chantier.py::test_plan_rechaine_sans_empreinte_metier_ne_permet_pas_controle",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[24-ok]"
+  ]
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/outils.py",
+  "ligne": 3319,
+  "fonction": "_enregistrer_repere",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 3321,
+  "fonction_debut": 3313,
+  "fonction_fin": 3345,
+  "id": "departments/m04-field-ops/src/m4_field_ops/outils.py::_enregistrer_repere::3319",
+  "tests": 27,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m4_couleurs_cedule.py::test_couleur_exacte_historique_rejeu_et_retrait_sans_changement_metier",
+   "tests/test_postgresql_rejeu_m4_couleurs_cedule.py::test_rejeu_apres_revocation_refuse",
+   "tests/test_postgresql_rejeu_m4_couleurs_cedule.py::test_redatation_sans_transfert_et_rejeu_historique",
+   "tests/test_postgresql_rejeu_m4_couleurs_cedule.py::test_repere_vert_ne_masque_pas_report",
+   "tests/test_postgresql_rejeu_m4_couleurs_cedule.py::test_csrf_palette_injection_et_ancre_forgee"
+  ]
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/service_faits_m4.py",
+  "ligne": 29,
+  "fonction": "_lire",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 37,
+  "fonction_debut": 24,
+  "fonction_fin": 98,
+  "id": "departments/m04-field-ops/src/m4_field_ops/service_faits_m4.py::_lire::29",
+  "tests": 30,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_probe_preparation"
+  ]
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/visites_ecriture.py",
+  "ligne": 20,
+  "fonction": "capturer_visites",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 22,
+  "fonction_debut": 19,
+  "fonction_fin": 27,
+  "id": "departments/m04-field-ops/src/m4_field_ops/visites_ecriture.py::capturer_visites::20",
+  "tests": 94,
+  "exemples": [
+   "tests/test_console_absences_personnes_http.py::test_formulaire_get_journal_utile_sans_copie_ou_compteur_absences",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/test_postgresql_rejeu_m4_lectures.py::test_navigation_separee_et_fallback_id_conserve"
+  ]
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/outils.py",
+  "ligne": 871,
+  "fonction": "_autoriser_tarifs_equipes",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 875,
+  "fonction_debut": 868,
+  "fonction_fin": 878,
+  "id": "departments/m05-financecore/src/m5_financecore/outils.py::_autoriser_tarifs_equipes::871",
+  "tests": 42,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/e2e/test_admin_appareil.py::test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit[postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_probe_preparation"
+  ]
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/outils.py",
+  "ligne": 4365,
+  "fonction": "_autorite_couts_marketing",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 4367,
+  "fonction_debut": 4361,
+  "fonction_fin": 4380,
+  "id": "departments/m05-financecore/src/m5_financecore/outils.py::_autorite_couts_marketing::4365",
+  "tests": 25,
+  "exemples": [
+   "tests/test_console_couts_marketing.py::test_post_reel_n4_owner_rejeu_et_sources_durables",
+   "tests/test_console_couts_marketing.py::test_rbac_csrf_et_html_sans_montants_non_autorises",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[centimes]",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[plafond]",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[periode]"
+  ]
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/outils.py",
+  "ligne": 4397,
+  "fonction": "_snapshot_couts_marketing",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 4399,
+  "fonction_debut": 4383,
+  "fonction_fin": 4452,
+  "id": "departments/m05-financecore/src/m5_financecore/outils.py::_snapshot_couts_marketing::4397",
+  "tests": 24,
+  "exemples": [
+   "tests/test_console_couts_marketing.py::test_post_reel_n4_owner_rejeu_et_sources_durables",
+   "tests/test_console_couts_marketing.py::test_rbac_csrf_et_html_sans_montants_non_autorises",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[centimes]",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[plafond]",
+   "tests/test_console_couts_marketing.py::test_refus_metier_annule_demande_recu_journal_et_maillon[periode]"
+  ]
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/port_lecture_courante_m4.py",
+  "ligne": 45,
+  "fonction": "calculer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 48,
+  "fonction_debut": 42,
+  "fonction_fin": 246,
+  "id": "departments/m05-financecore/src/m5_financecore/port_lecture_courante_m4.py::calculer::45",
+  "tests": 8,
+  "exemples": [
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[56.0-True-2.00-postgresql]",
+   "tests/e2e/test_verticale_affaire_durable.py::test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-False-None-postgresql]",
+   "tests/test_postgresql_rejeu_services_m4.py::test_parcours_automatique_wct_variance_verification_facture_puis_changement_de_prix",
+   "tests/e2e/test_travaux_termines_appareil.py::test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources_lues[postgresql]"
+  ]
+ },
+ {
+  "fichier": "departments/m06-material-control/src/m6_material_control/catalogue_console.py",
+  "ligne": 50,
+  "fonction": "_autoriser",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 52,
+  "fonction_debut": 41,
+  "fonction_fin": 56,
+  "id": "departments/m06-material-control/src/m6_material_control/catalogue_console.py::_autoriser::50",
+  "tests": 445,
+  "exemples": [
+   "tests/test_postgresql_rejeu_catalogue_m6.py::test_crud_versions_rejeu_et_reouverture",
+   "tests/test_postgresql_rejeu_catalogue_m6.py::test_refus_et_rollback[quota]",
+   "tests/test_postgresql_rejeu_catalogue_m6.py::test_refus_et_rollback[origine]",
+   "tests/test_postgresql_rejeu_catalogue_m6.py::test_refus_et_rollback[unite]",
+   "tests/test_postgresql_rejeu_catalogue_m6.py::test_refus_et_rollback[revision]"
+  ]
+ },
+ {
+  "fichier": "departments/m06-material-control/src/m6_material_control/historique_prix_console.py",
+  "ligne": 29,
+  "fonction": "capturer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 31,
+  "fonction_debut": 28,
+  "fonction_fin": 36,
+  "id": "departments/m06-material-control/src/m6_material_control/historique_prix_console.py::capturer::29",
+  "tests": 78,
+  "exemples": [
+   "tests/test_console_historique_prix_m6.py::test_vrai_t0_dispatcher_sql_reouvert_et_comparaison_pure",
+   "tests/test_console_historique_prix_m6.py::test_pages_et_source_perimee_apres_autre_couple_sans_ecriture_lecture",
+   "tests/test_console_historique_prix_m6.py::test_quota_brut_avant_decodage[lignes]",
+   "tests/test_console_historique_prix_m6.py::test_quota_brut_avant_decodage[octets]",
+   "tests/test_console_historique_prix_m6.py::test_quota_enveloppe_et_source_corrompue_hors_page"
+  ]
+ },
+ {
+  "fichier": "departments/m06-material-control/src/m6_material_control/import_tarifs_console.py",
+  "ligne": 43,
+  "fonction": "capturer",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 46,
+  "fonction_debut": 42,
+  "fonction_fin": 55,
+  "id": "departments/m06-material-control/src/m6_material_control/import_tarifs_console.py::capturer::43",
+  "tests": 122,
+  "exemples": [
+   "tests/test_console_import_tarifs_m6.py::test_vrai_t0_prive_revalide_csv_et_reproduit_prepare_existant_sans_ecrire",
+   "tests/test_console_import_tarifs_m6.py::test_revalidation_canonique_sans_creer_fiche_ni_prix[unite-UNITE_CATALOGUE_DIFFERENTE]",
+   "tests/test_console_import_tarifs_m6.py::test_revalidation_canonique_sans_creer_fiche_ni_prix[materiau-MATERIAU_INCONNU]",
+   "tests/test_console_import_tarifs_m6.py::test_revalidation_canonique_sans_creer_fiche_ni_prix[inactif-MATERIAU_INACTIF]",
+   "tests/test_console_import_tarifs_m6.py::test_revalidation_canonique_sans_creer_fiche_ni_prix[fournisseur-FOURNISSEUR_INCONNU]"
+  ]
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/cmo_strategie.py",
+  "ligne": 161,
+  "fonction": "_autorite",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 165,
+  "fonction_debut": 159,
+  "fonction_fin": 169,
+  "id": "departments/m07-marketing/src/m7_marketing/cmo_strategie.py::_autorite::161",
+  "tests": 38,
+  "exemples": [
+   "tests/test_console_cmo_strategies.py::test_cycle_synergy_fictif_http_rouverture_baseline_decision_revue",
+   "tests/test_console_cmo_strategies.py::test_unknown_ne_devient_pas_zero_et_cible_reste_declaration",
+   "tests/test_console_cmo_strategies.py::test_rejeu_exact_ne_refait_pas_cas_ni_timestamp_et_conflit_refuse",
+   "tests/test_console_cmo_strategies.py::test_admin_propose_owner_decide_et_revocation_interdit_rejeu",
+   "tests/test_console_cmo_strategies.py::test_revision_ne_reprend_jamais_approbation_et_hash_exact_requis"
+  ]
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/growth.py",
+  "ligne": 134,
+  "fonction": "enregistrer_observation_humaine",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 137,
+  "fonction_debut": 119,
+  "fonction_fin": 176,
+  "id": "departments/m07-marketing/src/m7_marketing/growth.py::enregistrer_observation_humaine::134",
+  "tests": 25,
+  "exemples": [
+   "departments/m07-marketing/tests/test_growth_lecture.py::test_growth_v1_v2_plans_et_auteurs_distincts_sans_recriture",
+   "departments/m07-marketing/tests/test_growth_lecture.py::test_growth_v2_forme_provenance_fermee[changement0]",
+   "departments/m07-marketing/tests/test_growth_lecture.py::test_growth_v2_forme_provenance_fermee[changement1]",
+   "departments/m07-marketing/tests/test_growth_lecture.py::test_growth_v2_forme_provenance_fermee[changement2]",
+   "departments/m07-marketing/tests/test_growth_lecture.py::test_growth_v2_forme_provenance_fermee[changement3]"
+  ]
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 248,
+  "fonction": "reviser_texte_humain",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 250,
+  "fonction_debut": 239,
+  "fonction_fin": 312,
+  "id": "departments/m07-marketing/src/m7_marketing/usine/service.py::reviser_texte_humain::248",
+  "tests": 48,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_propose_modifiable_sans_rejet_et_autres_plateformes_intactes",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_post_edition_forgé_est_un_refus_metier_pas_action_inconnue",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[facebook]",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[instagram]",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_chaque_plateforme_revision_humaine_auteur_serveur[fiche_google]"
+  ]
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 453,
+  "fonction": "preparer_media_humain",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 457,
+  "fonction_debut": 447,
+  "fonction_fin": 528,
+  "id": "departments/m07-marketing/src/m7_marketing/usine/service.py::preparer_media_humain::453",
+  "tests": 26,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_revue_media_reelle_non_heritee_et_export_nouveau_requiert_decisions",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_api_dossier_medias_expose_metadonnees_sans_charge_wct",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_remise_manuelle_binaire_est_exacte_privee_et_rejouable",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_source_etrangere_et_octets_non_image_sont_refuses_sans_preparation",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_replay_upload_identique_est_idempotent_et_octets_divergents_en_conflit"
+  ]
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 536,
+  "fonction": "decider_dossier_medias",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 540,
+  "fonction_debut": 531,
+  "fonction_fin": 597,
+  "id": "departments/m07-marketing/src/m7_marketing/usine/service.py::decider_dossier_medias::536",
+  "tests": 16,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_revue_media_reelle_non_heritee_et_export_nouveau_requiert_decisions",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_api_dossier_medias_expose_metadonnees_sans_charge_wct",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_remise_manuelle_binaire_est_exacte_privee_et_rejouable",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_cas_prepare_corrompu_apres_upload_ne_peut_pas_etre_approuve",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_nouvelle_mutation_de_remise_reemet_le_meme_export_sans_append"
+  ]
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 606,
+  "fonction": "remettre_dossier_medias_manuel",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 610,
+  "fonction_debut": 600,
+  "fonction_fin": 713,
+  "id": "departments/m07-marketing/src/m7_marketing/usine/service.py::remettre_dossier_medias_manuel::606",
+  "tests": 14,
+  "exemples": [
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_revue_media_reelle_non_heritee_et_export_nouveau_requiert_decisions",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_api_dossier_medias_expose_metadonnees_sans_charge_wct",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_remise_manuelle_binaire_est_exacte_privee_et_rejouable",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_nouvelle_mutation_de_remise_reemet_le_meme_export_sans_append",
+   "tests/test_postgresql_rejeu_m7_marketing.py::test_texte_courant_refuse_avant_remise_et_ajout_de_toute_trace"
+  ]
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/outils.py",
+  "ligne": 617,
+  "fonction": "_verifier_capture_paquets",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 613,
+  "fonction_fin": 624,
+  "id": "departments/m10-memoire/src/m10_memoire/outils.py::_verifier_capture_paquets::617",
+  "tests": 175,
+  "exemples": [
+   "tests/test_console_proposition_chantier_http.py::test_devis_pret_proposition_reelle_et_revue_http_sans_affectation",
+   "tests/test_deploy_install_readiness.py::test_projection_reelle_valide_est_ready[ollama]",
+   "tests/test_console_meteo_dates_chantier.py::test_meteo_dates_explicitement_verifiees_sans_fournisseur_ni_ecriture",
+   "tests/test_console_meteo_dates_chantier.py::test_ancienne_prevision_citee_ne_devient_pas_fraiche",
+   "tests/test_console_meteo_dates_chantier.py::test_profil_aba_reellement_utilise_ne_peut_etre_substitue"
+  ]
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/outils.py",
+  "ligne": 632,
+  "fonction": "capture_paquets_appareil",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": 634,
+  "fonction_debut": 628,
+  "fonction_fin": 660,
+  "id": "departments/m10-memoire/src/m10_memoire/outils.py::capture_paquets_appareil::632",
+  "tests": 110,
+  "exemples": [
+   "tests/test_console_meteo_dates_chantier.py::test_meteo_dates_explicitement_verifiees_sans_fournisseur_ni_ecriture",
+   "tests/test_console_meteo_dates_chantier.py::test_ancienne_prevision_citee_ne_devient_pas_fraiche",
+   "tests/test_console_meteo_dates_chantier.py::test_profil_aba_reellement_utilise_ne_peut_etre_substitue",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[24-ok]",
+   "tests/test_console_meteo_dates_chantier.py::test_seuils_reels_sur_date_exacte[25-validation_requise]"
+  ]
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/outils.py",
+  "ligne": 1560,
+  "fonction": "_verifier_invocation_lecture_documentaire",
+  "forme": "dialecte in/not in DIALECTES_QUALIFIES",
+  "genre": "refus",
+  "passage": null,
+  "fonction_debut": 1552,
+  "fonction_fin": 1568,
+  "id": "departments/m10-memoire/src/m10_memoire/outils.py::_verifier_invocation_lecture_documentaire::1560",
+  "tests": 127,
+  "exemples": [
+   "tests/test_console_proposition_chantier_http.py::test_devis_pret_proposition_reelle_et_revue_http_sans_affectation",
+   "tests/test_deploy_install_readiness.py::test_projection_reelle_valide_est_ready[ollama]",
+   "tests/test_console_meteo_dates_chantier.py::test_meteo_dates_explicitement_verifiees_sans_fournisseur_ni_ecriture",
+   "tests/test_openclaw_base_agents_budget.py::test_dix_departements_provisionnes_generes_sans_mutation_cachee",
+   "tests/test_postgresql_rejeu_provenance_m8.py::test_catalogue_m8_ferme_role_admin_n0_et_schema_quatre_arguments"
+  ]
+ }
+]

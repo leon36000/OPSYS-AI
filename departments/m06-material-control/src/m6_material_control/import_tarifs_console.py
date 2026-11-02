@@ -1,11 +1,12 @@
 """Préparation CSV privée sur trois snapshots canoniques; aucune application de tarif."""
 import re
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import stockage
 from opsys.outils import Outil, valider_arguments
 from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from opsys.stockage.schema import REGISTRES
 
 from . import catalogue_console as acces
@@ -39,12 +40,12 @@ def schema():
 
 
 def capturer(cnx):
-    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise catalogue_materiaux.CatalogueRefuse('INSTANCE-NON-QUALIFIEE')
     # Compter les trois familles avant le premier décodage, y compris une corruption hors couple.
     for registre in _REGISTRES:
         condition = (REGISTRES.c.departement == acces.DEPARTEMENT) & (REGISTRES.c.registre == registre)
-        n, octets = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+        n, octets = cnx.execute(select(func.count(), func.sum(nb_octets(REGISTRES.c.maillon)))
                                .select_from(REGISTRES).where(condition)).one()
         # Le prepare de saisie réserve une place au futur append du livre (refus à 10000).
         limite = MAX_SOURCES - 1 if registre == 'livre_prix' else MAX_SOURCES

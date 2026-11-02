@@ -176,7 +176,10 @@ def test_tete_geante_est_mesuree_sql_avant_selection_payload(session, monkeypatc
         event.remove(moteur, "before_cursor_execute", tracer)
     assert erreur.value.status_code == 409
     assert len(requetes) == 1
-    assert "length(CAST(maillon AS BLOB))" in requetes[0]
+    # la mesure d'octets est celle du moteur : le contenu du maillon n'est jamais sélectionné
+    mesure = ("octet_length(registres_maillons.maillon)" if moteur.dialect.name == "postgresql"
+              else "length(CAST(registres_maillons.maillon AS BLOB))")
+    assert mesure in requetes[0]
     assert "SELECT registres_maillons.maillon" not in requetes[0]
 
 

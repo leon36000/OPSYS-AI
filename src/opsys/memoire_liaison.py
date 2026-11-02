@@ -13,6 +13,8 @@ import getpass
 import sys
 
 from . import etat, identite, stockage
+from .stockage.concurrence import relire_si_conflit, verrou_ecriture_console
+from .stockage.portabilite import DIALECTES_QUALIFIES
 
 ROLES_AUTORISES = frozenset({"admin", "nathan_owner"})
 
@@ -38,31 +40,39 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         from m10_memoire import humain, liaison, registre
 
-        if cnx.dialect.name != "sqlite":
-            print("révocation temporairement indisponible hors de SQLite", file=sys.stderr)
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
+            print("révocation indisponible hors de SQLite et PostgreSQL", file=sys.stderr)
             return 1
+        # PostgreSQL : un seul écrivain humain à la fois, et le perdant d'une course sur le registre est REJOUÉ
+        # (il relit la liaison du gagnant : « liaison modifiée ou absente ») ; sous SQLite, rien ne change.
+        verrou_ecriture_console(cnx)
 
-        reg = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
-        try:
-            actif = liaison.liaison_courante(args.session, reg)
-        except ValueError:
-            actif = None
-        if actif is None or actif.get("ligne_id") != args.ligne:
-            print("liaison modifiée ou absente; relire avant de révoquer", file=sys.stderr)
-            return 1
-        role = sorted(personne.roles.intersection(ROLES_AUTORISES))[0]
-        resultat, refus = liaison.revoquer_session_affaire(
-            args.session,
-            args.ligne,
-            personne.identifiant,
-            role,
-            humain.SOURCE_CLI,
-            args.motif,
-            dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
-            reg,
-        )
-        if refus is not None:
-            print(f"révocation refusée: {refus['code']}: {refus['detail']}", file=sys.stderr)
+        def revoquer() -> tuple[int, str, dict | None]:
+            reg = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+            try:
+                actif = liaison.liaison_courante(args.session, reg)
+            except ValueError:
+                actif = None
+            if actif is None or actif.get("ligne_id") != args.ligne:
+                return 1, "liaison modifiée ou absente; relire avant de révoquer", None
+            role = sorted(personne.roles.intersection(ROLES_AUTORISES))[0]
+            resultat, refus = liaison.revoquer_session_affaire(
+                args.session,
+                args.ligne,
+                personne.identifiant,
+                role,
+                humain.SOURCE_CLI,
+                args.motif,
+                dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+                reg,
+            )
+            if refus is not None:
+                return 1, f"révocation refusée: {refus['code']}: {refus['detail']}", None
+            return 0, "", resultat
+
+        code, message, resultat = relire_si_conflit(revoquer)
+        if code != 0:
+            print(message, file=sys.stderr)
             return 1
     print(f"liaison révoquée; ligne d'audit {resultat['ligne_id']}")
     return 0

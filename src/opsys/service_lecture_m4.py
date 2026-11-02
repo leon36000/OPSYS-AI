@@ -1,8 +1,8 @@
-"""Relecture courante M4 pour M5 sous la politique `m4.relire_faits_pour_m5_v1` (E6).
+"""Relecture courante M4 pour M5 sous la politique `m4.relire_faits_pour_m5_v1` (E6), sur SQLite et sur PostgreSQL.
 
 La portée est une convention interne entre composants de confiance. Les entrées publiques (`ouvrir` pour une
 session console admin, `ouvrir_appareil` pour l'identité MCP attestée) refusent sans politique active, sur
-PostgreSQL et sans verrou d'écriture.
+un moteur non qualifié et sans exclusion d'écriture (`BEGIN IMMEDIATE` sous SQLite, verrou d'instance sous PostgreSQL).
 """
 
 import copy
@@ -13,14 +13,14 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from time import monotonic, time
 
-from sqlalchemy import event as sqla_event
 from sqlalchemy import select
 
 from . import appareils, attestation_appareil_gateway, contexte, identite, stockage
 from . import service_capability as sc
 from . import service_recalcul_m4 as recalcul
 from .stockage import codec
-from .stockage.moteur import _debuter_sqlite
+from .stockage.exclusion import engager, exclusion_engagee
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import (
     OPSYS_INSTANCE,
     SERVICE_ATTESTATIONS_M4,
@@ -117,8 +117,8 @@ class _Portee:
             or monotonic() >= self.date_limite
             or stockage.connexion_courante() is not c
             or c.closed
-            or c.engine.dialect.name != "sqlite"
-            or not sqla_event.contains(c.engine, "begin", _debuter_sqlite)
+            or c.engine.dialect.name not in DIALECTES_QUALIFIES
+            or not exclusion_engagee(c)
             or self.racine is None
             or not self.racine.is_active
             or c.get_transaction() is not self.racine
@@ -502,8 +502,8 @@ def courante():
 def ouvrir(cnx, session, *, wct_id, devis_id):
     """Portée de relecture courante M4 pour une session console d'un admin actif (E6) : gestionnaire de contexte.
 
-    Refuse sans politique `m4.relire_faits_pour_m5_v1` active (octroi par l'opérateur, D1), sur PostgreSQL, sans
-    verrou `BEGIN IMMEDIATE`, hors transaction, dans une autre portée, ou pour tout autre acteur qu'une `Session`."""
+    Refuse sans politique `m4.relire_faits_pour_m5_v1` active (octroi par l'opérateur, D1), sur un moteur non qualifié,
+    sans exclusion d'écriture, hors transaction, dans une autre portée, ou pour tout autre acteur qu'une `Session`."""
     from .console.securite import Session
 
     if type(session) is not Session:
@@ -540,7 +540,7 @@ def _ouvrir_interne(cnx, session, appareil, *, wct_id, devis_id):
         or type(devis_id) is not str
         or not 1 <= len(devis_id) <= 256
         or cnx is not stockage.connexion_courante()
-        or cnx.engine.dialect.name != "sqlite"
+        or cnx.engine.dialect.name not in DIALECTES_QUALIFIES
         or cnx.get_transaction() is None
         or sc._COURANTE.get() is not None
         or _COURANTE.get() is not None
@@ -563,10 +563,11 @@ def _ouvrir_interne(cnx, session, appareil, *, wct_id, devis_id):
         or time() >= policy.expire_le
     ):
         raise sc.RefusAutorite("politique de lecture absente ou expirée")
-    # Le moteur canonique engage BEGIN IMMEDIATE avant toute lecture M3 ;
-    # le verrou interdit un commit concurrent tant que la transaction vit.
-    if not sqla_event.contains(cnx.engine, "begin", _debuter_sqlite):
-        raise sc.RefusAutorite("transaction immédiate non qualifiée")
+    # SQLite : le moteur canonique engage BEGIN IMMEDIATE avant toute lecture M3 ; le verrou interdit un commit
+    # concurrent tant que la transaction vit. PostgreSQL : verrou d'instance de la famille (`stockage.exclusion`).
+    engager(cnx)
+    if not exclusion_engagee(cnx):
+        raise sc.RefusAutorite("exclusion d'écriture non qualifiée")
     with cnx.begin_nested():
         event_bus, recu = recalcul._valider_source(cnx, wct_id, devis_id)
         p = _Portee(cnx, session, appareil, wct_id, devis_id, instance, policy, event_bus, recu)

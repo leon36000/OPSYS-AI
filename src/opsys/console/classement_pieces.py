@@ -2,9 +2,11 @@
 import re
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from .. import etat, idempotence
+from ..stockage.concurrence import relire_si_conflit, verrou_ecriture_console
+from ..stockage.portabilite import nb_octets
 from ..stockage.schema import PIECES_CLASSEMENTS as CLASSEMENTS
 from . import pieces_projet as pieces
 
@@ -33,7 +35,7 @@ def _arguments(lead, piece, categorie, revision, motif):
 
 
 def _borner(cnx):
-    longueurs = [func.length(cast(CLASSEMENTS.c[n], LargeBinary)) for n in _LIMITES]
+    longueurs = [nb_octets(CLASSEMENTS.c[n]) for n in _LIMITES]
     mesures = cnx.execute(select(func.count(), func.sum(sum(longueurs)),
                                 *[func.max(v) for v in longueurs]).select_from(CLASSEMENTS)).one()
     if (mesures[0] > MAX_LIGNES or (mesures[1] or 0) > MAX_OCTETS
@@ -125,6 +127,16 @@ def lire(cnx, deps, session, lead_id, piece_id, *, cle, decalage=0, revision_max
 
 
 def classer(cnx, deps, session, lead_id, piece_id, *, cle, categorie, revision_attendue, mutation_id, motif):
+    """Classement humain d'une pièce. Sur PostgreSQL, deux classements simultanés de la même révision se départagent par
+    la clé (pièce, révision) : le perdant est REJOUÉ et relit le classement du gagnant, donc rend `REVISION-PERIMEE`
+    (ou le rejeu identique), exactement comme sous SQLite (écrivain unique). Défaut latent L1."""
+    verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain de console à la fois (rien sous SQLite)
+    return relire_si_conflit(lambda: _classer_une_fois(
+        cnx, deps, session, lead_id, piece_id, cle=cle, categorie=categorie, revision_attendue=revision_attendue,
+        mutation_id=mutation_id, motif=motif))
+
+
+def _classer_une_fois(cnx, deps, session, lead_id, piece_id, *, cle, categorie, revision_attendue, mutation_id, motif):
     pieces.autorite._admin(cnx, session)
     args = _arguments(lead_id, piece_id, categorie, revision_attendue, motif)
     if type(mutation_id) is not str or re.fullmatch('[0-9a-f]{32}', mutation_id) is None:

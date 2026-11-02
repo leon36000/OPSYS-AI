@@ -49,7 +49,7 @@ from opsys.console.securite import Configuration
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 RACINE = Path(__file__).resolve().parents[2]
 FORMULAIRE = RACINE / "departments" / "m01-front-office" / "site" / "formulaire-demande.html"
 PROFIL_DU_CLIENT = {

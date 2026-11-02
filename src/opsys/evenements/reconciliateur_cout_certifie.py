@@ -23,8 +23,8 @@ Modes (`OPSYS_COUT_CERTIFIE_RECONCILIATEUR`) :
 Convergence : un état certifié à jour n'appelle pas le moteur ; un état inchangé (signature des registres M4/M5/M6,
 des politiques et des reçus) ne relance ni le balayage ni un refus déjà constaté ; un balayage complet est refait
 au plus tard toutes les `_REVUE_PERIODIQUE_S`. Un échec ne touche jamais la facture ni la facturation : rien ne
-tourne dans une livraison, et tout refus annule sa propre transaction. SQLite seulement (D5) : PostgreSQL ne lance
-rien.
+tourne dans une livraison, et tout refus annule sa propre transaction. SQLite et PostgreSQL ; tout
+autre moteur ne lance rien.
 """
 
 from __future__ import annotations
@@ -40,6 +40,7 @@ from typing import Any
 from sqlalchemy import func, insert, select
 
 from ..stockage import transaction
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from ..stockage.schema import (
     COUT_CERTIFIE_RECONCILIATIONS,
     EVENEMENTS_RECUS,
@@ -260,8 +261,8 @@ def reconcilier(departements: Mapping[str, Any] | None = None, *, limite: int = 
         resume["raison"] = "m5_indisponible"
         return resume
     with transaction() as cnx:
-        if cnx.engine.dialect.name != "sqlite":
-            resume["raison"] = "backend_non_sqlite"
+        if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
+            resume["raison"] = "backend_non_qualifie"
             return resume
         instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)
                                ).scalar_one_or_none()

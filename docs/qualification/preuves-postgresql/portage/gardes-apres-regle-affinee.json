@@ -1,0 +1,30 @@
+[
+ {
+  "fichier": "src/opsys/cles_chiffrement.py",
+  "ligne": 167,
+  "fonction": "_nettoyer_fichiers_courants",
+  "garde": "engine.dialect.name != 'sqlite'",
+  "effet": "return (False, 'backend_non_qualifie')"
+ },
+ {
+  "fichier": "src/opsys/exportation.py",
+  "ligne": 160,
+  "fonction": "_base_sqlite",
+  "garde": "cible.get_backend_name() != 'sqlite'",
+  "effet": "ErreurExportation(\"cette commande exporte la base SQLite de l'instance locale. Pour PostgreSQL (Docker Compose), utilisez deploy/backup.sh (docs/ops/EXPLOITATION.md).\")"
+ },
+ {
+  "fichier": "src/opsys/openclaw.py",
+  "ligne": 137,
+  "fonction": "configuration_cron_memoire_developpement",
+  "garde": "url.get_backend_name() != 'sqlite'",
+  "effet": "ValueError('cron M10 exige une base SQLite fichier sans identifiants de connexion')"
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+  "ligne": 63,
+  "fonction": "_sqlite_seulement",
+  "garde": "dialecte != 'sqlite'",
+  "effet": "BackendConsolidationNonPrisEnCharge('backend_non_pris_en_charge : jobs développement SQLite fichier uniquement')"
+ }
+]

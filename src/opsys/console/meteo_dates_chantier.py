@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, HTTPException, Request
 
 from .. import idempotence, identite, meteo, stockage
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import cedule_plan_ui, pages
 from . import preparation_chantier as lecture
 
@@ -15,7 +16,7 @@ def preparer(cnx, deps, session, plan_id):
     """Aucune prévision chargée : la tête, les dates et le profil seuls lient le formulaire."""
     from m4_field_ops import annotations_calendrier, registre
 
-    if cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise lecture.Refus('INSTANCE-NON-QUALIFIEE')
     personne = identite.personne_active(cnx, session.utilisateur)
     if (personne is None or 'admin' not in personne.roles

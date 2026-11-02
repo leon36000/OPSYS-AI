@@ -10,11 +10,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import Connection, LargeBinary, case, cast, func, or_, select
+from sqlalchemy import Connection, case, func, or_, select
 
 from opsys import approbations, avatars, modeles, openclaw, openclaw_refus, taxonomie
 from opsys.departements import PALIERS, Departement
 from opsys.stockage.schema import AGENTS_CONFIGURABLES, AGENTS_POLITIQUE_ENTREPRISE
+
+from ..stockage.portabilite import nb_octets
 
 MAX_OCTETS = 64 * 1024
 MAX_DEPARTEMENTS = 16
@@ -110,7 +112,7 @@ def _profils(cnx: Connection, deps: Mapping[str, Departement]) -> dict[str, Any]
     visible = table.c.supprime.is_(False)
     total = _entier(cnx.scalar(select(func.count()).select_from(table).where(visible)))
     # Les champs libres outils/déclencheurs/responsabilité/historique ne sont jamais sélectionnés.
-    trop_long = or_(*(func.length(cast(col, LargeBinary)) > maximum for col, maximum in (
+    trop_long = or_(*(nb_octets(col) > maximum for col, maximum in (
         (table.c.id, 64), (table.c.departement, 64), (table.c.palier_modele, 16),
     )))
     if cnx.scalar(select(func.count()).select_from(table).where(visible, trop_long)):

@@ -9,11 +9,12 @@ import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-from sqlalchemy import LargeBinary, and_, cast, exists, func, insert, or_, select, update
+from sqlalchemy import and_, exists, func, insert, or_, select, update
 
 from .. import service_capability as sc
 from .. import stockage
 from ..stockage import codec
+from ..stockage.portabilite import nb_octets
 from ..stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, OPSYS_INSTANCE
 from ..stockage.schema import WCT_ATTENTES as ATTENTES
 from ..stockage.schema import WCT_ATTENTES_AUDIT as AUDIT
@@ -226,10 +227,10 @@ def _source(cnx, attente):
     evt_filtre = EVENEMENTS_SORTANTS.c.evenement_id == ident
     recu_filtre = (EVENEMENTS_RECUS.c.evenement_id == ident) & (EVENEMENTS_RECUS.c.consommateur == _CONSOMMATEUR)
     taille = cnx.execute(
-        select(func.length(cast(EVENEMENTS_SORTANTS.c.charge, LargeBinary))).where(evt_filtre)
+        select(nb_octets(EVENEMENTS_SORTANTS.c.charge)).where(evt_filtre)
     ).scalar_one_or_none()
     taille_recu = cnx.execute(
-        select(func.length(cast(EVENEMENTS_RECUS.c.resultat, LargeBinary))).where(recu_filtre)
+        select(nb_octets(EVENEMENTS_RECUS.c.resultat)).where(recu_filtre)
     ).scalar_one_or_none()
     if (
         type(taille) is not int
@@ -298,7 +299,7 @@ def _verifier_paire(cnx, attente):
     )
     recu = cnx.execute(select(EVENEMENTS_RECUS).where(cible)).mappings().one_or_none()
     taille = cnx.execute(
-        select(func.length(cast(EVENEMENTS_SORTANTS.c.charge, LargeBinary))).where(
+        select(nb_octets(EVENEMENTS_SORTANTS.c.charge)).where(
             EVENEMENTS_SORTANTS.c.evenement_id == attente["evenement_id"]
         )
     ).scalar_one_or_none()

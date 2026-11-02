@@ -31,7 +31,7 @@ from harnais_e2e import Moteur, PorteAppareil, iso
 from opsys import identite, stockage
 from opsys.outils import executer_atomique
 
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 LISTER = "m2_lister_leads"
 LIMITE_TRONCATURE = 6000  # `jetons.LIMITE_SORTIE_DEFAUT`
 HORODATAGE = "2026-09-29T12:00:00-04:00"

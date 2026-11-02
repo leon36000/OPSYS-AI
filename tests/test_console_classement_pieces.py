@@ -184,7 +184,11 @@ def test_quota_avant_lecture_compagnon(piece, session, monkeypatch):
     p = port()
     with session() as cnx:
         classer(cnx, piece)
-        cnx.execute(update(p.CLASSEMENTS).values(auteur='x' * 801))
+        if cnx.dialect.name == 'postgresql':
+            # `auteur` est un varchar(200) : PostgreSQL refuse la valeur géante que SQLite accepte; on baisse le plafond
+            monkeypatch.setattr(p, 'MAX_OCTETS', 1)
+        else:
+            cnx.execute(update(p.CLASSEMENTS).values(auteur='x' * 801))
         def interdit(*args):
             raise AssertionError('maillon décodé avant quota')
         monkeypatch.setattr(p, '_hash', interdit)

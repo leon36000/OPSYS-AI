@@ -1,11 +1,12 @@
 """Adaptateur SQLite transactionnel privé des prévisions explicitement ancrées."""
 import json
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import stockage
 from opsys.etat import journaliser
 from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from opsys.stockage.schema import REGISTRES
 
 from . import journal_durable
@@ -16,10 +17,10 @@ DEPARTEMENT = 'm04-field-ops'
 
 
 def capturer_visites(cnx):
-    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise domaine.Refus('INSTANCE-NON-QUALIFIEE')
     condition = (REGISTRES.c.departement == DEPARTEMENT) & (REGISTRES.c.registre == domaine.REGISTRE)
-    nombre, octets = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+    nombre, octets = cnx.execute(select(func.count(), func.sum(nb_octets(REGISTRES.c.maillon)))
                                 .select_from(REGISTRES).where(condition)).one()
     if nombre > domaine.MAX_SOURCES or (octets or 0) > domaine.MAX_OCTETS:
         raise domaine.Refus('SOURCES-TROP-VOLUMINEUSES')

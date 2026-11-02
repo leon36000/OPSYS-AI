@@ -51,6 +51,8 @@ from opsys import (
 from opsys import equipes as equipes_entreprise
 from opsys import meteo as meteo_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.concurrence import verrou_ecriture_console
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import (
     absences_durables,
@@ -1498,9 +1500,10 @@ def outils(
         if refus:
             return refus
         cnx = _cnx_durable()
-        if cnx is None or cnx.dialect.name != "sqlite":
+        if cnx is None or cnx.dialect.name not in DIALECTES_QUALIFIES:
             return _refus(verdicts.construire_verdict(
-                "REJ-FRONTIERE-VIOLEE", detail="confirmation qualifiée sur SQLite durable seulement"))
+                "REJ-FRONTIERE-VIOLEE", detail="confirmation qualifiée sur SQLite ou PostgreSQL durable seulement"))
+        verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (SQLite : déjà le cas)
         appelante = contexte.identite_appelante()
         reception = contexte.horodatage_reception()
         if reception is None:
@@ -3371,8 +3374,9 @@ def _enregistrer_repere(n, ancre, champ, valeur, revision_attendue):
     try:
         auteur = _autoriser_annotation()
         cnx = stockage.connexion_courante()
-        if cnx.dialect.name != "sqlite":
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
             raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (SQLite : déjà le cas)
         meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
         if (not isinstance(meta, idempotence.Meta) or reception is None
                 or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil

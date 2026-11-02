@@ -268,6 +268,52 @@ def executer_atomique(outil: Outil, arguments: Mapping[str, Any]) -> dict[str, A
     Toutes les écritures d'un appel (registres, événements, audit) sont validées ensemble si la
     réponse est un succès, annulées ensemble si elle est un échec ou si une exception survient.
     """
+    return _executer_atomique(outil, arguments)
+
+
+def executer_atomique_console(
+    outil: Outil, arguments: Mapping[str, Any], *, rejouer: bool = True,
+    executeur: Callable[[Outil, Mapping[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """`executer_atomique` pour un port d'ÉCRITURE HUMAINE de la console. SQLite : identique, à l'octet près.
+
+    Sur PostgreSQL seulement : (1) les écritures de console sont sérialisées entre elles par un verrou d'instance
+    (`console-ecriture`, pris AVANT tout point de sauvegarde et tenu jusqu'à la fin de la transaction de la requête).
+    Sous SQLite, `BEGIN IMMEDIATE` ne laissait qu'un écrivain ; sans verrou, deux saisies lisaient le même état puis
+    s'ajoutaient toutes deux (mise à jour perdue : deux corrections d'une fiche fournisseur M6, toutes deux acceptées).
+    (2) avec `rejouer`, un appel qui perd malgré tout une course d'écriture (clé en double d'un registre chaîné
+    contre un écrivain d'agent, qui ne prend pas le verrou) est REJOUÉ après annulation de sa part : ses propres
+    gardes relisent l'état validé par le gagnant et rendent le verdict que SQLite rend (`REVISION-PERIMEE`,
+    `SOURCE-MODIFIEE`, rejeu identique…). Les ports qui traduisent EUX-MÊMES le conflit en refus explicite (409
+    « rechargez », sans rejeu automatique) passent `rejouer=False` : ils gardent le verrou, pas le rejeu.
+    `executeur` (défaut : `executer_atomique`) est l'exécution atomique sous-jacente : l'appelant peut y passer sa
+    propre référence à `executer_atomique`, que ses tests remplacent. Voir `stockage.concurrence`.
+    """
+    return _executer_console(outil, arguments, rejouer, executeur or _executer_atomique)
+
+
+def _executer_console(
+    outil: Outil, arguments: Mapping[str, Any], rejouer: bool,
+    executeur: Callable[[Outil, Mapping[str, Any]], dict[str, Any]],
+) -> dict[str, Any]:
+    from .stockage import connexion_courante, moteur, transaction
+    from .stockage.concurrence import relire_si_conflit, verrou_ecriture_console
+
+    cnx = connexion_courante()
+    dialecte = cnx.dialect.name if cnx is not None else moteur().dialect.name
+    if dialecte != "postgresql":
+        return executeur(outil, arguments)
+    if cnx is None:  # le verrou appartient à la transaction extérieure : l'ouvrir d'abord
+        with transaction():
+            return _executer_console(outil, arguments, rejouer, executeur)
+    if outil.autonomie != Autonomie.T0:
+        verrou_ecriture_console(cnx)
+    if not rejouer:
+        return executeur(outil, arguments)
+    return relire_si_conflit(lambda: executeur(outil, arguments))
+
+
+def _executer_atomique(outil: Outil, arguments: Mapping[str, Any]) -> dict[str, Any]:
     from .stockage import transaction
 
     try:

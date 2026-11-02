@@ -47,7 +47,7 @@ from opsys import contexte, stockage
 from opsys.stockage.schema import JOURNAL
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 EQUIPE = "eq-declaration-appareil-fictive"
 OUTIL = "m4_declarer_pointage_equipe_appareil"
 

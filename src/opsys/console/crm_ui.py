@@ -27,6 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from .. import idempotence, tableau_de_bord
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import (
     agenda_ui,
     annotations_cedule_ui,
@@ -649,7 +650,7 @@ def creer_router(
             raise HTTPException(400, "pagination invalide") from None
         vue = lire(session, "m4_lire_calendrier_plan", {"plan_id": plan_id})
         with cnx_factory() as cnx:
-            sqlite = cnx.dialect.name == "sqlite"
+            sqlite = cnx.dialect.name in DIALECTES_QUALIFIES
         try:
             cedule_plan_ui.valider(vue, plan_id)
             memoire = None
@@ -691,7 +692,7 @@ def creer_router(
         verifier_formulaire(champs, session)
         try:
             with cnx_factory() as cnx:
-                if cnx.dialect.name != "sqlite":
+                if cnx.dialect.name not in DIALECTES_QUALIFIES:
                     raise HTTPException(503, "Modification des dates indisponible sur cette instance")
                 resultat = confirmation_dates_chantier.confirmer(cnx, deps, session, plan_id, champs)
         except PermissionError:
@@ -727,7 +728,7 @@ def creer_router(
             raise HTTPException(503, "CRM temporairement indisponible")
         vue = lire(session, "m2_obtenir_client_360", {"client_id": client_id})
         with cnx_factory() as cnx:
-            correction_disponible = cnx.dialect.name == "sqlite"
+            correction_disponible = cnx.dialect.name in DIALECTES_QUALIFIES
         edition = (formulaire_contact(lead_id, vue, session.csrf, prefixe) if correction_disponible
                    else '<p class="note">Correction de coordonnées indisponible sur cette instance.</p>')
         try:

@@ -11,10 +11,12 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from .. import etat, idempotence
+from ..stockage.concurrence import relire_si_conflit, verrou_ecriture_console
 from ..stockage.maillons import copier_maillons_avec_metadonnees
+from ..stockage.portabilite import nb_octets
 from ..stockage.schema import PIECES_PROJET as PIECES
 from . import memoire_chantier as autorite
 from . import preparation_chantier as lecture
@@ -78,9 +80,9 @@ def _dechiffrer(cle, ligne, nature):
 
 def _borner(cnx):
     mesures = cnx.execute(select(func.count(), func.sum(
-        func.length(cast(PIECES.c.chiffre, LargeBinary)) +
-        func.length(cast(PIECES.c.titre_chiffre, LargeBinary))),
-        *[func.max(func.length(cast(PIECES.c[nom], LargeBinary))) for nom in _LIMITES]
+        nb_octets(PIECES.c.chiffre) +
+        nb_octets(PIECES.c.titre_chiffre)),
+        *[func.max(nb_octets(PIECES.c[nom])) for nom in _LIMITES]
     ).select_from(PIECES)).one()
     # Les champs textuels identifiants peuvent être UTF-8, jusqu'à quatre octets par caractère.
     if (mesures[0] > MAX_PIECES or (mesures[1] or 0) > MAX_TOTAL
@@ -207,6 +209,16 @@ def lister(cnx, deps, session, lead_id, *, cle, decalage=0):
 
 
 def deposer(cnx, deps, session, lead_id, *, mutation_id, titre, type_mime, contenu, cle):
+    """Dépôt humain d'une pièce de projet. Sur PostgreSQL, deux dépôts simultanés de la même saisie se départagent
+    par la clé unique (auteur, saisie) : le perdant est REJOUÉ, relit la pièce du gagnant et rend le même reçu,
+    exactement comme sous SQLite (écrivain unique). Défaut latent L1."""
+    verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain de console à la fois (rien sous SQLite)
+    return relire_si_conflit(lambda: _deposer_une_fois(
+        cnx, deps, session, lead_id, mutation_id=mutation_id, titre=titre, type_mime=type_mime, contenu=contenu,
+        cle=cle))
+
+
+def _deposer_une_fois(cnx, deps, session, lead_id, *, mutation_id, titre, type_mime, contenu, cle):
     autorite._admin(cnx, session)
     _cle(cle)
     titre_octets = _titre(titre)

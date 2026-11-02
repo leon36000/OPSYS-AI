@@ -26,7 +26,7 @@ from opsys.outils import executer_atomique
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 
 FICTIF = True
-SQLITE = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 LISTES = ("m7_lister_file_approbation", "m7_lister_demandes_avis", "m7_lister_contenus_chantier")
 RACINE = Path(__file__).resolve().parents[2]
 

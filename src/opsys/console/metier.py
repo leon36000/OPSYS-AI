@@ -19,7 +19,9 @@ from .. import approbations, contexte, idempotence, identite, stockage
 from ..capacites import Capacites
 from ..departements import Departement
 from ..etat import journaliser
-from ..outils import Autonomie, Niveau, Outil, executer_atomique, valider_arguments
+from ..outils import Autonomie, Niveau, Outil, executer_atomique, executer_atomique_console, valider_arguments
+from ..stockage.concurrence import verrou_ecriture_console
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from .securite import Session
 
 # Surface fermée : aucune écriture externe, dépense ou soumission officielle.
@@ -205,6 +207,8 @@ def _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutati
     if not isinstance(module, str) or module.rsplit(".", 1)[0] != "m7_marketing":
         raise KeyError("service édition M7 indisponible")
     service = importlib.import_module(_NOM_MODULE_SERVICE_M7)
+    if nom == "m7_reviser_texte_humain" and cnx.engine.dialect.name in DIALECTES_QUALIFIES:
+        verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (rien sous SQLite)
     with (
         contexte.appele_par_appareil(
             contexte.IdentiteAppelante(personne.identifiant, "nathan_owner", source="console")
@@ -215,7 +219,7 @@ def _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutati
             if mutation_id is not None or valider_arguments(_SCHEMA_LIRE_DOSSIER_MEDIA, arguments):
                 raise ValueError("lecture édition invalide")
             return service.lire_edition_texte_humain(**arguments)
-        if cnx.engine.dialect.name != "sqlite":
+        if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
             return {
                 "accepte": False,
                 "verdict": {
@@ -261,7 +265,7 @@ _COMMANDES_CMO = {
 def _port_cmo(cnx, deps, session):
     if session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("CMO-SESSION-EXPIREE")
-    if (stockage.connexion_courante() is not cnx or cnx.engine.dialect.name != "sqlite"
+    if (stockage.connexion_courante() is not cnx or cnx.engine.dialect.name not in DIALECTES_QUALIFIES
             or "m07-marketing" not in deps or deps["m07-marketing"].module_outils != "m7_marketing.outils"):
         raise ValueError("CMO-PORT-NON-QUALIFIE")
     personne = identite.personne_active(cnx, session.utilisateur)
@@ -322,6 +326,7 @@ def lire_strategies_cmo(cnx, deps, session, *, projection=None):
 
 def _executer_strategie_cmo(cnx, deps, session, nom, arguments, mutation_id):
     personne, service = _port_cmo(cnx, deps, session)
+    verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (rien sous SQLite)
     commande = _COMMANDES_CMO[nom]
     service.valider_commande(commande, arguments)
     if commande == "decider" and "nathan_owner" not in personne.roles:
@@ -372,10 +377,11 @@ def _executer_observation_growth_humaine(cnx, deps, session, personne, arguments
     """Commande interne privée : absente du catalogue MCP et des arguments du writer agent."""
     departement = "m07-marketing"
     module = deps[departement].module_outils if departement in deps else None
-    if module != "m7_marketing.outils" or cnx.engine.dialect.name != "sqlite":
+    if module != "m7_marketing.outils" or cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         raise ValueError("GROWTH-ECRITURE-NON-QUALIFIEE")
     if stockage.connexion_courante() is not cnx:
         raise ValueError("GROWTH-CONNEXION-NON-CANONIQUE")
+    verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (rien sous SQLite)
     if not isinstance(arguments, Mapping) or set(arguments) != {"observation", "rang_attendu", "empreinte_attendue"}:
         raise ValueError("GROWTH-COMMANDE-INVALIDE")
     if not isinstance(mutation_id, str) or not 1 <= len(mutation_id) <= 200 or not mutation_id.strip():
@@ -436,7 +442,7 @@ def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutati
     if (ecriture and (not isinstance(mutation_id, str) or not mutation_id.strip() or len(mutation_id) > 200)
             or (not ecriture and mutation_id is not None)):
         raise ValueError("intention de note invalide")
-    if ecriture and cnx.dialect.name != "sqlite":
+    if ecriture and cnx.dialect.name not in DIALECTES_QUALIFIES:
         return {"ok": True, "resultat": n.refuser("ECRITURE-NON-QUALIFIEE")}
     with (
         contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
@@ -462,7 +468,7 @@ def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutati
                 except n.Refus as exc:
                     return {"ok": True, "resultat": n.refuser(exc.suffixe)}
                 return {**recu.reponse, "rejoue": True}
-            reponse = executer_atomique(outil, dict(arguments))
+            reponse = _atomique(outil, dict(arguments))
             if reponse.get("ok") is True:
                 n.verifier_borne(reponse["resultat"], n.BORNE_SORTIE)
             idempotence.finaliser(cnx, meta, reponse)
@@ -506,7 +512,7 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
         contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
         if ecriture else nullcontext(),
     ):
-        return executer_atomique(outil, dict(arguments))
+        return _atomique(outil, dict(arguments))
 
 
 def _executer_declaration_journaliere(cnx, deps, session, personne, nom, arguments, mutation_id):
@@ -548,7 +554,7 @@ def _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id):
         contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
         if ecriture else nullcontext(),
     ):
-        return executer_atomique(outil, dict(arguments))
+        return _atomique(outil, dict(arguments))
 
 
 def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id):
@@ -585,10 +591,10 @@ def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutatio
             from .memoire_chantier import _admin
 
             with stockage.transaction():
-                resultat = executer_atomique(outil, dict(arguments))
+                resultat = _atomique(outil, dict(arguments))
                 _admin(cnx, session)
                 return resultat
-        resultat = executer_atomique(outil, dict(arguments))
+        resultat = _atomique(outil, dict(arguments))
         if nom in {"m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console"}:
             from .memoire_chantier import _admin
 
@@ -626,7 +632,14 @@ def _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
         contexte.receptionne_de(contexte.HorodatageAppareil(
             "console:" + personne.identifiant, maintenant, maintenant)),
     ):
-        return executer_atomique(outil, dict(arguments))
+        return _atomique(outil, dict(arguments))
+
+
+def _atomique(outil: Outil, arguments: Mapping[str, Any], *, rejouer: bool = True) -> dict[str, Any]:
+    """`executer_atomique` d'un port d'écriture humaine : verrou d'instance et rejeu après conflit sur PostgreSQL
+    seulement, exécution inchangée sous SQLite (`executer_atomique` de ce module, que les tests peuvent remplacer)."""
+    return executer_atomique_console(outil, arguments, rejouer=rejouer,
+                                     executeur=lambda o, a: executer_atomique(o, a))
 
 
 def executer(
@@ -857,7 +870,7 @@ def executer(
                           "m4_interrompre_visite_console_v2"}
             else nullcontext(),
         ):
-            reponse = executer_atomique(outil, charge)
+            reponse = _atomique(outil, charge, rejouer=False)
     if nom == "m1_consigner_suivi_rappel":
         personne_vivante = identite.personne_active(cnx, session.utilisateur)
         if (session.expire <= datetime.now(UTC).timestamp() or personne_vivante is None

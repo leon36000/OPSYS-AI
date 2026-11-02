@@ -210,6 +210,7 @@ import yaml
 
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import (
     acces,
@@ -867,7 +868,7 @@ _CHAMPS_TARIF_EQUIPE = frozenset({
 def _autoriser_tarifs_equipes() -> str:
     cnx = stockage.connexion_courante()
     appelante = contexte.identite_appelante()
-    if (cnx is None or not cnx.in_transaction() or cnx.dialect.name != "sqlite"
+    if (cnx is None or not cnx.in_transaction() or cnx.dialect.name not in DIALECTES_QUALIFIES
             or appelante is None or appelante.role != "admin" or appelante.source != "console"
             or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
         raise PermissionError("tarifs d'équipe : identité admin console et transaction SQLite requises")
@@ -919,8 +920,9 @@ def _valider_tarif_equipe(tarif: Any) -> dict[str, Any]:
 
 def _instantane_tarifs_equipes() -> dict[str, Any]:
     """Copie bornée puis chaîne vérifiée dans la transaction déjà admise."""
-    from sqlalchemy import LargeBinary, cast, func, select
+    from sqlalchemy import func, select
 
+    from opsys.stockage.portabilite import nb_octets
     from opsys.stockage.schema import OPSYS_INSTANCE, REGISTRES
 
     cnx = stockage.connexion_courante()
@@ -929,7 +931,7 @@ def _instantane_tarifs_equipes() -> dict[str, Any]:
     if not isinstance(instance, str) or not instance.strip():
         raise ValueError("tarifs d'équipe : instance non qualifiée")
     filtre = (REGISTRES.c.departement == _DEPARTEMENT) & (REGISTRES.c.registre == _NOM_REGISTRE_TARIFS_EQUIPES)
-    taille = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    taille = nb_octets(REGISTRES.c.maillon)
     nombre, premier, dernier, total, maximum = cnx.execute(select(
         func.count(), func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),
         func.coalesce(func.sum(taille), 0), func.coalesce(func.max(taille), 0),
@@ -4360,7 +4362,7 @@ def _autorite_couts_marketing(nom: str | None = None) -> str:
     cnx = stockage.connexion_courante()
     if cnx is None:
         raise couts_marketing.CoutErreur("TRANSACTION-REQUISE")
-    if cnx.dialect.name != "sqlite":
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise couts_marketing.CoutErreur("BACKEND-NON-PRIS-EN-CHARGE")
     if nom is not None:
         acteur = approbations.approbateur_en_cours(cnx, nom, _DEPARTEMENT, roles=frozenset({"nathan_owner"}))
@@ -4383,18 +4385,19 @@ def _snapshot_couts_marketing(nom: str) -> list[dict]:
     import json
     import math
 
-    from sqlalchemy import LargeBinary, cast, func, select
+    from sqlalchemy import func, select
 
     from opsys.stockage import codec
+    from opsys.stockage.portabilite import nb_octets
     from opsys.stockage.schema import REGISTRES
 
     if nom not in {_NOM_REGISTRE_COMPTES_A_PAYER, couts_marketing.REGISTRE}:
         raise couts_marketing.CoutErreur("REGISTRE-INVALIDE")
     cnx = stockage.connexion_courante()
-    if cnx is None or cnx.dialect.name != "sqlite":
+    if cnx is None or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise couts_marketing.CoutErreur("BACKEND-NON-PRIS-EN-CHARGE")
     filtre = (REGISTRES.c.departement == _DEPARTEMENT) & (REGISTRES.c.registre == nom)
-    octets = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    octets = nb_octets(REGISTRES.c.maillon)
     nombre, premier, dernier, total, maximum = cnx.execute(select(
         func.count(), func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),
         func.coalesce(func.sum(octets), 0), func.coalesce(func.max(octets), 0),

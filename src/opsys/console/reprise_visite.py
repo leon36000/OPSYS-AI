@@ -3,11 +3,12 @@ from datetime import UTC, datetime
 
 from m4_field_ops import cedule_tournees, encodage, etats, visites_chantier, visites_durables, visites_ecriture
 from m4_field_ops.registre import Registre, VerificationError
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import select
 
 from .. import contexte, idempotence, stockage
 from ..etat import journaliser
 from ..outils import Autonomie, Niveau, executer_atomique
+from ..stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from ..stockage.schema import MUTATIONS_APPLIQUEES
 from . import memoire_chantier as autorite
 from . import preparation_chantier as lecture
@@ -60,7 +61,7 @@ def _recu_borne(cnx, meta):
     condition = ((MUTATIONS_APPLIQUEES.c.appareil == meta.appareil)
                  & (MUTATIONS_APPLIQUEES.c.cle_idempotence == meta.cle))
     ancien = cnx.execute(select(MUTATIONS_APPLIQUEES.c.statut,
-        func.length(cast(MUTATIONS_APPLIQUEES.c.reponse, LargeBinary))).where(condition)).one_or_none()
+        nb_octets(MUTATIONS_APPLIQUEES.c.reponse)).where(condition)).one_or_none()
     if ancien is not None and (ancien[0] != 'ok' or ancien[1] is None
                                or not 0 < ancien[1] <= lecture.MAX_SORTIE_OCTETS):
         raise lecture.Refus('RECU-INDISPONIBLE')
@@ -88,7 +89,7 @@ def _controle_final(cnx, principal_attendu, courant):
 def preparer(cnx, deps, session, intervention_id):
     """Source d'une intention : état M4, équipes courantes, visite et report vérifiés."""
     autorite._admin(cnx, session)
-    if (cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite'
+    if (cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES
             or type(intervention_id) is not str or lecture.IDENTIFIANT.fullmatch(intervention_id) is None):
         raise lecture.Refus('ARGUMENTS')
     source = visites_ecriture.capturer_visites(cnx)
@@ -258,7 +259,7 @@ def preparer_application(cnx, deps, session, intervention_id, plan_id):
 def _preuve_application(cnx, intervention_id, plan_id, approbation_id, acteur):
     import json
 
-    from sqlalchemy import LargeBinary, cast, func, select
+    from sqlalchemy import select
 
     from ..stockage.schema import APPROBATIONS
 
@@ -304,8 +305,8 @@ def _preuve_application(cnx, intervention_id, plan_id, approbation_id, acteur):
             or etats.technicien_assigne(avant, intervention_id) != equipe):
         raise lecture.Refus('SOURCE-INCOHERENTE')
     condition = APPROBATIONS.c.id == approbation_id
-    tailles = cnx.execute(select(func.length(cast(APPROBATIONS.c.arguments, LargeBinary)),
-        func.length(cast(APPROBATIONS.c.resultat, LargeBinary))).where(condition)).one_or_none()
+    tailles = cnx.execute(select(nb_octets(APPROBATIONS.c.arguments),
+        nb_octets(APPROBATIONS.c.resultat)).where(condition)).one_or_none()
     if tailles is None or any(t is None or t > lecture.MAX_SORTIE_OCTETS for t in tailles):
         raise lecture.Refus('APPROBATION-INDISPONIBLE')
     decision = cnx.execute(select(APPROBATIONS).where(condition)).mappings().one()

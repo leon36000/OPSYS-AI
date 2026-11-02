@@ -227,7 +227,9 @@ def test_pg_attestation_immuable_downgrade_refuse_et_port_ferme(pg):
     from opsys.console.securite import Session
 
     session = Session("nathan", frozenset({"admin"}), "csrf-fictif", 2**31)
-    with pytest.raises(RefusAutorite, match="BACKEND_NON_SQLITE"):  # porte qualifiée E6 : PostgreSQL refusé
+    # Porte E6 : PostgreSQL est qualifié, mais `c` n'est pas la connexion courante du stockage : aucune exclusion
+    # d'écriture n'est engagée pour elle, la porte reste fermée et rien n'est écrit
+    with pytest.raises(RefusAutorite, match="VERROU_ECRITURE_ABSENT"):
         service_recalcul_m4.ouvrir(c, session, wct_id="a" * 64, devis_id="fictif", intention_id="b" * 64)
     assert c.execute(sa.select(sa.func.count()).select_from(SERVICE_POLITIQUES)).scalar_one() == 0
     with pytest.raises(RuntimeError, match="historique recalcul présent"), c.begin_nested():

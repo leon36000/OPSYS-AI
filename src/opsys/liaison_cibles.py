@@ -20,6 +20,7 @@ from typing import Any
 from sqlalchemy import Connection, insert, select, update
 
 from . import idempotence, stockage
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, LIAISONS_TICKETS
 
 TICKET_CIBLE_META = "opsys/cibleTicket"
@@ -128,8 +129,8 @@ def _iso(instant: dt.datetime) -> str:
     return instant.astimezone(dt.UTC).isoformat(timespec="seconds")
 
 
-def _sqlite_uniquement(cnx: Connection) -> None:
-    if cnx.dialect.name != "sqlite":
+def _moteur_qualifie(cnx: Connection) -> None:
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise CibleRefusee("liaison de cible temporairement désactivée hors de SQLite")
 
 
@@ -360,7 +361,7 @@ def emettre_ticket(
     maintenant: dt.datetime | None = None,
 ) -> dict[str, str]:
     """Émet un ticket opaque lié à l'agent/session, l'affaire, l'outil et ses arguments finaux."""
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     if origine_affaire not in {"demande", "session"}:
         raise CibleRefusee("origine d'affaire invalide")
     if not isinstance(agent_id, str) or not agent_id or not isinstance(cle_session, str):
@@ -411,7 +412,7 @@ def verifier_ticket(
     maintenant: dt.datetime | None = None,
 ) -> TicketValide:
     """Vérifie le binding, l'expiration et les liens vivants dans la transaction d'exécution."""
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     empreinte = empreinte_ticket(meta.jeton)
     ligne = cnx.execute(select(LIAISONS_TICKETS).where(
         LIAISONS_TICKETS.c.ticket_hash == empreinte
@@ -458,7 +459,7 @@ def verifier_ticket_scelle(
     arguments: Mapping[str, Any],
 ) -> TicketValide:
     """Revalide un ticket lié à l'approbation, sans exiger le secret brut une seconde fois."""
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     ligne = cnx.execute(select(LIAISONS_TICKETS).where(
         LIAISONS_TICKETS.c.ticket_hash == empreinte,
         LIAISONS_TICKETS.c.demande_id == demande_id,
@@ -591,7 +592,7 @@ def lire_succes_m9(
     is not a final refusal of the original operation. The caller must establish which Native
     history its authenticated route is authorized to consult before completing any Core intent.
     """
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     if (
         departement != "m09-strategic-intelligence"
         or not isinstance(outil, str) or outil not in _OUTILS_SUIVI_M9 | _OUTILS_CLOTURE_M9

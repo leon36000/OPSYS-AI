@@ -24,7 +24,7 @@ Sans session : redirection vers connexion sur la page, 401 sur l’API. Employé
 
 Les bornes existantes restent appliquées avant décodage : publications M4 limitées à 2 000, identités ASCII de 1–128 caractères, reçus M3 limités à 20 000 maillons/65 536 octets chacun/4 000 000 octets cumulés puis 2 000 identités uniques. Seules les identités et le contrôle du producteur sortent du bus; les charges WCT ne sont pas sélectionnées. Les maillons de réception sont lus par le codec canonique pour vérifier leur forme. Les exemples d’identités restent internes à la console admin; leur syntaxe ne constitue pas une anonymisation.
 
-SQLite uniquement : PostgreSQL reste non qualifié. Aucune création ou migration ne compense une source manquante. Les réponses sont `no-store`, `no-cache`, sous les en-têtes de sécurité/CSP existants, sans script externe. La lecture est un instantané comparable par empreintes, pas une surveillance live ni une preuve de toutes les publications historiques.
+SQLite et PostgreSQL 17 depuis le portage du 1er novembre 2026 ([QUALIFICATION-POSTGRESQL §16](../../qualification/QUALIFICATION-POSTGRESQL.md) ; à l’écriture de ce rapport, SQLite seulement). Aucune création ou migration ne compense une source manquante. Les réponses sont `no-store`, `no-cache`, sous les en-têtes de sécurité/CSP existants, sans script externe. La lecture est un instantané comparable par empreintes, pas une surveillance live ni une preuve de toutes les publications historiques.
 
 ## Qualification et défauts corrigés
 

@@ -40,7 +40,7 @@ from .contexte import (
 )
 from .departements import Departement, tous_les_outils
 from .mnemo import outils as mnemo_outils
-from .outils import Autonomie, Niveau, Outil, executer_atomique, valider_arguments
+from .outils import Autonomie, Niveau, Outil, executer_atomique, executer_atomique_console, valider_arguments
 from .politiques import approbation_requise_niveau, validation_au_depart_possible
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
@@ -1775,7 +1775,9 @@ class Capacites:
         with cnx.begin_nested():
             origine = self.appelant.id if self.appelant else None
             with appeler_en_tant_que(departement.id, origine=origine):
-                reponse = executer_atomique(outil, arguments)
+                # Écriture HUMAINE validée au départ (administrateur d'appareil) : sous PostgreSQL, verrou d'écriture
+                # de console et rejeu si elle perd une course (le perdant rend le refus de SQLite). SQLite : inchangé.
+                reponse = executer_atomique_console(outil, arguments, executeur=lambda o, a: executer_atomique(o, a))
             if reponse.get("ok") and (
                 outil.nom not in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6,
                                  _MUTATION_OBLIGATIONS_M5, _MUTATION_NOTE_M6,

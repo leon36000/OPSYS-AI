@@ -1,9 +1,9 @@
-"""Portée de recalcul SQLite sous double politique, et sa porte publique `ouvrir` (E6).
+"""Portée de recalcul sous double politique (SQLite et PostgreSQL), et sa porte publique `ouvrir` (E6).
 
 La session vient exclusivement du serveur (console) ; l'acteur système du réconciliateur est accepté par le moteur
 dans son seul contexte (D2). Ce module est une convention entre composants de confiance, pas une frontière contre
 du Python arbitraire. Les intentions et attestations sont conservées par Core ; le port M5 vérifie ses registres et
-sa trace. PostgreSQL reste refusé (D5).
+sa trace. PostgreSQL : exclusion d'écriture par verrou consultatif d'instance (`stockage.exclusion`).
 """
 
 import json
@@ -11,12 +11,14 @@ import re
 import threading
 from time import monotonic, time
 
-from sqlalchemy import LargeBinary, cast, func, insert, select
+from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
 from . import service_capability as sc
 from . import stockage
 from .stockage import codec
+from .stockage.exclusion import exclusion_engagee
+from .stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from .stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, OPSYS_INSTANCE, SERVICE_AUDIT, SERVICE_POLITIQUES
 from .stockage.schema import SERVICE_RECALCUL_ATTESTATIONS as ATTESTATIONS
 from .stockage.schema import SERVICE_RECALCUL_INTENTIONS as INTENTIONS
@@ -74,7 +76,8 @@ class _PorteeRecalcul:
             or monotonic() >= self.date_limite
             or stockage.connexion_courante() is not c
             or c.closed
-            or c.engine.dialect.name != "sqlite"
+            or c.engine.dialect.name not in DIALECTES_QUALIFIES
+            or (c.engine.dialect.name == "postgresql" and not exclusion_engagee(c))
             or self.racine is None
             or not self.racine.is_active
             or c.get_transaction() is not self.racine
@@ -258,12 +261,12 @@ def _reference(intention, attestation):
 
 def _valider_source(cnx, wct_id, devis_id):
     taille_event = cnx.execute(
-        select(func.length(cast(EVENEMENTS_SORTANTS.c.charge, LargeBinary))).where(
+        select(nb_octets(EVENEMENTS_SORTANTS.c.charge)).where(
             EVENEMENTS_SORTANTS.c.evenement_id == wct_id
         )
     ).scalar_one_or_none()
     taille_recu = cnx.execute(
-        select(func.length(cast(EVENEMENTS_RECUS.c.resultat, LargeBinary))).where(
+        select(nb_octets(EVENEMENTS_RECUS.c.resultat)).where(
             EVENEMENTS_RECUS.c.evenement_id == wct_id, EVENEMENTS_RECUS.c.consommateur == sc._CONSOMMATEUR
         )
     ).scalar_one_or_none()
@@ -332,7 +335,7 @@ def lire_historique_v2(cnx, session, intention_id):
     if (
         cnx is not stockage.connexion_courante()
         or cnx.get_transaction() is None
-        or cnx.dialect.name != "sqlite"
+        or cnx.dialect.name not in DIALECTES_QUALIFIES
         or type(intention_id) is not str
         or not _HEX.fullmatch(intention_id)
     ):
@@ -397,7 +400,8 @@ def ouvrir(cnx, session, *, wct_id, devis_id, intention_id):
 
     Délègue au moteur qualifié (`opsys.moteur_recalcul_m4.recalculer`) avec l'acteur de la session : refus typé
     sans les politiques `m4.recalculer_v3` ET `m4.verifier_v3` actives (octroi par l'opérateur, D1), sur
-    PostgreSQL, sans verrou `BEGIN IMMEDIATE`, hors transaction, ou dans une autre portée de service. Seuls
+    un moteur non qualifié, sans exclusion d'écriture (`BEGIN IMMEDIATE` ou verrou d'instance), hors transaction, ou
+    dans une autre portée de service. Seuls
     `wct_id`, `devis_id` et `intention_id` entrent : tout le reste est relu à la source. L'acteur système du
     réconciliateur n'entre jamais par cette porte (il appelle le moteur dans son propre contexte)."""
     from . import moteur_recalcul_m4 as moteur

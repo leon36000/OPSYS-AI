@@ -43,7 +43,7 @@ from opsys import approbations, stockage
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 LISTER_DEMANDES_AVIS = "m7_lister_demandes_avis"
 RACINE = Path(__file__).resolve().parents[2]
 CONSOMMATEURS_WCT = {"m02-revenue-crm", "m03-estimation", "m05-financecore", "m06-material-control",

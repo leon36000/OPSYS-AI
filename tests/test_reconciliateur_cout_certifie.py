@@ -273,7 +273,7 @@ def test_un_defaut_du_reconciliateur_ne_touche_ni_la_facture_ni_la_livraison(bas
     assert cm._recu(wct_id, "m05-financecore")["statut"] == "traite"
 
 
-def test_postgresql_ne_lance_rien(base_durable, monkeypatch):
+def test_un_moteur_non_qualifie_ne_lance_rien(base_durable, monkeypatch):
     import contextlib
     from types import SimpleNamespace
 
@@ -286,13 +286,13 @@ def test_postgresql_ne_lance_rien(base_durable, monkeypatch):
 
     @contextlib.contextmanager
     def transaction_pg():
-        yield Connexion(engine=SimpleNamespace(dialect=SimpleNamespace(name="postgresql")))
+        yield Connexion(engine=SimpleNamespace(dialect=SimpleNamespace(name="mysql")))
 
     appels = []
     monkeypatch.setattr(rc, "transaction", transaction_pg)
     monkeypatch.setattr(moteur, "recalculer", lambda *a, **k: appels.append(1))
     resume = rc.reconcilier(deps, mode_force="actif")
-    assert resume["raison"] == "backend_non_sqlite" and appels == [], resume
+    assert resume["raison"] == "backend_non_qualifie" and appels == [], resume
 
 
 # -------------------------------------------------------------------------------------------

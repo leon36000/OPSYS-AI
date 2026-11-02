@@ -51,7 +51,7 @@ from opsys import evenements, stockage
 from opsys.outils import executer_atomique
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 
 PO = "PO-E2E-PV-1"
 FOURNISSEUR = "gentek-fictif"

@@ -14,7 +14,8 @@ from opsys.stockage.schema import META as SCHEMA_META
 from opsys.stockage.schema import PERSONNES, TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
+# Tables communes aux deux moteurs : les tables virtuelles FTS5 (SQLite) et l'index lexical (PostgreSQL) sont écartés.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 LECTURE = "m1_lister_rappels_appareil"
 MUTATION = "m1_prendre_en_charge_rappel_appareil"
@@ -95,7 +96,7 @@ def test_cap_sql_reponse_perdue_restart_meme_uuid_own_ack(monde):
     assert ack["par"] == fx.ADMIN.personne and ack["snapshot_attendu"] == args["snapshot_attendu"]
     after = fx.tables()
     assert {n for n in before if before[n] != after[n]} == {"registres_maillons", "mutations_appliquees"}
-    assert set(after) == TABLES_SQLITE and not after["artefacts"]
+    assert set(after) - TABLES_VIRTUELLES_SQLITE == TABLES_SQLITE and not after["artefacts"]
     stockage.liberer()
     replay = appeler(capacite_reelle(), args)
     assert replay == {**first, "rejoue": True}

@@ -427,7 +427,7 @@ def grant_cfo(
     if not instance_configuree:
         return (
             '<article class="carte"><h2>Lecture CFO préparatoire</h2>'
-            "<p>Grant indisponible : le premier jalon exige un stockage SQLite configuré.</p></article>"
+            "<p>Grant indisponible : le premier jalon exige un stockage SQLite ou PostgreSQL configuré.</p></article>"
         )
     form = (
         '<article class="carte"><h2>Lecture CFO préparatoire</h2>'

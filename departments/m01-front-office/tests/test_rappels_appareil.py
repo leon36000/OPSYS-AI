@@ -13,7 +13,7 @@ from uuid import uuid4
 import pytest
 from m1_front_office import outils
 from m1_front_office.registre import Registre
-from sqlalchemy import event, text, update
+from sqlalchemy import event, inspect, text, update
 
 from opsys import contexte, idempotence, identite, stockage, taxonomie
 from opsys.outils import Autonomie, Niveau, executer_atomique
@@ -21,7 +21,8 @@ from opsys.stockage.schema import META as SCHEMA_META
 from opsys.stockage.schema import REGISTRES, TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
+# Tables communes aux deux moteurs : les tables virtuelles FTS5 (SQLite) et l'index lexical (PostgreSQL) sont écartés.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 LISTE = "m1_lister_rappels_appareil"
 PRISE = "m1_prendre_en_charge_rappel_appareil"
@@ -79,13 +80,8 @@ def importer(n=0, **changes):
 
 def tables():
     with stockage.transaction() as cnx:
-        names = (
-            cnx.execute(
-                text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-            )
-            .scalars()
-            .all()
-        )
+        # portable (SQLite et PostgreSQL) : la réflexion de SQLAlchemy plutôt que `sqlite_master`
+        names = sorted(inspect(cnx).get_table_names())
         return {n: [dict(r) for r in cnx.execute(text(f'SELECT * FROM "{n}"')).mappings()] for n in names}
 
 
@@ -155,7 +151,7 @@ def test_liste_reelle_privee_et_49_tables_inchangees(monde):
         "suivi_rappel",
     }
     assert "+1514" not in json.dumps(r) and "Journal FICTIF" not in json.dumps(r)
-    assert before == tables() and set(before) == TABLES_SQLITE
+    assert before == tables() and set(before) - TABLES_VIRTUELLES_SQLITE == TABLES_SQLITE
 
 
 def test_keyset_current_total_curseur_exclusif_et_defauts(monde):

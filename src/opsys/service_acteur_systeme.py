@@ -20,6 +20,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from . import contexte
+from .stockage.portabilite import DIALECTES_QUALIFIES
 
 IDENTIFIANT = "opsys-systeme"
 # Deux portées, jamais interchangeables : le moteur de recalcul n'accepte que `reconciliateur`, le planificateur des
@@ -122,8 +123,8 @@ def verifier(cnx, acteur):
         or not _hors_requete()
     ):
         raise PermissionError("acteur système hors du contexte du réconciliateur")
-    if cnx.engine.dialect.name != "sqlite":
-        raise PermissionError("acteur système qualifié pour SQLite seulement")
+    if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
+        raise PermissionError("acteur système qualifié pour SQLite et PostgreSQL seulement")
 
 
 def est_acteur_systeme(valeur):

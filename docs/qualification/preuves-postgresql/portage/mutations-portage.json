@@ -1,0 +1,355 @@
+{
+ "P01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_portabilite.py::test_le_rendu_sqlite_est_celui_d_avant_et_le_rendu_postgresql_n_a_ni_blob_ni_typeof",
+  "desc": "octets PostgreSQL : octet_length remplacé par char_length (compte des caractères)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "P02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_portabilite.py::test_le_rendu_sqlite_est_celui_d_avant_et_le_rendu_postgresql_n_a_ni_blob_ni_typeof",
+  "desc": "octets SQLite : CAST AS TEXT au lieu de BLOB (caractères au lieu d'octets)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "P03": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_portabilite.py::test_les_octets_comptent_l_utf8_pas_les_caracteres_sur_les_deux_moteurs[postgresql]",
+  "desc": "octets PostgreSQL : un booléen compte 4 octets (true) au lieu de 1",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "P04": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_portabilite.py::test_une_valeur_null_n_est_ni_texte_ni_entier_et_son_type_est_null_sur_les_deux_moteurs[postgresql]",
+  "desc": "est_texte PostgreSQL : NULL compté comme texte",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "P05": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_portabilite.py::test_une_valeur_null_n_est_ni_texte_ni_entier_et_son_type_est_null_sur_les_deux_moteurs[postgresql]",
+  "desc": "type_stockage PostgreSQL : NULL ne rend plus 'null'",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "C01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_une_violation_d_unicite_est_rejouee_puis_le_corps_voit_l_etat_valide[postgresql]",
+  "desc": "relire_si_conflit : plus de rejeu sur PostgreSQL",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "C02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_une_violation_de_contrainte_check_n_est_jamais_rejouee_ni_avalee[postgresql]",
+  "desc": "est_conflit_rejouable : toute erreur de base est rejouable (CHECK comprise)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "C03": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_une_violation_de_contrainte_check_n_est_jamais_rejouee_ni_avalee[postgresql]",
+  "desc": "relire_si_conflit : le dernier conflit est avalé",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "C04": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_une_lecture_de_console_ne_prend_pas_le_verrou_d_ecriture[postgresql]",
+  "desc": "verrou_consultatif : sans effet sur PostgreSQL",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "C05": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_sur_postgresql_le_verrou_consultatif_refuse_un_instantane_plus_ancien_que_l_attente[postgresql]",
+  "desc": "verrou_consultatif : l'isolation REPEATABLE READ est acceptée",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "C06": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_une_lecture_de_console_ne_prend_pas_le_verrou_d_ecriture[postgresql]",
+  "desc": "verrou_ecriture_console : verrou nommé différent à chaque appel (jamais partagé)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "O01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_une_lecture_de_console_ne_prend_pas_le_verrou_d_ecriture[postgresql]",
+  "desc": "executer_atomique : l'écriture de console ne prend plus le verrou d'instance",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "O02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_stockage_concurrence.py::test_un_port_qui_traduit_lui_meme_le_conflit_garde_le_verrou_mais_pas_le_rejeu[postgresql]",
+  "desc": "executer_atomique_console : rejouer=False est ignoré (rejeu systématique)",
+  "historique": [
+   "INAPPLICABLE",
+   "TUEE"
+  ]
+ },
+ "E01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_services_m4.py::test_l_exclusion_est_engagee_puis_verifiee_sur_les_deux_moteurs[postgresql]",
+  "desc": "engager : sans effet sur PostgreSQL",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "E02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_services_m4.py::test_l_exclusion_est_engagee_puis_verifiee_sur_les_deux_moteurs[postgresql]",
+  "desc": "exclusion_engagee : toujours vraie sur PostgreSQL",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "E03": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_services_m4.py::test_l_identite_de_base_est_stable_dans_la_transaction_et_distincte_entre_deux_bases[postgresql]",
+  "desc": "identite_base PostgreSQL : constante (pas de nom ni d'OID)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "E04": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_services_m4.py::test_le_recalcul_certifie_publie_se_rejoue_et_ne_reecrit_rien_sur_les_deux_moteurs[postgresql]",
+  "desc": "moteur de recalcul : engager() retiré",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "M01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_latents.py::test_une_revision_de_profil_de_2_puissance_53_est_stockee_et_relue_a_l_identique[postgresql]",
+  "desc": "migration 0057 : la colonne profile_revision des tickets CFO n'est pas élargie",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "M02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_latents.py::test_0058_descente_refusee_avec_une_valeur_64_bits_puis_permise_sans_perte_et_remontable",
+  "desc": "migration 0057 : la descente perd des données (plus de refus)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "Y01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_cron.py::test_n_processus_demandent_la_meme_declaration_une_intention_un_audit_des_reponses_identiques[postgresql]",
+  "desc": "cron : plus de verrou nommé",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "Y02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_cron.py::test_l_identite_d_une_base_postgresql_ignore_le_compte_et_le_mot_de_passe_mais_pas_la_base",
+  "desc": "cron : l'identité PostgreSQL ignore la base",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "Y03": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_portage_cron.py::test_l_identite_d_une_base_postgresql_ignore_le_compte_et_le_mot_de_passe_mais_pas_la_base",
+  "desc": "cron : l'identité PostgreSQL contient le mot de passe",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "L10": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_notes_commande.py::test_n_processus_publient_la_meme_reference_une_seule_sortante_un_seul_audit",
+  "desc": "notes de commande : le verrou nommé de la publication est retiré (L10)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "G01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_agent_cfo_grants.py::test_un_moteur_non_qualifie_refuse_les_grants_et_l_interface_explique_la_limite",
+  "desc": "grants CFO : un moteur non qualifié est accepté",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "S01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_sms.py::test_concurrence_deux_connexions_fortes_et_rejeu",
+  "desc": "réception SMS : plus de rejeu après conflit",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "K01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_pieces.py::test_deux_CAS_concurrents_un_seul_classement",
+  "desc": "classement des pièces : ni verrou d'écriture ni rejeu",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "K02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_pieces_projet.py::test_deux_depots_concurrents_meme_saisie_un_seul_recu",
+  "desc": "dépôt de pièces de projet : ni verrou d'écriture ni rejeu",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "F01": {
+  "final": "TUEE",
+  "premier_passage": "SURVIVANTE",
+  "test": "tests/test_postgresql_rejeu_catalogue_m6.py::test_deux_correcteurs_dont_le_second_ecrit_apres_le_commit_du_premier_une_seule_modification",
+  "desc": "fournisseurs M6 : l'écriture de console ne prend plus le verrou (mise à jour perdue)",
+  "historique": [
+   "SURVIVANTE",
+   "SURVIVANTE",
+   "SURVIVANTE",
+   "TUEE"
+  ]
+ },
+ "N01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_memoire_apprentissage.py::test_get_admin_est_borne_no_store_sans_affaires_ni_ecriture",
+  "desc": "mémoire apprentissage : mesure d'octets de la tête non portable (retour au texte SQLite)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "L11": {
+  "final": "TUEE",
+  "premier_passage": "SURVIVANTE",
+  "test": "tests/test_postgresql_rejeu_obligations_m5.py::test_deux_validations_qui_se_croisent_au_point_d_ecriture_le_perdant_recoit_le_refus_et_non_une_exception",
+  "desc": "validation au départ M5 : exécution simple (ni verrou de console ni rejeu)",
+  "historique": [
+   "SURVIVANTE",
+   "TUEE"
+  ]
+ },
+ "B01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_provenance_m8.py::test_quota_reduit_refuse_sans_diagnostic_partiel_ni_artefact[40]",
+  "desc": "provenance M5-M8 : bornes 64 bits liées sans BigInteger (integer out of range)",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "D01": {
+  "final": "TUEE",
+  "premier_passage": "SURVIVANTE",
+  "test": "tests/test_postgresql_rejeu_documents_affaire.py::test_premier_effet_seulement_quatre_tables_et_ack_sans_corps",
+  "desc": "documents d'affaire : plafond 2**63-1 lié sans BigInteger",
+  "historique": [
+   "SURVIVANTE",
+   "SURVIVANTE",
+   "TUEE"
+  ]
+ },
+ "R01": {
+  "final": "TUEE",
+  "premier_passage": "SURVIVANTE",
+  "test": "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+  "desc": "M7 édition de texte : le verrou d'écriture de console est retiré",
+  "historique": [
+   "SURVIVANTE",
+   "TUEE"
+  ]
+ },
+ "R02": {
+  "final": "TUEE",
+  "premier_passage": "SURVIVANTE",
+  "test": "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+  "desc": "M7 stratégie CMO : le verrou d'écriture de console est retiré",
+  "historique": [
+   "SURVIVANTE",
+   "TUEE"
+  ]
+ },
+ "R03": {
+  "final": "TUEE",
+  "premier_passage": "SURVIVANTE",
+  "test": "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+  "desc": "M7 observation Growth : le verrou d'écriture de console est retiré",
+  "historique": [
+   "SURVIVANTE",
+   "TUEE"
+  ]
+ },
+ "Q01": {
+  "final": "TUEE",
+  "premier_passage": "SURVIVANTE",
+  "test": "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+  "desc": "M1 prise de rappel : le verrou nommé est retiré",
+  "historique": [
+   "SURVIVANTE",
+   "TUEE"
+  ]
+ },
+ "T01": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_m2_crm.py::test_contact_deux_transactions_sqlite_ne_perdent_pas_une_correction",
+  "desc": "M2 correction de contact : le verrou du registre principal est retiré",
+  "historique": [
+   "TUEE"
+  ]
+ },
+ "D02": {
+  "final": "TUEE",
+  "premier_passage": "TUEE",
+  "test": "tests/test_postgresql_rejeu_documents_affaire.py::test_concurrence_revision_unique_deux_uuid_sur_sqlite_fichier",
+  "desc": "documents d'affaire : le verrou nommé de la correction est retiré",
+  "historique": [
+   "TUEE"
+  ]
+ }
+}

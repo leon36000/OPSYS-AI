@@ -722,13 +722,16 @@ def test_restore_preserves_live_cfo_grant_ticket_and_history(tmp_path):
     assert restored_state["agents_tickets_cfo"][0]["status"] == "consumed"
 
 
-def test_backend_non_sqlite_refuse_les_grants_et_linterface_explique_la_limite():
+def test_un_moteur_non_qualifie_refuse_les_grants_et_l_interface_explique_la_limite():
     from types import SimpleNamespace
 
     from opsys.console import agents_ui
 
-    with pytest.raises(agent_cfo_grants.GrantCfoRefuse, match="hors SQLite"):
-        agent_cfo_grants._sqlite_uniquement(SimpleNamespace(dialect=SimpleNamespace(name="postgresql")))
+    # SQLite et PostgreSQL sont qualifiés (verrous de ligne `FOR UPDATE`, ignorés par SQLite) ; tout autre est refusé
+    for qualifie in ("sqlite", "postgresql"):
+        agent_cfo_grants._moteur_qualifie(SimpleNamespace(dialect=SimpleNamespace(name=qualifie)))
+    with pytest.raises(agent_cfo_grants.GrantCfoRefuse, match="hors SQLite et PostgreSQL"):
+        agent_cfo_grants._moteur_qualifie(SimpleNamespace(dialect=SimpleNamespace(name="mysql")))
     html = agents_ui.grant_cfo(
         {"id": "m5-cfo-agent", "departement": "m05-financecore", "revision": 3},
         None,
@@ -736,7 +739,7 @@ def test_backend_non_sqlite_refuse_les_grants_et_linterface_explique_la_limite()
         csrf="csrf-fictif",
         instance_configuree=False,
     )
-    assert "stockage SQLite configuré" in html
+    assert "stockage SQLite ou PostgreSQL configuré" in html
     grant_html = agents_ui.grant_cfo(
         {"id": "m5-cfo-agent", "departement": "m05-financecore", "revision": 3},
         {

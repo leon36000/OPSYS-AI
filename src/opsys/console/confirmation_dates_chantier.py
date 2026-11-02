@@ -1,9 +1,10 @@
 """Dates civiles sous mémoire courante; seuls les reçus exacts sont historiques."""
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import select
 
 from .. import idempotence, stockage
 from ..etat import journaliser
 from ..stockage import codec
+from ..stockage.portabilite import nb_octets
 from ..stockage.schema import MUTATIONS_APPLIQUEES
 from . import cedule_plan_ui, memoire_chantier, memoire_plan_calendrier, metier
 from . import preparation_chantier as lecture
@@ -27,7 +28,7 @@ def _recu(cnx, session, mutation, args, preuve):
     condition = ((MUTATIONS_APPLIQUEES.c.appareil == 'console:' + session.utilisateur)
                  & (MUTATIONS_APPLIQUEES.c.cle_idempotence == mutation))
     meta = cnx.execute(select(MUTATIONS_APPLIQUEES.c.outil, MUTATIONS_APPLIQUEES.c.empreinte_arguments,
-        MUTATIONS_APPLIQUEES.c.statut, func.length(cast(MUTATIONS_APPLIQUEES.c.reponse, LargeBinary)))
+        MUTATIONS_APPLIQUEES.c.statut, nb_octets(MUTATIONS_APPLIQUEES.c.reponse))
         .where(condition)).one_or_none()
     if meta is None:
         return False

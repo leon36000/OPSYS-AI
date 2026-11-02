@@ -43,7 +43,7 @@ from opsys.outils import executer_atomique
 from opsys.stockage.schema import APPROBATIONS
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 M4, M6 = "m04-field-ops", "m06-material-control"
 LIMITE_TRONCATURE = 6000  # `jetons.LIMITE_SORTIE_DEFAUT`
 _FIXTURES_M4 = Path(__file__).resolve().parents[2] / "departments" / "m04-field-ops" / "tests" / "fixtures"

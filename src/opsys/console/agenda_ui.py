@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from .. import identite
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import metier, pages
 
 FUSEAU = 'America/Montreal'
@@ -130,7 +131,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
 
     def ecriture():
         with cnx_factory() as cnx:
-            return cnx.dialect.name == 'sqlite'
+            return cnx.dialect.name in DIALECTES_QUALIFIES
 
     @router.get('/crm/agenda')
     def agenda(request: Request):

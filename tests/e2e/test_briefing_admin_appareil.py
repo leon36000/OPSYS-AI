@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from harnais_e2e import Moteur
 from m9_strategic_intelligence.outils import outils as outils_m9
-from sqlalchemy import text, update
+from sqlalchemy import inspect, text, update
 
 from opsys import approbations, evenements, stockage
 from opsys.departements import charger_departements
@@ -24,13 +24,13 @@ FIXTURE = RACINE / "mobile/src/m9/fixtures/reponses-moteur.json"
 OUTILS = (
     "m9_produire_briefing_matin", "m9_lire_suite_briefing", "m9_lire_alertes_m8", "m9_lire_etat_consolide",
 )
-SQLITE = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 
 
 def empreinte_tables() -> str:
     with stockage.transaction() as cnx:
-        noms = cnx.execute(text("SELECT name FROM sqlite_master WHERE type='table' "
-                                "AND name NOT LIKE 'sqlite_%' ORDER BY name")).scalars().all()
+        # portable : la réflexion de SQLAlchemy plutôt que `sqlite_master` (le test tourne sur les deux moteurs)
+        noms = sorted(n for n in inspect(cnx).get_table_names() if not n.startswith("connaissances_fts"))
         tables = {nom: sorted([dict(ligne) for ligne in cnx.execute(text(f'SELECT * FROM "{nom}"')).mappings()],
                               key=lambda ligne: json.dumps(ligne, sort_keys=True, default=str)) for nom in noms}
     return hashlib.sha256(json.dumps(tables, sort_keys=True, default=str).encode()).hexdigest()

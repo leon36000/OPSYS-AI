@@ -13,13 +13,15 @@ import re
 from m10_memoire import amont, confidentialite, encodage, humain
 from m10_memoire import documents_affaire as domaine
 from m10_memoire import recherche_affaire as corpus
-from sqlalchemy import Connection, LargeBinary, and_, case, cast, func, insert, select
+from sqlalchemy import BigInteger, Connection, and_, case, insert, literal, select
 from sqlalchemy.exc import IntegrityError
 
 from . import approbations, contexte, idempotence
 from .documents_affaire_instance import copier_registre_m10
 from .outils import Niveau
 from .stockage import codec, connexion_courante, maillons
+from .stockage.concurrence import verrou_consultatif
+from .stockage.portabilite import DIALECTES_QUALIFIES, est_entier, est_texte, nb_octets
 from .stockage.schema import APPROBATIONS, JOURNAL, MUTATIONS_APPLIQUEES
 
 _DEP = "m10-memoire"
@@ -78,7 +80,7 @@ def _connexion(cnx):
         or cnx.get_nested_transaction() is None
     ):
         _refuser("CONNEXION-INVALIDE")
-    if cnx.engine.dialect.name != "sqlite":
+    if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         _refuser("DIALECTE-NON-ADMIS")
 
 
@@ -177,11 +179,13 @@ def _lire_borne(cnx, table, filtre, textes, *, nuls=(), entiers=()):
     Ce contrôle borne la réception Python, pas le travail du planner SQLite.
     """
     conditions = [
-        and_(func.typeof(table.c[k]) == "text", func.length(cast(table.c[k], LargeBinary)) <= cap)
+        and_(est_texte(table.c[k]), nb_octets(table.c[k]) <= cap)
         for k, cap in textes.items()
     ]
     conditions += [table.c[k].is_(None) for k in nuls]
-    conditions += [and_(func.typeof(table.c[k]) == "integer", table.c[k] > 0, table.c[k] <= 2**63 - 1) for k in entiers]
+    # Plafond lié en BIGINT : lié au type de la colonne (INTEGER), PostgreSQL refusait 2**63 - 1 avant de comparer.
+    plafond = literal(2**63 - 1, type_=BigInteger)
+    conditions += [and_(est_entier(table.c[k]), table.c[k] > 0, table.c[k] <= plafond) for k in entiers]
     admissible = and_(*conditions)
     fields = tuple(textes) + tuple(nuls) + tuple(entiers)
     return (
@@ -475,6 +479,10 @@ def muter_document_m10(cnx, operation, commande, *, meta, quota, mode_manifeste)
         if type(quota) is not int or quota < 40:
             _refuser("QUOTA-DEPASSE")
         _connexion(cnx)
+        # Lire les registres documentaires, planifier puis y ajouter n'est atomique que sous SQLite (`BEGIN IMMEDIATE`).
+        # Sous PostgreSQL, deux corrections simultanées planifiaient sur le même état et la perdante tombait en erreur
+        # de rang au lieu du refus de précondition : le verrou nommé lui fait relire la version de la gagnante.
+        verrou_consultatif(cnx, "m10-documents-affaire")
         actor = _admission(cnx, mode_manifeste)
         _meta(meta)
         try:

@@ -284,7 +284,7 @@ def test_backend_non_qualifie_refuse(monkeypatch):
     from types import SimpleNamespace
 
     from opsys.evenements import inventaire_calibration
-    cnx = SimpleNamespace(in_transaction=lambda: True, dialect=SimpleNamespace(name="postgresql"))
+    cnx = SimpleNamespace(in_transaction=lambda: True, dialect=SimpleNamespace(name="mysql"))
     monkeypatch.setattr(inventaire_calibration.stockage, "connexion_courante", lambda: cnx)
     with pytest.raises(inventaire_calibration.InventaireRefuse, match="backend_source_non_qualifie"):
         inventaire_calibration.lire_publications_m4()

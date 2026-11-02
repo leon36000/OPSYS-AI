@@ -336,7 +336,7 @@ def test_ancienne_demande_n3_ne_devient_pas_n4(navigateur):
         assert cnx.execute(select(REGISTRES).where(REGISTRES.c.registre == "couts_marketing_affectes")).all() == []
 
 
-def test_backend_non_sqlite_refuse_avant_lecture_du_port(navigateur, monkeypatch):
+def test_un_moteur_non_qualifie_refuse_avant_lecture_du_port(navigateur, monkeypatch):
     from opsys.outils import executer_atomique
 
     appels = []
@@ -344,9 +344,9 @@ def test_backend_non_sqlite_refuse_avant_lecture_du_port(navigateur, monkeypatch
         ports_prives={"lecteur_campagne_m7": lambda _: appels.append("interdit")},
     ) if o.nom == "m5_lire_couts_marketing_affectes")
     avant = _tables()
-    # Contrat de refus du dialecte, pas une preuve d'exécution PostgreSQL.
+    # Contrat de refus d'un moteur non qualifié (SQLite et PostgreSQL le sont : exécution réelle ailleurs).
     with stockage.transaction() as cnx, monkeypatch.context() as patch:
-        patch.setattr(cnx.dialect, "name", "postgresql")
+        patch.setattr(cnx.dialect, "name", "mysql")
         response = executer_atomique(outil, {"campagne_id": "flyer-fictif", **DATES})
     assert response["ok"] is False and "BACKEND-NON-PRIS-EN-CHARGE" in response["details"]
     assert appels == [] and _tables() == avant

@@ -11,7 +11,7 @@ from opsys import identite, stockage
 
 FICTIF = True
 JOUR = "2026-09-15"
-SQLITE = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 LECTURES = (
     ("m5_lire_comptes_a_recevoir", {"aujourd_hui": JOUR}),
     ("m5_lister_comptes_a_payer", {"depart": 0}),

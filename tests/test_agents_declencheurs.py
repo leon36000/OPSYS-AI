@@ -548,15 +548,15 @@ def test_lire_en_attente_count_et_limit_sql_omis_explicitement(profil, session, 
             _module().lire_en_attente(par="nathan", limite=invalide)
 
 
-def test_pg_refuse_avant_ouverture_et_ecriture(profil, monkeypatch):
+def test_un_moteur_non_qualifie_refuse_avant_ouverture_et_ecriture(profil, monkeypatch):
     deps, _ = profil
-    monkeypatch.setattr(stockage, "url_base", lambda: "postgresql://fictif.invalid/base")
+    monkeypatch.setattr(stockage, "url_base", lambda: "mysql://fictif.invalid/base")
 
     def ouverture_interdite(*_args, **_kwargs):
         pytest.fail("le backend refusé ne doit pas ouvrir une transaction")
 
     monkeypatch.setattr(stockage, "transaction", ouverture_interdite)
-    with pytest.raises(_module().DeclencheurRefuse, match="SQLITE-REQUIS"):
+    with pytest.raises(_module().DeclencheurRefuse, match="MOTEUR-NON-QUALIFIE"):
         _demander(deps)
 
 

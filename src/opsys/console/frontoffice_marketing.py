@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 
 from .. import identite, stockage, tableau_de_bord
 from ..stockage.maillons import MaillonsDurables
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import metier, pages, reception_digest_ui, securite
 from .securite import Session
 
@@ -76,7 +77,7 @@ def creer_router(
         try:
             with cnx_factory() as cnx:
                 autoriser_suivi(cnx, session)
-                if cnx.dialect.name != "sqlite" or stockage.connexion_courante() is not cnx:
+                if cnx.dialect.name not in DIALECTES_QUALIFIES or stockage.connexion_courante() is not cnx:
                     raise RuntimeError("source non qualifiée")
                 departement = deps.get("m01-front-office")
                 if departement is None or departement.module_outils != "m1_front_office.outils":

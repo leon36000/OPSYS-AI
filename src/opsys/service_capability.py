@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import copy
 import json
-import os
-import stat
 import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -18,6 +16,8 @@ from time import monotonic, time
 from sqlalchemy import event, insert, select
 
 from .stockage import connexion_courante, moteur
+from .stockage.exclusion import engager, exclusion_engagee, identite_base, transaction_driver_ouverte
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, OPSYS_INSTANCE, SERVICE_AUDIT, SERVICE_POLITIQUES
 
 
@@ -75,7 +75,8 @@ class _Portee:
             or monotonic() >= self.date_limite
             or connexion_courante() is not cnx
             or cnx.closed
-            or cnx.engine.dialect.name != "sqlite"
+            or cnx.engine.dialect.name not in DIALECTES_QUALIFIES
+            or (cnx.engine.dialect.name == "postgresql" and not exclusion_engagee(cnx))
             or self.racine is None
             or not self.racine.is_active
             or cnx.get_transaction() is not self.racine
@@ -130,12 +131,13 @@ def _livraison(cnx, evenement, consommateur, tentatives):
 
 
 def courante():
-    """Émet une autorité seulement pour une livraison SQLite qualifiée et une politique active."""
+    """Émet une autorité seulement pour une livraison qualifiée (SQLite ou PostgreSQL) et une politique active."""
     portee = _COURANTE.get()
     if portee is None:
         raise RefusAutorite("aucune livraison")
-    if portee.cnx.engine.dialect.name != "sqlite":
+    if portee.cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         raise RefusAutorite("backend non qualifié")
+    engager(portee.cnx)  # PostgreSQL : verrou d'instance de la famille (SQLite : BEGIN IMMEDIATE déjà engagé)
     portee._verifier()
     if portee.consommateur != _CONSOMMATEUR:
         raise RefusAutorite("consommateur hors périmètre")
@@ -216,23 +218,15 @@ def publication_isolee():
 
 def _base(cnx):
     if (
-        cnx.engine.dialect.name != "sqlite"
+        cnx.engine.dialect.name not in DIALECTES_QUALIFIES
         or cnx.engine is not moteur()
-        or not cnx.connection.driver_connection.in_transaction
+        or not transaction_driver_ouverte(cnx)
     ):
-        raise RefusAutorite("garde SQLite indisponible")
-    lignes = cnx.exec_driver_sql("PRAGMA database_list").all()
-    chemins = [ligne[2] for ligne in lignes if ligne[1] == "main"]
-    if len(chemins) != 1 or not chemins[0]:
-        raise RefusAutorite("base SQLite non durable")
-    chemin = os.path.realpath(chemins[0])
+        raise RefusAutorite("garde de base indisponible")
     try:
-        info = os.stat(chemin, follow_symlinks=False)
-    except OSError as exc:
+        return identite_base(cnx)
+    except (ValueError, OSError) as exc:
         raise RefusAutorite("identité de base indisponible") from exc
-    if not stat.S_ISREG(info.st_mode):
-        raise RefusAutorite("base SQLite non régulière")
-    return chemin, info.st_dev, info.st_ino
 
 
 def _politique(cnx, instance, consommateur):
@@ -310,7 +304,7 @@ class _Capacite:
 
     def _projection_m4(self):
         self.verifier()
-        if self.portee.cnx.engine.dialect.name != "sqlite":
+        if self.portee.cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
             raise RefusAutorite("projection non qualifiée sur ce backend")
         from m4_field_ops.service_faits_m4 import projeter
 
@@ -487,8 +481,9 @@ def _revoquer(cnx, instance, consommateur, operation=_OPERATION):
         raise RefusAutorite("opération hors périmètre")
     if connexion_courante() is not cnx or cnx.get_transaction() is None:
         raise RefusAutorite("transaction requise")
-    if cnx.engine.dialect.name != "sqlite":
+    if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         raise RefusAutorite("backend non qualifié")
+    engager(cnx)  # PostgreSQL : la révision suivante se lit puis s'écrit sous le verrou d'instance de la famille
     _base(cnx)
     p = cnx.execute(
         select(SERVICE_POLITIQUES)

@@ -53,7 +53,7 @@ Le codage base64 et les métadonnées ajoutent du stockage en base : 64 Mio n'es
 limite de taille du fichier de base. Ce quota n'est pas un moteur d'ingestion massive.
 
 La portée est une instance OPSYS sur SQLite. PostgreSQL pour ce pilote reste non qualifié
-et doit refuser l'exécution; les autres fonctionnalités PostgreSQL du produit gardent leur
+et doit refuser l'exécution (**mise à jour vague 6 : la garde `_isoler_transaction` est levée ; les 20 fichiers de test de fusion donnent les mêmes issues sur SQLite et sur PostgreSQL, y compris les mêmes échecs préexistants du worker PDF isolé absent de cette machine**); les autres fonctionnalités PostgreSQL du produit gardent leur
 qualification propre. Aucune isolation SaaS entre entreprises n'est revendiquée ici.
 
 ## Mémoire et interfaces

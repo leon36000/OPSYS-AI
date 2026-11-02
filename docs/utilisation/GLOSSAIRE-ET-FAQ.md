@@ -28,7 +28,7 @@
 | **Loi 25** | Loi québécoise sur la protection des renseignements personnels. |
 | **Matrice d'exigences** | Tableau, par département, de ce que le produit doit faire et de ce qui est réellement prouvé. |
 | **MCP** | Protocole par lequel les agents appellent les outils des départements. |
-| **Migration** | Évolution contrôlée de la structure de la base. La « tête » est la plus récente (0057 aujourd'hui). |
+| **Migration** | Évolution contrôlée de la structure de la base. La « tête » est la plus récente (0058 aujourd'hui). |
 | **Mode (ombre, supervisé, autonome)** | Niveau d'autonomie d'un département : à partir de quel niveau N un geste attend une approbation. |
 | **N0 à N5** | Niveaux d'approbation : lecture, brouillon, tâche interne (automatiques) ; N3 validation d'une personne ; N4 le propriétaire ; N5 le propriétaire ET le professionnel. |
 | **Outil** | Un geste précis qu'un département sait faire (ex. « calculer un devis »). Il y en a 613. |

@@ -1,4 +1,9 @@
-"""La verticale C02 reste bloquée sur PostgreSQL : son refus réel ne produit aucun effet."""
+"""Le ticket de cible C02 (liaison M10 -> outil) sur PostgreSQL : sans liaison active, le refus typé de DOMAINE (celui
+de SQLite), par HTTP réel, sans la moindre mutation.
+
+Avant le portage PostgreSQL, ce test prouvait que PostgreSQL REFUSAIT la liaison de cible (« désactivée hors de
+SQLite »). La garde est levée : le parcours positif complet (affaire, bus, recalcul certifié) tourne sur PostgreSQL
+dans `test_verticale_affaire_durable.py` (deux moteurs), et ce test fige le refus de domaine."""
 
 import json
 
@@ -20,7 +25,7 @@ from tests.e2e.test_verticale_affaire_durable import JETON_CONTEXTE_FICTIF, _emp
     ],
     indirect=True,
 )
-def test_postgresql_refuse_ticket_c02_par_http_sans_mutation(moteur):
+def test_ticket_c02_sans_liaison_active_est_refuse_sur_postgresql_comme_sur_sqlite_sans_mutation(moteur):
     moteur.arreter()
     moteur.jeton_contexte = JETON_CONTEXTE_FICTIF
     moteur.demarrer()
@@ -53,5 +58,5 @@ def test_postgresql_refuse_ticket_c02_par_http_sans_mutation(moteur):
     refus = anyio.run(emettre)
     assert refus["ok"] is False
     assert refus["erreur"] == "refus_metier"
-    assert refus["details"] == "REJ-LIAISON-CIBLE: liaison de cible temporairement désactivée hors de SQLite"
+    assert refus["details"] == "REJ-LIAISON-CIBLE: aucune liaison M10 active vers cette affaire"
     assert _empreinte(moteur) == avant

@@ -1,0 +1,65 @@
+[
+ {
+  "fichier": "src/opsys/cles_chiffrement.py",
+  "ligne": 167,
+  "fonction": "_nettoyer_fichiers_courants",
+  "garde": "engine.dialect.name != 'sqlite'",
+  "effet": "return (False, 'backend_non_qualifie')"
+ },
+ {
+  "fichier": "src/opsys/documents_affaire_instance.py",
+  "ligne": 125,
+  "fonction": "copier_registre_m10",
+  "garde": "dialecte not in ('sqlite', 'postgresql')",
+  "effet": ""
+ },
+ {
+  "fichier": "src/opsys/evenements/bus.py",
+  "ligne": 372,
+  "fonction": "copier_cohorte_provenance_m5_m8",
+  "garde": "dialecte not in ('sqlite', 'postgresql')",
+  "effet": "ValueError('dialecte de provenance invalide')"
+ },
+ {
+  "fichier": "src/opsys/exportation.py",
+  "ligne": 160,
+  "fonction": "_base_sqlite",
+  "garde": "cible.get_backend_name() != 'sqlite'",
+  "effet": "ErreurExportation(\"cette commande exporte la base SQLite de l'instance locale. Pour PostgreSQL (Docker Compose), utilisez deploy/backup.sh (docs/ops/EXPLOITATION.md).\")"
+ },
+ {
+  "fichier": "src/opsys/exportation.py",
+  "ligne": 382,
+  "fonction": "_verifier_base",
+  "garde": "revision_sqlite != revision",
+  "effet": "ErreurExportation(f'la révision SQLite ({revision_sqlite!r}) ne correspond pas à celle du manifeste ({revision!r}) : restauration refusée.')"
+ },
+ {
+  "fichier": "src/opsys/openclaw.py",
+  "ligne": 137,
+  "fonction": "configuration_cron_memoire_developpement",
+  "garde": "url.get_backend_name() != 'sqlite'",
+  "effet": "ValueError('cron M10 exige une base SQLite fichier sans identifiants de connexion')"
+ },
+ {
+  "fichier": "src/opsys/stockage/concurrence.py",
+  "ligne": 94,
+  "fonction": "verrou_consultatif",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('backend non qualifié pour le verrou consultatif')"
+ },
+ {
+  "fichier": "src/opsys/stockage/maillons.py",
+  "ligne": 57,
+  "fonction": "_verrouiller_m2_principal",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('backend non qualifié pour la garde M2')"
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+  "ligne": 63,
+  "fonction": "_sqlite_seulement",
+  "garde": "dialecte != 'sqlite'",
+  "effet": "BackendConsolidationNonPrisEnCharge('backend_non_pris_en_charge : jobs développement SQLite fichier uniquement')"
+ }
+]

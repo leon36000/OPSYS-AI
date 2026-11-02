@@ -48,7 +48,7 @@ from opsys import cli, evenements, stockage, taxonomie
 from opsys.stockage.schema import APPROBATIONS
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 M4, M6 = "m04-field-ops", "m06-material-control"
 _FIXTURES_M4 = Path(__file__).resolve().parents[2] / "departments" / "m04-field-ops" / "tests" / "fixtures"
 EQUIPES = json.loads((_FIXTURES_M4 / "equipes_repentigny_joliette.json").read_text(encoding="utf-8"))

@@ -33,6 +33,7 @@ from opsys import approbations, evenements, fichiers, identite, stockage, taxono
 from opsys import contexte as contexte_appel
 from opsys.stockage import codec
 from opsys.stockage.maillons import EcritureConcurrente
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 from opsys.stockage.schema import REGISTRES
 
 from ..brand import registre as brand_registre
@@ -244,7 +245,7 @@ def reviser_texte_humain(
     horodatage: str,
 ) -> dict[str, Any]:
     cnx = stockage.connexion_courante()
-    if cnx is None or cnx.engine.dialect.name != "sqlite":
+    if cnx is None or cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         return _refus(verdicts.verdict("REJ-TEXTE-ECRITURE-NON-QUALIFIEE", "édition qualifiée sur SQLite seulement"))
     source, refus = _source_edition_texte(contenu_id)
     if refus is not None:
@@ -449,7 +450,7 @@ def preparer_media_humain(
 ) -> dict[str, Any]:
     """Dépose une variante fournie par un humain, ancrée sur la source WCT courante."""
     cnx = stockage.connexion_courante()
-    if cnx is None or cnx.engine.dialect.name != "sqlite":
+    if cnx is None or cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         return _refus(verdicts.verdict(
             "REJ-MEDIA-ECRITURE-NON-QUALIFIEE", "mutation média non qualifiée sur ce moteur de base",
         ))
@@ -532,7 +533,7 @@ def decider_dossier_medias(
     snapshot_attendu: str, attestation_humaine: str, horodatage: str,
 ) -> dict[str, Any]:
     cnx = stockage.connexion_courante()
-    if cnx is None or cnx.engine.dialect.name != "sqlite":
+    if cnx is None or cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         return _refus(verdicts.verdict(
             "REJ-MEDIA-ECRITURE-NON-QUALIFIEE", "mutation média non qualifiée sur ce moteur de base",
         ))
@@ -602,7 +603,7 @@ def remettre_dossier_medias_manuel(creneau_id: str, horodatage: str) -> dict[str
     if acteur is None:
         return _refus(refus or verdicts.verdict(verdicts.REJ_HUMAIN_REQUIS, "remise réservée au propriétaire"))
     cnx = stockage.connexion_courante()
-    if cnx is None or cnx.engine.dialect.name != "sqlite":
+    if cnx is None or cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         return _refus(verdicts.verdict(
             "REJ-MEDIA-ECRITURE-NON-QUALIFIEE", "mutation média non qualifiée sur ce moteur de base",
         ))

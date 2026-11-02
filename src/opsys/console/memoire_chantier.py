@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from .. import contexte, idempotence, identite, stockage
 from ..outils import Autonomie, executer
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import pages
 from . import preparation_chantier as lecture
 
@@ -14,7 +15,7 @@ NOM = 'm10_lire_paquet_affaire_appareil'
 
 
 def _admin(cnx, session):
-    if cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise lecture.Refus('INSTANCE-NON-QUALIFIEE')
     personne = identite.personne_active(cnx, session.utilisateur)
     if (personne is None or 'admin' not in personne.roles

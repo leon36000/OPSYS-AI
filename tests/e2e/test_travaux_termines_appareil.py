@@ -79,7 +79,7 @@ from opsys.stockage.schema import (
 
 # Les trois scénarios qui portent la preuve (normal, rejeu, écart de 40 %) tournent aussi sur PostgreSQL quand
 # docker répond ; les autres, sur SQLite seulement : un conteneur de plus coûterait plus qu'il ne prouve.
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 
 LIMITE_TRONCATURE = 6000  # `jetons.LIMITE_SORTIE_DEFAUT` : au-delà, `Capacites` rend un aperçu, pas la réponse
 

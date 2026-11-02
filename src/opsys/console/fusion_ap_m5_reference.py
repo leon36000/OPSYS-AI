@@ -10,13 +10,14 @@ from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from opsys import fusion_ap, fusion_pdf, idempotence, identite
 from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS, FUSION_AP_SAISIES, MUTATIONS_APPLIQUEES
 
+from ..stockage.portabilite import nb_octets
 from . import fusion_ap_m5, fusion_ap_m5_saisie
 
 _OUTIL = "m5_saisir_facture_fournisseur"
@@ -161,8 +162,8 @@ def _arguments(
 
 def _longueurs_approbation(cnx: Any, ident: str) -> tuple[int, int]:
     tailles = cnx.execute(select(
-        func.length(cast(APPROBATIONS.c.arguments, LargeBinary)),
-        func.length(cast(APPROBATIONS.c.resultat, LargeBinary)),
+        nb_octets(APPROBATIONS.c.arguments),
+        nb_octets(APPROBATIONS.c.resultat),
     ).where(APPROBATIONS.c.id == ident)).one_or_none()
     if tailles is None or tailles[0] is None or tailles[1] is None:
         raise _erreur()
@@ -252,7 +253,7 @@ def _recu(
 ) -> None:
     appareil = f"console:{ligne['acteur']}"
     mutation = ligne["mutation_id"]
-    taille = cnx.execute(select(func.length(cast(MUTATIONS_APPLIQUEES.c.reponse, LargeBinary))).where(
+    taille = cnx.execute(select(nb_octets(MUTATIONS_APPLIQUEES.c.reponse)).where(
         (MUTATIONS_APPLIQUEES.c.appareil == appareil)
         & (MUTATIONS_APPLIQUEES.c.cle_idempotence == mutation)
     )).scalar_one_or_none()

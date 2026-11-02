@@ -12,10 +12,11 @@ import hmac
 import math
 import re
 
-from sqlalchemy import LargeBinary, cast, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 
 from . import agents_declencheurs as intentions
 from .etat import journaliser
+from .stockage.portabilite import nb_octets
 from .stockage.schema import AGENTS_DECLENCHEURS_REMISES as REMISES
 
 DeclencheurRefuse = intentions.DeclencheurRefuse
@@ -181,7 +182,7 @@ class ProprietaireCron:
             }
             mesures = cnx.execute(select(
                 func.count().label("total"),
-                *(func.max(func.length(cast(intentions.INTENTIONS.c[nom], LargeBinary))).label(nom)
+                *(func.max(nb_octets(intentions.INTENTIONS.c[nom])).label(nom)
                   for nom in dimensions),
             ).select_from(intentions.INTENTIONS).where(*filtres)).mappings().one()
             total = mesures["total"]

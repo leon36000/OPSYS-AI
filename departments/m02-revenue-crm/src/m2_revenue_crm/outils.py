@@ -54,6 +54,9 @@ from sqlalchemy import select
 from opsys import approbations, contexte, evenements, idempotence, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage import codec
+from opsys.stockage.concurrence import verrou_ecriture_console
+from opsys.stockage.maillons import verrouiller_m2_principal
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
 from . import (
@@ -685,7 +688,7 @@ def reconcilier_memoire_contact_client(client_id: str, limite: int = 20, decalag
     if refus:
         return refus
     cnx = stockage.connexion_courante()
-    if cnx is None or cnx.dialect.name != "sqlite" or not _stockage_durable_actif:
+    if cnx is None or cnx.dialect.name not in DIALECTES_QUALIFIES or not _stockage_durable_actif:
         return _refus(verdicts.construire_verdict(
             "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="lecture qualifiée sur SQLite durable seulement"))
     reg = _obtenir_registre()
@@ -745,9 +748,13 @@ def corriger_contact_client(client_id: str, contact: dict, revision_attendue: in
         return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié requis"))
     cnx = stockage.connexion_courante()
     # BEGIN IMMEDIATE sérialise lecture de version + collision + append. PG à qualifier séparément.
-    if cnx is None or cnx.dialect.name != "sqlite" or not _stockage_durable_actif:
+    if cnx is None or cnx.dialect.name not in DIALECTES_QUALIFIES or not _stockage_durable_actif:
         return _refus(verdicts.construire_verdict(
-            "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="correction qualifiée sur SQLite durable seulement"))
+            "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="correction qualifiée sur base durable SQLite ou PostgreSQL"))
+    # PostgreSQL : un seul écrivain humain à la fois, ET les ajouts du registre M2 attendent la correction (la lecture
+    # de la version puis l'ajout ne sont atomiques que sous SQLite, `BEGIN IMMEDIATE`).
+    verrou_ecriture_console(cnx)
+    verrouiller_m2_principal(cnx)
     reg = _obtenir_registre()
     resultat, verdict = clients.corriger_contact(
         reg, client_id, contact, revision_attendue, motif, acteur.personne, horodatage)
@@ -2581,8 +2588,9 @@ def enregistrer_rendez_vous(rendez_vous_id, lead_id, vendeur_id, debut, fin, tit
     try:
         auteur = _autoriser_agenda()
         cnx = stockage.connexion_courante()
-        if cnx.dialect.name != "sqlite":
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
             raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (SQLite : déjà le cas)
         meta, reception = _META_AGENDA.get(), contexte.horodatage_reception()
         if (not isinstance(meta, idempotence.Meta) or reception is None
                 or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil

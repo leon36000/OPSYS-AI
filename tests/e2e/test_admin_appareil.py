@@ -75,7 +75,7 @@ from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 RACINE = Path(__file__).resolve().parents[2]
 MOBILE_SRC = RACINE / "mobile" / "src"
 FIXTURE_APP = MOBILE_SRC / "admin" / "fixtures" / "reponses-moteur.json"

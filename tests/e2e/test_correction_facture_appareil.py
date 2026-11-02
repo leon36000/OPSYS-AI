@@ -48,7 +48,7 @@ from opsys.capacites import Capacites
 from opsys.outils import executer_atomique
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 
 PO = "PO-E2E-CO-1"
 DEVIS = "DEVIS-E2E-CO-1"

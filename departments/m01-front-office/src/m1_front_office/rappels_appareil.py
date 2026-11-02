@@ -6,13 +6,15 @@ import contextvars
 import datetime as dt
 import json
 import re
-import sqlite3
 import unicodedata
 from contextlib import contextmanager
 from dataclasses import dataclass
 from uuid import UUID
 
 from opsys import approbations, contexte, idempotence, stockage
+from opsys.stockage.concurrence import verrou_consultatif
+from opsys.stockage.exclusion import transaction_driver_ouverte
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import reception, transferts
 from .registre import Registre
@@ -91,10 +93,9 @@ def _acteur():
         raise Refus("IDENTITE-INVALIDE")
     if (
         cnx.closed
-        or cnx.dialect.name != "sqlite"
+        or cnx.dialect.name not in DIALECTES_QUALIFIES
         or cnx.engine.url != stockage.moteur().url
-        or not isinstance(cnx.connection.driver_connection, sqlite3.Connection)
-        or not cnx.connection.driver_connection.in_transaction
+        or not transaction_driver_ouverte(cnx)
     ):
         raise Refus("STOCKAGE-NON-QUALIFIE")
     return {"par": confirme.personne, "role": confirme.role, "voie": confirme.source}, cnx
@@ -184,6 +185,11 @@ def admettre(arguments, *, nom):
     _args(arguments, nom)
     from . import outils
 
+    if nom == PRISE:
+        # Lire la chaîne puis y ajouter n'est atomique que sous SQLite (`BEGIN IMMEDIATE`). Sous PostgreSQL, deux prises
+        # simultanées lisaient la même chaîne et l'une échouait en erreur de chaîne au lieu du refus typé : le verrou
+        # nommé fait relire au second la prise du premier (rien sous SQLite).
+        verrou_consultatif(cnx, "m1-suivi-rappel")
     try:
         reg, lignes = outils._lire_registre_suivi_rappel()
         if stockage.connexion_courante() is not cnx:

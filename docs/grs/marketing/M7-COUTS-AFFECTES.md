@@ -72,7 +72,7 @@ maillon de cette commande. Un ancien reçu ne devient pas une validation nouvell
 des sources actuelles.
 
 Cette phase fonctionne seulement sur SQLite avec la transaction réelle
-`BEGIN IMMEDIATE`. Les mutations et la projection nouvelle refusent PostgreSQL ;
+`BEGIN IMMEDIATE`. Les mutations et la projection nouvelle refusaient PostgreSQL (portées en vague 6 : voir `docs/qualification/QUALIFICATION-POSTGRESQL.md` §16) ;
 les autres capacités financières existantes conservent leur contrat. Aucun
 verrouillage PostgreSQL, navigateur réel, fournisseur, VPS ou isolation SaaS
 n'est qualifié. Les tests ciblés utilisent une vraie base SQLite temporaire, de

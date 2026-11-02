@@ -11,6 +11,7 @@ from . import approbations, contexte
 from .documents_affaire_instance import copier_registre_m10
 from .documents_affaire_transactions import ErreurTransactionDocumentaire, _situation
 from .stockage import connexion_courante
+from .stockage.portabilite import DIALECTES_QUALIFIES
 
 _DETAILS = {
     "CONNEXION-INVALIDE": "la connexion documentaire courante est indisponible",
@@ -64,7 +65,7 @@ def _commande(operation, commande):
 def _connexion(cnx):
     if type(cnx) is not Connection or cnx is not connexion_courante() or cnx.closed or not cnx.in_transaction():
         _refuser("CONNEXION-INVALIDE")
-    if cnx.engine.dialect.name != "sqlite":
+    if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         _refuser("DIALECTE-NON-ADMIS")
 
 
