@@ -212,6 +212,7 @@ from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.evenements import constats
 from opsys.evenements.repartiteur import instant_publication_livre
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage import concurrence
 from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import (
@@ -235,6 +236,7 @@ from . import (
     encodage,
     etat_financier,
     facturation,
+    facturation_jalons,
     grand_livre,
     import_quickbooks,
     moteur_calcul,
@@ -250,6 +252,7 @@ from . import (
     validation,
     variance_recus,
     verdicts_calcul,
+    verdicts_facturation,
     verdicts_grand_livre,
     wct_recus,
 )
@@ -286,6 +289,12 @@ _NOM_REGISTRE_CONSTATS = "constats_cash_libre"
 _NOM_REGISTRE_CONTRATS_SALARIES = "contrats_salaries_horaires"
 # M5.8a : journal append-only des échéanciers commerciaux validés par un humain.
 _NOM_REGISTRE_ECHEANCIERS_CONTRATS = "echeanciers_contrats_tresorerie"
+# M5-FACT-1 / M5-FACT-2 : registres DÉDIÉS de la facturation par jalons (plans déclarés), de la numérotation des
+# factures
+# (suite append-only sans trou) et des scellés de PDF. Toujours durables, sans repli en mémoire (aucune migration).
+_NOM_REGISTRE_PLANS = "plans_facturation"
+_NOM_REGISTRE_NUMEROTATION = "numerotation_factures"
+_NOM_REGISTRE_DOCUMENTS = "documents_facturation"
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": {"accepte": true, "resultat": {"role": ..., <la page>}}}` : une
 # centaine de caractères d'enveloppe, plus une marge. Le budget d'une page est la limite du socle moins cette réserve :
 # sous elle, jamais tronquée.
@@ -482,6 +491,40 @@ def _etat_factures(historique: list[dict[str, Any]] | None, registre_cible: regi
     if historique is None and _stockage_durable_actif:
         return {"registre_factures": {"taille": registre_cible.taille(), "tete": registre_cible.tete()}}
     return {"factures_historique": registre_cible.lire()}
+
+
+def _registre_plans() -> registre_module.Registre | None:
+    """Le registre DÉDIÉ des plans de facturation par jalons, durable et sans repli en mémoire (aucune migration)."""
+    if not _stockage_durable_actif:
+        return None
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_PLANS))
+
+
+def _registre_numerotation() -> registre_module.Registre | None:
+    """Le registre DÉDIÉ de la numérotation des factures : un maillon par numéro, le rang étant la suite."""
+    if not _stockage_durable_actif:
+        return None
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_NUMEROTATION))
+
+
+def _registre_documents() -> registre_module.Registre | None:
+    """Le registre DÉDIÉ des scellés de PDF (facture, état de compte) : empreintes seulement, jamais les octets."""
+    if not _stockage_durable_actif:
+        return None
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DOCUMENTS))
+
+
+def _plan_actif_du_devis(devis_id: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Le plan de facturation ACTIF d'un devis (ou `None`), ou le refus nommé si le registre des plans est altéré.
+    Stockage non durable : jamais de plan (simulation en mémoire)."""
+    registre_plans = _registre_plans()
+    if registre_plans is None or registre_plans.taille() == 0:
+        return None, None
+    etat = facturation_jalons.etat_plans(registre_plans.lire())
+    refus = facturation_jalons.refus_anomalies(etat)
+    if refus is not None:
+        return None, refus
+    return facturation_jalons.plan_actif_pour_devis(etat, devis_id), None
 
 
 def _registre_contrats_salaries() -> registre_module.Registre | None:
@@ -692,6 +735,17 @@ def creer_facture_brouillon(
     dictionnaire_taux, erreurs = taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX)
     if erreurs:
         return {"accepte": False, "verdict": {"code": "REJ-TAUX-FICHIER-INVALIDE", "detail": "; ".join(erreurs)}}
+    if factures_historique is None and _stockage_durable_actif:
+        # Un devis facturé PAR JALONS (plan actif) n'a jamais de facture globale : ni double facturation, ni acompte
+        # doublé par une facture du total (M5-FACT-1).
+        plan, refus_plan = _plan_actif_du_devis(devis_id)
+        if refus_plan is not None:
+            return {"accepte": False, "verdict": refus_plan}
+        if plan is not None:
+            return {"accepte": False, "verdict": verdicts_facturation.construire_verdict(
+                "REJ-PLAN-FACTURATION-PAR-JALONS",
+                f"le devis {devis_id!r} est facturé par jalons (plan {plan['plan_id']}) : créer la facture d'un "
+                "jalon (m5_creer_facture_jalon), jamais une facture du total")}
     registre_cible = _registre_factures(factures_historique)
     maillons_factures = None
     if factures_historique is None and _stockage_durable_actif:
@@ -757,6 +811,14 @@ def _essayer_facture_brouillon(devis_id: str) -> dict[str, Any]:
     wct_recu = wct_recus.pour_devis_id(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
     if wct_recu is None:
         return {"traite": True, "devis_id": devis_id, "statut": "en_attente_travaux_termines"}
+
+    # M5-FACT-1 : un devis dont le plan par jalons est actif se facture jalon par jalon, par une personne ; la facture
+    # globale automatique de la fin des travaux n'est jamais créée (elle doublerait les acomptes).
+    plan, refus_plan = _plan_actif_du_devis(devis_id)
+    if refus_plan is not None:
+        raise ValueError(f"{refus_plan['code']} : {refus_plan['detail']}")
+    if plan is not None:
+        return {"traite": True, "devis_id": devis_id, "statut": "facturation_par_jalons", "plan_id": plan["plan_id"]}
 
     chantier_id = devis_recu.get("chantier_id")
     if not isinstance(chantier_id, str) or not chantier_id.strip():
@@ -1358,10 +1420,15 @@ def lister_attentes_facturation() -> dict[str, Any]:
     devis_ids_connus = {maillon["devis_id"] for maillon in devis_recus_registre}
     devis_ids_connus |= {maillon["devis_id"] for maillon in wct_recus_registre if maillon.get("devis_id") is not None}
 
+    registre_plans = _registre_plans()
+    etat_des_plans = facturation_jalons.etat_plans(registre_plans.lire()) if registre_plans is not None else None
+
     attentes_devis: list[dict[str, Any]] = []
     for devis_id in sorted(devis_ids_connus):
         if facturation.facture_active_pour_devis(factures_registre, devis_id) is not None:
             continue
+        if etat_des_plans is not None and facturation_jalons.plan_actif_pour_devis(etat_des_plans, devis_id):
+            continue  # facturé par jalons (m5_lire_plan_facturation) : pas en attente d'une facture globale
         devis_recu = devis_recus.pour_devis_id(devis_id, devis_recus_registre)
         if devis_recu is None:
             attentes_devis.append({"devis_id": devis_id, "statut": "en_attente_devis_accepte"})
@@ -3702,11 +3769,76 @@ def _actualiser_rentabilite_apres_transition_facture(
     """
     if factures_historique is not None or not _stockage_durable_actif:
         return
-    devis_id = next(
-        devis_id for devis_id, facture in facturation.factures_actives_par_devis(registre_cible).items()
-        if facture["facture_id"] == facture_id
-    )
-    _essayer_cout_reel(devis_id)
+    etat = facturation._etat_facture(registre_cible, facture_id)
+    if etat is None or not isinstance(etat.get("devis_id"), str):
+        raise ValueError("REJ-FACTURE-INTROUVABLE : la facture qui vient de changer d'état est introuvable")
+    _essayer_cout_reel(etat["devis_id"])
+
+
+def _preparer_emission(
+    etat: Mapping[str, Any], horodatage: str, registre_numeros: registre_module.Registre | None
+) -> tuple[dict[str, Any] | None, dict[str, str] | None, dict[str, Any] | None]:
+    """Ce que l'ÉMISSION d'une facture fixe, d'après ce que le propriétaire a déclaré (`configuration.facturation`,
+    relu à chaque appel) : `(emission, refus, maillon_numero_nouveau)`.
+
+    * le NUMÉRO (suite sans trou, `facturation_jalons.attribuer_numero`, déjà attribué : le même) ;
+    * l'ÉCHÉANCE : le jour d'émission plus le délai de paiement (celui du jalon pour une facture de jalon ; les
+      conditions de paiement déclarées pour une autre).
+
+    Une facture de JALON exige la numérotation déclarée : absente, refus qui dit quoi déclarer (jamais un numéro
+    supposé). Une autre facture n'est numérotée que si le propriétaire a déclaré la numérotation ; une déclaration
+    PRÉSENTE mais mal formée est toujours un refus. `registre_numeros` est une COPIE : l'appelant écrit au registre
+    durable, avec la précondition de rang, le seul maillon nouveau."""
+    declaration = _configuration_manifeste().get("facturation")
+    declaration = declaration if isinstance(declaration, Mapping) else {}
+    est_jalon = etat.get("plan_id") is not None
+    emission: dict[str, Any] = {}
+    maillon_nouveau: dict[str, Any] | None = None
+
+    numerotation, refus_numerotation = facturation_jalons.lire_numerotation(declaration.get("numerotation"))
+    if numerotation is None and (est_jalon or "numerotation" in declaration):
+        return None, refus_numerotation, None
+    if est_jalon or numerotation is not None:
+        # PLAFOND D'ENVOI AUTOMATIQUE : ZÉRO. Émettre une facture numérotée est la décision d'une PERSONNE (propriétaire
+        # ou finance), dite par le socle ; un agent seul n'obtient jamais ce geste, même si le département est passé en
+        # mode « autonome » (où le socle n'intercepte plus N4). Sans personne, rien n'est numéroté ni envoyé.
+        from .outils_operations import humain_requis
+
+        _humain, refus_humain = humain_requis("m5_envoyer_facture", "émettre une facture numérotée ou de jalon")
+        if refus_humain is not None:
+            return None, refus_humain, None
+    if numerotation is not None:
+        if registre_numeros is None:
+            return None, verdicts_facturation.construire_verdict(
+                "REJ-NUMEROTATION-CHAINE-INVALIDE", "registre de numérotation indisponible (stockage non durable)"
+            ), None
+        resultat, refus = facturation_jalons.attribuer_numero(
+            registre_numeros, numerotation, etat["facture_id"], horodatage
+        )
+        if refus is not None:
+            return None, refus, None
+        numero = resultat["numero"]
+        emission.update(numero_facture=numero["numero_facture"], sequence_facture=numero["sequence"])
+        if resultat["statut"] == "nouveau":
+            maillon_nouveau = numero
+
+    if est_jalon:
+        delai = etat.get("delai_paiement_jours")
+    else:
+        conditions, refus_conditions = facturation_jalons.lire_conditions_paiement(
+            declaration.get("conditions_paiement")
+        )
+        if conditions is None and "conditions_paiement" in declaration:
+            return None, refus_conditions, None
+        delai = conditions["delai_jours"] if conditions is not None else None
+    if delai is not None:
+        echeance = facturation.echeance_apres(horodatage, delai)
+        if echeance is None:
+            return None, verdicts_facturation.construire_verdict(
+                "REJ-FACTURATION-DATE-INVALIDE", f"horodatage d'émission illisible : {horodatage!r}"
+            ), None
+        emission.update(echeance=echeance, delai_paiement_jours=delai)
+    return emission, None, maillon_nouveau
 
 
 def envoyer_facture(
@@ -3716,10 +3848,20 @@ def envoyer_facture(
 ) -> dict[str, Any]:
     """Outil N4 (PLAN T1.3-c) : n'est JAMAIS exécuté hors d'une décision approuvée du socle
     (`opsys.approbations.decider`, `department.yaml/approbations.n4`) — voir
-    `facturation.envoyer_facture` et le docstring de ce module (RÈGLE FINANCE)."""
-    registre_cible = _registre_factures(factures_historique)
-    maillons_factures = None
-    if factures_historique is None and _stockage_durable_actif:
+    `facturation.envoyer_facture` et le docstring de ce module (RÈGLE FINANCE).
+
+    M5-FACT-1 : l'ÉMISSION fixe aussi le numéro (suite sans trou) et l'échéance de la facture, dans le même maillon que
+    le statut et dans la même transaction que l'attribution du numéro : une panne n'en consomme aucun. Le plafond
+    d'envoi AUTOMATIQUE est zéro : ce chemin n'existe que sous une décision humaine N4."""
+    if factures_historique is not None or not _stockage_durable_actif:
+        registre_cible = _registre_factures(factures_historique)
+        resultat, verdict = facturation.envoyer_facture(facture_id, horodatage, registre_cible)
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+        return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
+
+    def emettre() -> dict[str, Any]:
+        registre_cible = _registre_factures(None)
         # La décision N4 utilise le préfixe validé au moment du calcul.
         # Un refus concurrent clôt la demande ; aucune approbation n'est rejouée.
         try:
@@ -3732,13 +3874,31 @@ def envoyer_facture(
         registre_cible = copie
         maillons_factures = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FACTURES)
         taille_initiale = registre_cible.taille()
-    resultat, verdict = facturation.envoyer_facture(facture_id, horodatage, registre_cible)
-    if verdict is not None:
-        return {"accepte": False, "verdict": verdict}
-    if maillons_factures is not None:
+        etat, verdict = facturation.verifier_envoyable(facture_id, registre_cible)
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+
+        maillons_numeros = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_NUMEROTATION)
+        copie_numeros = registre_module.Registre(maillons=maillons_numeros[:])
+        valide_numeros, raison_numeros = copie_numeros.valider_chaine()
+        if not valide_numeros:
+            return {"accepte": False, "verdict": verdicts_facturation.construire_verdict(
+                "REJ-NUMEROTATION-CHAINE-INVALIDE", raison_numeros)}
+        taille_numeros = copie_numeros.taille()
+        emission, refus, numero_nouveau = _preparer_emission(etat, horodatage, copie_numeros)
+        if refus is not None:
+            return {"accepte": False, "verdict": refus}
+
+        resultat, verdict = facturation.envoyer_facture(facture_id, horodatage, registre_cible, emission)
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+        if numero_nouveau is not None:
+            maillons_numeros.append(numero_nouveau, rang_attendu=taille_numeros)
         maillons_factures.append(resultat, rang_attendu=taille_initiale)
-    _actualiser_rentabilite_apres_transition_facture(facture_id, registre_cible, factures_historique)
-    return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
+        _actualiser_rentabilite_apres_transition_facture(facture_id, registre_cible, None)
+        return {"accepte": True, "resultat": resultat, **_etat_factures(None, registre_cible)}
+
+    return concurrence.relire_si_conflit(emettre)
 
 
 def enregistrer_paiement_facture(
@@ -5745,10 +5905,10 @@ def _outils_vague3() -> tuple[Outil, ...]:
     """Opérations comptables, dossier CPA, conseillers et base de connaissances fiscale
     (docs/architecture/M5-SOPHIE.md).
     Importés ici et non en tête de fichier : ces modules lisent les aides de celui-ci (cycle d'import)."""
-    from . import outils_bancaire, outils_conseillers, outils_dossier, outils_operations
+    from . import outils_bancaire, outils_conseillers, outils_dossier, outils_facturation, outils_operations
 
     return (outils_operations.outils_operations() + outils_bancaire.outils_bancaire() + outils_dossier.outils_dossier()
-            + outils_conseillers.outils_conseillers())
+            + outils_conseillers.outils_conseillers() + outils_facturation.outils_facturation())
 
 
 # DEVICE préparatoire, hors registre des mouvements et hors consommateurs YAML.

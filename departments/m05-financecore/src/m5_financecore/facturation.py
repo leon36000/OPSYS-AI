@@ -48,7 +48,8 @@ paiement partiel ou un écart (voir plus bas).
 from __future__ import annotations
 
 import dataclasses
-from datetime import date, datetime
+from collections.abc import Mapping, Sequence
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Context, Decimal, DecimalException, InvalidOperation, localcontext
 from typing import Any
 
@@ -227,6 +228,12 @@ def _etats_courants(registre_cible: Any) -> dict[str, dict[str, Any]]:
     return etats
 
 
+def etats_des_factures(registre_cible: Any) -> list[dict[str, Any]]:
+    """L'état courant de CHAQUE facture du registre (liste, ordre d'écriture) : la projection publique de
+    `_etats_courants`, pour un appelant qui lit beaucoup de factures en une relecture."""
+    return list(_etats_courants(registre_cible).values())
+
+
 def _etat_facture(registre_cible: Any, facture_id: str) -> dict[str, Any] | None:
     return _etats_courants(registre_cible).get(facture_id)
 
@@ -252,13 +259,42 @@ def facture_active_pour_devis(registre_cible: Any, devis_id: str) -> dict[str, A
 def factures_actives_par_devis(registre_cible: Any) -> dict[str, dict[str, Any]]:
     """La facture ACTIVE (statut != ANNULEE) de chaque devis, en UNE relecture du registre : la même règle que
     `facture_active_pour_devis` (la première trouvée), pour un appelant qui lit beaucoup de devis (PLAN T1.5-d) et
-    ne doit pas relire (et copier) tout le registre des factures à chaque devis."""
+    ne doit pas relire (et copier) tout le registre des factures à chaque devis.
+
+    Un devis facturé PAR JALONS (M5-FACT-1) n'a pas UNE facture : son prix facturé est celui du contrat, jamais celui
+    du premier acompte. Il est rendu comme une facture agrégée (`facture_agregee_du_plan`)."""
     actives: dict[str, dict[str, Any]] = {}
+    par_plan: dict[str, list[dict[str, Any]]] = {}
     for etat in _etats_courants(registre_cible).values():
         devis_id = etat.get("devis_id")
-        if devis_id is not None and etat.get("statut") != "ANNULEE" and devis_id not in actives:
+        if devis_id is None or etat.get("statut") == "ANNULEE":
+            continue
+        if etat.get("plan_id") is not None:
+            par_plan.setdefault(devis_id, []).append(etat)
+        elif devis_id not in actives:
             actives[devis_id] = etat
+    for devis_id, etats in par_plan.items():
+        actives[devis_id] = facture_agregee_du_plan(etats)
     return actives
+
+
+def facture_agregee_du_plan(etats: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Une « facture » pour la rentabilité d'un devis facturé par jalons : le prix du CONTRAT (avant taxes) et un statut
+    qui n'est définitif (ENVOYEE) que lorsque TOUS les jalons ont une facture envoyée ou payée ; sinon BROUILLON (prix
+    provisoire). Les factures annulées ne comptent pas (l'appelant les a déjà écartées)."""
+    premier = sorted(etats, key=lambda e: e["jalon_rang"])[0]
+    complet = len(etats) == premier["jalons_total"] and all(e.get("statut") in ("ENVOYEE", "PAYEE") for e in etats)
+    return {
+        "facture_id": premier["plan_id"],
+        "devis_id": premier["devis_id"],
+        "chantier_id": premier.get("chantier_id"),
+        "client_id": premier.get("client_id"),
+        "statut": "ENVOYEE" if complet else "BROUILLON",
+        "montant_avant_taxes": Decimal(premier["plan_total_avant_taxes"]),
+        "plan_id": premier["plan_id"],
+        "jalons_factures": len(etats),
+        "jalons_total": premier["jalons_total"],
+    }
 
 
 def factures_par_statut(registre_cible: Any, statut: str) -> tuple[dict[str, Any], ...]:
@@ -275,6 +311,38 @@ def factures_par_statut(registre_cible: Any, statut: str) -> tuple[dict[str, Any
     )
 
 
+_CHAMPS_RATTACHEMENT = frozenset(
+    {
+        "plan_id",
+        "jalon_id",
+        "jalon_rang",
+        "jalons_total",
+        "libelle_jalon",
+        "plan_total_avant_taxes",
+        "delai_paiement_jours",
+    }
+)
+
+
+def _valider_rattachement(rattachement: Mapping[str, Any]) -> dict | None:
+    """Un rattachement ne porte que les champs connus, bien typés : il entre tel quel dans le maillon de la facture."""
+    invalide = validation.construire_verdict(
+        "REJ-FACTURE-LIGNE-INVALIDE", detail="rattachement au plan de facturation invalide (champs ou types)"
+    )
+    if not isinstance(rattachement, Mapping) or set(rattachement) != _CHAMPS_RATTACHEMENT:
+        return invalide
+    for champ in ("plan_id", "jalon_id", "libelle_jalon", "plan_total_avant_taxes"):
+        if not _est_texte_non_vide(rattachement[champ]):
+            return invalide
+    for champ in ("jalon_rang", "jalons_total", "delai_paiement_jours"):
+        valeur = rattachement[champ]
+        if type(valeur) is not int or valeur < 0:
+            return invalide
+    if rattachement["jalon_rang"] < 1 or rattachement["jalon_rang"] > rattachement["jalons_total"]:
+        return invalide
+    return None
+
+
 def creer_facture_brouillon(
     facture_id: str,
     chantier_id: str,
@@ -285,10 +353,17 @@ def creer_facture_brouillon(
     dictionnaire_taux: dict[str, dict[str, Any]],
     registre_cible: Any,
     montant_avant_taxes_fourni: str | None = None,
+    rattachement_plan: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict | None]:
     """Crée une facture BROUILLON sur `registre_cible` (le registre dédié des FACTURES,
     troisième registre du département, jamais celui des mouvements). Idempotent par
-    `devis_id` : refuse s'il existe déjà une facture ACTIVE (statut != ANNULEE) pour ce devis."""
+    `devis_id` : refuse s'il existe déjà une facture ACTIVE (statut != ANNULEE) pour ce devis.
+
+    `rattachement_plan` (M5-FACT-1) : la facture est celle d'UN jalon d'un plan de facturation déclaré
+    (`facturation_jalons.py`). L'invariant « une facture active par devis » devient alors « une facture active par
+    jalon » : le devis porte plusieurs factures, chacune liée à son plan et à son rang. Sans rattachement, rien ne
+    change
+    — et un devis dont une facture de jalon est active refuse toujours la facture globale."""
     if not _est_texte_non_vide(facture_id):
         return None, validation.construire_verdict(
             "REJ-FACTURE-FACTURE-ID-VIDE", detail="facture_id requis, non vide"
@@ -305,6 +380,10 @@ def creer_facture_brouillon(
         )
     if not isinstance(lignes, (list, tuple)) or not lignes:
         return None, validation.construire_verdict("REJ-FACTURE-LIGNES-VIDES", detail="au moins une ligne est requise")
+    if rattachement_plan is not None:
+        verdict_rattachement = _valider_rattachement(rattachement_plan)
+        if verdict_rattachement is not None:
+            return None, verdict_rattachement
 
     with localcontext(_CONTEXTE_MONETAIRE):
         lignes_validees: list[LigneFacture] = []
@@ -355,7 +434,8 @@ def creer_facture_brouillon(
         horodatage=horodatage,
     )
 
-    entree = {**_champs_facture(facture), "type_entree": "facture_creee"}
+    champs_rattachement = dict(rattachement_plan) if rattachement_plan is not None else {}
+    entree = {**_champs_facture(facture), **champs_rattachement, "type_entree": "facture_creee"}
 
     # `facture_id` est une identité métier immuable, y compris après envoi ou annulation.
     # Un rejeu exact de la création rend le maillon d'origine sans écrire; toute réutilisation
@@ -369,13 +449,33 @@ def creer_facture_brouillon(
         None,
     )
     if existante_id is not None:
-        champs_facture = _champs_facture(facture)
+        champs_facture = {**_champs_facture(facture), **champs_rattachement}
         if all(existante_id.get(cle) == valeur for cle, valeur in champs_facture.items()):
             return existante_id, None
         return None, validation.construire_verdict(
             "REJ-FACTURE-DEVIS-DEJA-FACTURE",
             detail=f"facture_id {facture_id!r} est déjà associé à une autre charge de facture",
         )
+
+    if rattachement_plan is not None:
+        # Une facture de jalon : une seule facture ACTIVE par (plan, rang), et jamais à côté d'une facture globale.
+        for etat in _etats_courants(registre_cible).values():
+            if etat.get("devis_id") != devis_id or etat.get("statut") == "ANNULEE":
+                continue
+            if etat.get("plan_id") != rattachement_plan["plan_id"]:
+                return None, validation.construire_verdict(
+                    "REJ-FACTURE-DEVIS-DEJA-FACTURE",
+                    detail=f"devis {devis_id!r} déjà facturé hors de ce plan par {etat['facture_id']!r}",
+                )
+            if etat.get("jalon_rang") == rattachement_plan["jalon_rang"]:
+                return None, validation.construire_verdict(
+                    "REJ-FACTURE-DEVIS-DEJA-FACTURE",
+                    detail=(
+                        f"jalon {rattachement_plan['jalon_rang']} du plan déjà facturé par {etat['facture_id']!r} "
+                        f"(statut {etat['statut']!r})"
+                    ),
+                )
+        return _ajouter_et_retrouver(entree, registre_cible), None
 
     existante = facture_active_pour_devis(registre_cible, devis_id)
     if existante is not None:
@@ -390,13 +490,12 @@ def creer_facture_brouillon(
     return _ajouter_et_retrouver(entree, registre_cible), None
 
 
-def envoyer_facture(
-    facture_id: str, horodatage: str, registre_cible: Any
-) -> tuple[dict[str, Any] | None, dict | None]:
-    """Verrou d'envoi : BROUILLON -> ENVOYEE. La décision d'approuver appartient exclusivement au
-    socle (N4, `opsys.approbations.decider` — voir le docstring du module) : cette fonction ne
-    reçoit et ne vérifie plus aucun maillon d'approbation. `date_envoi` posé ici sert de base à
-    `calculer_age_creances`."""
+_CHAMPS_EMISSION = frozenset({"numero_facture", "sequence_facture", "echeance", "delai_paiement_jours"})
+
+
+def verifier_envoyable(facture_id: str, registre_cible: Any) -> tuple[dict[str, Any] | None, dict | None]:
+    """L'état courant de la facture si elle peut être envoyée (BROUILLON), sinon le verdict nommé. Séparé de
+    `envoyer_facture` pour que l'adaptateur attribue un numéro SEULEMENT à une facture que l'envoi acceptera."""
     etat = _etat_facture(registre_cible, facture_id)
     if etat is None:
         return None, validation.construire_verdict(
@@ -407,6 +506,31 @@ def envoyer_facture(
             "REJ-FACTURE-TRANSITION-ILLEGALE",
             detail=f"facture {facture_id!r} au statut {etat['statut']!r}, BROUILLON requis pour l'envoi",
         )
+    return etat, None
+
+
+def envoyer_facture(
+    facture_id: str, horodatage: str, registre_cible: Any, emission: Mapping[str, Any] | None = None
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """Verrou d'envoi : BROUILLON -> ENVOYEE. La décision d'approuver appartient exclusivement au
+    socle (N4, `opsys.approbations.decider` — voir le docstring du module) : cette fonction ne
+    reçoit et ne vérifie plus aucun maillon d'approbation. `date_envoi` posé ici sert de base à
+    `calculer_age_creances`.
+
+    `emission` (M5-FACT-1) : ce que l'ÉMISSION fixe, calculé par l'adaptateur et écrit dans le MÊME maillon que le
+    statut (jamais plus tard) : `numero_facture` et `sequence_facture` (suite sans trou, `facturation_jalons.py`),
+    `echeance` (date, d'après les conditions de paiement déclarées) et `delai_paiement_jours`. Absent, le maillon est
+    celui d'avant : une facture envoyée sans numérotation déclarée n'est pas numérotée."""
+    _etat, verdict = verifier_envoyable(facture_id, registre_cible)
+    if verdict is not None:
+        return None, verdict
+    champs_emission: dict[str, Any] = {}
+    if emission is not None:
+        if not isinstance(emission, Mapping) or not set(emission) <= _CHAMPS_EMISSION:
+            return None, validation.construire_verdict(
+                "REJ-FACTURE-TRANSITION-ILLEGALE", detail="émission invalide (champs inconnus)"
+            )
+        champs_emission = dict(emission)
 
     entree = {
         "type_entree": "transition_facture",
@@ -414,6 +538,7 @@ def envoyer_facture(
         "statut": "ENVOYEE",
         "date_envoi": horodatage,
         "horodatage": horodatage,
+        **champs_emission,
     }
     return _ajouter_et_retrouver(entree, registre_cible), None
 
@@ -607,6 +732,47 @@ def calculer_age_creances(registre_factures: Any, aujourd_hui: str) -> tuple[dic
     }, None
 
 
+def jour_de(valeur: Any) -> date | None:
+    """Le jour (date locale de la donnée) d'un horodatage ou d'une date ISO 8601, ou `None` s'il est illisible.
+    `datetime.fromisoformat` PARSE une valeur fournie : il ne lit jamais l'horloge."""
+    if not isinstance(valeur, str):
+        return None
+    try:
+        return datetime.fromisoformat(valeur).date()
+    except ValueError:
+        return None
+
+
+def echeance_apres(horodatage_emission: str, delai_jours: int) -> str | None:
+    """La date d'échéance (AAAA-MM-JJ) : le jour d'émission plus le délai de paiement DÉCLARÉ, ou `None` si
+    l'horodatage est illisible. Le délai est un entier de 0 à 365, validé par l'appelant."""
+    jour = jour_de(horodatage_emission)
+    if jour is None or type(delai_jours) is not int or delai_jours < 0:
+        return None
+    return (jour + timedelta(days=delai_jours)).isoformat()
+
+
+def statut_effectif(etat: Mapping[str, Any], aujourd_hui: date) -> dict[str, Any]:
+    """Le statut CALCULÉ d'une facture à une date fournie (M5 n'a pas d'horloge, DA-M5-06) : une facture ENVOYEE dont
+    l'échéance est STRICTEMENT dépassée est « EN_RETARD » ; le jour de l'échéance elle ne l'est pas encore. Le statut
+    ENREGISTRÉ ne change jamais (c'est une vue : ENVOYEE reste ENVOYEE au registre, et ne lève donc aucune relance).
+    Sans échéance lisible (facture émise sans conditions de paiement déclarées), le retard n'est pas calculable et
+    `retard_calculable` le dit : jamais « à temps » par défaut."""
+    statut = etat.get("statut")
+    echeance = jour_de(etat.get("echeance"))
+    if statut != "ENVOYEE":
+        return {"statut_effectif": statut, "echeance": etat.get("echeance"), "jours_de_retard": None,
+                "retard_calculable": False}
+    if echeance is None:
+        return {"statut_effectif": "ENVOYEE", "echeance": None, "jours_de_retard": None, "retard_calculable": False}
+    retard = (aujourd_hui - echeance).days
+    if retard > 0:
+        return {"statut_effectif": "EN_RETARD", "echeance": echeance.isoformat(), "jours_de_retard": retard,
+                "retard_calculable": True}
+    return {"statut_effectif": "ENVOYEE", "echeance": echeance.isoformat(), "jours_de_retard": 0,
+            "retard_calculable": True}
+
+
 def comptes_a_recevoir(
     registre_factures: Any, aujourd_hui: str | None = None
 ) -> tuple[dict[str, Any] | None, dict | None]:
@@ -629,9 +795,12 @@ def comptes_a_recevoir(
         if verdict is not None:
             return None, verdict
 
+    jour_du_jour = date.fromisoformat(aujourd_hui) if aujourd_hui is not None else None
     factures: list[dict[str, Any]] = []
     illisibles: list[dict[str, Any]] = []
     total = Decimal("0")
+    en_retard_nombre = 0
+    en_retard_total = Decimal("0")
     for etat in sorted(_etats_courants(registre_factures).values(), key=lambda e: e["facture_id"]):
         if etat.get("statut") != "ENVOYEE":
             continue
@@ -648,14 +817,25 @@ def comptes_a_recevoir(
             )
             continue
         total += montant_du
+        vue = (
+            statut_effectif(etat, jour_du_jour)
+            if jour_du_jour is not None
+            else {"statut_effectif": "ENVOYEE", "echeance": etat.get("echeance"), "jours_de_retard": None,
+                  "retard_calculable": False}
+        )
+        if vue["statut_effectif"] == "EN_RETARD":
+            en_retard_nombre += 1
+            en_retard_total += montant_du
         factures.append(
             {
                 "facture_id": etat["facture_id"],
+                "numero_facture": etat.get("numero_facture"),
                 "chantier_id": etat.get("chantier_id"),
                 "devis_id": etat.get("devis_id"),
                 "client_id": etat.get("client_id"),
                 "montant_apres_taxes": montant_du,
                 "date_envoi": etat.get("date_envoi"),
+                **vue,
             }
         )
 
@@ -667,4 +847,7 @@ def comptes_a_recevoir(
         "illisibles": illisibles,
         "age": age,
         "age_non_calcule": "aujourd_hui absent : la date du jour n'est jamais devinée" if age is None else None,
+        "en_retard": (
+            {"nombre": en_retard_nombre, "total": en_retard_total} if jour_du_jour is not None else None
+        ),
     }, None

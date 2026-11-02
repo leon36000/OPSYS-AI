@@ -47,8 +47,9 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
            m5.rapprochement_po_constate, m5.dossier_cpa_scelle,
            m5.depense_publicitaire_constatee, m5.facture_emise_constatee]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
-  n3: [finance, nathan_owner]
-  n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture), correction et annulation d'une
+  n3: [finance, nathan_owner]                        # M5-FACT-1 : déclarer / révoquer un plan de facturation par jalons
+  n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture : numéro et échéance fixés à l'émission,
+                                                     # plafond d'envoi automatique : zéro), correction et annulation d'une
                                                      # facture fournisseur (m5_corriger_..., m5_annuler_..., T4.15-c)
   # N5 (paiement, m5_enregistrer_paiement_facture) ne se déclare pas : nathan_owner seul, fixé par
   # le socle (ADR-0009 §5).
@@ -153,6 +154,33 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #         compte_frais_bancaires: "5800"             # exigé dès que des motifs sont déclarés
 #
 # Rien de tout cela n'est un taux ni une règle fiscale : ce sont des décisions d'exploitation de l'entreprise.
+#
+# Facturation par jalons, numérotation, échéance et PDF de facture (M5-FACT-1, M5-FACT-2 ; docs/architecture/M5-FACTURATION.md).
+# Ce que le PROPRIÉTAIRE décide et que M5 ne devine jamais (GATE NATHAN). Absent ou mal formé, l'outil concerné REFUSE et dit
+# quoi déclarer (REJ-NUMEROTATION-A-DECLARER, REJ-CONDITIONS-A-DECLARER, REJ-PDF-ENTREPRISE-A-DECLARER) ; relu à chaque appel.
+# Forme, sous la même clé `configuration` (EXEMPLES de forme FICTIFS, jamais des valeurs à recopier ; les numéros
+# d'inscription sont ceux des avis d'inscription de l'entreprise, à valider auprès d'un comptable (CPA)) :
+#
+#   configuration:
+#     facturation:
+#       numerotation:                              # suite des numéros de facture, sans trou ni doublon
+#         prefixe: "F-"                            # 0 à 12 caractères : lettres, chiffres, _ / -
+#         premier_numero: 1001                     # le numéro de la PREMIÈRE facture émise par OPSYS (reprendre l'ancien système + 1) ;
+#                                                  # il ne peut plus changer une fois la suite commencée
+#         largeur: 5                               # nombre de chiffres (zéros devant) : F-01001
+#       conditions_paiement:
+#         delai_jours: 30                          # 0 à 365 : jours entre l'émission et l'échéance (0 = payable à la réception) ;
+#                                                  # un jalon peut déclarer le sien (delai_paiement_jours)
+#       entreprise:                                # ce que le PDF de facture affiche de l'entreprise
+#         raison_sociale: "Entreprise Fictive Inc."
+#         adresse: ["123, rue Exemple", "Québec (Québec) A1A 1A1"]     # 1 à 4 lignes
+#         numero_tps: "123456789 RT0001"           # exigé si la facture porte la TPS
+#         numero_tvq: "1234567890 TQ0001"          # exigé si la facture porte la TVQ
+#         courriel: "facturation@example.test"     # facultatif
+#         telephone: "418 555-0100"                # facultatif
+#
+# Le plan de facturation lui-même (jalons, pourcentages ou montants) se déclare par m5_declarer_plan_facturation (N3 : une
+# personne l'approuve) ; il n'est jamais écrit ici. Le nom et l'adresse du CLIENT sont fournis à l'appel du PDF : M5 ne les garde pas.
 modeles:
   defaut: standard
   extraction: rapide

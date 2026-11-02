@@ -17,7 +17,8 @@ from typing import Any
 
 __all__ = [
     "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_CALCUL", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
-    "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "SORTIES_OPERATIONS", "SORTIES_CONSEIL",
+    "SORTIES_FACTURATION", "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "SORTIES_OPERATIONS",
+    "SORTIES_CONSEIL",
     "avec_mention", "avec_mention_comptable",
 ]
 
@@ -98,6 +99,17 @@ SORTIES_OPERATIONS = frozenset({
     "m5_verifier_dossier_cpa",  # vérification d'un dossier scellé
 })
 
+# Facturation par jalons, numérotation et PDF de facture (M5-FACT-1, M5-FACT-2 ; `docs/architecture/M5-SOPHIE.md`) :
+# plans, factures de jalon, PDF et états de compte, sous les deux mentions, prouvés par
+# `tests/test_facturation_jalons_outils.py`.
+SORTIES_FACTURATION = frozenset({
+    "m5_declarer_plan_facturation",  # plan déclaré par une personne (N3) : jalons calculés, somme au cent
+    "m5_creer_facture_jalon",  # BROUILLON de la facture d'un jalon : montant du plan, taxes du moteur fiscal
+    "m5_lire_plan_facturation",  # où en est le plan : facturé, solde, retard, ce qui reste à déclarer
+    "m5_preparer_pdf_facture",  # PDF de la facture approuvée : mise en page, aucun chiffre recalculé
+    "m5_preparer_etat_compte_client",  # PDF de l'état de compte d'un client : soldes et retard à une date
+})
+
 # Conseillers (dette, financement, investissement de trésorerie ; fiscal et comptable ; base de connaissances fiscale) :
 # reçus de calcul, analyses sourcées et citations, mêmes deux mentions, prouvés par
 # `tests/test_m5_conseillers_outils.py`.
@@ -135,7 +147,8 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
 }) | (
-    SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL | SORTIES_FISCALES | SORTIES_OPERATIONS | SORTIES_CONSEIL)
+    SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL | SORTIES_FISCALES | SORTIES_OPERATIONS | SORTIES_CONSEIL
+    | SORTIES_FACTURATION)
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
@@ -173,6 +186,13 @@ SORTIES_HORS_ANALYSE = {
     "m5_lire_comptes_a_recevoir": "liste des factures envoyées et de leur âge : un fait du registre",
     "m5_envoyer_facture": "action de N4, déjà tenue par une approbation humaine du socle",
     "m5_enregistrer_paiement_facture": "action de N5, déjà tenue par Nathan et le professionnel (socle)",
+    "m5_revoquer_plan_facturation": (
+        "révoque append-only un plan de facturation sans facture, après décision humaine N3 : l'écriture est la "
+        "décision"
+    ),
+    "m5_verifier_numerotation_factures": (
+        "relit la suite des numéros de facture et dit tout trou ou doublon : un fait du registre, sans montant"
+    ),
     "m5_enregistrer_contrat_horaire": "enregistre une source de rémunération après approbation humaine N4",
     "m5_revoquer_contrat_horaire": "révoque append-only une source salariale après approbation humaine N4",
     "m5_lire_contrat_horaire": "lit la version actuelle d'un contrat salarié sans calculer de montant",
