@@ -18,6 +18,7 @@ Fichiers :
 - `M7-MARKETING-CROISSANCE.md` — condensé fonctionnel du prompt M7.
 - `M9-INTELLIGENCE-STRATEGIQUE.md` — condensé fonctionnel du prompt M9 (direction IA, décisions, scénarios, risques, occasions).
 - `M10-MEMOIRE.md` — condensé fonctionnel du prompt M10.
+- `M4-FIELD-OPS.md` — condensé fonctionnel du prompt M4 (équipes, cédule, dispatch, GPS, terrain, fin de chantier).
 - `M5-FINANCECORE-CFO.md` — condensé fonctionnel du prompt M5 (comptabilité, finance, paie, fiscalité, CFO IA).
 - `ANALYSE-M1-M5-M7-M10.md` — (à produire) correspondance exigence → état réel → écart → backlog.
 
