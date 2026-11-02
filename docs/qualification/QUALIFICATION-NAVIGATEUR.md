@@ -184,3 +184,23 @@ Les preuves ne sont jamais écrasées (un horodatage par exécution). Chromium p
   `tests/test_provenance_m8_lecture_atomique.py` : 54 réussis.
 - `ruff check src tests departments` : propre ; `verifier-wt.sh` : `OK` (10 départements, 537 outils : aucun outil ajouté au catalogue ; le département fictif du banc vit sous `install/`, hors du chargement par défaut).
 - Matrices d'exigences : **aucun statut changé** (aucune ne justifie « FAIT_PROUVE » : données fictives, connecteurs de production absents).
+
+## 12. Addendum du 2 novembre 2026 : l'écran « Réglages de direction » (CFG-1)
+
+Un quinzième groupe, `reglages`, rejoue dans Chromium (156, Playwright 1.64.1, sans réseau) l'écran de la console qui adopte les valeurs de
+direction ([REGLAGES-DIRECTION](../architecture/REGLAGES-DIRECTION.md)) : 10 réglages « À décider » (4 de M2, 6 de M8) avec leur bouton
+d'adoption N3, trois propositions seulement (les délais de M2), chacune étiquetée « recommandation, non validée » avec sa source ; la proposition
+**préremplit** le champ sans rien appliquer ; la raison est obligatoire côté navigateur ; l'adoption redirige, annonce « Valeur adoptée (N3) »
+(`role="status"`), marque la carte « Adopté » et remplit le journal ; une valeur hors bornes est refusée en 400 avec son motif, une adoption sans
+jeton CSRF en 403 ; l'état du serveur après ces essais dit exactement une valeur adoptée et une chaîne valide ; le retour arrière remet les dix
+réglages à décider ; l'administrateur voit l'écran **sans formulaire** et son POST direct est refusé (403) ; les règles d'accessibilité maison
+(3 largeurs × 2 thèmes) et l'absence de défilement horizontal passent. Le tableau de bord compte désormais 18 onglets (le test du banc a été
+mis à jour) et la page entre dans le balayage d'accessibilité de l'administrateur.
+
+- Preuves : `docs/qualification/navigateur/resultats-parcours-20261102T070912Z.{json,md}` (groupes `reglages` : 12 constats, et `tableau` : 3, plus 2 globaux : **17 constats, tous OK**),
+  journal et trois captures WebP (`…-30-reglages-a-decider`, `…-31-reglages-adopte`, `…-32-reglages-mobile-375`).
+- **Banc complet rejoué** (`20261102T070950Z`, 77 s, preuves non archivées) : 139 constats OK et **5 échecs bloquants qui ne viennent pas de ce
+  chantier** : la sous-navigation « Plateforme » et quatre constats des wallboards (liste, SSE périmé, pause, « Connexion perdue »). Les mêmes
+  5 constats échouent à l'identique sur la base `e0424b040` rejouée dans un clone propre (même Chromium) : ils sont **préexistants dans cet
+  environnement** (le rapport du 1er novembre les donnait OK : une dérive du navigateur ou de l'hôte reste à expliquer, non investiguée ici).
+- Non prouvé : Firefox et WebKit pour cet écran, lecteur d'écran réel, tactile et téléphone, parcours à deux personnes en même temps.

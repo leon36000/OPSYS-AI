@@ -78,8 +78,7 @@ def rejouer(chaine: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
 
     Contrôles par maillon : champs exacts, schéma, rang contigu, empreinte du précédent, empreinte propre, type
     connu, version = nombre de maillons de la clé + 1, ancienne valeur = sommet de la pile, nouvelle valeur cohérente
-    avec le geste (une
-    adoption empile une valeur différente du sommet, un retour arrière dépile et rend l'avant-dernière)."""
+    avec le geste (une adoption empile une valeur différente du sommet, un retour arrière dépile)."""
     par_cle: dict[str, dict[str, Any]] = {}
     precedent = HASH_INITIAL
     for rang, maillon in enumerate(chaine):
@@ -123,8 +122,12 @@ def rejouer(chaine: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
 
 
 def lire_chaine() -> list[dict[str, Any]]:
-    """Les maillons tels que stockés (sans les juger), dans la transaction courante."""
-    return [dict(m) for m in stockage.maillons(DEPARTEMENT_STOCKAGE, REGISTRE)]
+    """Les maillons tels que stockés (sans les juger), dans la transaction courante. Un maillon qui ne se décode pas
+    (JSON ou étiquette invalide) est une chaîne invalide, jamais une panne du département qui lit."""
+    try:
+        return [dict(m) for m in stockage.maillons(DEPARTEMENT_STOCKAGE, REGISTRE)]
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise ChaineInvalide("un maillon est illisible (JSON ou étiquette invalide)") from None
 
 
 def chaine_verifiee() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:

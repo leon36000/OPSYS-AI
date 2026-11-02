@@ -290,6 +290,18 @@ def test_une_valeur_changee_avec_l_empreinte_refaite_casse_le_lien_suivant(deps)
             magasin.chaine_verifiee()
 
 
+def test_un_maillon_rehache_dont_seule_la_raison_change_rompt_le_lien_du_suivant(deps):
+    """Aucune valeur n'a bougé (le rejeu des valeurs est cohérent) : seul le chaînage par empreinte peut le voir."""
+    _remplir(deps)
+    with stockage.transaction() as cnx:
+        (_, texte), *_ = _maillons_sql(cnx)
+        maillon = json.loads(texte)
+        maillon["raison"] = "Raison réécrite après coup"
+        _remplacer(cnx, 0, _refaire_empreinte(maillon))
+        with pytest.raises(magasin.ChaineInvalide, match="maillon 1 : lien avec le maillon précédent rompu"):
+            magasin.chaine_verifiee()
+
+
 def test_un_maillon_retire_ou_deux_maillons_echanges_cassent_la_chaine(deps):
     _remplir(deps)
     with stockage.transaction() as cnx:
@@ -315,16 +327,38 @@ def test_un_maillon_avec_un_champ_de_plus_ou_de_moins_casse_la_chaine(deps):
             magasin.chaine_verifiee()
 
 
-def test_une_version_ou_une_ancienne_valeur_incoherente_casse_la_chaine_meme_refaite(deps):
+@pytest.mark.parametrize(("champ", "valeur", "fragment"), [
+    ("ancienne_valeur", 3, "ancienne valeur différente"),
+    ("version", 5, "version"),
+    ("version", 0, "version"),
+    ("type", "retour_arriere", "retour arrière"),
+    ("rang", 7, "schéma ou rang"),
+    ("schema", "autre/v9", "schéma ou rang"),
+    ("quand", "hier", "instant"),
+])
+def test_un_dernier_maillon_incoherent_meme_rehache_casse_la_chaine(deps, champ, valeur, fragment):
+    """Le DERNIER maillon n'a pas de suivant dont le lien trahirait la retouche : seuls ses contrôles la voient."""
     _remplir(deps)
     with stockage.transaction() as cnx:
         lignes = _maillons_sql(cnx)
-        maillons = [json.loads(t) for _, t in lignes]
-        # l'ancienne valeur du second maillon ne dit pas la valeur en vigueur
-        mauvais = dict(maillons[1], ancienne_valeur=3)
-        _remplacer(cnx, 1, _refaire_empreinte(mauvais))
-        with pytest.raises(magasin.ChaineInvalide):
+        dernier = json.loads(lignes[-1][1])
+        dernier[champ] = valeur
+        _remplacer(cnx, len(lignes) - 1, _refaire_empreinte(dernier))
+        with pytest.raises(magasin.ChaineInvalide, match=fragment):
             magasin.chaine_verifiee()
+
+
+@pytest.mark.parametrize("texte", ["pas du json", "[1, 2]", "null", '{"__opsys__": "inconnu", "v": 1}', "{"])
+def test_un_maillon_illisible_est_une_chaine_invalide_jamais_une_panne(deps, texte):
+    _remplir(deps)
+    with stockage.transaction() as cnx:
+        cnx.execute(update(REGISTRES).where(
+            (REGISTRES.c.departement == magasin.DEPARTEMENT_STOCKAGE) & (REGISTRES.c.rang == 1)).values(maillon=texte))
+        with pytest.raises(magasin.ChaineInvalide, match="illisible"):
+            magasin.chaine_verifiee()
+        lues = lecture.adoptees()
+        assert lues.chaine_valide is False and lues.valeurs == {} and "illisible" in lues.detail
+        assert lecture.journal() == []
 
 
 def test_une_chaine_cassee_refuse_tout_nouveau_geste(deps):

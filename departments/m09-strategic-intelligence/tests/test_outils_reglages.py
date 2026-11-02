@@ -263,13 +263,21 @@ def test_le_journal_d_audit_ne_porte_ni_la_raison_ni_la_valeur_ni_le_signataire_
         aide.resultat(aide.revenir(cnx, deps, CLE, raison=raison))
         lignes = cnx.execute(select(JOURNAL)).mappings().all()
     audit = [dict(ligne) for ligne in lignes if str(ligne["action"]).startswith("reglage.")]
-    assert {a["action"] for a in audit} == {"reglage.adopter", "reglage.revenir"}
+    assert sorted(a["action"] for a in audit) == ["reglage.adopter", "reglage.revenir"]
     for ligne in lignes:
         texte = json.dumps({k: str(v) for k, v in ligne.items()}, ensure_ascii=False)
         assert raison not in texte and "4242" not in texte, ligne
     for ligne in audit:
         details = json.loads(ligne["details"])
         assert set(details) == {"version", "empreinte", "departement"} and details["departement"] == "m02-revenue-crm"
+
+
+def test_une_double_adoption_ne_laisse_qu_une_ligne_d_audit(deps):
+    with stockage.transaction() as cnx:
+        aide.resultat(aide.adopter(cnx, deps, CLE, 7))
+        aide.resultat(aide.adopter(cnx, deps, CLE, 7, raison="Double clic"))
+        actions = [a for (a,) in cnx.execute(select(JOURNAL.c.action)).all() if a.startswith("reglage.")]
+    assert actions == ["reglage.adopter"]
 
 
 def test_une_erreur_apres_l_ecriture_annule_le_maillon_la_transaction_est_atomique(deps, monkeypatch):

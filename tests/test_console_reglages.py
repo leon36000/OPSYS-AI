@@ -137,6 +137,15 @@ def test_un_administrateur_voit_l_ecran_mais_ne_peut_ni_adopter_ni_annuler(clien
     assert _etat() == {"demandes": [], "chaine": 0}
 
 
+def test_un_non_proprietaire_n_apprend_rien_le_refus_precede_toute_validation_du_reglage(client):
+    csrf = _connecter(client, aide.ADMIN)
+    for essai in (dict(cle="m2.inexistant"), dict(saisie="abc"), dict(saisie="0"), dict(raison="x"),
+                  dict(action="revenir", saisie=None)):
+        r = _post(client, csrf, **essai)
+        assert r.status_code == 403 and "PROPRIETAIRE_REQUIS" in r.text, (essai, r.text)
+    assert _etat() == {"demandes": [], "chaine": 0}
+
+
 def test_le_role_proprietaire_retire_apres_la_connexion_est_refuse_sans_ecriture(client):
     csrf = _connecter(client)
     assert client.get("/reglages").status_code == 200

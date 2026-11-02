@@ -14,8 +14,10 @@ captures : [`docs/qualification/navigateur/`](../../../docs/qualification/naviga
    pour les wallboards, quatre demandes N3 en attente. Serveur : uvicorn, `127.0.0.1` seulement.
 2. `lancer.py` démarre trois instances (principale ; à session de 5 s ; sans préfixe d'URL comme derrière Caddy), lance
    `parcours.js`, puis contrôle côté serveur ce que le navigateur ne voit pas (journaux, base, fichier d'effets, filtre fail2ban).
-3. `parcours.js` joue 13 groupes de parcours : `connexion`, `tableau`, `approbations`, `plateforme`, `wallboards`, `cron`,
-   `deconnexion`, `journal`, `expiration`, `csrf`, `entetes`, `a11y`, `clavier`, `responsive`. Toute requête hors `127.0.0.1` est
+3. `parcours.js` joue 15 groupes de parcours : `connexion`, `tableau`, `approbations`, `plateforme`, `wallboards`, `cron`,
+   `deconnexion`, `journal`, `expiration`, `csrf`, `entetes`, `a11y`, `clavier`, `responsive` et `reglages` (écran « Réglages de
+   direction » : adoption et retour arrière par le propriétaire, refus hors bornes et sans jeton, administrateur sans formulaire,
+   accessibilité sur 3 largeurs × 2 thèmes). Toute requête hors `127.0.0.1` est
    refusée par le banc et comptée (la CSP est laissée intacte : les contrôles s'injectent par CDP, jamais par une balise `script`).
 4. `controles_a11y.js` : règles WCAG 2.1 AA **maison** (axe-core n'est pas disponible hors ligne) ; liste exacte de ce qu'elles
    ne couvrent pas en tête du fichier.

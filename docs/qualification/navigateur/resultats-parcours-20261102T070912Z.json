@@ -1,0 +1,245 @@
+{
+  "verdict": "PASSE",
+  "inventaire": {
+    "node": "/home/pc6/.local/bin/node",
+    "playwright_core": "/home/pc6/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core",
+    "playwright_core_version": "1.64.1",
+    "chromium": "/home/pc6/.cache/ms-playwright/chromium-1248/chrome-linux-arm64/chrome",
+    "chromium_origine": "cache Playwright /home/pc6/.cache/ms-playwright",
+    "moyens_suffisants": true,
+    "manque": []
+  },
+  "horodatage": "20261102T070912Z",
+  "navigateur": "chromium 156.0.8078.4",
+  "duree_s": 7.4,
+  "captures_octets": 448327,
+  "constats": [
+    {
+      "groupe": "tableau-de-bord",
+      "id": "structure",
+      "nom": "tableau de bord : h1, 18 onglets, onglet courant, une carte par département (10 réels + 1 fictif)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "h1": "Départements",
+        "nav": [
+          "Départements",
+          "CRM",
+          "Approbations4",
+          "Budgets",
+          "Modèles",
+          "Connecteurs",
+          "Agents",
+          "Mémoire",
+          "Réception",
+          "Marketing",
+          "Finance",
+          "Fusion opérationnelle",
+          "Suivis stratégiques",
+          "Direction IA",
+          "Réglages de direction",
+          "Plateforme",
+          "Observabilité",
+          "Wallboards"
+        ],
+        "courant": "Départements",
+        "cartes": 11,
+        "code": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M9"
+        ],
+        "pastille": "4",
+        "session": "Connecté : proprio-fictif"
+      }
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "pastille",
+      "nom": "la pastille d'approbations annonce les 4 demandes en attente",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "4"
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "session-nommee",
+      "nom": "la personne connectée est nommée",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Connecté : proprio-fictif"
+    },
+    {
+      "groupe": "reglages",
+      "id": "structure",
+      "nom": "écran des réglages : h1, onglet courant, 10 réglages « À décider » (4 de M2, 6 de M8), un bouton d'adoption N3 chacun",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "h1": "Réglages de direction",
+        "titre": "Réglages de direction · Console OPSYS",
+        "courant": "Réglages de direction",
+        "cartes": 10,
+        "adopter": 10,
+        "statuts": [
+          "À décider",
+          "À décider",
+          "À décider",
+          "À décider",
+          "À décider",
+          "À décider",
+          "À décider",
+          "À décider",
+          "À décider",
+          "À décider"
+        ],
+        "propositions": [
+          "Valeur proposée recommandation, non validée30 joursValeur d'exemple écrite dans ce manifeste depuis T4.6 pour illustrer la forme du réglage ; aucune calibration sur l'historique de l'entreprise. À discuter, pas une norme.Source : departments/m02-revenue-crm/department.yaml (exemple commenté, configuration.segments) ; ANALYSE-M2 §5 question 1",
+          "Valeur proposée recommandation, non validée14 joursValeur d'exemple écrite dans ce manifeste depuis T4.6 pour illustrer la forme du réglage ; aucune calibration sur l'historique de l'entreprise. À discuter, pas une norme.Source : departments/m02-revenue-crm/department.yaml (exemple commenté, configuration.segments) ; ANALYSE-M2 §5 question 1",
+          "Valeur proposée recommandation, non validée7 joursValeur d'exemple écrite dans ce manifeste depuis T4.9 pour illustrer la forme du réglage ; aucune calibration sur l'historique de l'entreprise. À discuter, pas une norme.Source : departments/m02-revenue-crm/department.yaml (exemple commenté, configuration.relances) ; ANALYSE-M2 §5 question 1"
+        ],
+        "resume": "10 réglage(s) à décider sur 10. Tant qu'un réglage manque, la fonction qui en dépend reste inerte ou « indéterminée » : rien n'est deviné. Une valeur proposée est une recommandation, non validée : elle ne s'applique jamais d'elle-même, vous l'adoptez (ou la changez) avec une raison, et vous pouvez revenir en arrière en un geste."
+      }
+    },
+    {
+      "groupe": "reglages",
+      "id": "propositions",
+      "nom": "trois propositions seulement (les délais de M2), chacune étiquetée « recommandation, non validée » avec sa source ; aucune pour M8",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        "Valeur proposée recommandation, non validée30 joursValeur d'exemple écrite dans ce manifeste depuis T4.6 pour illustrer la forme du réglage ; aucune calibration sur l'historique de l'entreprise. À discuter, pas une norme.Source : departments/m02-revenue-crm/department.yaml (exemple commenté, configuration.segments) ; ANALYSE-M2 §5 question 1",
+        "Valeur proposée recommandation, non validée14 joursValeur d'exemple écrite dans ce manifeste depuis T4.6 pour illustrer la forme du réglage ; aucune calibration sur l'historique de l'entreprise. À discuter, pas une norme.Source : departments/m02-revenue-crm/department.yaml (exemple commenté, configuration.segments) ; ANALYSE-M2 §5 question 1",
+        "Valeur proposée recommandation, non validée7 joursValeur d'exemple écrite dans ce manifeste depuis T4.9 pour illustrer la forme du réglage ; aucune calibration sur l'historique de l'entreprise. À discuter, pas une norme.Source : departments/m02-revenue-crm/department.yaml (exemple commenté, configuration.relances) ; ANALYSE-M2 §5 question 1"
+      ]
+    },
+    {
+      "groupe": "reglages",
+      "id": "a11y",
+      "nom": "règles d'accessibilité (WCAG 2.1 AA maison) sur l'écran des réglages : 3 largeurs × 2 thèmes, aucune violation",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "reglages",
+      "id": "reflow",
+      "nom": "écran des réglages : aucun défilement horizontal de la page à 375, 768 et 1280 px",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "reglages",
+      "id": "prerempli",
+      "nom": "la proposition (7 jours) PRÉREMPLIT le champ sans rien appliquer : l'état reste « À décider »",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "7"
+    },
+    {
+      "groupe": "reglages",
+      "id": "raison-requise",
+      "nom": "la raison est obligatoire côté navigateur (champ requis, soumission vide bloquée)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "requis": true,
+        "valide": false
+      }
+    },
+    {
+      "groupe": "reglages",
+      "id": "adoption",
+      "nom": "adopter : redirection, bandeau « Valeur adoptée (N3) » annoncé poliment, carte « Adopté », 9 réglages restants, journal rempli",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "bandeau": "Valeur adoptée (N3) : les départements la lisent dès leur prochain appel.",
+        "role": "status"
+      }
+    },
+    {
+      "groupe": "reglages",
+      "id": "hors-bornes",
+      "nom": "valeur hors bornes : 400 et motif lisible (REJ-REGLAGE-HORS-BORNES), rien n'est adopté",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 400
+      }
+    },
+    {
+      "groupe": "reglages",
+      "id": "csrf",
+      "nom": "adoption sans jeton CSRF : 403, rien n'est adopté",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 403
+    },
+    {
+      "groupe": "reglages",
+      "id": "etat-serveur",
+      "nom": "l'état du serveur après ces essais : 9 manquants, une seule valeur adoptée (jours_entre_relances), chaîne valide, une ligne au journal",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "manquants": 9,
+        "chaine": {
+          "valide": true,
+          "detail": "",
+          "maillons": 1,
+          "lisible": true
+        }
+      }
+    },
+    {
+      "groupe": "reglages",
+      "id": "retour-arriere",
+      "nom": "revenir en arrière : la valeur est retirée, 10 réglages à décider de nouveau, le retour figure au journal",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "reglages",
+      "id": "administrateur",
+      "nom": "l'administrateur voit l'écran sans formulaire (note « Seul le propriétaire… ») et son POST direct est refusé (403)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "vueA": {
+          "champs": 0,
+          "boutons": 0,
+          "note": true
+        },
+        "statut": 403
+      }
+    },
+    {
+      "groupe": "global",
+      "id": "reseau-externe",
+      "nom": "aucune requête n'a quitté 127.0.0.1 (le banc refuse tout le reste)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "global",
+      "id": "captures",
+      "nom": "taille totale des captures de cette exécution < 3 Mo",
+      "ok": true,
+      "niveau": "info",
+      "detail": 448327
+    }
+  ],
+  "injection": null
+}
