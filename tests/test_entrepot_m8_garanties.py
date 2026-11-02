@@ -163,6 +163,14 @@ CAS = [
         lambda v: ch.plaintes_constatees(empreinte_contenu=f"{v:064x}"),
         "faits_operations",
     ),
+    # M5-PRE-AUDIT : les comptes de constats du pré-audit (aucune facture, aucun fournisseur, aucun montant)
+    (
+        "preaudit",
+        M5,
+        "m5.preaudit_constate",
+        lambda v: ch.preaudit_constate(version=f"{v:016x}"),
+        "faits_operations",
+    ),
 ]
 IDS = [c[0] for c in CAS]
 

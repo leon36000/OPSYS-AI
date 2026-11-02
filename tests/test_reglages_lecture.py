@@ -222,8 +222,8 @@ def test_une_base_sans_le_registre_ne_sert_rien_et_ne_casse_pas_la_transaction(t
 def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_bloque(deps):
     with stockage.transaction():
         etat = lecture.etat_des_reglages(deps)
-    # 10 réglages vides (M2, M8) + 2 de M6 (C3) dont la valeur est déjà écrite à department.yaml (valeur d'un agent).
-    assert etat["total"] == 12 and etat["manquants"] == 10 and etat["chaine"]["valide"] is True
+    # 13 réglages vides (M2, M8, M5) + 2 de M6 (C3) dont la valeur est déjà écrite à department.yaml.
+    assert etat["total"] == 15 and etat["manquants"] == 13 and etat["chaine"]["valide"] is True
     par_cle = {r["cle"]: r for r in etat["reglages"]}
     relances = par_cle["m2.jours_entre_relances"]
     assert relances["statut"] == "vide" and relances["manque"] is True and relances["valeur"] is None

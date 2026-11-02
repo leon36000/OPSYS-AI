@@ -66,11 +66,22 @@
       "docs/architecture/M5-SOPHIE.md"
      ],
      "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "departments/m05-financecore/tests/test_rapports_financiers.py",
+      "departments/m05-financecore/tests/test_rapports_outils.py",
+      "tests/test_rapports_preaudit_bout_en_bout.py"
+     ],
+     "docs": [
+      "docs/architecture/M5-RAPPORTS-PREAUDIT.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "f2d44f1bd",
    "current_status": "PARTIEL",
-   "limite": "Grand livre en partie double, plan comptable, écritures en BROUILLON validées par un humain (N4), période close verrouillée, contre-passation (existant) ; vague 3 : relances, notes de crédit client et fournisseur, dépenses d'employés, pièces justificatives liées (fichier déposé par un humain), flux fournisseur facture→PO M6→brouillon→paiement PRÉPARÉ (N3 humain), jugements et estimations, ouverture et préclôture à 9 contrôles, mesures pour M8, cycle autonome jusqu'au brouillon, le tout idempotent et rejouable avec reçu. Prouvé en processus sur SQLite réelle, file d'approbation et bus réels ; consommateurs M2/M6/M8/M10 simulés. Absent : OCR, multi-entités, clôture d'exercice complète, passerelle bancaire en ligne, états financiers, parcours HTTP/Core natif/navigateur ; décision build vs QuickBooks encore ouverte ; agent seul jamais validé ni clos ni payé.",
+   "limite": "Grand livre en partie double, plan comptable, écritures en BROUILLON validées par un humain (N4), période close verrouillée, contre-passation (existant) ; vague 3 : relances, notes de crédit client et fournisseur, dépenses d'employés, pièces justificatives liées (fichier déposé par un humain), flux fournisseur facture→PO M6→brouillon→paiement PRÉPARÉ (N3 humain), jugements et estimations, ouverture et préclôture à 9 contrôles, mesures pour M8, cycle autonome jusqu'au brouillon, le tout idempotent et rejouable avec reçu. Prouvé en processus sur SQLite réelle, file d'approbation et bus réels ; consommateurs M2/M6/M8/M10 simulés. Absent : OCR, multi-entités, clôture d'exercice complète, passerelle bancaire en ligne, états financiers, parcours HTTP/Core natif/navigateur ; décision build vs QuickBooks encore ouverte ; agent seul jamais validé ni clos ni payé. Rapports financiers (M5-RAPPORTS-1) : état des résultats (avant impôts) et bilan en BROUILLON tirés du grand livre, budget contre réel (budget DÉCLARÉ par une personne, N3), rapport mensuel de direction, reçus rejouables ; prouvés en S sur SQLite avec données fictives. Aucun CPA n'a validé ces états ; pas de flux de trésorerie, d'amortissement, de provisions ni de clôture d'exercice ; jamais sur PostgreSQL.",
    "verification": "grep des modules operations_*.py ; 23 mutations tuées dont écriture déséquilibrée et période close (docs/architecture/M5-SOPHIE.md)"
   },
   {
@@ -347,11 +358,22 @@
      ],
      "docs": [],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "departments/m05-financecore/tests/test_rapports_financiers.py",
+      "departments/m05-financecore/tests/test_rapports_outils.py",
+      "tests/test_rapports_preaudit_bout_en_bout.py"
+     ],
+     "docs": [
+      "docs/architecture/M5-RAPPORTS-PREAUDIT.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Coût réel et ventilation prouvés en S ; en production le coût complet n'est pas routé (affichage « coût partiel / marge inconnue ») ; ville, équipe, service non confirmés."
+   "limite": "Coût réel et ventilation prouvés en S ; en production le coût complet n'est pas routé (affichage « coût partiel / marge inconnue ») ; ville, équipe, service non confirmés. Rentabilité par service et par ville (M5-RAPPORTS-1) : regroupement des marges de chantier à coût complet et prix définitif par la ville et le service que M4 publie à la fin des travaux (désormais gardés par M5) ; « non calculable, manque X » tant que le coût complet n'est pas routé ou que la dimension est absente, jamais zéro ; aucune dimension d'équipe."
   },
   {
    "id": "M5.10–M5.12",
@@ -517,11 +539,25 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m05-financecore/tests/test_controleur_preaudit.py",
+      "departments/m05-financecore/tests/test_rapports_outils.py",
+      "tests/test_rapports_preaudit_bout_en_bout.py",
+      "tests/test_entrepot_m8_garanties.py",
+      "tests/test_constats_planifies.py",
+      "tests/test_entrepot_m8_planifie.py"
+     ],
+     "docs": [
+      "docs/architecture/M5-RAPPORTS-PREAUDIT.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Doublons AP et garde AST « aucun décaissement » ; pré-audit absent."
+   "limite": "Contrôleur de pré-audit déterministe en lecture seule (M5-PRE-AUDIT) : dix règles (factures sans paiement, paiements sans facture, dépenses sans reçu, taxes incohérentes au moteur fiscal versionné, doublons, transactions hors norme, factures modifiées, changement de compte de charge inhabituel, piste d'audit incomplète, documents manquants), constats avec règle, raison, sources et action proposée jamais exécutée ; constat planifié vers M8 (inactif par défaut, ombre = « aurait », idempotence par créneau, mesure m8_constats_preaudit) ; prouvé en S sur SQLite avec données fictives. Trois seuils DÉCLARÉS par la direction (aucune valeur proposée) : sans eux la règle est non évaluée. Ne voit pas les coordonnées bancaires des fournisseurs, la Loi 25 ni les relevés hors rapprochement ; pas d'auditeur des autres agents ; aucune validation CPA ; jamais sur PostgreSQL ni la boucle réelle du serveur."
   },
   {
    "id": "M5.18",

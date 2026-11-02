@@ -214,7 +214,7 @@ def test_de_l_evenement_de_chaque_producteur_jusqu_au_wallboard_au_copilote_et_a
     assert monde.quarantaines() == [] and monde.ecritures_hors_propriete() == []
 
     construction = _m8(monde, "m8_construire_entrepot", maintenant=MAINTENANT)
-    assert construction["statut"] == "construit" and construction["construction"]["nb_mesures"] == 58
+    assert construction["statut"] == "construit" and construction["construction"]["nb_mesures"] == 59
     with stockage.transaction() as cnx:
         lignes = {ligne["metric_id"]: ligne for ligne in entrepot_stockage.lire_mesures_courantes(cnx)}
     for metric_id, valeur in ATTENDU.items():
@@ -247,7 +247,7 @@ def test_de_l_evenement_de_chaque_producteur_jusqu_au_wallboard_au_copilote_et_a
     )  # D5 : le volume de demandes, ce sont les qualifiées
 
     publication = _m8(monde, "m8_publier_faits_consolides", maintenant=MAINTENANT)
-    assert publication["nouvelle"] is True and publication["n_mesures"] == 58
+    assert publication["nouvelle"] is True and publication["n_mesures"] == 59
     monde.repartir(departements=(M9, M10))
     (fait,) = monde.registre(M10, "faits_analytiques")
     memorisees = {m["metric_id"]: m for m in fait["mesures"]}

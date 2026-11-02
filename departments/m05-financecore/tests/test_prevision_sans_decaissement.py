@@ -218,6 +218,12 @@ _FICHIERS = (
     "facture_pdf",
     "verdicts_facturation",
     "outils_facturation",
+    "rapports_financiers",
+    "budgets",
+    "controleur_preaudit",
+    "constat_preaudit",
+    "verdicts_rapports",
+    "outils_rapports",
 )
 
 

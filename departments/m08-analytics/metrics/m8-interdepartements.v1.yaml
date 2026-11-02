@@ -38,6 +38,7 @@ proprietaires:
   m8_depense_pub_comptabilisee_cad: m05-financecore
   m8_factures_emises: m05-financecore
   m8_facturation_emise_cad: m05-financecore
+  m8_constats_preaudit: m05-financecore
   m8_clics_recherche: m07-marketing
   m8_impressions_recherche: m07-marketing
   m8_visites_site: m07-marketing
@@ -216,6 +217,13 @@ metrics:
     unite: "CAD"
     source_donnees: "M5 m5.facture_emise_constatee (montant_avant_taxes_cad, total_taxes_cad, montant_apres_taxes_cad, statut)"
     frequence: "à chaque facture envoyée, payée ou annulée après envoi"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_constats_preaudit
+    nom: "Constats du pré-audit"
+    definition: "Nombre de constats que le contrôleur de pré-audit de M5 (dix règles déterministes : factures sans paiement, paiements sans facture, dépenses sans reçu, taxes incohérentes selon le moteur fiscal versionné, doublons, transactions hors norme, factures modifiées, changement de compte inhabituel, piste d'audit incomplète, documents manquants) a trouvés à son dernier constat du jour le plus récent. Un constat est une question posée à une personne, pas un verdict. Une règle dont le seuil déclaré est absent est NON ÉVALUÉE, jamais comptée à zéro ; si aucune règle n'est évaluée la mesure est non calculable, et quand certaines le sont la couverture dit lesquelles manquent. Aucune facture, aucun fournisseur, aucun client, aucune écriture ni aucun montant n'est gardé. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "constats"
+    source_donnees: "M5 m5.preaudit_constate (constats_par_regle, constats_total, constats_par_gravite, regles_non_evaluees, regles_partielles)"
+    frequence: "à chaque constat du pré-audit de M5"
     consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
   - id: m8_clics_recherche
     nom: "Clics de recherche du site"

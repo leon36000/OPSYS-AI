@@ -362,7 +362,8 @@ def test_m5_declare_publier_la_rentabilite():
     assert publie[:2] == (TYPE, "m5.cash_libre_constate"), "la marge (T1.5-d), puis le cash libre constaté (T4.19-b)"
     assert publie[2:] == ("m5.creance_relance_preparee", "m5.mesures_comptables_constatees",
                           "m5.rapprochement_po_constate", "m5.dossier_cpa_scelle",
-                          "m5.depense_publicitaire_constatee", "m5.facture_emise_constatee"), \
+                          "m5.depense_publicitaire_constatee", "m5.facture_emise_constatee",
+                          "m5.preaudit_constate"), \
         "puis les opérations comptables"
 
 

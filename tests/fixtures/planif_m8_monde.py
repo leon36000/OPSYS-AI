@@ -43,6 +43,7 @@ CONSTATS = {
     "m5.constat.cash-libre": "m5.cash_libre_constate",
     "m5.constat.depense-publicitaire": "m5.depense_publicitaire_constatee",
     "m5.constat.factures-emises": "m5.facture_emise_constatee",
+    "m5.constat.preaudit": "m5.preaudit_constate",
     "m6.constat.disponibilite": "m6.disponibilite_constatee",
     "m7.constat.performance-signaux": "m7.performance_signaux_constatee",
 }

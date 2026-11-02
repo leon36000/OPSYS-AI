@@ -17,7 +17,8 @@ from typing import Any
 
 __all__ = [
     "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_CALCUL", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
-    "SORTIES_FACTURATION", "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "SORTIES_OPERATIONS",
+    "SORTIES_FACTURATION", "SORTIES_RAPPORTS", "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE",
+    "SORTIES_OPERATIONS",
     "SORTIES_CONSEIL",
     "avec_mention", "avec_mention_comptable",
 ]
@@ -110,6 +111,24 @@ SORTIES_FACTURATION = frozenset({
     "m5_preparer_etat_compte_client",  # PDF de l'état de compte d'un client : soldes et retard à une date
 })
 
+# Rapports financiers, budget déclaré et pré-audit (M5-RAPPORTS-1, M5-PRE-AUDIT ;
+# `docs/architecture/M5-RAPPORTS-PREAUDIT.md`) :
+# états en BROUILLON tirés du grand livre, contrôles déterministes et constats, sous les deux mentions, prouvés par
+# `tests/test_rapports_outils.py` sur chaque sortie acceptée.
+SORTIES_RAPPORTS = frozenset({
+    # état des résultats en brouillon : produits, charges, résultat avant impôts, reçu rejouable
+    "m5_etat_des_resultats",
+    "m5_bilan_brouillon",  # bilan en brouillon : actif = passif + capitaux + résultat cumulé non clos
+    "m5_budget_contre_reel",  # budget déclaré contre réel du grand livre : écarts, jamais un budget supposé
+    "m5_etablir_budget",  # budget déclaré par une personne (N3) : lignes compte / mois / montant
+    "m5_lire_budget",  # budget déclaré actif, versions et lignes
+    "m5_rentabilite_par_axe",  # marge réelle par service ou par ville, ou « non calculable, manque X »
+    "m5_rapport_mensuel_direction",  # sections faits / hypothèses / données manquantes, chacune avec son reçu
+    "m5_controler_preaudit",  # constats déterministes : règle, raison, sources, action proposée jamais exécutée
+    "m5_constater_preaudit",  # comptes de constats publiés au bus pour M8, sans identifiant ni montant
+    "m5_rejouer_rapport_financier",  # vérification et rejeu d'un reçu de rapport
+})
+
 # Conseillers (dette, financement, investissement de trésorerie ; fiscal et comptable ; base de connaissances fiscale) :
 # reçus de calcul, analyses sourcées et citations, mêmes deux mentions, prouvés par
 # `tests/test_m5_conseillers_outils.py`.
@@ -149,7 +168,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
 }) | (
     SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL | SORTIES_FISCALES | SORTIES_OPERATIONS | SORTIES_CONSEIL
-    | SORTIES_FACTURATION)
+    | SORTIES_FACTURATION | SORTIES_RAPPORTS)
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {

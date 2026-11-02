@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m5.preaudit_constate",
+  "title": "M5 — Pré-audit (résumé agrégé)",
+  "description": "Émis par M5 (outils_rapports.py::constater_preaudit, M5-PRE-AUDIT, constat planifié `preaudit` de department.yaml) quand le contrôleur de pré-audit est CONSTATÉ : les comptes que dix règles déterministes (factures sans paiement, paiements sans facture, dépenses sans reçu, taxes incohérentes selon le moteur fiscal versionné, doublons, transactions hors norme, factures modifiées, changement de compte inhabituel, piste d'audit incomplète, documents manquants) établissent sur les registres de M5. Aucune facture, aucun fournisseur, aucun client, aucune écriture, aucun montant, aucune raison en texte : que des comptes et des noms de règles. Une règle dont la donnée déclarée est absente (seuil de transaction hors norme, historique de changement de compte) ou dont la source n'est pas lisible (grand livre altéré) est NON ÉVALUÉE : son compte vaut null (jamais zéro) et son nom figure dans `regles_non_evaluees` ; `constats_total` est la somme des comptes des règles évaluées (il vaut null seulement quand AUCUNE règle n'est évaluée). `regles_partielles` nomme les règles évaluées en partie (échéance illisible, fenêtre de doublon non déclarée). evenement_id déterministe m5-preaudit-<date_reference>-<version_donnees>-<empreinte du constate_le sur 8 hexadécimaux> ; le consommateur retient, par jour, la version publiée en dernier (`publie_le`). `constate_le` est l'instant du constat : il fait partie de l'identifiant, de sorte qu'un retour à une version antérieure des données (A, puis B, puis A) publie un événement DISTINCT ; `version_donnees` n'identifie que les données. Un constat est une question posée à une personne, pas un verdict. À valider auprès d'un comptable (CPA) / professionnel qualifié. Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "constate_le": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "version_donnees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "constats_par_regle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "FACTURE_SANS_PAIEMENT": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "PAIEMENT_SANS_FACTURE": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "DEPENSE_SANS_RECU": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "TAXE_INCOHERENTE": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "DOUBLON_PROBABLE": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "TRANSACTION_HORS_NORME": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "FACTURE_MODIFIEE": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "CHANGEMENT_COMPTE_INHABITUEL": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "PISTE_AUDIT_INCOMPLETE": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "DOCUMENT_MANQUANT": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "FACTURE_SANS_PAIEMENT",
+        "PAIEMENT_SANS_FACTURE",
+        "DEPENSE_SANS_RECU",
+        "TAXE_INCOHERENTE",
+        "DOUBLON_PROBABLE",
+        "TRANSACTION_HORS_NORME",
+        "FACTURE_MODIFIEE",
+        "CHANGEMENT_COMPTE_INHABITUEL",
+        "PISTE_AUDIT_INCOMPLETE",
+        "DOCUMENT_MANQUANT"
+      ]
+    },
+    "constats_total": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "constats_par_gravite": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "haute": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "moyenne": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "faible": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "haute",
+        "moyenne",
+        "faible"
+      ]
+    },
+    "regles_non_evaluees": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "FACTURE_SANS_PAIEMENT",
+          "PAIEMENT_SANS_FACTURE",
+          "DEPENSE_SANS_RECU",
+          "TAXE_INCOHERENTE",
+          "DOUBLON_PROBABLE",
+          "TRANSACTION_HORS_NORME",
+          "FACTURE_MODIFIEE",
+          "CHANGEMENT_COMPTE_INHABITUEL",
+          "PISTE_AUDIT_INCOMPLETE",
+          "DOCUMENT_MANQUANT"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "regles_partielles": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "FACTURE_SANS_PAIEMENT",
+          "PAIEMENT_SANS_FACTURE",
+          "DEPENSE_SANS_RECU",
+          "TAXE_INCOHERENTE",
+          "DOUBLON_PROBABLE",
+          "TRANSACTION_HORS_NORME",
+          "FACTURE_MODIFIEE",
+          "CHANGEMENT_COMPTE_INHABITUEL",
+          "PISTE_AUDIT_INCOMPLETE",
+          "DOCUMENT_MANQUANT"
+        ]
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "evenement_id",
+    "date_reference",
+    "constate_le",
+    "version_donnees",
+    "constats_par_regle",
+    "constats_total",
+    "constats_par_gravite",
+    "regles_non_evaluees",
+    "regles_partielles"
+  ]
+}

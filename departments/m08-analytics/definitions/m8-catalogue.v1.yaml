@@ -269,6 +269,12 @@ mesures:
     sensibilite: financier
     fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["facturation émise", "montant facturé aux clients", "total facturé avant taxes"]
+  - metric_id: m8_constats_preaudit
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["constats du pré-audit", "pré-audit", "anomalies financières", "contrôle interne financier", "constats de contrôle interne"]
   - metric_id: m8_clics_recherche
     domaine: marketing
     sens: plus_est_mieux

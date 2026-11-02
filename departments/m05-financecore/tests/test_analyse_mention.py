@@ -109,6 +109,10 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
     # Facturation par jalons et PDF (M5-FACT-1/2) : mêmes deux mentions, prouvées par test_facturation_jalons_outils.py.
     attendues |= analyse.SORTIES_FACTURATION
     assert len(analyse.SORTIES_FACTURATION) == 5
+    # Rapports financiers, budget déclaré et pré-audit (M5-RAPPORTS-1, M5-PRE-AUDIT) : mêmes deux mentions, prouvées par
+    # test_rapports_outils.py.
+    attendues |= analyse.SORTIES_RAPPORTS
+    assert len(analyse.SORTIES_RAPPORTS) == 10
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert analyse.SORTIES_CALCUL <= analyse.SORTIES_D_ANALYSE
     assert analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
@@ -266,7 +270,8 @@ def _la_mention(reponse, nom):
 @pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE - analyse.SORTIES_COMPTABLES
                                        - analyse.SORTIES_ONBOARDING - analyse.SORTIES_CALCUL
                                        - analyse.SORTIES_FISCALES - analyse.SORTIES_OPERATIONS
-                                       - analyse.SORTIES_CONSEIL - analyse.SORTIES_FACTURATION))
+                                       - analyse.SORTIES_CONSEIL - analyse.SORTIES_FACTURATION
+                                       - analyse.SORTIES_RAPPORTS))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
     ident, revision = _preparer_une_facture(par_nom)

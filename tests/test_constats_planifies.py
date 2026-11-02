@@ -38,6 +38,7 @@ ATTENDUS = {
     "m5.constat.depense-publicitaire": ("m5_constater_depense_publicitaire",
                                         ("m8_depense_pub_comptabilisee_cad", "m8_ecart_depense_pub_comptabilisee_cad")),
     "m5.constat.factures-emises": ("m5_constater_factures_emises", ("m8_factures_emises", "m8_facturation_emise_cad")),
+    "m5.constat.preaudit": ("m5_constater_preaudit", ("m8_constats_preaudit",)),
     "m6.constat.disponibilite": ("m6_constater_disponibilite", ("m8_articles_en_rupture", "m8_articles_sur_reserves",
                                                                 "m8_reservations_incompletes")),
     "m7.constat.performance-signaux": ("m7_constater_performance_signaux", ("m8_clics_recherche",

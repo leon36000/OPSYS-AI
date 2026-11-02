@@ -67,6 +67,7 @@ _SOURCE_M2 = "M2 (m2.pipeline_constate)"
 _SOURCE_M6 = "M6 (m6.disponibilite_constatee)"
 _SOURCE_M1 = "M1 (m1.plaintes_constatees)"
 _SOURCE_M2_FILET = "M2 (m2.filet_anti_perte_constate)"
+_SOURCE_M5_PREAUDIT = "M5 (m5.preaudit_constate)"
 
 
 def _decimal(valeur: Any) -> Decimal | None:
@@ -842,6 +843,79 @@ def _anomalies_integrite_crm(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
 
 
 # ---------------------------------------------------------------------------
+# M5 : pré-audit (M5-PRE-AUDIT) — constats du contrôleur déterministe
+# ---------------------------------------------------------------------------
+_MANQUE_PREAUDIT = manque(
+    "m5.preaudit_constate",
+    _SOURCE_M5_PREAUDIT,
+    "aucun constat du pré-audit reçu : M5 n'en a publié aucun (m5_constater_preaudit, constat planifié inactif par "
+    "défaut), "
+    "ou rien livré par le bus",
+)
+
+
+def _constats_preaudit(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    """Somme des constats des règles du pré-audit que M5 a ÉVALUÉES. Une règle non évaluée (seuil déclaré absent,
+    grand livre
+    illisible) n'est pas « zéro constat » : sa couverture est dite. Aucune règle évaluée : non calculable. Un constat
+    est une
+    question posée à une personne, jamais un verdict."""
+    constats = [
+        f
+        for f in reg["operations"]
+        if f.get("type_entree") == operations_recues.TYPE_PREAUDIT and jour(f.get("date_reference")) is not None
+    ]
+    if not constats:
+        return non_calculable([_MANQUE_PREAUDIT])
+    derniere_date = max(f["date_reference"] for f in constats)
+    constat = dernier_par_publication([f for f in constats if f["date_reference"] == derniere_date])
+    instant = constat.get("constate_le")
+    entrees = {
+        "date_reference": constat.get("date_reference"),
+        "version_donnees": constat.get("version_donnees"),
+        "regles_non_evaluees": constat.get("regles_non_evaluees"),
+        "regles_partielles": constat.get("regles_partielles"),
+        "empreinte_faits": empreinte_faits([constat]),
+    }
+    total = constat.get("constats_total")
+    par_regle = constat.get("constats_par_regle")
+    if total is None:
+        return non_calculable(
+            [
+                manque(
+                    "constats_total",
+                    _SOURCE_M5_PREAUDIT,
+                    "aucune règle du pré-audit n'est évaluée (seuils non déclarés, grand livre illisible) : ce "
+                    "n'est pas "
+                    "zéro constat",
+                )
+            ],
+            entrees,
+            instant,
+        )
+    if type(total) is not int or total < 0 or not isinstance(par_regle, dict) or not par_regle:
+        return non_calculable([manque("constats_total", _SOURCE_M5_PREAUDIT, "le compte du constat est illisible")],
+                              entrees, instant)
+    non_evaluees, partielles = _noms(constat.get("regles_non_evaluees")), _noms(constat.get("regles_partielles"))
+    entrees = {
+        **entrees,
+        "constats_par_regle": {k: par_regle[k] for k in sorted(par_regle)},
+        "constats_par_gravite": constat.get("constats_par_gravite"),
+    }
+    couverture = None
+    if non_evaluees or partielles:
+        raisons = []
+        if non_evaluees:
+            raisons.append(f"{len(non_evaluees)} règle(s) non évaluée(s) : {', '.join(non_evaluees)}")
+        if partielles:
+            raisons.append(f"{len(partielles)} règle(s) évaluée(s) en partie : {', '.join(partielles)}")
+        couverture = partielle(
+            len(par_regle) - len(non_evaluees) - len(partielles), len(par_regle), " ; ".join(raisons)
+        )
+    return str(total), entrees, [], instant, couverture, None
+
+
+# ---------------------------------------------------------------------------
 # M6 : disponibilité du matériel
 # ---------------------------------------------------------------------------
 _MANQUE_DISPONIBILITE = manque(
@@ -1220,6 +1294,7 @@ CALCULS = {
     "m8_valeur_ponderee_pipeline_cad": _valeur_ponderee_pipeline_cad,
     "m8_violations_sla_commercial": _violations_sla_commercial,
     "m8_anomalies_integrite_crm": _anomalies_integrite_crm,
+    "m8_constats_preaudit": _constats_preaudit,
     "m8_articles_en_rupture": _articles_en_rupture,
     "m8_articles_sur_reserves": _articles_sur_reserves,
     "m8_reservations_incompletes": _reservations_incompletes,

@@ -33,7 +33,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 
 <!-- interconnexion:debut -->
 
-59 types au catalogue : 50 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
+60 types au catalogue : 51 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
 
 | Type | Producteur | Consommateurs réels | Sans consommateur : justification |
 |---|---|---|---|
@@ -73,6 +73,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m5.dossier_cpa_scelle` | M5 | M10 |  |
 | `m5.facture_emise_constatee` | M5 | M2, M8 |  |
 | `m5.mesures_comptables_constatees` | M5 | M8 |  |
+| `m5.preaudit_constate` | M5 | M8 |  |
 | `m5.rapprochement_po_constate` | M5 | M6 |  |
 | `m5.rentabilite_chantier` | M5 | M7, M8, M10 |  |
 | `m6.catalogue_reference` | M6 | M10 |  |

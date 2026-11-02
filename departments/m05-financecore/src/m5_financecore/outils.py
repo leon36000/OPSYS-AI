@@ -1344,6 +1344,8 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
             horodatage_completion=charge["horodatage_completion"],
             duree_reelle_minutes=charge.get("duree_reelle_minutes"),
             empreinte_charge=encodage.empreinte(charge),
+            service=charge.get("service"),
+            ville=charge.get("ville"),
         )
         registre.append(wct_recu, rang_attendu=rang_attendu)
     else:
@@ -5999,10 +6001,18 @@ def _outils_vague3() -> tuple[Outil, ...]:
     """Opérations comptables, dossier CPA, conseillers et base de connaissances fiscale
     (docs/architecture/M5-SOPHIE.md).
     Importés ici et non en tête de fichier : ces modules lisent les aides de celui-ci (cycle d'import)."""
-    from . import outils_bancaire, outils_conseillers, outils_dossier, outils_facturation, outils_operations
+    from . import (
+        outils_bancaire,
+        outils_conseillers,
+        outils_dossier,
+        outils_facturation,
+        outils_operations,
+        outils_rapports,
+    )
 
     return (outils_operations.outils_operations() + outils_bancaire.outils_bancaire() + outils_dossier.outils_dossier()
-            + outils_conseillers.outils_conseillers() + outils_facturation.outils_facturation())
+            + outils_conseillers.outils_conseillers() + outils_facturation.outils_facturation()
+            + outils_rapports.outils_rapports())
 
 
 # DEVICE préparatoire, hors registre des mouvements et hors consommateurs YAML.

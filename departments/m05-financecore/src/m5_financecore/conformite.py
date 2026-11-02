@@ -870,6 +870,14 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "facture_pdf": None,
     "verdicts_facturation": None,
     "outils_facturation": None,
+    # Rapports financiers, budget déclaré et pré-audit (M5-RAPPORTS-1, M5-PRE-AUDIT) : des lectures du grand livre, un
+    # budget déclaré et des constats ; produire un rapport ne fait bouger aucun argent.
+    "rapports_financiers": None,
+    "budgets": None,
+    "controleur_preaudit": None,
+    "constat_preaudit": None,
+    "verdicts_rapports": None,
+    "outils_rapports": None,
     "outils": (
         "_lire_export_qbo",
         "_exports_qbo",
