@@ -2,8 +2,8 @@
 et l'audit d'intégrité.
 
 Prouvé : une source illisible (`None`) rend la règle ou le contrôle qui en dépend NON ÉVALUÉ, jamais « aucune
-violation » ; les faits d'un lead sont rangés pour LUI (propriétaire courant, qualification, notes humaines, satisfaction, photos du
-client) ; les entrées ne sont pas modifiées. Données fictives (`fictif: true`)."""
+violation » ; les faits d'un lead sont rangés pour LUI (propriétaire courant, qualification, notes humaines,
+satisfaction, photos du client) ; les entrées ne sont pas modifiées. Données fictives (`fictif: true`)."""
 
 from __future__ import annotations
 
