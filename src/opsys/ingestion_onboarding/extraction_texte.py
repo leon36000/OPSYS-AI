@@ -48,7 +48,11 @@ def extracteur_ocr_local(octets: bytes, document_id: str) -> dict[str, Any]:
     refus typé."""
     from .. import ocr_runtime
     from ..console.ocr_configuration import chemin_bundle
+    from ..roles_modeles import adaptateurs
 
+    refus_moteur = adaptateurs.refus_moteur_ocr(adaptateurs.moteur_ocr_choisi())  # rôle « ocr » (aucun : inchangé)
+    if refus_moteur is not None:
+        raise EchecEtape("REJ-ING-OCR-INDISPONIBLE", refus_moteur)
     try:
         bundle = chemin_bundle(os.environ)
     except ValueError:

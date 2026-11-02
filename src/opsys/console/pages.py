@@ -43,6 +43,7 @@ ONGLETS = (
 )
 SECTIONS_PLATEFORME = (
     ("fournisseurs", "Fournisseurs"),
+    ("modeles", "Modèles et rôles"),
     ("secrets", "Secrets"),
     ("avatars", "Avatars"),
     ("connaissances", "Connaissances"),

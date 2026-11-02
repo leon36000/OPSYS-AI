@@ -14,6 +14,17 @@ from opsys import departements, modeles, openclaw, stockage
 from opsys.memoire.embeddings import ENV_MODELE, ENV_URL, ErreurEmbeddings
 
 
+def _passerelle_dans_le_coffre() -> bool:
+    """La passerelle est connectée au coffre (réglage `passerelle`) : sa clé n'a pas à être dans l'environnement."""
+    try:
+        from opsys.roles_modeles import service
+
+        with stockage.transaction() as cnx:
+            return service.passerelle(cnx) is not None
+    except Exception:  # noqa: BLE001 — la santé ne révèle jamais la cause (URL de base, chemin)
+        return False
+
+
 def main() -> int:
     problemes: list[str] = []
     attentes: list[str] = []
@@ -34,6 +45,11 @@ def main() -> int:
 
     try:
         paliers = modeles.charger_paliers()
+        if mode == "litellm":  # les rôles de modèles fournissent aussi leurs paliers (passerelle intégrée)
+            from opsys.roles_modeles import generation
+
+            with stockage.transaction() as cnx:
+                paliers = generation.paliers_effectifs(cnx, paliers)
         deps = departements.charger_departements()
         requis = {dep.modeles[usage] for dep in deps.values()
                   for usage in dep.modeles}
@@ -72,7 +88,10 @@ def main() -> int:
     if mode == "natif":
         secrets = openclaw.secrets_modeles_manquants(paliers, os.environ)
     elif mode == "litellm":
-        secrets = [name for name in ("LITELLM_MASTER_KEY",) if not os.environ.get(name)]
+        # La clé d'administration de la passerelle vient du coffre OPSYS (passerelle connectée) ou, comme avant, de
+        # l'environnement du serveur.
+        secrets = [name for name in ("LITELLM_MASTER_KEY",)
+                   if not os.environ.get(name) and not _passerelle_dans_le_coffre()]
         secrets.extend(f"OPSYS_CLE_M{i}" for i in range(1, 11) if not os.environ.get(f"OPSYS_CLE_M{i}"))
         if not os.environ.get("OPSYS_PASSERELLE_URL", "").startswith(("http://", "https://")):
             problemes.append("configuration: OPSYS_PASSERELLE_URL requise en mode litellm")

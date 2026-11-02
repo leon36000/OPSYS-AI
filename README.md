@@ -14,11 +14,14 @@ M9 Strategic Intelligence (Athéna), M10 Mémoire (Mnémo). Seule la messagerie 
 - **Dashboard** : modes, modèles, budgets et profils de spécialistes configurables par département.
   Leur autonomie et leurs capacités complètes restent à consolider selon le
   [périmètre cible](docs/produit/PERIMETRE-MODULES.md).
-- **Modèles cloud ou locaux** : le générateur configure les fournisseurs natifs par défaut. Les
-  paliers portent des références de variables d'environnement pour les clés; aucune valeur secrète
-  n'est écrite dans la configuration JSON. LiteLLM reste disponible en compatibilité explicite.
-  Sans clé requise, le readiness bloque le démarrage; les appels réels aux fournisseurs exigent
-  des credentials et ne sont pas prouvés par les tests sans secret.
+- **Modèles cloud ou locaux** : LiteLLM est la passerelle de modèles par défaut du déploiement serveur
+  (profil `litellm`, ou le LiteLLM existant du client). Une clé OpenRouter saisie une fois dans le coffre,
+  dix rôles (LLM rapide, fort, raisonnement, embeddings, reranker, OCR, vision-langage, voix, image) avec
+  repli, plafonds et licences, une politique d'économie (Haiku d'abord, Sonnet par défaut, Opus seulement par
+  escalade approuvée) : console Plateforme → Modèles et rôles, [PASSERELLE-DE-MODELES](docs/architecture/PASSERELLE-DE-MODELES.md).
+  Aucune valeur secrète n'est écrite dans la configuration générée. Les fournisseurs natifs restent possibles.
+  Prouvé contre un faux serveur compatible OpenAI ; les appels réels exigent des credentials et ne sont pas
+  prouvés par les tests sans secret.
 - **Économie de tokens** : calculs déterministes, contexte ciblé, sorties bornées et comptabilité
   des usages ; couverture complète des budgets fournisseur à consolider.
 - **Mobile OPSYS** : application Expo à quatre profils, capture terrain et file hors ligne.
@@ -52,14 +55,14 @@ catalogue de fournisseurs : un chiffre périmé fait échouer le test.
 | Chiffre | Valeur |
 |---|---|
 | Départements | 10 |
-| Outils | 651 |
+| Outils | 653 |
 | Outils ouverts aux appareils | 254 |
 | Avatars | 10 |
 | Packs sectoriels | 2 |
-| Fichiers de migration | 49 |
-| Tête alembic | 0058 |
-| Révision du registre MCP | 20 |
-| Outils scellés au registre MCP | 674 |
+| Fichiers de migration | 50 |
+| Tête alembic | 0086 |
+| Révision du registre MCP | 21 |
+| Outils scellés au registre MCP | 676 |
 | Lignes du catalogue de fournisseurs | 66 |
 <!-- chiffres:fin -->
 

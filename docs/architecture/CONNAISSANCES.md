@@ -158,6 +158,8 @@ conforme est un REFUS, jamais un autre fournisseur.
 comme l'extracteur de factures de l'onboarding). Un fournisseur conforme mais non raccordé donne `REJ-CONN-EMBEDDINGS-NON-RACCORDE` :
 la recherche reste lexicale, avec l'avertissement. Les tests raccordent le double déterministe à un fournisseur FICTIF déclaré au registre.
 
+**Raccord par les rôles de modèles** ([PASSERELLE-DE-MODELES.md](PASSERELLE-DE-MODELES.md) §7) : quand le propriétaire affecte un fournisseur au rôle `embeddings` (ou `reranker`) et que la dimension a été MESURÉE par un test de connexion, `resoudre_embeddeur` trouve un adaptateur qui appelle la passerelle (aucun repli : un autre modèle serait un autre espace vectoriel ; changer d'alias change l'espace et impose la réindexation). Sans rôle configuré, rien ne change : ces deux tables restent vides et le comportement est celui décrit ci-dessus. Prouvé contre un faux serveur compatible OpenAI ; aucun vrai modèle d'embeddings n'a été mesuré.
+
 **Jamais de mélange d'espaces vectoriels.** L'identifiant d'un espace est le sha256 du profil : fournisseur, modèle, dimension,
 normalisation, préfixes, révision de l'adaptateur et **empreinte de configuration** du fournisseur dans le registre (identifiant,
 mode, modèle, point d'accès, licence des poids ; ni quota, ni coût, ni secret). Un adaptateur dont le profil ne correspond pas à la

@@ -128,6 +128,12 @@ def lister_sources(cnx: Connection, *, departement: str, etat: str | None, maint
 
 
 # -- état des bases (console, CLI) ------------------------------------------------------------------------------------
+def _raccorde_par_role(cnx: Connection, capacite: str, fournisseur: Any) -> bool:
+    from ..roles_modeles import adaptateurs
+
+    return adaptateurs.est_raccorde(cnx, capacite, fournisseur)
+
+
 def _fournisseur(cnx: Connection, capacite: str, departement: str, adaptateurs: dict[str, Any]) -> dict[str, Any]:
     try:
         r = registre.resoudre(cnx, capacite, departement)
@@ -135,7 +141,8 @@ def _fournisseur(cnx: Connection, capacite: str, departement: str, adaptateurs: 
         return {"statut": "non_utilisable", "code": exc.code, "refus": list(exc.codes)}
     f = r.fournisseur
     return {"statut": "selectionne", "identifiant": f.identifiant, "modele": f.modele, "portee": r.portee,
-            "mode": f.mode, "qualification": f.qualification, "raccorde": f.identifiant in adaptateurs,
+            "mode": f.mode, "qualification": f.qualification,
+            "raccorde": f.identifiant in adaptateurs or _raccorde_par_role(cnx, capacite, f),
             "config_sha256": ports.empreinte_configuration(f)}
 
 

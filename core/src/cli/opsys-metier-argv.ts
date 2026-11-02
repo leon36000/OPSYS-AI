@@ -56,6 +56,7 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "registre-mcp",
   "pont-bi",
   "mnemo",
+  "modeles",
 ];
 
 export type OpsysMetierInvocation =

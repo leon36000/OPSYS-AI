@@ -135,7 +135,10 @@ ensure_env() {
     set_if_placeholder OPSYS_MCP_JETON "$(gen_secret 40)"
     set_if_placeholder OPSYS_CONTEXT_MCP_JETON "$(gen_secret 40)"
     set_if_placeholder OPENCLAW_GATEWAY_TOKEN "$(gen_secret 40)"
-    set_if_placeholder OPSYS_MODE_FOURNISSEUR "natif"
+    # Passerelle de modèles LiteLLM : composant de première classe, profil PAR DÉFAUT (docs/architecture/PASSERELLE-DE-MODELES.md).
+    # `natif` reste accepté (choix explicite) ; `OPSYS_PASSERELLE_EXTERNE=1` utilise le LiteLLM EXISTANT du client.
+    set_if_placeholder OPSYS_MODE_FOURNISSEUR "litellm"
+    set_if_placeholder OPSYS_PASSERELLE_EXTERNE "0"
     set_if_placeholder OPSYS_PASSERELLE_URL ""
     set_if_placeholder OPSYS_DATABASE_URL ""
     # Pas de mot de passe partagé pour la console (ADR-0009 §5) : OPSYS_CONSOLE_SECRET signe
@@ -147,12 +150,19 @@ ensure_env() {
     case "$mode" in
         natif) COMPOSE_PROFILE="" ;;
         litellm)
-            COMPOSE_PROFILE="litellm"
-            set_if_placeholder LITELLM_MASTER_KEY "sk-$(gen_secret 40)"
-            set_if_placeholder POSTGRES_OPSYS_PASSWORD "$(gen_secret 32)"
-            set_if_placeholder POSTGRES_LITELLM_PASSWORD "$(gen_secret 32)"
-            if [ -z "$(env_value OPSYS_PASSERELLE_URL)" ]; then
-                set_if_placeholder OPSYS_PASSERELLE_URL "http://litellm:4000"
+            if [ "$(env_value OPSYS_PASSERELLE_EXTERNE)" = "1" ]; then
+                # LiteLLM existant chez le client : aucun conteneur LiteLLM, aucune clé maître générée ici ; la clé du
+                # client se saisit dans le coffre OPSYS (`opsys-metier coffre definir`), jamais dans ce fichier.
+                [ -n "$(env_value OPSYS_PASSERELLE_URL)" ] || die "OPSYS_PASSERELLE_EXTERNE=1 exige OPSYS_PASSERELLE_URL (URL du LiteLLM du client)."
+                COMPOSE_PROFILE=""
+            else
+                COMPOSE_PROFILE="litellm"
+                set_if_placeholder LITELLM_MASTER_KEY "sk-$(gen_secret 40)"
+                set_if_placeholder POSTGRES_OPSYS_PASSWORD "$(gen_secret 32)"
+                set_if_placeholder POSTGRES_LITELLM_PASSWORD "$(gen_secret 32)"
+                if [ -z "$(env_value OPSYS_PASSERELLE_URL)" ]; then
+                    set_if_placeholder OPSYS_PASSERELLE_URL "http://litellm:4000"
+                fi
             fi
             for i in 1 2 3 4 5 6 7 8 9 10; do
                 set_if_placeholder "OPSYS_CLE_M${i}" "sk-opsys-m${i}-$(gen_secret 28)"
@@ -313,8 +323,10 @@ Prochaines étapes (docs/ops/INSTALLATION-VPS.md) :
        docker compose -f deploy/docker-compose.yml up -d --force-recreate opsys
      Quand le contrôle readiness devient healthy, démarrez le gateway :
        docker compose -f deploy/docker-compose.yml up -d openclaw-gateway
-  4. Le mode LiteLLM est facultatif et doit être choisi explicitement dans OPSYS_MODE_FOURNISSEUR.
-     Il utilise le profil \`litellm\` et les clés OPSYS_CLE_M1..M10.
+  4. LiteLLM est la passerelle de modèles PAR DÉFAUT (profil \`litellm\`, clés OPSYS_CLE_M1..M10). Saisissez la clé
+     OpenRouter (ou les clés directes) UNE fois dans le coffre, connectez la passerelle et affectez les rôles depuis la
+     console (Plateforme → Modèles et rôles) : voir docs/architecture/PASSERELLE-DE-MODELES.md. Pour un LiteLLM existant
+     chez le client : OPSYS_PASSERELLE_EXTERNE=1 et OPSYS_PASSERELLE_URL. OPSYS_MODE_FOURNISSEUR=natif reste possible.
   5. Si OPSYS_DOMAINE=localhost, le certificat est auto-signé (validation locale
      uniquement) : fixez un vrai domaine DNS avant tout accès distant réel.
 ============================================================================

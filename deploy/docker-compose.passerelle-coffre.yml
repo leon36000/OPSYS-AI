@@ -1,0 +1,21 @@
+# Clés de la passerelle LiteLLM lues depuis le COFFRE OPSYS (au lieu de deploy/.env) :
+#   docker compose --profile litellm -f docker-compose.yml -f docker-compose.passerelle-coffre.yml up -d
+#
+# 1. Saisir les clés UNE fois dans le coffre (console → Secrets, ou `opsys-metier coffre definir passerelle.openrouter …`).
+# 2. Connecter la passerelle (console → Modèles et rôles, ou `opsys-metier modeles passerelle connecter …`).
+# 3. Matérialiser le fichier d'environnement 0600 dans le volume partagé (le SEUL endroit où une valeur est écrite hors du
+#    coffre) :  docker compose exec opsys opsys-metier modeles passerelle ecrire-env \
+#                  --fichier /shared/litellm-config/litellm.env --par <personne>
+# 4. Redémarrer LiteLLM :  docker compose restart litellm
+#
+# Cet overlay ne remplace que le point d'entrée de LiteLLM : il charge /etc/litellm/litellm.env s'il existe, puis lance le
+# point d'entrée de l'image. Vérifié contre l'image `ghcr.io/berriai/litellm:main-latest` (point d'entrée
+# `docker/prod_entrypoint.sh`) ; NON vérifié contre le tag épinglé `litellm-database` de docker-compose.yml : à confirmer au
+# premier déploiement (si son point d'entrée diffère, l'ajuster ici).
+services:
+  litellm:
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'if [ -f /etc/litellm/litellm.env ]; then set -a; . /etc/litellm/litellm.env; set +a; fi; exec docker/prod_entrypoint.sh "$$@"'
+      - opsys-litellm

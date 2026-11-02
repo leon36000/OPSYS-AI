@@ -75,6 +75,7 @@ from . import (
     faits_candidats,
     humain,
     liaison,
+    modeles_roles,
     paquets,
     recherche_affaire,
     registre,
@@ -1669,6 +1670,7 @@ def outils() -> tuple[Outil, ...]:
 
     return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
         *connaissances.outils_connaissances(),
+        *modeles_roles.outils_modeles(),
         *soi_graphe.outils_mnemo(),
         *routines_outils.outils_routines(),
         Outil(

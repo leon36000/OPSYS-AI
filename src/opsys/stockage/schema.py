@@ -2172,3 +2172,73 @@ GRAPHE_ARETES_ETATS = Table(
     Index("ix_graphe_aretes_etats_arete", "arete_id", "id"),
 )
 GRAPHE_TABLES = (GRAPHE_NOEUDS, GRAPHE_ARETES, GRAPHE_ARETES_ETATS)
+
+# -- Rôles de modèles et passerelle LiteLLM (migration 0086) ------------------------------------------------------
+# Un RÔLE (llm_rapide, llm_fort, llm_raisonnement, embeddings, reranker, ocr, vl, stt, tts, image) désigne un
+# fournisseur
+# du registre (0037), le nom du modèle à appeler (alias de passerelle), des replis ordonnés, des plafonds et des coûts
+# déclarés. Aucune valeur de secret : seulement des NOMS du coffre. Sans ligne, le rôle est inerte (fail-closed).
+MODELES_ROLES = Table(
+    "modeles_roles", META,
+    Column("role", String(24), primary_key=True),
+    Column("fournisseur_id", String(80), ForeignKey("fournisseurs_configurations.identifiant"), nullable=False),
+    Column("modele_appel", String(200), nullable=False),
+    Column("replis", Text, nullable=False),
+    Column("amont", Text, nullable=True),
+    Column("plafond_jetons_jour", BigInteger, nullable=True),
+    Column("budget_usd_mois", String(24), nullable=True),
+    Column("cout_entree_par_million", String(24), nullable=True),
+    Column("cout_sortie_par_million", String(24), nullable=True),
+    Column("cout_source", String(200), nullable=True),
+    Column("mesures", Text, nullable=True),
+    Column("revision", Integer, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(200), nullable=False),
+    CheckConstraint(
+        "role IN ('llm_rapide','llm_fort','llm_raisonnement','embeddings','reranker','ocr','vl','stt','tts','image')",
+        name="role_valide",
+    ),
+    CheckConstraint("revision > 0", name="revision_positive"),
+    CheckConstraint("plafond_jetons_jour IS NULL OR plafond_jetons_jour > 0", name="plafond_positif"),
+)
+# Réglages singuliers (clés `passerelle`, `raisonnement`, `catalogue` = dernière découverte) : JSON sans secret,
+# révision optimiste.
+MODELES_REGLAGES = Table(
+    "modeles_reglages", META,
+    Column("cle", String(24), primary_key=True),
+    Column("valeur", Text, nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(200), nullable=False),
+    CheckConstraint("cle IN ('passerelle','raisonnement','catalogue')", name="cle_valide"),
+    CheckConstraint("revision > 0", name="revision_positive"),
+)
+# Historique append-only (déclencheurs de la migration 0086) : chaque changement avec l'état d'avant et d'après,
+# l'acteur et le niveau d'approbation confirmé. C'est de lui que vient le retour arrière. Jamais de secret.
+MODELES_HISTORIQUE = Table(
+    "modeles_historique", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("cible", String(32), nullable=False),
+    Column("action", String(40), nullable=False),
+    Column("acteur", String(200), nullable=False),
+    Column("niveau", String(4), nullable=False),
+    Column("avant", Text, nullable=True),
+    Column("apres", Text, nullable=True),
+    Index("ix_modeles_historique_cible", "cible", "id"),
+)
+# Consommation par rôle et par jour (compteurs absolus incrémentés par l'appel routé) : alimente plafonds et budgets.
+MODELES_USAGE = Table(
+    "modeles_usage", META,
+    Column("role", String(24), primary_key=True),
+    Column("jour", String(10), primary_key=True),
+    Column("appels", BigInteger, nullable=False),
+    Column("jetons_entree", BigInteger, nullable=False),
+    Column("jetons_sortie", BigInteger, nullable=False),
+    Column("cout_micro_usd", BigInteger, nullable=False),
+    Column("appels_repli", BigInteger, nullable=False),
+    CheckConstraint("appels >= 0 AND jetons_entree >= 0 AND jetons_sortie >= 0 AND cout_micro_usd >= 0 "
+                    "AND appels_repli >= 0",
+                    name="positifs"),
+)
+MODELES_TABLES = (MODELES_ROLES, MODELES_REGLAGES, MODELES_HISTORIQUE, MODELES_USAGE)

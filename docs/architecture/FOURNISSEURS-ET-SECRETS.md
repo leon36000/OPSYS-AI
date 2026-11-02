@@ -148,8 +148,9 @@ revenu du client dans la provenance et revérifie la licence à chaque étape. A
 
 ## 6. Limites connues
 
-- Les consommateurs existants (passerelle LiteLLM et paliers, STT M1, embeddings M10, OCR) ne lisent pas encore
-  le registre : la résolution existe, le raccordement est le chantier suivant. Premier consommateur : le port
+- Raccordement des consommateurs : les **rôles de modèles** ([PASSERELLE-DE-MODELES.md](PASSERELLE-DE-MODELES.md)) raccordent
+  les embeddings et le reranker de M10, le choix du moteur OCR et la passerelle LiteLLM (configuration générée depuis le
+  registre) ; le STT de M1, la synthèse vocale et la vision-langage ne lisent pas encore le registre. Premier consommateur : le port
   d'extraction de facture de l'ingestion d'onboarding ([INGESTION-ONBOARDING.md](INGESTION-ONBOARDING.md), capacité
   `llm` de M5, refus typé sans repli), sans adaptateur réseau raccordé dans sa première tranche.
 - Quotas et coûts sont **déclarés et affichés**, pas encore comptés ni appliqués à l’appel.
@@ -195,3 +196,14 @@ pour sa licence AGPL). Aucune recherche R1-R6 ne couvre la vision : toutes les l
 administrateur n'a pas lu et consigné la licence du code et celle de chaque jeu de poids), sans point d'accès (aucun poids n'est
 fourni ni téléchargé par OPSYS) et `a_mesurer`. « Adopté » n'est pas « qualifié » : voir
 [M3-M4-MATHIS-GABRIEL.md](M3-M4-MATHIS-GABRIEL.md).
+
+## Rôles de modèles et passerelle LiteLLM (migration 0086)
+
+Le registre est étendu, non réécrit : `modeles_roles` associe un rôle (`llm_rapide`, `llm_fort`, `llm_raisonnement`, `embeddings`,
+`reranker`, `ocr`, `vl`, `stt`, `tts`, `image`) à un fournisseur du registre (clé étrangère) et au modèle à appeler, avec replis,
+plafonds et coûts déclarés ; `modeles_historique` (append-only) garde le retour arrière ; `modeles_reglages` la passerelle et
+l'escalade ; `modeles_usage` les compteurs. Affecter un fournisseur exige qu'il soit **actif et conforme** à la politique de
+licence de ce document ; chaque appel la revérifie. Un fournisseur dont le point d'accès est `passerelle:litellm` est servi par la
+passerelle (URL lue du réglage, jamais copiée) ; pour un fournisseur `local`, `http://` est permis vers un réseau privé (en plus de
+la boucle locale). `coffre.utiliser(dans_transaction=True)` est réservé aux adaptateurs de consommateurs qui n'ont qu'une
+transaction d'outil (le journal d'accès est alors annulé avec elle). Tout le détail : [PASSERELLE-DE-MODELES.md](PASSERELLE-DE-MODELES.md).

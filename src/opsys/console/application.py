@@ -89,6 +89,7 @@ from . import (
     memoire_jobs_ui,
     memoire_ui,
     mnemo_ui,
+    modeles_ui,
     obligations_privees,
     obligations_rapprochement_ui,
     observabilite_ui,
@@ -474,6 +475,11 @@ def creer_application(
     app.include_router(plateforme_ui.creer_router(
         session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
         formulaire=_formulaire, cnx_factory=cnx_factory, departements=sorted(deps), prefixe=prefixe,
+    ))
+    # Rôles de modèles et passerelle LiteLLM (modeles_ui) : administration seulement, gestes N3 confirmés.
+    app.include_router(modeles_ui.creer_router(
+        session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
+        formulaire=_formulaire, cnx_factory=cnx_factory, prefixe=prefixe,
     ))
     # Observabilité (observabilite_ui) : coût et latence par département, en lecture, administration seulement.
     app.include_router(observabilite_ui.creer_router(

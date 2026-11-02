@@ -13,6 +13,7 @@ Règles de forme (fail-closed) :
 from __future__ import annotations
 
 import dataclasses
+import ipaddress
 import json
 import re
 from collections.abc import Mapping
@@ -38,7 +39,7 @@ PREFIXE_SECRET = "coffre:"
 _IDENTIFIANT = re.compile(r"^[a-z0-9][a-z0-9._-]{2,79}$")
 _NOM_SECRET = re.compile(r"^[a-z0-9][a-z0-9._-]{2,79}$")
 _UNITE = re.compile(r"^[a-z_]{2,32}$")
-_URL = re.compile(r"^(https?://[^\s\"'<>]{3,500}|module:[a-z_][a-z0-9_.]{0,120}|binaire:[a-z0-9_.-]{1,64}|appareil:[a-z0-9_.-]{1,64})$")
+_URL = re.compile(r"^(https?://[^\s\"'<>]{3,500}|module:[a-z_][a-z0-9_.]{0,120}|binaire:[a-z0-9_.-]{1,64}|appareil:[a-z0-9_.-]{1,64}|passerelle:[a-z0-9_.-]{1,64})$")
 _COPYLEFT = re.compile(r"\b(A?GPL|AGPL)(-\d(\.\d)?)?", re.IGNORECASE)
 _TEXTE_MAX = 600
 
@@ -197,10 +198,13 @@ class Fournisseur:
                 raise DeclarationInvalide(
                     "point_acces invalide : https://…, http://127.0.0.1…, module:…, binaire:… ou appareil:…"
                 )
-            if self.mode == "api" and not self.point_acces.startswith("https://"):
+            if self.mode == "api" and not self.point_acces.startswith(("https://", "passerelle:")):
                 raise DeclarationInvalide("point_acces d'un fournisseur API : https:// obligatoire")
-            if self.point_acces.startswith("http://") and not _boucle_locale(self.point_acces):
-                raise DeclarationInvalide("http:// en clair seulement vers 127.0.0.1, ::1 ou localhost")
+            if self.point_acces.startswith("http://") and not _boucle_locale(self.point_acces) and not (
+                    self.mode == "local" and _reseau_prive(self.point_acces)):
+                raise DeclarationInvalide(
+                    "http:// en clair seulement vers 127.0.0.1, ::1, localhost ou, pour un fournisseur local, une "
+                    "adresse de réseau privé (10/8, 172.16/12, 192.168/16, fc00::/7) ou un nom de service sans point")
             if self.point_acces.startswith("http") and "@" in self.point_acces.split("/", 3)[2]:
                 raise DeclarationInvalide("point_acces : identifiants dans l'URL interdits (utiliser le coffre)")
         if self.reference_secret is not None and (
@@ -249,6 +253,23 @@ class Fournisseur:
             return cls(**valeurs)
         except TypeError as exc:
             raise DeclarationInvalide("fournisseur : champs absents ou inconnus") from exc
+
+
+def _hote(url: str) -> str:
+    hote = url.split("/", 3)[2].rsplit("@", 1)[-1]
+    return hote[1:].split("]", 1)[0] if hote.startswith("[") else hote.split(":", 1)[0]
+
+
+def _reseau_prive(url: str) -> bool:
+    """Hôte d'un réseau privé : adresse RFC 1918 / ULA (jamais link-local ni 0.0.0.0) ou nom de service sans point
+    (réseau interne de Docker Compose). Réservé aux fournisseurs `local` : le trafic ne quitte pas le site du client."""
+    hote = _hote(url)
+    try:
+        adresse = ipaddress.ip_address(hote)
+    except ValueError:
+        return bool(re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", hote)) and "." not in hote
+    return adresse.is_private and not (adresse.is_link_local or adresse.is_unspecified or adresse.is_loopback
+                                       or adresse.is_multicast or adresse.is_reserved)
 
 
 def _boucle_locale(url: str) -> bool:

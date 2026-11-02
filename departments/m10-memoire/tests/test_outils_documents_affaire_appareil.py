@@ -81,7 +81,8 @@ def test_declaration_fermee_t1_n3_admin_affaire_append_en_fin(index):
 
     mnemo = {o.nom for o in soi_graphe.outils_mnemo()} | {o.nom for o in routines_outils.outils_routines()}
     hors_ajouts = tuple(o.nom for o in alltools if "connaissance" not in o.nom and "faits_analytiques" not in o.nom
-                        and "faits_strategiques" not in o.nom and o.nom not in mnemo)
+                        and "faits_strategiques" not in o.nom and "roles_modeles" not in o.nom
+                        and "role_modele" not in o.nom and o.nom not in mnemo)
     assert hors_ajouts == HISTORIQUES + NOMS + (
         "m10_lister_documents_affaire_appareil",
         "m10_lire_version_document_affaire_appareil",

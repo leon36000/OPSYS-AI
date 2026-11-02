@@ -56,6 +56,7 @@ packages = [
     "opsys.connecteurs_planification",
     "opsys.evenements",
     "opsys.fournisseurs",
+    "opsys.roles_modeles",
     "opsys.garde_fou_texte",
     "opsys.packs",
     "opsys.evaluation",

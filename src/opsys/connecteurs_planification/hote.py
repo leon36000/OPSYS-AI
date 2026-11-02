@@ -180,7 +180,12 @@ def verifier_sauvegarde_depuis_env(environ: Mapping[str, str] | None = None
 def embeddings_raccordes() -> bool:
     from ..connaissances import ports as ports_connaissances
 
-    return bool(ports_connaissances._ADAPTATEURS_EMBEDDINGS)  # noqa: SLF001 — lecture de la table d'adaptateurs
+    if ports_connaissances._ADAPTATEURS_EMBEDDINGS:  # noqa: SLF001 — lecture de la table d'adaptateurs
+        return True
+    from ..roles_modeles import adaptateurs
+
+    # Rôle `embeddings` affecté ET dimension mesurée ; faux sans configuration.
+    return adaptateurs.embeddings_raccordes()
 
 
 def ports_par_defaut() -> Ports:
