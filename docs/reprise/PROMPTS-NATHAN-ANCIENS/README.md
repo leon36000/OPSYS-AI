@@ -16,6 +16,7 @@ Fichiers :
 - `M3-ESTIMATION-INTELLIGENCE.md` — condensé fonctionnel du prompt M3 (estimation, vision, mesure, prix, marge, apprentissage).
 - `M1-RECEPTION-FRONT-OFFICE.md` — condensé fonctionnel du prompt M1 (réception, adjointe administrative, voix, omnicanal).
 - `M7-MARKETING-CROISSANCE.md` — condensé fonctionnel du prompt M7.
+- `M9-INTELLIGENCE-STRATEGIQUE.md` — condensé fonctionnel du prompt M9 (direction IA, décisions, scénarios, risques, occasions).
 - `M10-MEMOIRE.md` — condensé fonctionnel du prompt M10.
 - `M5-FINANCECORE-CFO.md` — condensé fonctionnel du prompt M5 (comptabilité, finance, paie, fiscalité, CFO IA).
 - `ANALYSE-M1-M5-M7-M10.md` — (à produire) correspondance exigence → état réel → écart → backlog.
