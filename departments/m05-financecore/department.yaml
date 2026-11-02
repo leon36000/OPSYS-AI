@@ -165,6 +165,26 @@ planifications:
       qui manque pour le calculer), demandes d'approbation en attente par palier. Ne
       présente jamais l'argent disponible sans le cash libre. Aucune écriture nouvelle,
       aucune approbation.
+# Constats de routine déclenchés par le PLANIFICATEUR DURABLE (jamais par un agent) : voir M1 et PLANIFICATION.md §9.
+# Aucune valeur fiscale ici : des bornes de dates seulement. À valider auprès d'un comptable (CPA) / professionnel qualifié.
+constats_planifies:
+  - nom: depense-publicitaire
+    outil: m5_constater_depense_publicitaire
+    mesures: [m8_depense_pub_comptabilisee_cad, m8_ecart_depense_pub_comptabilisee_cad]
+    description: >-
+      Dépense publicitaire comptabilisée du début du mois à aujourd'hui (écritures définitives qui viennent d'un relevé de M7) :
+      la même période que l'étape 6 du cycle comptable (m5_executer_cycle_comptable), donc aucun doublon si les deux tournent.
+    appels:
+      - debut: {calcul: debut_mois}
+        fin: {calcul: jour}
+        aujourd_hui: {calcul: jour}
+        horodatage: {calcul: instant}
+  - nom: factures-emises
+    outil: m5_constater_factures_emises
+    mesures: [m8_factures_emises, m8_facturation_emise_cad]
+    description: Factures clients émises (envoyées par une personne), sans client ni chantier.
+    appels:
+      - horodatage: {calcul: instant}
 budget:
   tokens_jour: 200000
   tokens_mois: 3000000

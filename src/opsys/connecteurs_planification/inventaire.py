@@ -39,7 +39,7 @@ class Tour:
     transport: str  # `aucun` | `local` | `port_sans_transport_reel`
     decision: str
     justification: str
-    executeur: str | None = None  # nom dans `etat.DEFINITIONS` (ou "entrypoint.sh" pour la boucle d'entretien)
+    executeur: str | None = None  # nom dans `etat.definitions()` (ou "entrypoint.sh" pour la boucle d'entretien)
 
     @property
     def n3_ou_plus(self) -> bool:
@@ -167,6 +167,45 @@ TOURS: tuple[Tour, ...] = (
          "reprendre_effacements", "N2", "ne rappelle jamais `detruire`", "local", "brancher_maintenant",
          "Termine le nettoyage de fichiers d'un effacement DÉJÀ autorisé : une reprise, pas une décision.",
          "retention.effacements"),
+    # -- constats pour M8 (phase 2) : déclarés par les manifestes, déclenchés par le planificateur ---------------------
+    Tour("m5.constater_depense_publicitaire", "M5 : dépense publicitaire comptabilisée (constat pour M8)",
+         _OPS + "m05-financecore/src/m5_financecore/outils_operations.py", "constater_depense_publicitaire", "N2",
+         "un constat par période et par version des données : le redire à l'identique ne publie rien", "aucun",
+         "brancher_maintenant",
+         "Lecture du grand livre et publication d'un résumé agrégé : ni validation, ni envoi, ni paiement. "
+         "À valider auprès d'un comptable (CPA) / professionnel qualifié.", "m5.constat.depense-publicitaire"),
+    Tour("m5.constater_factures_emises", "M5 : factures émises (constat pour M8)",
+         _OPS + "m05-financecore/src/m5_financecore/outils_operations.py", "constater_factures_emises", "N2",
+         "identifiant d'événement déterministe par (facture, statut) : un rejeu est absorbé par le bus", "aucun",
+         "brancher_maintenant",
+         "Publie un résumé par facture envoyée, sans client ; ne crée ni n'envoie aucune facture.",
+         "m5.constat.factures-emises"),
+    Tour("m7.constater_performance_signaux", "M7 : performance des signaux (constat pour M8)",
+         _OPS + "m07-marketing/src/m7_marketing/signaux_outils.py", "constater_performance_signaux", "N2",
+         "identifiant fondé sur la version des données : le redire à l'identique ne publie rien", "aucun",
+         "brancher_maintenant",
+         "Totaux de signaux déjà lus (aucune lecture chez un fournisseur) : aucune requête ni page.",
+         "m7.constat.performance-signaux"),
+    Tour("m4.constater_capacite_equipe", "M4 : capacité de l'équipe (constat pour M8)",
+         _OPS + "m04-field-ops/src/m4_field_ops/outils.py", "constater_capacite_equipe", "N2",
+         "l'instant du constat entre dans l'identifiant : le MÊME créneau ne republie rien, un créneau suivant est un "
+         "événement de plus", "aucun", "brancher_maintenant",
+         "Deux totaux d'heures déclarées ; aucune équipe ni aucun nom ne part.", "m4.constat.capacite-equipe"),
+    Tour("m2.constater_pipeline", "M2 : pipeline (constat pour M8)",
+         _OPS + "m02-revenue-crm/src/m2_revenue_crm/outils_ventes.py", "constater_pipeline", "N2",
+         "même idempotence que la capacité de M4 : l'instant du constat entre dans l'identifiant", "aucun",
+         "brancher_maintenant", "Comptes agrégés ; aucun lead, contact ni vendeur ne part.", "m2.constat.pipeline"),
+    Tour("m6.constater_disponibilite", "M6 : disponibilité du matériel (constat pour M8)",
+         _OPS + "m06-material-control/src/m6_material_control/outils.py", "constater_disponibilite", "N2",
+         "même idempotence que la capacité de M4 : l'instant du constat entre dans l'identifiant", "aucun",
+         "brancher_maintenant", "Cinq comptes ; aucun article, quantité, prix ni chantier ne part.",
+         "m6.constat.disponibilite"),
+    Tour("m1.constater_plaintes", "M1 : plaintes (constat pour M8)",
+         _OPS + "m01-front-office/src/m1_front_office/outils.py", "constater_plaintes", "N2",
+         "identifiant fondé sur la période et l'empreinte du contenu lu : le redire sur le même registre ne publie "
+         "rien", "aucun", "brancher_maintenant",
+         "État et nombre seulement (jamais un zéro inventé) ; aucun pseudonyme, catégorie ni texte de client.",
+         "m1.constat.plaintes"),
     # -- à brancher quand le transport (ou l'approbation de dépense) existera ------------------------------------------
     Tour("m10.ingerer_source", "M10 : ingestion de sources de connaissances", "src/opsys/connaissances/ingestion.py",
          "ingerer", "N2", "même sha256 et même méta : `rejeu`, rien d'écrit", "port_sans_transport_reel",
@@ -217,7 +256,8 @@ EVALUATIONS_A_LA_LECTURE: tuple[tuple[str, str, str], ...] = (
     ("Licences des fournisseurs", "src/opsys/fournisseurs/registre.py", "resoudre"),
     ("Consentement de suivi M4", _OPS + "m04-field-ops/src/m4_field_ops/suivi_client.py", "etat_du_consentement"),
     ("Jetons d'approbation de courriel", "src/opsys/courriel_connecteurs/envoi.py", "verifier_demande"),
-    ("Mesures périmées de M8", _OPS + "m08-analytics/src/m8_analytics/fraicheur_mesures.py", "evaluer"),
+    ("Mesures périmées de M8 (les constats qui les alimentent sont planifiés)",
+     _OPS + "m08-analytics/src/m8_analytics/fraicheur_mesures.py", "evaluer"),
 )
 
 

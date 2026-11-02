@@ -60,11 +60,11 @@ def verifier(racine: Path = RACINE) -> list[str]:
             problemes.append(f"{t.identifiant} : décision « {t.decision} » sans exécuteur")
         if not branche and t.executeur is not None:
             problemes.append(f"{t.identifiant} : exécuteur nommé pour une décision « {t.decision} »")
-        if t.executeur not in (None, "entrypoint.sh") and t.executeur not in etat.NOMS:
+        if t.executeur not in (None, "entrypoint.sh") and t.executeur not in etat.noms():
             problemes.append(f"{t.identifiant} : exécuteur {t.executeur!r} inconnu du planificateur")
         if t.n3_ou_plus and branche and not any(m in t.niveau for m in ("approbation", "humain")):
             problemes.append(f"{t.identifiant} : niveau {t.niveau!r} branché sans approbation humaine")
-    for nom in etat.NOMS:
+    for nom in etat.noms():
         if not any(t.executeur == nom for t in inventaire.TOURS):
             problemes.append(f"exécuteur {nom} : aucun tour de l'inventaire ne le justifie")
     for libelle, module, fonction in inventaire.EVALUATIONS_A_LA_LECTURE:

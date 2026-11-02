@@ -5,6 +5,8 @@ Un département est un organe de l'entreprise. Il octroie à ses agents des capa
 - des skills (procédures) ;
 - des politiques d'autonomie ;
 - des planifications ;
+- des constats planifiés (résumés de routine publiés au bus par un outil N0 à N2, déclenchés par le planificateur
+  durable : bloc `constats_planifies`) ;
 - des budgets de tokens et des KPIs.
 Le manifeste est la source unique : le serveur MCP, les profils Hermes et le dashboard en
 dérivent.
@@ -50,6 +52,34 @@ class Planification:
     nom: str
     cron: str
     consigne: str
+
+
+# Le calcul d'un argument d'outil d'un constat planifié (bloc `constats_planifies`), fermé : un instant du créneau, un
+# jour, le début ou la fin d'un mois, un lundi, avec un décalage en jours, en mois ou en semaines. Rien d'autre n'est
+# évalué : aucun texte du manifeste n'est interprété comme du code.
+CALCUL_CONSTAT = re.compile(r"^(?:instant|jour|debut_mois|fin_mois|lundi)(?:[+-][0-9]{1,3})?$")
+_NOM_CONSTAT = re.compile(r"^[a-z][a-z0-9-]{1,23}$")
+_MESURE_M8 = re.compile(r"^m8_[a-z0-9_]{2,80}$")
+_ARGUMENT_OUTIL = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+APPELS_PAR_CONSTAT_MAX = 4
+OFFSET_CALCUL_MAX = 366
+
+
+@dataclasses.dataclass(frozen=True)
+class ConstatPlanifie:
+    """Un constat de routine que le planificateur durable déclenche (docs/architecture/PLANIFICATION.md §9).
+
+    `outil` : un outil du département (N0 à N2, agent seulement) qui calcule et publie un résumé. `mesures` : les
+    mesures du catalogue de M8 qu'il alimente — c'est d'elles, jamais d'une constante, que vient la cadence par
+    défaut. `appels` : un ou plusieurs jeux d'arguments, chacun `((argument, genre, valeur), ...)` où le genre est
+    `calcul` (`CALCUL_CONSTAT`) ou `valeur` (littéral). Le constat ne porte aucun secret ni aucune donnée
+    personnelle : il ne décrit que QUEL outil appeler avec quelles bornes de dates."""
+
+    nom: str
+    outil: str
+    mesures: tuple[str, ...]
+    appels: tuple[tuple[tuple[str, str, Any], ...], ...]
+    description: str = ""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -109,6 +139,8 @@ class Departement:
     # Avatar par défaut du département (`opsys.avatars`) : nom, rôle, voix et visage logiques, canaux et leur état.
     # Optionnel à la lecture d'un manifeste ; `opsys-metier verifier` l'exige de chaque département installé.
     avatar: Avatar | None = None
+    # Constats de routine déclarés par le département et déclenchés par le planificateur durable (jamais par le socle).
+    constats_planifies: tuple[ConstatPlanifie, ...] = ()
 
     @property
     def prefixe_outils(self) -> str:
@@ -279,6 +311,70 @@ def _politique_approbation(donnees: Mapping[str, Any], ctx: str) -> PolitiqueApp
     return PolitiqueApprobation(roles=roles)
 
 
+def _constats_planifies(donnees: Mapping[str, Any], ctx: str, code: str) -> tuple[ConstatPlanifie, ...]:
+    """`constats_planifies:` (optionnel) : les résumés de routine du département, déclenchés par le planificateur
+    durable. Schéma fermé, fail-closed : une clé inconnue, un outil d'un autre département, un calcul hors grammaire ou
+    un doublon est un refus, jamais ignoré."""
+    brut = donnees.get("constats_planifies")
+    if brut is None:
+        return ()
+    if not isinstance(brut, list):
+        raise ValueError(f"{ctx} : constats_planifies doit être une liste")
+    prefixe = code.lower() + "_"
+    vus: set[str] = set()
+    constats: list[ConstatPlanifie] = []
+    for entree in brut:
+        if not isinstance(entree, dict):
+            raise ValueError(f"{ctx} : chaque constat planifié doit être un objet")
+        inconnues = sorted(set(entree) - {"nom", "outil", "mesures", "appels", "description"})
+        if inconnues:
+            raise ValueError(f"{ctx} : constats_planifies : clé(s) inconnue(s) {inconnues}")
+        nom = _texte(entree, "nom", ctx)
+        if not _NOM_CONSTAT.match(nom) or nom in vus:
+            raise ValueError(f"{ctx} : constat planifié {nom!r} : nom invalide ou en double (a-z, 0-9, tiret, 24 max)")
+        vus.add(nom)
+        outil = _texte(entree, "outil", ctx)
+        if not outil.startswith(prefixe):
+            raise ValueError(f"{ctx} : constat {nom!r} : l'outil {outil!r} doit commencer par {prefixe}")
+        mesures = _liste(entree, "mesures", ctx)
+        if not mesures or len(set(mesures)) != len(mesures) or not all(_MESURE_M8.match(m) for m in mesures):
+            raise ValueError(f"{ctx} : constat {nom!r} : mesures M8 requises (m8_…, sans doublon)")
+        appels_bruts = entree.get("appels")
+        if (not isinstance(appels_bruts, list) or not 1 <= len(appels_bruts) <= APPELS_PAR_CONSTAT_MAX
+                or not all(isinstance(a, dict) and a for a in appels_bruts)):
+            raise ValueError(f"{ctx} : constat {nom!r} : 1 à {APPELS_PAR_CONSTAT_MAX} appels (objets non vides)")
+        appels = tuple(_arguments_constat(a, ctx, nom) for a in appels_bruts)
+        description = entree.get("description", "")
+        if not isinstance(description, str) or len(description) > 400:
+            raise ValueError(f"{ctx} : constat {nom!r} : description de 400 caractères au plus")
+        constats.append(ConstatPlanifie(nom=nom, outil=outil, mesures=mesures, appels=appels,
+                                        description=" ".join(description.split())))
+    return tuple(constats)
+
+
+def _arguments_constat(appel: Mapping[str, Any], ctx: str, nom: str) -> tuple[tuple[str, str, Any], ...]:
+    sortie: list[tuple[str, str, Any]] = []
+    for argument in sorted(appel):
+        spec = appel[argument]
+        if not isinstance(argument, str) or not _ARGUMENT_OUTIL.match(argument):
+            raise ValueError(f"{ctx} : constat {nom!r} : nom d'argument invalide {argument!r}")
+        if not isinstance(spec, dict) or len(spec) != 1 or next(iter(spec)) not in ("calcul", "valeur"):
+            raise ValueError(f"{ctx} : constat {nom!r} : argument {argument!r} : {{calcul: …}} ou {{valeur: …}}")
+        genre, valeur = next(iter(spec.items()))
+        if genre == "calcul":
+            if not isinstance(valeur, str) or not CALCUL_CONSTAT.match(valeur):
+                raise ValueError(f"{ctx} : constat {nom!r} : calcul {valeur!r} hors grammaire "
+                                 "(instant, jour, debut_mois, fin_mois, lundi, avec décalage ±N)")
+            decalage = valeur.lstrip("abcdefghijklmnopqrstuvwxyz_")
+            if decalage and abs(int(decalage)) > OFFSET_CALCUL_MAX:
+                raise ValueError(f"{ctx} : constat {nom!r} : décalage de {valeur!r} au-delà de {OFFSET_CALCUL_MAX}")
+        elif isinstance(valeur, bool) or not isinstance(valeur, (str, int)) or (
+                isinstance(valeur, str) and not 1 <= len(valeur) <= 80):
+            raise ValueError(f"{ctx} : constat {nom!r} : valeur de {argument!r} : texte court ou entier")
+        sortie.append((argument, genre, valeur))
+    return tuple(sortie)
+
+
 def lire_manifeste(dossier: Path) -> Departement:
     chemin = dossier / "department.yaml"
     donnees = yaml.safe_load(chemin.read_text(encoding="utf-8"))
@@ -376,6 +472,7 @@ def lire_manifeste(dossier: Path) -> Departement:
         politique_approbation=_politique_approbation(donnees, ctx),
         canaux=canaux,
         avatar=normaliser_avatar(donnees["avatar"], ctx) if "avatar" in donnees else None,
+        constats_planifies=_constats_planifies(donnees, ctx, code),
     )
 
 

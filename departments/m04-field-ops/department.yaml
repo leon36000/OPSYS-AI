@@ -42,6 +42,16 @@ planifications:
       Résume en 5 lignes la journée de la veille : interventions terminées, interventions
       en revue, volumétrie de la file d'attente, et les demandes bloquées plus de 24h.
       Aucune nouvelle intervention, aucune résolution de revue.
+# Constats de routine déclenchés par le PLANIFICATEUR DURABLE (jamais par un agent) : voir M1 et PLANIFICATION.md §9.
+constats_planifies:
+  - nom: capacite-equipe
+    outil: m4_constater_capacite_equipe
+    mesures: [m8_capacite_heures_disponibles, m8_capacite_heures_planifiees, m8_charge_planifiee_pct]
+    description: Capacité de la semaine ISO en cours (heures d'équipe déclarées et heures planifiées), sans équipe ni nom.
+    appels:
+      - debut_semaine: {calcul: lundi}
+        portee: {valeur: journees_datees_seulement}
+        horodatage: {calcul: instant}
 budget:
   tokens_jour: 300000
   tokens_mois: 4000000

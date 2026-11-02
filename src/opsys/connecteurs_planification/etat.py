@@ -160,8 +160,24 @@ NOMS = tuple(d.nom for d in DEFINITIONS)
 _PAR_NOM = {d.nom: d for d in DEFINITIONS}
 
 
+def definitions() -> tuple[Definition, ...]:
+    """Tous les exécuteurs connus : ceux du socle (`DEFINITIONS`) puis les CONSTATS PLANIFIÉS que les manifestes des
+    départements déclarent (`constats.py` ; cadence par défaut dérivée du catalogue de M8, aucun horaire dans le
+    socle)."""
+    from . import constats
+
+    return DEFINITIONS + constats.definitions_declarees()
+
+
+def noms() -> tuple[str, ...]:
+    return tuple(d.nom for d in definitions())
+
+
 def definition(nom: str) -> Definition | None:
-    return _PAR_NOM.get(nom)
+    connue = _PAR_NOM.get(nom)
+    if connue is not None or not isinstance(nom, str):
+        return connue
+    return next((d for d in definitions() if d.nom == nom), None)
 
 
 class RefusOperateur(PermissionError):
@@ -227,15 +243,15 @@ def appliquer(cnx: Any, session: Any, executeur: Any, mode: Any, *, motif: Any,
     aperçu qui a changé depuis que l'admin l'a lu est refusé : on n'approuve que ce qu'on a vu) et la confirmation
     expresse est requise. La décision est consignée, liée à la révision créée ici."""
     _exiger_contexte(cnx, session)
-    if type(executeur) is not str or executeur not in _PAR_NOM:
+    trouvee = definition(executeur) if type(executeur) is str else None
+    if trouvee is None:
         raise RefusOperateur("EXECUTEUR_INCONNU", "exécuteur hors de la liste fermée")
     if type(mode) is not str or mode not in MODES:
         raise RefusOperateur("MODE_INCONNU", "mode : inactif, ombre ou actif")
     motif = _motif(motif)
-    definition = _PAR_NOM[executeur]
     actuelle = ligne(cnx, executeur)
     if intervalle_s is None:
-        intervalle_s = actuelle["intervalle_s"] if actuelle is not None else definition.intervalle_defaut_s
+        intervalle_s = actuelle["intervalle_s"] if actuelle is not None else trouvee.intervalle_defaut_s
     if type(intervalle_s) is not int or not 15 <= intervalle_s <= 86400:
         raise RefusOperateur("INTERVALLE_INVALIDE", "intervalle de 15 à 86400 secondes")
     maintenant = int(time.time() if maintenant is None else maintenant)  # injectable : tests, jamais la console
@@ -243,7 +259,7 @@ def appliquer(cnx: Any, session: Any, executeur: Any, mode: Any, *, motif: Any,
     if actuelle is not None and actuelle["mode"] == mode and mode == "inactif":
         raise RefusOperateur("DEJA_INACTIF", "exécuteur déjà inactif")
     nb_elements = 0
-    if definition.irreversible and mode == "actif":
+    if trouvee.irreversible and mode == "actif":
         if ancien not in ("ombre", "actif"):
             raise RefusOperateur("OMBRE_REQUISE", "un exécuteur irréversible passe d'abord par l'ombre")
         if confirme_irreversible is not True:
@@ -268,7 +284,7 @@ def appliquer(cnx: Any, session: Any, executeur: Any, mode: Any, *, motif: Any,
     journal.journaliser(cnx, executeur, "mode", session.utilisateur, mode=mode, details={
         "ancien_mode": ancien, "revision": revision, "intervalle_s": intervalle_s,
         "expire_le": valeurs["expire_le"], "motif": motif[:64]})
-    if definition.irreversible and mode == "actif":
+    if trouvee.irreversible and mode == "actif":
         cnx.execute(insert(APPROBATIONS_T).values(
             executeur=executeur, revision=revision, apercu_empreinte=apercu_empreinte, nb_elements=nb_elements,
             approuve_par=session.utilisateur, approuve_le=journal.instant(), expire_le=expire))
@@ -304,7 +320,7 @@ def vue(cnx: Any, maintenant: float | None = None, ports: Any = None) -> list[di
     maintenant = time.time() if maintenant is None else maintenant
     depuis = dt.datetime.fromtimestamp(maintenant - 86400, dt.UTC).isoformat(timespec="seconds")
     sortie = []
-    for definition in DEFINITIONS:
+    for definition in definitions():
         l_ = ligne(cnx, definition.nom)
         mode = mode_effectif(l_, maintenant)
         branche = None if ports is None else transport_branche(ports, definition.transport)

@@ -42,7 +42,7 @@ def test_rien_ne_tourne_par_defaut_et_rien_n_est_lu_chez_le_fournisseur(c):
     assert {v["statut"] for v in resume["executeurs"].values()} == {"inactif"}
     with stockage.transaction() as cnx:
         assert cnx.execute(select(func.count()).select_from(PLANIFICATEUR_JOURNAL)).scalar_one() == 0
-        assert [v["mode"] for v in etat.vue(cnx)] == ["inactif"] * len(etat.DEFINITIONS)
+        assert [v["mode"] for v in etat.vue(cnx)] == ["inactif"] * len(etat.definitions())
     with stockage.transaction() as cnx:
         assert comptes_synchro(cnx) is None  # le compte n'a jamais été synchronisé
 
