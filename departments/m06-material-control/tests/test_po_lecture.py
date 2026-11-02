@@ -412,3 +412,18 @@ def test_un_ecart_critique_attend_l_admin_avec_le_message_impose_jusqu_a_ce_que_
         stockage.maillons(DEPT, "classements_variance").append(
             {"selection": {"wct_id": "wct-critique", "materiau_id": "REV-FICTIF"}})
     assert not [a for a in _attentes() if a["type"] == "ecart_materiaux_critique"]
+
+
+@pytest.mark.parametrize("arguments", [
+    {"depart": -1}, {"limite": 0}, {"limite": 26}, {"limite": 1000}, {"depart": 100001}, {"depart": True},
+    {"limite": True},
+])
+def test_une_pagination_hors_bornes_est_refusee_dans_le_code_pas_seulement_par_le_schema(m6, arguments):
+    """Le validateur de schéma du socle n'applique pas les bornes numériques : une tranche négative lirait n'importe
+    quoi."""
+    _creer_po("PO-A")
+
+    with stockage.transaction():
+        reponse = outils_mod.lister_po(**arguments)
+
+    assert reponse["accepte"] is False and reponse["verdict"]["code"] == "REJ-PO-LECTURE-PAGINATION"

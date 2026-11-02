@@ -504,7 +504,7 @@ def test_cascade_par_le_bus_le_besoin_arrive_dans_la_file_de_l_admin(
         file = approbations.file_proprietaire(cnx, dep_m6)
         attentes, illisibles = approbations.attentes_departements(cnx, dep_m6)
     assert illisibles == []
-    # +40 % est AUSSI un écart critique (C3) : l'admin le voit, avec le message imposé, avant le besoin de commande (N3).
+    # +40 % est AUSSI un écart critique (C3) : l'admin le voit, avec le message imposé, avant le besoin de commande.
     assert [(a["type"], a["departement"]) for a in file] == [
         ("ecart_materiaux_critique", _DEPT), ("besoin_commande", _DEPT)]
     assert file[0]["resume"].startswith("Écart matériaux critique — validation admin requise.")

@@ -199,9 +199,16 @@ Code M6 : `commande_courriel.py` (pur), `commande_courriel_outils.py`, `bons_com
 - **Entrant, confirmation de fournisseur** : `sent_to_supplier` -> `supplier_confirmed` **seulement si tout tient** : un seul PO nommé, expéditeur = boîte de commande du fournisseur du PO,
   authentification complète de confiance, aucune relecture exigée par le tri, aucune rupture/report/substitution annoncés, confirmation explicite, PO bien au statut envoyé. Sinon une attente
   (`m6_valider_confirmation_courriel`, N3 humain). Les dates annoncées sont rangées comme « annoncées », jamais promises.
-- **Sortant** : `m6_generer_courriel_po` publie `m6.po_courriel_pret` (destinataire = la boîte de commande déclarée à la fiche du fournisseur) ; M1 en tire un brouillon dans le sas (compte
-  connecté avec usage `lecture_envoi` ; sinon le bus réessaie puis met en quarantaine, sans perte) ; l'envoi suit le chemin N3 existant ; `m1.commande_courriel_envoyee` donne à M6 une attente
-  « marquer le PO envoyé » : le statut du PO ne change que par `m6_marquer_po_envoye` (N4).
+- **Sortant** : `m6_generer_courriel_po` (N2 depuis C2, brouillon interne) publie `m6.po_courriel_pret` (destinataire = la boîte de commande déclarée à la fiche du fournisseur ; objet « Commande
+  matériaux — PO — ville » ; corps COMPLET : chantier, date requise, livraison ou ramassage et lieu, lignes avec unité et perte déclarée visible, demande de confirmation, aucun prix ; `empreinte`
+  = celle du courriel exact, rangée sur le PO) ; M1 en tire un brouillon dans le sas (compte connecté avec usage `lecture_envoi` ; sinon le bus réessaie puis met en quarantaine, sans perte) ;
+  l'envoi suit le chemin N3 existant : UNE personne approuve l'empreinte exacte du brouillon. **Plus de seconde approbation (C2)** : `m1.commande_courriel_envoyee` porte maintenant
+  `empreinte_courriel_po` (celle que M6 avait offerte) et `contenu_identique` (le brouillon envoyé a la même empreinte qu'à sa préparation : personne n'a changé le texte au sas). M6 passe le PO
+  de `email_ready` à `sent_to_supplier`, en rangeant le constat sur la transition, SEULEMENT si le PO est `email_ready`, l'empreinte est celle du courriel de CE PO et `contenu_identique` est
+  vrai. Sinon (vieux constat sans ces champs, texte modifié au sas, autre bon) rien ne change et l'attente « marquer le PO envoyé » (N4) reste à une personne, comme pour un envoi hors M1
+  (téléphone, portail). Le statut ne change donc que par un envoi DÉJÀ approuvé et constaté, ou par `m6_marquer_po_envoye` (N4) : aucun chemin d'envoi automatique n'est ouvert.
+  Convention de numérotation : le tri de M1 ne reconnaît une référence de bon de commande que sous la forme « PO-<chiffre>… » (`tri_extraction._PO`), donc `PO-2026-014` se rapproche d'une
+  confirmation de fournisseur, `PO-GENTEK-1` non.
 - **M5** : une facture de fournisseur reçue par courriel devient une **attente « à saisir »** (`m5_lister_factures_courriel`, classement humain `m5_classer_facture_courriel`) avec les PO reconnus ;
   drapeau « à vérifier » (fausse facture possible) si l'authentification n'est pas complète ou si le tri exige une relecture. **Aucun montant n'est lu, aucune facture ni écriture créée.**
   À valider auprès d'un comptable (CPA) / professionnel qualifié.
@@ -212,7 +219,7 @@ Code M6 : `commande_courriel.py` (pur), `commande_courriel_outils.py`, `bons_com
 |---|---|---|---|
 | `m1.courriel_aiguille` | M1 (tri) | M5, M6 | classe, confiance, règles, aiguillage, relecture, jetons de référence, lignes de quantités, état et dates annoncés, empreinte de l'expéditeur |
 | `m6.po_courriel_pret` | M6 | M1 | po_id, fournisseur, destinataire (boîte de commande déclarée par l'entreprise), objet, corps généré par M6, empreinte |
-| `m1.commande_courriel_envoyee` | M1 | M6 | po_id, brouillon, empreinte, instant d'envoi |
+| `m1.commande_courriel_envoyee` | M1 | M6 | po_id, brouillon, empreinte, instant d'envoi, `empreinte_courriel_po` et `contenu_identique` (facultatifs, C2) |
 
 `m1.courriel_recu` et `m1.courriel_envoye` (existants) sont désormais aussi consommés par M1 lui-même. Tous ont un `evenement_id` déterministe (rejeu = no-op).
 
@@ -230,6 +237,7 @@ Code M6 : `commande_courriel.py` (pur), `commande_courriel_outils.py`, `bons_com
 | M1 | `m1_sms_preparer_message`, `m1_sms_demander_envoi`, `m1_lire_session_sms` | N2, N2, N0 | agent |
 | M5 | `m5_lister_factures_courriel` ; `m5_classer_facture_courriel` | N0 ; N3 | agent ; **personne** |
 | M6 | `m6_lire_commandes_courriel` ; `m6_traiter_commande_courriel` ; `m6_valider_confirmation_courriel` | N0 ; N2 ; N3 | agent ; agent ; **personne** |
+| M6 (C2, C3) | `m6_creer_po_brouillon`, `m6_creer_pos_depuis_besoin`, `m6_generer_courriel_po` ; `m6_lister_po`, `m6_lire_po` ; `m6_changer_statut_po` | N2 ; N0 ; N3 | agent ; agent ou admin ; **personne** |
 
 Registres (tous append-only, `stockage.maillons`) : M1 `tri_courriel`, `apprentissage`, `verifications_identite`, `sms_assistant`, `rendez_vous`, `commandes_fournisseur` ; M5 `factures_courriel` ;
 M6 `commandes_courriel`. **Aucune migration** n'est nécessaire (le numéro 0048 réservé reste libre). Les refus des nouveaux outils sont des `ValueError("REJ-…: détail")` (même idiome que

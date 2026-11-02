@@ -165,7 +165,7 @@ def test_l_ecran_liste_ce_qui_manque_ce_que_ca_bloque_la_proposition_et_son_orig
     page = client.get("/reglages")
     assert page.status_code == 200
     texte = _texte(page.text)
-    assert "10 réglage(s) à décider sur 10" in texte
+    assert "10 réglage(s) à décider sur 12" in texte
     assert "REJ-RELANCES-A-CONFIGURER" in texte and "INDÉTERMINÉ" in texte
     assert "recommandation, non validée" in texte and "ANALYSE-M2" in texte
     assert "Aucune valeur proposée : à décider par la direction." in texte
@@ -177,7 +177,7 @@ def test_l_ecran_liste_ce_qui_manque_ce_que_ca_bloque_la_proposition_et_son_orig
     formulaires = Formulaires(page.text)
     saisies = {c["value"] for c in formulaires.champs if c.get("name") == "saisie"}
     assert {"30", "14", "7"} <= saisies, "la proposition préremplit le champ : elle ne s'applique pas"
-    assert formulaires.boutons.count("Adopter (N3, propriétaire)") == 10
+    assert formulaires.boutons.count("Adopter (N3, propriétaire)") == 12
     assert 'aria-current="page">Réglages de direction' in page.text.replace("\n", "")
     assert page.headers["cache-control"] == "no-store" and page.headers["x-content-type-options"] == "nosniff"
     assert "default-src 'none'" in page.headers["content-security-policy"]
@@ -187,10 +187,11 @@ def test_l_ecran_liste_ce_qui_manque_ce_que_ca_bloque_la_proposition_et_son_orig
 def test_l_api_donne_le_meme_etat_que_l_ecran(client):
     _connecter(client)
     vue = client.get("/api/reglages").json()
-    assert vue["total"] == 10 and vue["manquants"] == 10 and vue["peut_adopter"] is True and vue["journal"] == []
+    assert vue["total"] == 12 and vue["manquants"] == 10 and vue["peut_adopter"] is True and vue["journal"] == []
     assert vue["chaine"]["valide"] is True
     assert {r["cle"] for r in vue["reglages"] if r["proposition"]} == {
-        "m2.jours_inactivite_dormant", "m2.jours_soumission_perimee", CLE}
+        "m2.jours_inactivite_dormant", "m2.jours_soumission_perimee", CLE,
+        "m6.seuil_variance_chantier_pourcentage", "m6.seuil_ecart_prix_reception_pourcentage"}
     assert client.get("/api/reglages?x=1").status_code == 400
     assert client.get("/reglages?x=1").status_code == 400
 
@@ -209,7 +210,7 @@ def test_adopter_une_proposition_passe_par_le_sas_n3_et_ecrit_un_maillon_signe(c
     texte = _texte(page.text)
     assert "Valeur adoptée (N3)" in texte and "Adopté" in texte
     assert f"version 1, par {aide.PROPRIETAIRE}" in texte and "Valeur en vigueur 7 jours" in texte
-    assert "9 réglage(s) à décider sur 10" in texte
+    assert "9 réglage(s) à décider sur 12" in texte
     assert "Revenir en arrière" in texte and "Point de départ discuté" in texte
 
 
@@ -324,7 +325,7 @@ def test_le_retour_arriere_depile_et_refuse_quand_il_n_y_a_rien_a_annuler(client
     assert _post(client, csrf, action="revenir", saisie=None, raison="Retour au départ", version_attendue="3"
                  ).status_code == 303
     page = _texte(client.get("/reglages").text)
-    assert "10 réglage(s) à décider sur 10" in page, "après le retour arrière, la fonction est de nouveau inerte"
+    assert "10 réglage(s) à décider sur 12" in page, "après le retour arrière, la fonction est de nouveau inerte"
     refus = _post(client, csrf, action="revenir", saisie=None, raison="Encore un retour", version_attendue="4")
     assert refus.status_code == 409 and "REJ-REGLAGE-RIEN-A-ANNULER" in refus.text
     assert [m["type"] for m in aide.chaine()] == ["adoption", "adoption", "retour_arriere", "retour_arriere"]

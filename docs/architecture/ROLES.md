@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 254 outils sur 655 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 254 outils sur 659 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -500,6 +500,8 @@ Les plus sensibles :
 | `m3_creer_devis` | Le coût de chaque ligne et le taux de marge viennent encore de l'appelant (limite connue : `docs/utilisation/LIMITES-CONNUES.md`) ; la revue N4 de l'envoi est la garde. |
 | `m3_rejouer_estimation` (T0) | Refait le calcul d'une estimation déclarée avec la version de barème et la révision de mesure qu'elle cite : la réponse porte l'intervalle de coût. |
 | `m6_enregistrer_prix`, `m6_enregistrer_fournisseur`, `m6_enregistrer_besoins_prevus`, `m6_marquer_po_envoye` | Livre de prix, courriel de commande d'un fournisseur, prévu issu du devis accepté, engagement externe (N4). |
+| `m6_creer_po_brouillon`, `m6_creer_pos_depuis_besoin`, `m6_generer_courriel_po` (T1/**N2**) | C2 : brouillon de bon de commande commandable (unité, perte déclarée appliquée une fois, date requise, livraison ou ramassage), un PO par fournisseur à partir d'un besoin (tout ou rien) et courriel complet offert à M1 : tâches internes et réversibles (règle d'autonomie r1, brouillons N0-N2), abaissées depuis N3. Aucun rôle d'appareil. L'APPROBATION du PO (`m6_approuver_po`) reste N3 et l'envoi reste une décision de personne : approbation du brouillon au sas de M1, ou `m6_marquer_po_envoye` (N4) pour un envoi hors M1 ; M6 prend acte d'un envoi déjà constaté par M1 sans seconde approbation, seulement si le courriel est celui du PO. |
+| `m6_lister_po`, `m6_lire_po` (T0/N0), `m6_changer_statut_po` (T1/**N3**) | C3 : lecture des bons de commande (liste blanche de champs, pages bornées, aucun contact dans la liste) réservée à l'admin (identité d'appareil relue ; agent et console admis) et pilotage de `pending_admin_review`, `disputed`, `invoiced`, `closed` avec motif. La console « Commandes » (`src/opsys/console/commandes_ui.py`) lit par la surface de lecture admin de la console. **Aucun rôle d'appareil** : aucun écran mobile des commandes n'existe ; en ouvrir un est une décision de portée à prendre ici. |
 | `m8_rapport_metriques`, `m9_etat_consolide` | Ingèrent un snapshot fourni par l'appelant dans le registre de vérité. |
 | `m7_auditer_seo_site`, `m7_calculer_roi` | Chemins de fichiers du serveur. |
 | `m7_proposer_contenus_chantier`, `m7_lire_matiere_chantier` | Brouillons N1 nés du bus (le consommateur de M7 les crée déjà) et matière du modèle qui rédige : le propriétaire lit et décide (`m7_lister_contenus_chantier`, `m7_decider_contenu`), il ne fait pas écrire de textes depuis son téléphone. |

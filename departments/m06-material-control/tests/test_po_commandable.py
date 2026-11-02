@@ -420,3 +420,12 @@ def test_un_agent_prepare_sans_approbation_mais_n_approuve_ni_n_envoie_seul(m6):
     envoi = appel("m6_marquer_po_envoye", {"po_id": "PO-AGENT", "horodatage": HORO})
     assert envoi.get("statut") == "en_attente_approbation", "N4 : l'envoi manuel attend une personne"
     assert _lire("PO-AGENT")["statut"] == "draft"
+
+
+def test_une_repartition_demesuree_est_refusee_avant_tout_calcul(m6):
+    _preparer(m6)
+    trop = [{"po_id": f"PO-X-{i}", "fournisseur_id": f"f-{i}", "materiau_ids": [REV]} for i in range(21)]
+    assert _refus(_repartir(m6, trop)) == "REJ-PO-REPARTITION-TROP-GRANDE"
+    longue = [{"po_id": "PO-L", "fournisseur_id": GENTEK, "materiau_ids": [f"M-{i}" for i in range(201)]}]
+    assert _refus(_repartir(m6, longue)) == "REJ-PO-REPARTITION-TROP-GRANDE"
+    assert _registre_po() == []

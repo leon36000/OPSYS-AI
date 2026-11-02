@@ -123,6 +123,8 @@ _CLES_CONTENU_PO = (
 # C3 : les statuts qu'aucun autre outil n'atteignait (`pending_admin_review`, `disputed`, `invoiced`, `closed`).
 STATUTS_PILOTABLES = frozenset({"pending_admin_review", "disputed", "invoiced", "closed"})
 _MOTIF_DECIMAL = re.compile(r"[0-9]+(\.[0-9]+)?")
+_REPARTITION_ENTREES_MAX = 20
+_REPARTITION_LIGNES_MAX = 200
 _TEXTE_LONGUEUR = {"lieu_livraison": 200, "ville": 80, "notes": 500, "unite": 40, "designation": 200}
 
 
@@ -517,6 +519,15 @@ def repartir_besoin(
     ``[{po_id, fournisseur_id, lignes}]`` dans l'ordre de la répartition. Fonction pure."""
     if not isinstance(repartition, list):
         return None, verdicts.construire_verdict("REJ-PO-REPARTITION-INCOMPLETE", detail="repartition : une liste")
+    if len(repartition) > _REPARTITION_ENTREES_MAX or any(
+        isinstance(e, Mapping) and isinstance(e.get("materiau_ids"), list)
+        and len(e["materiau_ids"]) > _REPARTITION_LIGNES_MAX
+        for e in repartition
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-PO-REPARTITION-TROP-GRANDE",
+            detail=f"au plus {_REPARTITION_ENTREES_MAX} fournisseurs et {_REPARTITION_LIGNES_MAX} lignes par bon",
+        )
     par_materiau = {ligne["materiau_id"]: ligne for ligne in lignes_a_commander}
     affectees: dict[str, str] = {}
     fournisseurs_vus: set[str] = set()

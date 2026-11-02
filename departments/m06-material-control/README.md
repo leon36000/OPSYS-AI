@@ -217,6 +217,10 @@ la cause de chaque ligne critique soit classée par une personne ; le résultat 
 Les seuils de variance (0.30) et d'écart de prix (0.15) sont des RÉGLAGES DE DIRECTION (`reglages:` du manifeste, adoption N3 du
 propriétaire depuis la console, retour arrière) étiquetés « recommandation, non validée » : ils viennent d'un agent, pas de Nathan.
 Écran admin « Commandes » de la console (`src/opsys/console/commandes_ui.py`, lecture seule).
+*Fournisseurs connus, amorçage VIDE* (`fournisseurs_a_fournir.py`, `configuration.fournisseurs_a_fournir` du manifeste) : Gentek, Royal Solution
+de Bâtiment, O.A.M. et Kaycan n'ont fourni ni courriel, ni compte, ni tarif, ni délai ; le manifeste ne porte que leurs NOMS et ce qu'il faut
+fournir pour chacun, et l'écran « Fournisseurs » de la console les montre « à fournir » tant qu'aucune fiche de ce nom n'existe (aucune fiche
+n'est créée, aucun PO ne peut leur être adressé). Déclarer un fournisseur reste le geste d'une personne.
 Limites : voir `docs/utilisation/LIMITES-CONNUES.md` (M6).
 
 Bugs corrigés (test rouge → vert) lors de cette passe :

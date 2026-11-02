@@ -1857,6 +1857,12 @@ def lister_po(
     _, verdict = _acteur_admin_ou_agent()
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    if (
+        type(depart) is not int or not 0 <= depart <= 100000
+        or type(limite) is not int or not 1 <= limite <= _LIMITE_PO_LUS
+    ):
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-PO-LECTURE-PAGINATION", detail=f"depart de 0 à 100000, limite de 1 à {_LIMITE_PO_LUS}")}
     if aujourd_hui is not None and po_lecture.jour_valide(aujourd_hui) is None:
         return {"accepte": False, "verdict": verdicts.construire_verdict(
             "REJ-PO-LECTURE-JOUR-INVALIDE", detail="aujourd_hui : un jour civil AAAA-MM-JJ")}
@@ -3345,9 +3351,10 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_approuver_po",
             description=(
-                "Approuve un PO (draft ou pending_admin_review -> approved). Refuse fail-closed "
-                "(REJ-PO-PRIX-INDETERMINE) si au moins une ligne n'a pas de prix résolu au livre de "
-                "prix : un PO ne peut pas être approuvé sur un prix encore à fournir."
+                "Approuve un PO (draft ou pending_admin_review -> approved), décision de personne (N3). Refuse "
+                "fail-closed un bon incomplet — sans date requise, mode de livraison ou unité de ligne "
+                "(REJ-PO-NON-COMMANDABLE, bon d'avant C2 : l'annuler et le refaire) — et un bon dont une ligne n'a "
+                "pas de prix résolu au livre de prix (REJ-PO-PRIX-INDETERMINE)."
             ),
             parametres={
                 "type": "object",
@@ -3412,10 +3419,11 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_marquer_po_envoye",
             description=(
-                "Verrou d'envoi au fournisseur (email_ready -> sent_to_supplier) : ENGAGEMENT "
-                "EXTERNE, N4 — passe par la file d'approbation du socle (department.yaml, bloc "
-                "approbations.n4). N'exécute qu'après décision signée ; aucune primitive d'envoi de "
-                "courriel réelle n'existe ici (repli manuel documenté, M1 plus tard)."
+                "Verrou d'envoi au fournisseur (email_ready -> sent_to_supplier) : ENGAGEMENT EXTERNE, N4 — "
+                "passe par la file d'approbation du socle (department.yaml, bloc approbations.n4). Pour un envoi "
+                "HORS M1 (téléphone, portail) ou un constat de M1 que M6 n'a pas pu rapprocher du courriel du PO ; "
+                "un envoi déjà approuvé au sas de M1 et constaté est pris en acte sans cet outil. Aucune "
+                "primitive d'envoi de courriel n'existe ici."
             ),
             parametres={
                 "type": "object",
@@ -4149,5 +4157,6 @@ def attentes() -> list[dict[str, Any]]:
         _articles_reapprovisionnement(),
         reserves=reservations.reserve_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)),
         hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
-    ) + _attentes_cout_sortie() + _attentes_ecart_critique() + _attentes_po() + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
+    ) + _attentes_cout_sortie() + _attentes_ecart_critique() + _attentes_po(
+    ) + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
         stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE))

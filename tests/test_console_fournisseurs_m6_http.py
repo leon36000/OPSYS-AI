@@ -169,3 +169,22 @@ def test_contacts_historiques_conserves_malgre_normalisation_navigateur(catalogu
             stockage.maillons('m06-material-control', 'fournisseurs'), 'ancien-fictif')
         assert fiche['telephone'] == '514\n5550142'
         assert fiche['courriel_commande'] == 'ancien\r\nformat FICTIF'
+
+
+def test_la_liste_montre_les_fournisseurs_connus_a_fournir_sans_en_creer_un_seul(catalogue, session):
+    """Amorçage VIDE : les quatre noms du produit sont « à fournir », jamais créés ; une fiche au bon nom retire le
+    sien."""
+    page = catalogue.get(BASE)
+    html_page = html.unescape(page.text)
+    assert 'À fournir' in html_page and 'Aucun fournisseur enregistré' in html_page
+    for nom in ('Gentek', 'Royal Solution de Bâtiment', 'O.A.M.', 'Kaycan'):
+        assert nom in html_page
+    assert 'numéro de compte client' in html_page and 'grille tarifaire' in html_page
+    with session():
+        assert fournisseurs.lister_fournisseurs(stockage.maillons('m06-material-control', 'fournisseurs')) == []
+    action, p = h.form(catalogue.get(BASE))
+    p.update(nom='Gentek', nom_action='remplacer')
+    assert catalogue.post(action, data=p, follow_redirects=False).status_code == 303
+    apres = html.unescape(catalogue.get(BASE).text)
+    segment = apres.split('À fournir', 1)[1]
+    assert 'Gentek' not in segment and 'Royal Solution de Bâtiment' in segment and 'Kaycan' in segment

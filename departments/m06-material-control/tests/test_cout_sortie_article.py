@@ -432,7 +432,8 @@ def test_aucun_chemin_de_la_declaration_ne_refuse_plus_pour_un_cout_introuvable(
 # 6. Abus : registre de prix corrompu, origine incohérente
 # =========================================================================================
 def test_une_entree_du_livre_corrompue_a_la_main_n_est_jamais_un_cout(m6):
-    """`m6_enregistrer_prix` refuse un prix nul ou négatif ; si une entrée illisible se retrouvait quand même au registre
+    """`m6_enregistrer_prix` refuse un prix nul ou négatif ; si une entrée illisible se retrouvait quand même au
+    registre
     (écriture directe), elle ne devient pas un coût de sortie : zéro, négatif, non fini, texte, devise étrangère."""
     _publier_wct()
     corrompues = [
