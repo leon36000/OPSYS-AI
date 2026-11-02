@@ -222,7 +222,8 @@ def test_une_base_sans_le_registre_ne_sert_rien_et_ne_casse_pas_la_transaction(t
 def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_bloque(deps):
     with stockage.transaction():
         etat = lecture.etat_des_reglages(deps)
-    assert etat["total"] == 10 and etat["manquants"] == 10 and etat["chaine"]["valide"] is True
+    # 10 réglages vides (M2, M8) + 2 de M6 (C3) dont la valeur est déjà écrite à department.yaml (valeur d'un agent).
+    assert etat["total"] == 12 and etat["manquants"] == 10 and etat["chaine"]["valide"] is True
     par_cle = {r["cle"]: r for r in etat["reglages"]}
     relances = par_cle["m2.jours_entre_relances"]
     assert relances["statut"] == "vide" and relances["manque"] is True and relances["valeur"] is None
@@ -232,6 +233,11 @@ def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_b
     assert relances["bornes"] == {"min": "1", "max": "3650"} and relances["version"] == 0
     assert par_cle["m2.bandes_valeur_cents"]["proposition"] is None
     assert par_cle["m2.bandes_valeur_cents"]["bornes"]["longueur"] == 3
+    for cle in ("m6.seuil_variance_chantier_pourcentage", "m6.seuil_ecart_prix_reception_pourcentage"):
+        seuil = par_cle[cle]
+        assert seuil["statut"] == "fichier" and seuil["manque"] is False and seuil["niveau"] == "N3"
+        assert seuil["proposition"]["etiquette"] == "recommandation, non validée"
+        assert seuil["proposition"]["valeur"] in ("0.3", "0.15")
     assert all("INDÉTERMINÉ" in r["debloque"] for r in etat["reglages"] if r["departement"] == "m08-analytics")
     assert all(r["proposition"] is None for r in etat["reglages"] if r["departement"] == "m08-analytics")
 

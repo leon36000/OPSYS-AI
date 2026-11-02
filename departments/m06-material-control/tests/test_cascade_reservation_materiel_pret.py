@@ -183,7 +183,8 @@ def test_devis_accepte_stock_insuffisant_a_commander_puis_reception_partielle_pu
         _admin(m6["m6_enregistrer_prix"], {"materiau_id": materiau, "fournisseur_id": FOURNISSEUR,
                                            "prix_unitaire": prix, "devise": "CAD", "date_effet": "2026-01-01"})
     brouillon = _admin(m6["m6_creer_po_brouillon"], {
-        "po_id": PO, "devis_id": DEVIS, "fournisseur_id": FOURNISSEUR, "horodatage": "2026-10-01T08:00:00-04:00"})
+        "po_id": PO, "devis_id": DEVIS, "fournisseur_id": FOURNISSEUR, "horodatage": "2026-10-01T08:00:00-04:00",
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage"})
     assert brouillon["quantites_depuis"] == "reservation" and brouillon["po"]["statut"] == "draft"
     assert [(ligne["materiau_id"], ligne["quantite_demandee"]) for ligne in brouillon["po"]["lignes"]] == [
         (GOUTTIERE, 100.0), (VIS, 20.0)]

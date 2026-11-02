@@ -134,12 +134,18 @@ CHAMPS_FOURNISSEUR_OPTIONNELS = frozenset(
 CHAMPS_ENTREE_PRIX_REQUIS = frozenset({"materiau_id", "fournisseur_id", "prix_unitaire", "devise", "date_effet"})
 CHAMPS_ENTREE_PRIX_OPTIONNELS = frozenset({"source_document", "unite"})
 
-# PLAN T2.5 point 3 — ligne d'un PO à la création (matériau + quantité demandée) : mêmes DEUX
-# clés que CHAMPS_LIGNE_DEMANDEE (reception.py) par cohérence de vocabulaire, mais contrat
-# SÉPARÉ et gardé séparément — CHAMPS_LIGNE_DEMANDEE reste le contrat gelé de RECEPTION
-# (§2.4 architecture), jamais modifié ici (DA-M6-12 révisée ne touche pas au cycle de réception
-# existant, réutilisé sans modification).
-CHAMPS_LIGNE_PO = frozenset({"materiau_id", "quantite_demandee"})
+# PLAN T2.5 point 3, C2 — ligne d'un PO à la création : le matériau, la quantité NETTE (le besoin) et l'UNITÉ,
+# obligatoires ; le facteur de perte DÉCLARÉ (texte décimal, jamais inventé), la désignation et l'origine de l'unité,
+# facultatifs. La quantité à commander (`quantite_demandee`, brute) est DÉRIVÉE par `bons_commande.py` (nette x (1 +
+# perte)) : elle n'est jamais fournie, pour qu'une perte ne s'applique pas deux fois. CHAMPS_LIGNE_DEMANDEE
+# (reception.py) reste le contrat gelé de RECEPTION, jamais modifié ici (DA-M6-12 révisée).
+CHAMPS_LIGNE_PO = frozenset({"materiau_id", "quantite_nette", "unite"})
+CHAMPS_LIGNE_PO_OPTIONNELS = frozenset({"facteur_perte", "designation", "unite_source"})
+
+# C2 — conditions de commande d'un PO : date requise (jour civil) et mode, dits dans le courriel au fournisseur.
+MODES_LIVRAISON = frozenset({"livraison_depot", "livraison_chantier", "ramassage"})
+CHAMPS_CONDITIONS_PO_REQUIS = frozenset({"date_requise", "mode_livraison"})
+CHAMPS_CONDITIONS_PO_OPTIONNELS = frozenset({"lieu_livraison", "ville", "notes", "devis_id"})
 
 # DEFINITION-PRODUIT.md §7 M6.5 (l.508) — les 12 statuts NOMMÉS du moteur de PO, reproduits mot
 # pour mot (12 valeurs exactement, comptées : draft, pending_admin_review, approved, email_ready,

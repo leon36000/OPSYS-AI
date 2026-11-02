@@ -18,6 +18,8 @@ from m6_material_control import commande_courriel as cc
 from opsys import stockage
 from opsys.courriel_connecteurs import envoi
 
+CONDITIONS_PO = {"date_requise": "2099-12-31", "mode_livraison": "ramassage"}
+
 FOURNISSEUR_COURRIEL = "commandes@beausejour.example.test"
 HORO = "2026-11-02T10:00:00-05:00"
 
@@ -237,12 +239,11 @@ def _po_envoye(w, po_id="PO-2026-014"):
             po_id,
             "CH-0042",
             "f-beausejour",
-            [{"materiau_id": "ciment", "quantite_demandee": 20.0}],
+            [{"materiau_id": "ciment", "quantite_nette": 20.0, "unite": "boite"}],
             HORO,
             reg,
             m6._livre_prix_de_l_appel(None),
-            m6._fournisseurs_de_l_appel(None),
-        )
+            m6._fournisseurs_de_l_appel(None), conditions=CONDITIONS_PO)
         assert verdict is None, verdict
         for fn in (
             lambda: bons_commande.approuver(po_id, HORO, reg),
@@ -379,12 +380,11 @@ def _po_approuve(w, po_id="PO-2026-020", courriel=FOURNISSEUR_COURRIEL):
             po_id,
             "CH-0042",
             "f-beausejour",
-            [{"materiau_id": "ciment", "quantite_demandee": 20.0}],
+            [{"materiau_id": "ciment", "quantite_nette": 20.0, "unite": "boite"}],
             HORO,
             reg,
             m6._livre_prix_de_l_appel(None),
-            m6._fournisseurs_de_l_appel(None),
-        )
+            m6._fournisseurs_de_l_appel(None), conditions=CONDITIONS_PO)
         assert v is None, v
         _, v = bons_commande.approuver(po_id, HORO, reg)
         assert v is None, v
@@ -431,7 +431,7 @@ def test_le_courriel_d_un_po_approuve_devient_un_brouillon_au_fournisseur_et_n_e
     w.repartir()
     assert not _commandes(w, "envois")
 
-    # approbation d'une personne -> envoi UNIQUE -> M6 constate, mais ne change pas le statut du PO
+    # approbation d'une personne -> envoi UNIQUE -> M6 constate et prend acte (C2 : le PO passe à « envoyé »)
     assert w.decider(demande)["statut"] == "executee"
     w.c.tour()
     assert len(w.c.monde.gmail.envoyes) == 1
@@ -439,18 +439,55 @@ def test_le_courriel_d_un_po_approuve_devient_un_brouillon_au_fournisseur_et_n_e
     w.repartir()
     (envoye,) = _commandes(w, "envois")
     assert envoye["po_id"] == "PO-2026-020" and envoye["statut_po_au_constat"] == "email_ready"
-    assert _statut_po(w, "PO-2026-020") == "email_ready", "M6 ne marque pas lui-même le PO envoyé"
+    assert envoye["po_marque_envoye"] is True
+    # C2 : l'envoi a été approuvé UNE fois (au sas de M1) ; M6 en prend acte, il n'exige pas une seconde approbation
+    # (N4).
+    assert _statut_po(w, "PO-2026-020") == "sent_to_supplier"
+    from m6_material_control import bons_commande as _bc
     from m6_material_control import outils as m6
 
+    po = _bc.lire(w.registre("m06-material-control", "bons_commande"), "PO-2026-020")
+    maillon = [x for x in w.registre("m06-material-control", "bons_commande") if "envoi_constate" in x][0]
+    assert maillon["envoi_constate"]["brouillon_id"] == b["brouillon_id"]
+    assert maillon["envoi_constate"]["empreinte_courriel_po"] == po["courriel"]["empreinte"]
     with stockage.transaction():
-        attentes = [a for a in m6.attentes() if a["type"] == "po_envoye_a_marquer"]
-    assert attentes and attentes[0]["id"] == "PO-2026-020" and attentes[0]["niveau"] == "N4"
+        assert [a for a in m6.attentes() if a["type"] == "po_envoye_a_marquer"] == []
 
     # rejeu : ni second envoi, ni second constat
     w.c.tour()
     w.c.tour()
     w.repartir()
     assert len(w.c.monde.gmail.envoyes) == 1 and len(_commandes(w, "envois")) == 1
+
+
+def test_un_brouillon_modifie_au_sas_n_est_plus_le_courriel_du_po_et_l_attente_n4_reste(w):
+    """C2 : si une personne change le texte au sas avant d'approuver, ce qui part n'est plus le courriel du PO. M6 n'en
+    prend pas acte seul : le PO reste `email_ready` et l'attente « marquer le PO envoyé » (N4) attend une personne."""
+    _po_approuve(w)
+    _generer_courriel()
+    w.repartir()
+    (b,) = _brouillons_de_commande(w)
+    with stockage.transaction() as cnx:
+        brouillon = envoi.lire_brouillon(cnx, b["brouillon_id"])
+        envoi.modifier_brouillon(
+            cnx, "nathan", b["brouillon_id"], revision_attendue=brouillon.revision,
+            corps=brouillon.contenu.corps + "\n\nP.-S. Merci de livrer avant 8 h.")
+    demande = w.appeler(
+        "m1_demander_envoi_courriel", brouillon_id=b["brouillon_id"], contexte="Commande du PO-2026-020, texte ajusté"
+    )["resultat"]["resultat"]["demande_id"]
+    w.c.activer("courriel.envoi")
+    w.decider(demande)
+    w.c.tour()
+    assert len(w.c.monde.gmail.envoyes) == 1
+    w.repartir()
+    (envoye,) = _commandes(w, "envois")
+    assert envoye["po_marque_envoye"] is False
+    assert _statut_po(w, "PO-2026-020") == "email_ready"
+    from m6_material_control import outils as m6
+
+    with stockage.transaction():
+        (attente,) = [a for a in m6.attentes() if a["type"] == "po_envoye_a_marquer"]
+    assert attente["niveau"] == "N4" and attente["id"] == "PO-2026-020"
 
 
 def test_regenerer_le_meme_courriel_ne_cree_pas_un_second_brouillon(w):
@@ -478,12 +515,11 @@ def test_sans_boite_de_commande_declaree_aucun_evenement_et_le_repli_manuel_rest
             "PO-S",
             "CH-0042",
             "f-sans",
-            [{"materiau_id": "ciment", "quantite_demandee": 5.0}],
+            [{"materiau_id": "ciment", "quantite_nette": 5.0, "unite": "boite"}],
             HORO,
             reg,
             m6._livre_prix_de_l_appel(None),
-            m6._fournisseurs_de_l_appel(None),
-        )
+            m6._fournisseurs_de_l_appel(None), conditions=CONDITIONS_PO)
         assert v is None, v
         m6.approuver_po("PO-S", HORO)
     with stockage.transaction():

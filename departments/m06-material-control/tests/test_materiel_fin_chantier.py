@@ -367,7 +367,10 @@ def test_perte_et_bris_ecrivent_leur_propre_type_signe_negativement():
     assert "CONSOMMATION" not in {m["type_mouvement"] for m in nouveaux}
 
 
-def test_ecriture_est_tout_ou_rien_si_une_ligne_echoue_le_cout():
+def test_un_article_inedit_n_empeche_pas_l_ecriture_des_autres_lignes_et_son_cout_est_dit_inconnu():
+    """C1 (défaut F1) : avant, l'article jamais reçu (MAT-2) faisait refuser TOUTE la déclaration
+    (`REJ-COUT-UNITAIRE-INTROUVABLE`). Maintenant les deux lignes sont écrites, tout-ou-rien ensemble ; MAT-2
+    porte un coût inconnu et dit pourquoi."""
     registre = registre_avec_receptions(materiaux=["MAT-1"])  # MAT-2 n'a jamais été reçu
     taille_avant = registre.taille()
     formulaire = formulaire_valide([
@@ -377,21 +380,24 @@ def test_ecriture_est_tout_ou_rien_si_une_ligne_echoue_le_cout():
 
     confirmation, code = materiel.soumettre_materiaux_utilises(wct_valide(), formulaire, registre)
 
-    assert confirmation is None
-    assert code == "REJ-COUT-UNITAIRE-INTROUVABLE"
-    # Rien n'a été écrit pour MAT-1 non plus : tout ou rien (ajouter_lot n'est jamais
-    # appelé si une seule ligne échoue la résolution de coût).
-    assert registre.taille() == taille_avant
+    assert code is None and confirmation is not None
+    nouveaux = registre.lire()[taille_avant:]
+    assert [m["materiau_id"] for m in nouveaux] == ["MAT-1", "MAT-2"]
+    assert nouveaux[0]["origine_cout"]["source"] == "RECEPTION_CHANTIER"
+    assert nouveaux[1]["cout_unitaire"] is None
+    assert nouveaux[1]["origine_cout"] == {"source": "INCONNU", "motif": "AUCUN_PRIX", "marquage": None}
+    assert registre.valider_chaine()[0] is True
 
 
-def test_achat_terrain_reussit_quand_le_cout_est_resolu_et_echoue_sinon():
-    """Même règle de coût unitaire fail-closed que consommer_materiaux, appliquée
-    uniformément aux six types de ligne — y compris achat_terrain (PLAN T1.1-d2)."""
+def test_achat_terrain_reussit_que_le_cout_soit_resolu_ou_inconnu():
+    """Plus de refus pour un coût introuvable (C1) : l'achat sur place d'un article inédit se déclare ; son coût
+    est inconnu et dit tel (`origine_cout`), jamais inventé."""
     registre_avec_historique = registre_avec_receptions(materiaux=["MAT-5"])
     confirmation, code = materiel.soumettre_materiaux_utilises(
         wct_valide(), formulaire_valide([ligne_achat_terrain(materiau_id="MAT-5")]), registre_avec_historique,
     )
     assert code is None
+    assert registre_avec_historique.lire()[-1]["cout_unitaire"] is not None
 
     registre_sans_historique = Registre()  # aucune RECEPTION préalable pour MAT-9
     confirmation, code = materiel.soumettre_materiaux_utilises(
@@ -399,8 +405,9 @@ def test_achat_terrain_reussit_quand_le_cout_est_resolu_et_echoue_sinon():
         formulaire_valide([ligne_achat_terrain(materiau_id="MAT-9")], wct_id="wct-2"),
         registre_sans_historique,
     )
-    assert confirmation is None
-    assert code == "REJ-COUT-UNITAIRE-INTROUVABLE"
+    assert code is None and confirmation is not None
+    (mouvement,) = registre_sans_historique.lire()
+    assert mouvement["cout_unitaire"] is None and mouvement["origine_cout"]["source"] == "INCONNU"
 
 
 # --- Stock théorique cohérent après écriture (PLAN T1.1-d2 point 1) --------------------

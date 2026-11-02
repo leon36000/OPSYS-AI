@@ -1,6 +1,6 @@
 import math
 
-from . import contrats_sortie, reception, reorder, stock, validation, variance
+from . import contrats_sortie, cout_sortie, reception, reorder, stock, validation, variance
 
 
 def _dernier_cout_unitaire_connu(chantier_id, materiau_id, registre):
@@ -129,7 +129,7 @@ def consommer_materiaux(wct, formulaire, registre, *, wct_id=None) -> tuple[dict
     )
 
 
-def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None, str | None]:
+def soumettre_materiaux_utilises(wct, formulaire, registre, livre_prix=None) -> tuple[dict | None, str | None]:
     """Formulaire de fin de chantier enrichi (PLAN T1.1-d/d2, M6.10/M6.11).
 
     NOUVELLE fonction, distincte de consommer_materiaux : elle ne le remplace pas, ne
@@ -142,9 +142,10 @@ def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None
     non_prevu/retour/perte/bris/achat_terrain, REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE si un
     achat terrain n'a ni photo ni reçu) -> idempotence par wct_id (REJ-DECLARATION-DEJA-
     SOUMISE : une déclaration par WCT, jamais deux — la corriger est une autre
-    fonctionnalité, non faite ici) -> résolution du coût unitaire par ligne, même règle
-    fail-closed que consommer_materiaux (_dernier_cout_unitaire_connu,
-    REJ-COUT-UNITAIRE-INTROUVABLE, jamais de coût inventé) -> écriture tout-ou-rien
+    fonctionnalité, non faite ici) -> résolution du coût unitaire par ligne AU NIVEAU DE L'ARTICLE
+    (C1, `cout_sortie.resoudre` : réception du chantier, réception ailleurs, livre de prix, sinon coût INCONNU
+    dit — jamais un coût inventé, jamais un refus de la déclaration : un article inédit se déclare) -> écriture
+    tout-ou-rien
     (ajouter_lot) des mouvements typés :
       - prevu/non_prevu/achat_terrain -> CONSOMMATION (quantité négative, sort du stock) ;
       - retour -> RETOUR (quantité positive, réintègre le stock théorique) ;
@@ -166,66 +167,40 @@ def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None
         return None, code
 
     wct_id = wct["wct_id"]
-    if any(mouvement.get("wct_id") == wct_id for mouvement in registre.lire()):
+    historique = registre.lire()
+    if any(mouvement.get("wct_id") == wct_id for mouvement in historique):
         return None, "REJ-DECLARATION-DEJA-SOUMISE"
 
     chantier_id = formulaire["chantier_id"]
+    jour = cout_sortie.jour_du_wct(wct.get("horodatage_completion"))
+    # type de ligne -> (type de mouvement, signe de la quantité écrite)
+    types_mouvement = {
+        "prevu": ("CONSOMMATION", -1),
+        "non_prevu": ("CONSOMMATION", -1),
+        "achat_terrain": ("CONSOMMATION", -1),
+        "retour": ("RETOUR", 1),
+        "perte": ("PERTE", -1),
+        "bris": ("BRIS", -1),
+    }
     mouvements_a_persister = []
     for ligne in formulaire["lignes_materiaux"]:
         materiau_id = ligne["materiau_id"]
-        cout = _dernier_cout_unitaire_connu(chantier_id, materiau_id, registre)
-        if cout is None:
-            return None, "REJ-COUT-UNITAIRE-INTROUVABLE"
-
-        type_ligne = ligne["type_ligne"]
-        if type_ligne in ("prevu", "non_prevu", "achat_terrain"):
-            mouvements_a_persister.append(
-                {
-                    "type_mouvement": "CONSOMMATION",
-                    "chantier_id": chantier_id,
-                    "materiau_id": materiau_id,
-                    "quantite": -ligne["quantite"],
-                    "cout_unitaire": cout,
-                    "wct_id": wct_id,
-                    "unite": ligne["unite"],
-                }
-            )
-        elif type_ligne == "retour":
-            mouvements_a_persister.append(
-                {
-                    "type_mouvement": "RETOUR",
-                    "chantier_id": chantier_id,
-                    "materiau_id": materiau_id,
-                    "quantite": ligne["quantite"],
-                    "cout_unitaire": cout,
-                    "wct_id": wct_id,
-                    "unite": ligne["unite"],
-                }
-            )
-        elif type_ligne == "perte":
-            mouvements_a_persister.append(
-                {
-                    "type_mouvement": "PERTE",
-                    "chantier_id": chantier_id,
-                    "materiau_id": materiau_id,
-                    "quantite": -ligne["quantite"],
-                    "cout_unitaire": cout,
-                    "wct_id": wct_id,
-                    "unite": ligne["unite"],
-                }
-            )
-        else:  # "bris"
-            mouvements_a_persister.append(
-                {
-                    "type_mouvement": "BRIS",
-                    "chantier_id": chantier_id,
-                    "materiau_id": materiau_id,
-                    "quantite": -ligne["quantite"],
-                    "cout_unitaire": cout,
-                    "wct_id": wct_id,
-                    "unite": ligne["unite"],
-                }
-            )
+        # C1 : le coût vient de l'ARTICLE, jamais d'un refus. Les mouvements de CETTE déclaration ne servent pas de
+        # source (un coût ne se déduit pas d'une sortie) : seul l'historique d'avant l'écriture compte.
+        cout = cout_sortie.resoudre(chantier_id, materiau_id, ligne["unite"], jour, historique, livre_prix)
+        type_mouvement, signe = types_mouvement[ligne["type_ligne"]]
+        mouvements_a_persister.append(
+            {
+                "type_mouvement": type_mouvement,
+                "chantier_id": chantier_id,
+                "materiau_id": materiau_id,
+                "quantite": signe * ligne["quantite"],
+                "cout_unitaire": cout["cout_unitaire"],
+                "wct_id": wct_id,
+                "unite": ligne["unite"],
+                "origine_cout": cout["origine"],
+            }
+        )
 
     _, erreur = registre.ajouter_lot(mouvements_a_persister)
     if erreur is not None:

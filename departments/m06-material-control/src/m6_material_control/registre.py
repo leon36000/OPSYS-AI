@@ -9,7 +9,22 @@ TYPES_MOUVEMENT_VALIDES = frozenset(
 )
 HASH_PREDECESSEUR_INITIAL = ""
 
+# C1 : sources possibles de l'origine du coût d'une sortie (`cout_sortie.py`). Un frozenset : des valeurs d'entrée
+# autorisées, pas un verdict de sortie.
+SOURCES_ORIGINE_COUT = frozenset({"RECEPTION_CHANTIER", "RECEPTION_ARTICLE", "LIVRE_PRIX", "INCONNU"})
+
 _CHAMPS_MOUVEMENT_REQUIS = {"type_mouvement", "chantier_id", "materiau_id", "quantite", "cout_unitaire"}
+
+
+def _origine_cout_invalide(mouvement):
+    """Vrai si le mouvement porte une `origine_cout` mal formée : un objet dont la `source` est l'une des quatre dites,
+    et dont le coût est cohérent avec elle (INCONNU <=> pas de coût ; toute autre source <=> un coût)."""
+    if "origine_cout" not in mouvement:
+        return False
+    origine = mouvement["origine_cout"]
+    if not isinstance(origine, dict) or origine.get("source") not in SOURCES_ORIGINE_COUT:
+        return True
+    return (origine["source"] == "INCONNU") != (mouvement["cout_unitaire"] is None)
 
 
 class Registre:
@@ -52,6 +67,10 @@ class Registre:
         # Extension étiquetée : les anciens maillons sans unité gardent leur empreinte.
         if "unite" in mouvement:
             valeurs_hash.append({"unite_declaree": mouvement["unite"]})
+        # C1 : l'origine du coût d'une sortie (source, marquage, référence) est DITE sur le mouvement et entre dans
+        # son empreinte : changer la source d'un coût, c'est casser la chaîne. Absente, rien ne change.
+        if "origine_cout" in mouvement:
+            valeurs_hash.append({"origine_cout": mouvement["origine_cout"]})
         hash_maillon = encodage.empreinte(*valeurs_hash)
 
         maillon = {
@@ -68,6 +87,8 @@ class Registre:
             maillon["wct_id"] = wct_id
         if "unite" in mouvement:
             maillon["unite"] = mouvement["unite"]
+        if "origine_cout" in mouvement:
+            maillon["origine_cout"] = mouvement["origine_cout"]
         return maillon
 
     def ajouter(self, mouvement):
@@ -77,6 +98,8 @@ class Registre:
             return None, "REJ-MOUVEMENT-TYPE-INVALIDE"
         if "unite" in mouvement and (not isinstance(mouvement["unite"], str) or not mouvement["unite"].strip()):
             return None, "REJ-MOUVEMENT-UNITE-INVALIDE"
+        if _origine_cout_invalide(mouvement):
+            return None, "REJ-MOUVEMENT-ORIGINE-COUT-INVALIDE"
 
         hash_precedent = (
             self._maillons[-1]["hash_maillon"]
@@ -95,6 +118,8 @@ class Registre:
                 return None, "REJ-MOUVEMENT-TYPE-INVALIDE"
             if "unite" in mouvement and (not isinstance(mouvement["unite"], str) or not mouvement["unite"].strip()):
                 return None, "REJ-MOUVEMENT-UNITE-INVALIDE"
+            if _origine_cout_invalide(mouvement):
+                return None, "REJ-MOUVEMENT-ORIGINE-COUT-INVALIDE"
 
         maillons_construits = []
         hash_precedent = (
@@ -142,6 +167,8 @@ class Registre:
                 valeurs_hash.append(maillon["wct_id"])
             if "unite" in maillon:
                 valeurs_hash.append({"unite_declaree": maillon["unite"]})
+            if "origine_cout" in maillon:
+                valeurs_hash.append({"origine_cout": maillon["origine_cout"]})
             hash_attendu = encodage.empreinte(*valeurs_hash)
             if maillon["hash_maillon"] != hash_attendu:
                 return False, f"maillon invalide à l'index {index}"

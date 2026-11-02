@@ -115,6 +115,19 @@ def recevoir_courriel_envoye(charge: dict[str, Any]) -> dict[str, Any]:
     )
     if ligne is None:
         return {"ignore": True}
+    # C2 : M6 prend acte de l'envoi (sans seconde approbation) seulement si c'est bien le courriel qu'il a offert.
+    # `empreinte_courriel_po` : l'empreinte du courriel du PO que M6 nous a donnée ; `contenu_identique` : le brouillon
+    # envoyé est celui qu'on avait préparé (même empreinte qu'à la préparation), donc personne n'a modifié le texte.
+    preparee = next(
+        (
+            m
+            for m in _o._obtenir_registre().lire()
+            if m.get("type_entree") == TYPE_REPONSE_COURRIEL
+            and m.get("brouillon_id") == charge["brouillon_id"]
+            and m.get("etape") == "preparee"
+        ),
+        None,
+    )
     evenements.publier(
         TYPE_ENVOYEE,
         DEPARTEMENT,
@@ -123,6 +136,8 @@ def recevoir_courriel_envoye(charge: dict[str, Any]) -> dict[str, Any]:
             "brouillon_id": charge["brouillon_id"],
             "empreinte": charge["empreinte"],
             "envoye_le": charge["envoye_le"],
+            "empreinte_courriel_po": ligne["empreinte"],
+            "contenu_identique": preparee is not None and preparee.get("empreinte") == charge["empreinte"],
         },
         evenement_id=f"m1-commande-envoyee-{charge['brouillon_id']}-{charge['empreinte'][:12]}",
     )

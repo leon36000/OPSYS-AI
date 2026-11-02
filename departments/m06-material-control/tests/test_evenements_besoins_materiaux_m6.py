@@ -164,7 +164,7 @@ def test_un_po_reste_un_brouillon_demande_explicitement_et_exige_un_chantier(bas
     m6 = {o.nom: o for o in outils()}
     reponse = executer_atomique(m6["m6_creer_po_brouillon"], {
         "po_id": "PO-1", "devis_id": DEVIS, "fournisseur_id": "F-1", "horodatage": "2026-09-28T12:00:00+00:00",
-    })
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage"})
     assert reponse["ok"] is True
     assert reponse["resultat"] == {"accepte": False, "verdict": {"code": "REJ-PO-CHANTIER-INCONNU"}}
     assert _registre("bons_commande") == []

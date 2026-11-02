@@ -78,7 +78,8 @@ def _po_envoye(po_id="PO-FICT-1", devis_id="DEVIS-FICT-1", chantier_id="CH-FICT-
             m6_outils.enregistrer_besoins_prevus(chantier_id, devis_id, [
                 {"materiau_id": "gouttiere-5po", "quantite_estimee": gouttiere, "unite": "pi"},
                 {"materiau_id": "vis-inox", "quantite_estimee": vis, "unite": "boite"}]),
-            m6_outils.creer_po_brouillon(po_id, devis_id, "gentek", "2026-09-01T08:00:00-04:00"),
+            m6_outils.creer_po_brouillon(po_id, devis_id, "gentek", "2026-09-01T08:00:00-04:00", "2099-12-31",
+                                         "ramassage"),
             m6_outils.approuver_po(po_id, "2026-09-01T09:00:00-04:00"),
             m6_outils.generer_courriel_po(po_id, "2026-09-01T10:00:00-04:00", "Entreprise Fictive"),
             m6_outils.marquer_po_envoye(po_id, "2026-09-01T11:00:00-04:00"),
@@ -205,7 +206,8 @@ def test_le_cumul_est_exact_en_decimal(base):
             m6_outils.enregistrer_prix("scellant", "gentek", 12.0, "CAD", "2026-01-01"),
             m6_outils.enregistrer_besoins_prevus("CH-FICT-1", "DEVIS-FICT-1", [
                 {"materiau_id": "scellant", "quantite_estimee": 0.3, "unite": "tube"}]),
-            m6_outils.creer_po_brouillon("PO-FICT-1", "DEVIS-FICT-1", "gentek", "2026-09-01T08:00:00-04:00"),
+            m6_outils.creer_po_brouillon("PO-FICT-1", "DEVIS-FICT-1", "gentek", "2026-09-01T08:00:00-04:00",
+                                         "2099-12-31", "ramassage"),
             m6_outils.approuver_po("PO-FICT-1", "2026-09-01T09:00:00-04:00"),
             m6_outils.generer_courriel_po("PO-FICT-1", "2026-09-01T10:00:00-04:00", "Entreprise Fictive"),
             m6_outils.marquer_po_envoye("PO-FICT-1", "2026-09-01T11:00:00-04:00"),
@@ -254,7 +256,8 @@ def test_le_rejeu_d_une_livraison_partielle_ne_fait_jamais_passer_le_po_a_receiv
             m6_outils.enregistrer_prix("gouttiere-5po", "gentek", 8.5, "CAD", "2026-01-01"),
             m6_outils.enregistrer_besoins_prevus("CH-FICT-1", "DEVIS-FICT-1", [
                 {"materiau_id": "gouttiere-5po", "quantite_estimee": 100.0, "unite": "pi"}]),
-            m6_outils.creer_po_brouillon("PO-FICT-1", "DEVIS-FICT-1", "gentek", "2026-09-01T08:00:00-04:00"),
+            m6_outils.creer_po_brouillon("PO-FICT-1", "DEVIS-FICT-1", "gentek", "2026-09-01T08:00:00-04:00",
+                                         "2099-12-31", "ramassage"),
             m6_outils.approuver_po("PO-FICT-1", "2026-09-01T09:00:00-04:00"),
             m6_outils.generer_courriel_po("PO-FICT-1", "2026-09-01T10:00:00-04:00", "Entreprise Fictive"),
             m6_outils.marquer_po_envoye("PO-FICT-1", "2026-09-01T11:00:00-04:00"),
@@ -495,7 +498,7 @@ def test_hors_transaction_deux_livraisons_completent_le_po_en_memoire():
         {"materiau_id": "gouttiere-5po", "quantite_estimee": 100.0, "unite": "pi"},
         {"materiau_id": "vis-inox", "quantite_estimee": 20.0, "unite": "boite"}])["registre_historique"]
     bch = m6_outils.creer_po_brouillon(
-        "PO-FICT-1", "DEVIS-FICT-1", "gentek", "2026-09-01T08:00:00-04:00",
+        "PO-FICT-1", "DEVIS-FICT-1", "gentek", "2026-09-01T08:00:00-04:00", "2099-12-31", "ramassage",
         besoins_prevus_historique=bh, livre_prix_historique=lph, fournisseurs_historique=fh)["bons_commande_historique"]
     for etape in (lambda h: m6_outils.approuver_po("PO-FICT-1", "2026-09-01T09:00:00-04:00",
                                                    bons_commande_historique=h),

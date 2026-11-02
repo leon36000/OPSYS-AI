@@ -17,6 +17,8 @@ import pytest
 from m6_material_control import bons_commande, evenement_reception, fournisseurs, livre_prix, reception
 from m6_material_control.registre import Registre
 
+CONDITIONS_PO = {"date_requise": "2099-12-31", "mode_livraison": "ramassage"}
+
 FICTIF = True
 
 COMMANDE = [
@@ -189,8 +191,10 @@ def _registre_po_envoye():
     for materiau in ("gouttiere-5po", "vis-inox"):
         livre_prix.enregistrer_prix(materiau, "gentek", 1.0, "CAD", "2026-01-01", registre_prix)
     po, verdict = bons_commande.creer_brouillon(
-        "PO-FICT-1", "CH-FICT-1", "gentek", COMMANDE, "2026-01-02T00:00:00Z",
-        registre_po, registre_prix, registre_fournisseurs)
+        "PO-FICT-1", "CH-FICT-1", "gentek",
+        [{"materiau_id": x["materiau_id"], "quantite_nette": x["quantite_demandee"], "unite": "u"} for x in COMMANDE],
+        "2026-01-02T00:00:00Z",
+        registre_po, registre_prix, registre_fournisseurs, conditions=CONDITIONS_PO)
     assert verdict is None, verdict
     bons_commande.approuver("PO-FICT-1", "2026-01-03T00:00:00Z", registre_po)
     bons_commande.generer_courriel(

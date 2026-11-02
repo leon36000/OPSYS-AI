@@ -12,6 +12,8 @@ import pytest
 from m6_material_control import bons_commande, contrats, fournisseurs, livre_prix
 from m6_material_control.registre import Registre
 
+CONDITIONS_PO = {"date_requise": "2099-12-31", "mode_livraison": "ramassage"}
+
 
 def _fournisseurs_avec_gentek(courriel="commandes@gentek.exemple-fictif.test"):
     registre: list[dict] = []
@@ -31,14 +33,13 @@ def _creer_po(
     po_id="PO-1", chantier_id="C1", lignes=None, registre_po=None,
     registre_prix=None, registre_fournisseurs=None,
 ):
-    lignes = lignes if lignes is not None else [{"materiau_id": "MAT-1", "quantite_demandee": 5.0}]
+    lignes = lignes if lignes is not None else [{"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}]
     registre_po = [] if registre_po is None else registre_po
     registre_prix = _prix_gentek() if registre_prix is None else registre_prix
     registre_fournisseurs = _fournisseurs_avec_gentek() if registre_fournisseurs is None else registre_fournisseurs
     po, verdict = bons_commande.creer_brouillon(
         po_id, chantier_id, "gentek", lignes, "2026-01-02T00:00:00Z",
-        registre_po, registre_prix, registre_fournisseurs,
-    )
+        registre_po, registre_prix, registre_fournisseurs, conditions=CONDITIONS_PO)
     assert verdict is None, verdict
     return po, registre_po
 
@@ -52,7 +53,7 @@ def test_calculer_lignes_a_commander_ecart_positif():
                        "quantite": 3.0, "cout_unitaire": 10.0})
     besoins = [{"materiau_id": "MAT-1", "quantite_estimee": 10.0, "unite": "boite"}]
     lignes = bons_commande.calculer_lignes_a_commander(besoins, "C1", registre)
-    assert lignes == [{"materiau_id": "MAT-1", "quantite_demandee": 7.0}]
+    assert lignes == [{"materiau_id": "MAT-1", "quantite_nette": 7.0, "unite": "boite"}]
 
 
 def test_calculer_lignes_a_commander_stock_suffisant_omet_la_ligne():
@@ -67,7 +68,7 @@ def test_calculer_lignes_a_commander_aucun_stock_commande_tout():
     registre = Registre()
     besoins = [{"materiau_id": "MAT-1", "quantite_estimee": 10.0, "unite": "boite"}]
     assert bons_commande.calculer_lignes_a_commander(besoins, "C1", registre) == [
-        {"materiau_id": "MAT-1", "quantite_demandee": 10.0}
+        {"materiau_id": "MAT-1", "quantite_nette": 10.0, "unite": "boite"}
     ]
 
 
@@ -125,8 +126,10 @@ def test_creer_brouillon_nominal_prix_livre():
     assert po["fournisseur_id"] == "gentek"
     assert po["lignes"] == [
         {
-            "materiau_id": "MAT-1", "quantite_demandee": 5.0, "verdict_prix": "PRIX_LIVRE",
+            "materiau_id": "MAT-1", "designation": None, "unite": "boite", "unite_source": "declaree",
+            "quantite_nette": 5.0, "facteur_perte": None, "quantite_demandee": 5.0, "verdict_prix": "PRIX_LIVRE",
             "prix_unitaire_prevu": 10.0, "devise_prevue": "CAD", "montant_ligne_prevu": 50.0,
+            "prix_unite_confirmee": False,
         }
     ]
     assert po["montant_total_prevu"] == 50.0
@@ -142,38 +145,37 @@ def test_creer_brouillon_prix_indetermine_jamais_bloquant_a_la_creation():
 
 def test_creer_brouillon_fournisseur_inconnu_refuse_nomme():
     po, verdict = bons_commande.creer_brouillon(
-        "PO-1", "C1", "fournisseur-fantome", [{"materiau_id": "MAT-1", "quantite_demandee": 5.0}],
-        "2026-01-02T00:00:00Z", [], _prix_gentek(), [],
-    )
+        "PO-1", "C1", "fournisseur-fantome", [{"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}],
+        "2026-01-02T00:00:00Z", [], _prix_gentek(), [], conditions=CONDITIONS_PO)
     assert po is None
     assert verdict["code"] == "REJ-PO-FOURNISSEUR-INCONNU"
 
 
 def test_creer_brouillon_lignes_vides_refuse_nomme():
     po, verdict = bons_commande.creer_brouillon(
-        "PO-1", "C1", "gentek", [], "2026-01-02T00:00:00Z", [], [], _fournisseurs_avec_gentek()
-    )
+        "PO-1", "C1", "gentek", [], "2026-01-02T00:00:00Z", [], [], _fournisseurs_avec_gentek(),
+        conditions=CONDITIONS_PO)
     assert po is None
     assert verdict["code"] == "REJ-PO-LIGNES-VIDES"
 
 
 def test_creer_brouillon_ligne_dupliquee_refuse_nomme():
     lignes = [
-        {"materiau_id": "MAT-1", "quantite_demandee": 5.0},
-        {"materiau_id": "MAT-1", "quantite_demandee": 2.0},
+        {"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"},
+        {"materiau_id": "MAT-1", "quantite_nette": 2.0, "unite": "boite"},
     ]
     po, verdict = bons_commande.creer_brouillon(
-        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], _prix_gentek(), _fournisseurs_avec_gentek()
-    )
+        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], _prix_gentek(), _fournisseurs_avec_gentek(),
+        conditions=CONDITIONS_PO)
     assert po is None
     assert verdict["code"] == "REJ-PO-LIGNE-DUPLIQUEE"
 
 
 def test_creer_brouillon_quantite_invalide_refuse_nomme():
-    lignes = [{"materiau_id": "MAT-1", "quantite_demandee": -1.0}]
+    lignes = [{"materiau_id": "MAT-1", "quantite_nette": -1.0, "unite": "boite"}]
     po, verdict = bons_commande.creer_brouillon(
-        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], _prix_gentek(), _fournisseurs_avec_gentek()
-    )
+        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], _prix_gentek(), _fournisseurs_avec_gentek(),
+        conditions=CONDITIONS_PO)
     assert po is None
     assert verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
 
@@ -181,11 +183,10 @@ def test_creer_brouillon_quantite_invalide_refuse_nomme():
 def test_creer_brouillon_frontiere_violee_refuse_nomme():
     # Clé interdite (DA-M6-03 ensemble #1) glissée dans une ligne, vérifiée AVANT la structure
     # exacte de la ligne (ordre épinglé : frontière -> structure, comme validation.py).
-    ligne_avec_cle_interdite = {"materiau_id": "MAT-1", "quantite_demandee": 5.0, "prix_vente": 1}
+    ligne_avec_cle_interdite = {"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite", "prix_vente": 1}
     po, verdict = bons_commande.creer_brouillon(
         "PO-1", "C1", "gentek", [ligne_avec_cle_interdite],
-        "2026-01-02T00:00:00Z", [], _prix_gentek(), _fournisseurs_avec_gentek(),
-    )
+        "2026-01-02T00:00:00Z", [], _prix_gentek(), _fournisseurs_avec_gentek(), conditions=CONDITIONS_PO)
     assert po is None
     assert verdict["code"] == "REJ-FRONTIERE-VIOLEE"
 
@@ -194,14 +195,14 @@ def test_creer_brouillon_idempotent_replay_identique():
     registre_po: list[dict] = []
     registre_prix = _prix_gentek()
     registre_fournisseurs = _fournisseurs_avec_gentek()
-    lignes = [{"materiau_id": "MAT-1", "quantite_demandee": 5.0}]
+    lignes = [{"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}]
     po1, _ = _creer_po(
         registre_po=registre_po, registre_prix=registre_prix,
         registre_fournisseurs=registre_fournisseurs, lignes=lignes,
     )
     po2, verdict = bons_commande.creer_brouillon(
-        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", registre_po, registre_prix, registre_fournisseurs
-    )
+        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", registre_po, registre_prix, registre_fournisseurs,
+        conditions=CONDITIONS_PO)
     assert verdict is None
     assert po2 == po1
     assert len(registre_po) == 1, "rejoué à l'identique -> aucun maillon de plus"
@@ -213,9 +214,8 @@ def test_creer_brouillon_meme_po_id_contenu_different_refuse_nomme():
     registre_fournisseurs = _fournisseurs_avec_gentek()
     _creer_po(registre_po=registre_po, registre_prix=registre_prix, registre_fournisseurs=registre_fournisseurs)
     po2, verdict = bons_commande.creer_brouillon(
-        "PO-1", "C1", "gentek", [{"materiau_id": "MAT-1", "quantite_demandee": 999.0}],
-        "2026-01-02T00:00:00Z", registre_po, registre_prix, registre_fournisseurs,
-    )
+        "PO-1", "C1", "gentek", [{"materiau_id": "MAT-1", "quantite_nette": 999.0, "unite": "boite"}],
+        "2026-01-02T00:00:00Z", registre_po, registre_prix, registre_fournisseurs, conditions=CONDITIONS_PO)
     assert po2 is None
     assert verdict["code"] == "REJ-PO-ID-DEJA-UTILISE"
 
@@ -585,7 +585,8 @@ def test_capture_provenance_po_hors_lignes_economiques(source, marque):
     livre, registre_po = [], []
     livre_prix.enregistrer_prix("MAT-1", "gentek", 12.5, "CAD", "2026-01-01", livre, source)
     po, registre_retour = _creer_po(
-        lignes=[{"materiau_id": "MAT-1", "quantite_demandee": 2.0}], registre_po=registre_po, registre_prix=livre
+        lignes=[{"materiau_id": "MAT-1", "quantite_nette": 2.0,
+                 "unite": "boite"}], registre_po=registre_po, registre_prix=livre
     )
     assert registre_retour is registre_po and po["statut"] == "draft"
     assert po["provenance_prix_lignes"] == [
@@ -597,6 +598,7 @@ def test_capture_provenance_po_hors_lignes_economiques(source, marque):
             "marquage_source": marque,
         }
     ]
+    # Les six champs économiques d'origine (identité du rejeu) + ceux de C2 (unité, quantité nette, perte déclarée).
     assert set(po["lignes"][0]) == {
         "materiau_id",
         "quantite_demandee",
@@ -604,6 +606,7 @@ def test_capture_provenance_po_hors_lignes_economiques(source, marque):
         "prix_unitaire_prevu",
         "devise_prevue",
         "montant_ligne_prevu",
+        "designation", "unite", "unite_source", "quantite_nette", "facteur_perte", "prix_unite_confirmee",
     }
     assert po["montant_total_prevu"] == 25.0
     assert registre_po[0]["provenance_prix_lignes"] == po["provenance_prix_lignes"]
@@ -628,12 +631,11 @@ def test_rejeu_meme_id_garde_capture_originale_malgre_doc_date_modifies():
         "PO-1",
         "C1",
         "gentek",
-        [{"materiau_id": "MAT-1", "quantite_demandee": 5.0}],
+        [{"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}],
         "2026-01-02T00:00:00Z",
         registre_po,
         livre,
-        _fournisseurs_avec_gentek(),
-    )
+        _fournisseurs_avec_gentek(), conditions=CONDITIONS_PO)
     assert conflit is None and verdict["code"] == "REJ-PO-ID-DEJA-UTILISE"
     assert registre_po == avant
 

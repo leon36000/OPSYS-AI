@@ -60,7 +60,8 @@ from typing import Any
 
 from . import besoins_materiaux_recus, validation
 
-__all__ = ["SOURCE_ESTIMATION_M3", "enregistrer", "enregistrer_estimation", "pour_devis"]
+__all__ = ["SOURCE_ESTIMATION_M3", "enregistrer", "enregistrer_estimation", "designations_declarees",
+           "facteurs_perte_declares", "pour_devis"]
 
 # Valeur de la clé optionnelle `source` d'un maillon de prévu PROVISOIRE (estimation M3). Un maillon
 # sans `source` — devis accepté ou outil manuel — est un prévu DÉFINITIF.
@@ -115,6 +116,45 @@ def pour_devis(devis_id: Any, maillons_existants: Iterable[Mapping[str, Any]]) -
             return maillon
         provisoire = maillon
     return provisoire
+
+
+def facteurs_perte_declares(devis_id: Any, maillons_existants: Iterable[Mapping[str, Any]]) -> dict[str, str]:
+    """Les facteurs de perte DÉCLARÉS par M3 pour ce devis, par `materiau_id` (texte décimal tel que reçu), tirés de la
+    dernière version d'estimation rangée (`detail_lignes`). Seuls les facteurs que M3 a effectivement fournis : un
+    article
+    sans facteur n'a pas d'entrée, jamais un zéro ni une valeur moyenne (C2, « déclaré, jamais inventé »). Le prévu
+    définitif d'un devis accepté ne porte pas de perte ; c'est l'estimation qui la déclare."""
+    if not isinstance(devis_id, str) or not devis_id:
+        return {}
+    derniere = None
+    for maillon in maillons_existants:
+        if maillon.get("devis_id") == devis_id and _est_provisoire(maillon):
+            derniere = maillon
+    if derniere is None:
+        return {}
+    return {
+        ligne["materiau_id"]: ligne["facteur_perte"]
+        for ligne in derniere.get("detail_lignes", ())
+        if isinstance(ligne.get("facteur_perte"), str)
+    }
+
+
+def designations_declarees(devis_id: Any, maillons_existants: Iterable[Mapping[str, Any]]) -> dict[str, str]:
+    """Les désignations (noms) que M3 a données aux articles de ce devis, par `materiau_id`, tirées de la dernière
+    version d'estimation rangée. Facultatif : un article sans désignation connue n'a pas d'entrée."""
+    if not isinstance(devis_id, str) or not devis_id:
+        return {}
+    derniere = None
+    for maillon in maillons_existants:
+        if maillon.get("devis_id") == devis_id and _est_provisoire(maillon):
+            derniere = maillon
+    if derniere is None:
+        return {}
+    return {
+        ligne["materiau_id"]: ligne["materiau"]
+        for ligne in derniere.get("detail_lignes", ())
+        if isinstance(ligne.get("materiau"), str) and ligne["materiau"].strip()
+    }
 
 
 def _est_provisoire(maillon: Mapping[str, Any]) -> bool:

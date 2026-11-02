@@ -75,8 +75,6 @@ et ne paie rien ; il ne convertit aucune unité (le livre de prix n'en déclare 
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -94,6 +92,7 @@ from opsys import equipes as equipes_entreprise
 from opsys.etat import journaliser
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Autonomie, Niveau, Outil
+from opsys.reglages import lecture as reglages_lecture
 from opsys.stockage import codec
 from opsys.stockage.maillons import EcritureConcurrente
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
@@ -103,10 +102,12 @@ from . import (
     besoins_materiaux_recus,
     besoins_prevus,
     bons_commande,
+    catalogue_materiaux,
     classement_variance_appareil,
     constat_disponibilite,
     contexte_materiaux_appareil,
     contrats,
+    cout_sortie,
     digest,
     emplacements,
     encodage,
@@ -116,6 +117,7 @@ from . import (
     materiel,
     notes_commande,
     pertes_appareil,
+    po_lecture,
     preuves_pertes_bris,
     preuves_pertes_bris_appareil,
     rapprochements_recus,
@@ -410,6 +412,25 @@ def _bons_commande_de_l_appel(historique: list[dict[str, Any]] | None) -> list[d
     return list(historique or [])
 
 
+def _seuil_decimal(cle: str) -> Any:
+    """La valeur de `configuration.<cle>` : celle que la direction a ADOPTÉE (réglage de direction, CFG-1,
+    `opsys.reglages`) si elle existe, sinon celle de `department.yaml`, sinon `None`. Une valeur adoptée est un texte
+    décimal (« 0.25 ») ; elle est rendue comme le nombre que les validateurs attendent. Relue à chaque appel : une
+    adoption ou un retour arrière se voit à l'appel suivant."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration")
+    du_fichier = configuration if isinstance(configuration, dict) else {}
+    # Précédence : opsys/reglages/lecture.py (adopté > fichier > absence ; sans rien d'adopté, le fichier tel quel).
+    lue = reglages_lecture.superposer(donnees, ("configuration",), du_fichier)
+    valeur = lue.get(cle) if isinstance(lue, dict) else None
+    if isinstance(valeur, str):
+        try:
+            return float(Decimal(valeur))
+        except ArithmeticError:
+            return None
+    return valeur
+
+
 def _seuil_variance_chantier() -> float | None:
     """Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, PLAN T1.2) : lu
     depuis `department.yaml/configuration` — JAMAIS un nombre codé en dur ici ni dans
@@ -425,9 +446,7 @@ def _seuil_variance_chantier() -> float | None:
     `None` — jamais un défaut inventé. Le consommateur d'événement rapporte alors
     `statut_variance="seuil_absent"` plutôt que d'évaluer quoi que ce soit.
     """
-    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
-    configuration = donnees.get("configuration") or {}
-    seuil = configuration.get("seuil_variance_chantier_pourcentage")
+    seuil = _seuil_decimal("seuil_variance_chantier_pourcentage")
     ok, _ = validation.valider_seuil_variance_chantier(seuil)
     return seuil if ok else None
 
@@ -439,9 +458,7 @@ def _seuil_ecart_prix_reception() -> float | None:
     validateur, `validation.valider_seuil_variance_chantier`, réutilisé tel quel plutôt que
     dupliqué). Absent ou invalide : `None`, jamais un défaut inventé — `receptionner_commande`
     rend alors une liste de signaux vide plutôt que d'évaluer quoi que ce soit."""
-    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
-    configuration = donnees.get("configuration") or {}
-    seuil = configuration.get("seuil_ecart_prix_reception_pourcentage")
+    seuil = _seuil_decimal("seuil_ecart_prix_reception_pourcentage")
     ok, _ = validation.valider_seuil_variance_chantier(seuil)
     return seuil if ok else None
 
@@ -1213,7 +1230,8 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
                for ligne in formulaire["lignes_materiaux"]):
             return {"accepte": False, "verdict": {"code": "REJ-FORMULAIRE-MATERIAUX-UNITE-INCOHERENTE"}}
     registre_cible = _registre_de_l_appel(None)
-    resultat, code = materiel.soumettre_materiaux_utilises(wct, formulaire, registre_cible)
+    resultat, code = materiel.soumettre_materiaux_utilises(
+        wct, formulaire, registre_cible, livre_prix=_livre_prix_de_l_appel(None))
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
     if acteur is not None and acteur.role == "employee" and acces.lien_declarant(
@@ -1294,6 +1312,9 @@ def evaluer_variance_chantier(
     )
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
+    if resultat.get("signal_variance_critique") is not None:
+        # C3 : l'écart critique se dit avec les mots de Nathan, jamais autrement (aucune accusation).
+        resultat = {**resultat, "message_admin": variance_chantier.MESSAGE_ECART_CRITIQUE}
     return {"accepte": True, "resultat": resultat}
 
 
@@ -1551,31 +1572,43 @@ exacte, à la mutation et à son auteur, même si l'appareil a changé de person
     n.verifier_borne(attendu, contexte.limite_sortie() or n.BORNE_SORTIE)
 
 
-def creer_po_brouillon(
-    po_id: str,
+def _unites_et_designations_fiche(materiau_ids: list[str]) -> tuple[dict[str, str], dict[str, str]]:
+    """L'unité et le nom de la fiche article (`catalogue_materiaux`) de chaque matériau qui en a une. Hors transaction,
+    ou sans fiche : rien (la ligne garde l'unité du besoin, et le dit). Un journal de fiches illisible lève
+    `catalogue_materiaux.CatalogueRefuse` : le PO attend, jamais une unité devinée."""
+    if stockage.connexion_courante() is None:
+        return {}, {}
+    journal = stockage.maillons(_DEPARTEMENT, catalogue_materiaux.REGISTRE)
+    unites: dict[str, str] = {}
+    noms: dict[str, str] = {}
+    for materiau_id in materiau_ids:
+        try:
+            fiche = catalogue_materiaux.lire(journal, materiau_id)
+        except catalogue_materiaux.CatalogueRefuse as exc:
+            if exc.code == "INTROUVABLE":
+                continue
+            raise
+        unites[materiau_id], noms[materiau_id] = fiche["unite"], fiche["nom"]
+    return unites, noms
+
+
+def _lignes_du_besoin(
     devis_id: str,
-    fournisseur_id: str,
-    horodatage: str,
-    besoins_prevus_historique: list[dict[str, Any]] | None = None,
-    registre_historique: list[dict[str, Any]] | None = None,
-    livre_prix_historique: list[dict[str, Any]] | None = None,
-    fournisseurs_historique: list[dict[str, Any]] | None = None,
-    bons_commande_historique: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    """Crée un PO BROUILLON à partir des besoins prévus (`m6_enregistrer_besoins_prevus`, source
-    `m3.devis_accepte`) et du stock déjà disponible pour le chantier — PAR LE CODE
-    (`bons_commande.calculer_lignes_a_commander`), jamais deviné : seul l'ÉCART entre l'estimé et
-    le disponible atterrit sur le PO. `devis_id` (pas `chantier_id`) est la clé d'entrée : c'est
-    la même clé que `besoins_prevus.py` utilise déjà. Un chantier entièrement couvert par le stock
-    rend `statut: "aucun_achat_requis"`, PAS un PO vide."""
+    besoins_prevus_historique: list[dict[str, Any]] | None,
+    registre_historique: list[dict[str, Any]] | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Les lignes à commander d'un devis (C2) : `(contexte, None)` ou `(None, refus)`. Le contexte porte le
+    `chantier_id`, les lignes `{materiau_id, quantite_nette, unite, facteur_perte, designation, unite_source}` et
+    `depuis_reservation`. Les quantités sont calculées PAR LE CODE : ce qui manque à la réservation active, sinon
+    l'écart entre l'estimé et le stock du chantier (T4.14). Le facteur de perte est celui que M3 a DÉCLARÉ pour
+    l'article, sinon aucun (`None`) : jamais une perte inventée."""
     besoins_registre = _besoins_prevus_de_l_appel(besoins_prevus_historique)
     besoin = besoins_prevus.pour_devis(devis_id, besoins_registre)
     if besoin is None:
-        return {"accepte": False, "verdict": {"code": "REJ-PO-BESOIN-INTROUVABLE"}}
+        return None, {"accepte": False, "verdict": {"code": "REJ-PO-BESOIN-INTROUVABLE"}}
     chantier_id = besoin["chantier_id"]
     if not chantier_id:
-        return {"accepte": False, "verdict": {"code": "REJ-PO-CHANTIER-INCONNU"}}
-
+        return None, {"accepte": False, "verdict": {"code": "REJ-PO-CHANTIER-INCONNU"}}
     mouvements_registre = _registre_de_l_appel(registre_historique)
     # T4.14 : quand une réservation ACTIVE existe pour ce devis, ce qu'on commande est ce qui lui MANQUE (besoin -
     # réservé), pas l'écart au stock du chantier : le stock du dépôt mis de côté pour ce devis est déjà couvert, et
@@ -1585,27 +1618,139 @@ def creer_po_brouillon(
         if stockage.connexion_courante() is not None else None
     )
     depuis_reservation = reservation is not None and reservation["actif"]
+    unites_besoin = {ligne["materiau_id"]: ligne["unite"] for ligne in besoin["lignes"]}
     if depuis_reservation:
         lignes = [
-            {"materiau_id": ligne["materiau_id"], "quantite_demandee": float(Decimal(ligne["quantite_manquante"]))}
+            {"materiau_id": ligne["materiau_id"], "quantite_nette": float(Decimal(ligne["quantite_manquante"])),
+             "unite": ligne.get("unite") or unites_besoin.get(ligne["materiau_id"])}
             for ligne in reservations.lignes_manquantes(reservation["lignes"])
         ]
     else:
         lignes = bons_commande.calculer_lignes_a_commander(besoin["lignes"], chantier_id, mouvements_registre)
+    pertes = besoins_prevus.facteurs_perte_declares(devis_id, besoins_registre)
+    noms_m3 = besoins_prevus.designations_declarees(devis_id, besoins_registre)
+    unites_fiche, noms_fiche = _unites_et_designations_fiche([ligne["materiau_id"] for ligne in lignes])
+    for ligne in lignes:
+        ligne["facteur_perte"] = pertes.get(ligne["materiau_id"])
+        ligne["designation"] = noms_fiche.get(ligne["materiau_id"]) or noms_m3.get(ligne["materiau_id"])
+        ligne["unite_source"] = "besoin_prevu"
+    return {"chantier_id": chantier_id, "lignes": lignes, "unites_fiche": unites_fiche,
+            "depuis_reservation": depuis_reservation}, None
+
+
+def _conditions(date_requise: Any, mode_livraison: Any, lieu_livraison: Any, ville: Any, notes: Any,
+                devis_id: str) -> dict[str, Any]:
+    return {"date_requise": date_requise, "mode_livraison": mode_livraison, "lieu_livraison": lieu_livraison,
+            "ville": ville, "notes": notes, "devis_id": devis_id}
+
+
+def creer_po_brouillon(
+    po_id: str,
+    devis_id: str,
+    fournisseur_id: str,
+    horodatage: str,
+    date_requise: str,
+    mode_livraison: str,
+    lieu_livraison: str | None = None,
+    ville: str | None = None,
+    notes: str | None = None,
+    materiau_ids: list[str] | None = None,
+    besoins_prevus_historique: list[dict[str, Any]] | None = None,
+    registre_historique: list[dict[str, Any]] | None = None,
+    livre_prix_historique: list[dict[str, Any]] | None = None,
+    fournisseurs_historique: list[dict[str, Any]] | None = None,
+    bons_commande_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Crée UN PO BROUILLON commandable (C2) à partir des besoins prévus (`m6_enregistrer_besoins_prevus`, source
+    `m3.devis_accepte`, perte déclarée par l'estimation M3) et du stock déjà disponible pour le chantier — PAR LE CODE
+    (`_lignes_du_besoin`), jamais deviné : seul l'ÉCART atterrit sur le PO. `devis_id` (pas `chantier_id`) est la clé
+    d'entrée. `materiau_ids` (facultatif) limite le PO à ces lignes du besoin : un autre fournisseur commande les
+    autres (voir `creer_pos_depuis_besoin`). Un chantier entièrement couvert par le stock rend
+    `statut: "aucun_achat_requis"`, PAS un PO vide."""
+    contexte_besoin, refus = _lignes_du_besoin(devis_id, besoins_prevus_historique, registre_historique)
+    if refus is not None:
+        return refus
+    lignes = contexte_besoin["lignes"]
     if not lignes:
         return {"accepte": True, "po": None, "statut": "aucun_achat_requis"}
+    if materiau_ids is not None:
+        inconnus = sorted(set(materiau_ids) - {ligne["materiau_id"] for ligne in lignes})
+        if inconnus or not materiau_ids:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-PO-REPARTITION-INCONNUE",
+                detail=f"lignes qui ne sont pas à commander pour ce besoin : {inconnus}")}
+        lignes = [ligne for ligne in lignes if ligne["materiau_id"] in set(materiau_ids)]
 
     prix_registre = _livre_prix_de_l_appel(livre_prix_historique)
     fournisseurs_registre = _fournisseurs_de_l_appel(fournisseurs_historique)
     bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
     resultat, verdict = bons_commande.creer_brouillon(
-        po_id, chantier_id, fournisseur_id, lignes, horodatage, bons_registre, prix_registre, fournisseurs_registre
+        po_id, contexte_besoin["chantier_id"], fournisseur_id, lignes, horodatage, bons_registre, prix_registre,
+        fournisseurs_registre, conditions=_conditions(date_requise, mode_livraison, lieu_livraison, ville, notes,
+                                                      devis_id),
+        unites_fiche=contexte_besoin["unites_fiche"],
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     reponse = _reponse_po(resultat, bons_registre)
-    if depuis_reservation:
+    reponse["facteurs_perte_absents"] = [ligne["materiau_id"] for ligne in resultat["lignes"] if ligne["facteur_perte"]
+    is None]
+    if contexte_besoin["depuis_reservation"]:
         reponse["quantites_depuis"] = "reservation"
+    return reponse
+
+
+def creer_pos_depuis_besoin(
+    devis_id: str,
+    horodatage: str,
+    date_requise: str,
+    mode_livraison: str,
+    repartition: list[dict[str, Any]],
+    lieu_livraison: str | None = None,
+    ville: str | None = None,
+    notes: str | None = None,
+    besoins_prevus_historique: list[dict[str, Any]] | None = None,
+    registre_historique: list[dict[str, Any]] | None = None,
+    livre_prix_historique: list[dict[str, Any]] | None = None,
+    fournisseurs_historique: list[dict[str, Any]] | None = None,
+    bons_commande_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Un besoin, PLUSIEURS fournisseurs (C2) : crée UN PO BROUILLON par fournisseur, toutes les lignes à commander
+    réparties exactement une fois (`bons_commande.repartir_besoin`). TOUT OU RIEN : les PO sont d'abord construits sur
+    une copie du registre ; s'il y a un seul refus, rien n'est écrit. Rejouer la même répartition n'ajoute rien."""
+    contexte_besoin, refus = _lignes_du_besoin(devis_id, besoins_prevus_historique, registre_historique)
+    if refus is not None:
+        return refus
+    if not contexte_besoin["lignes"]:
+        return {"accepte": True, "pos": [], "statut": "aucun_achat_requis"}
+    affectations, verdict = bons_commande.repartir_besoin(contexte_besoin["lignes"], repartition)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    prix_registre = _livre_prix_de_l_appel(livre_prix_historique)
+    fournisseurs_registre = _fournisseurs_de_l_appel(fournisseurs_historique)
+    bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
+    copie = list(bons_registre)
+    cree: list[dict[str, Any]] = []
+    for affectation in affectations:
+        po, verdict = bons_commande.creer_brouillon(
+            affectation["po_id"], contexte_besoin["chantier_id"], affectation["fournisseur_id"], affectation["lignes"],
+            horodatage, copie, prix_registre, fournisseurs_registre,
+            conditions=_conditions(date_requise, mode_livraison, lieu_livraison, ville, notes, devis_id),
+            unites_fiche=contexte_besoin["unites_fiche"],
+        )
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+        cree.append(po)
+    for maillon in copie[len(bons_registre):]:
+        bons_registre.append(maillon)
+    reponse: dict[str, Any] = {
+        "accepte": True,
+        "pos": [bons_commande.projeter_provenance_prix(po) for po in cree],
+        "facteurs_perte_absents": sorted({
+            ligne["materiau_id"] for po in cree for ligne in po["lignes"] if ligne["facteur_perte"] is None}),
+    }
+    if stockage.connexion_courante() is None:
+        reponse["bons_commande_historique"] = list(bons_registre)
     return reponse
 
 
@@ -1654,7 +1799,7 @@ def _publier_courriel_po_pret(po: dict[str, Any]) -> None:
     courriel = po.get("courriel") or {}
     if stockage.connexion_courante() is None or not courriel.get("destinataire"):
         return
-    empreinte = hashlib.sha256(json.dumps(courriel, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    empreinte = courriel["empreinte"]  # celle du courriel exact (`bons_commande.construire_courriel`), rapportée par M1
     try:
         evenements.publier("m6.po_courriel_pret", _DEPARTEMENT, {
             "po_id": po["po_id"], "fournisseur_id": po["fournisseur_id"], "destinataire": courriel["destinataire"],
@@ -1672,6 +1817,106 @@ def marquer_po_envoye(
     N4 ». Aucune primitive d'envoi réel ici (voir bons_commande.marquer_envoye)."""
     registre_cible = _bons_commande_de_l_appel(bons_commande_historique)
     resultat, verdict = bons_commande.marquer_envoye(po_id, horodatage, registre_cible)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return _reponse_po(resultat, registre_cible)
+
+
+# ---------------------------------------------------------------------------------------------- C3
+# Lecture des bons de commande : liste blanche (`po_lecture.py`), admin seulement, aucune écriture.
+_LIMITE_PO_LUS = 25
+
+
+def _fiche_nom(fournisseur_id: Any) -> str | None:
+    fiche = fournisseurs.lire_fournisseur(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FOURNISSEURS), fournisseur_id)
+    return fiche.get("nom") if fiche is not None else None
+
+
+def _creations(registre: list[dict[str, Any]]) -> dict[str, Any]:
+    return {m["po_id"]: m.get("horodatage") for m in registre if m.get("type_entree") == "po_cree"}
+
+
+def lister_po(
+    statut: str | None = None,
+    fournisseur_id: str | None = None,
+    chantier_id: str | None = None,
+    devis_id: str | None = None,
+    en_retard: bool | None = None,
+    aujourd_hui: str | None = None,
+    depart: int = 0,
+    limite: int = 10,
+) -> dict[str, Any]:
+    """Liste les bons de commande (C3), lecture seule, admin. Filtres cumulables ; `comptes` dit combien de PO il y a
+    par statut au TOTAL (pas seulement dans le filtre) ; pagination `depart`/`limite` (25 au plus) avec `suivant` :
+    chaque
+    PO est dans une page, aucun n'est tronqué. `aujourd_hui` (AAAA-MM-JJ) permet d'évaluer « en retard » (date requise
+    dépassée pour un PO envoyé, confirmé ou partiellement reçu) ; sans lui `en_retard` vaut `null` (non évalué)."""
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    if aujourd_hui is not None and po_lecture.jour_valide(aujourd_hui) is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-PO-LECTURE-JOUR-INVALIDE", detail="aujourd_hui : un jour civil AAAA-MM-JJ")}
+    if en_retard is not None and aujourd_hui is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-PO-LECTURE-JOUR-REQUIS", detail="filtrer sur « en retard » demande aujourd_hui (AAAA-MM-JJ)")}
+    registre = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BONS_COMMANDE))
+    tous = bons_commande.lister(registre)
+    choisis = po_lecture.selectionner(
+        tous, statut=statut, fournisseur_id=fournisseur_id, chantier_id=chantier_id, devis_id=devis_id,
+        en_retard=en_retard, aujourd_hui=aujourd_hui)
+    page = choisis[depart:depart + limite]
+    creations = _creations(registre)
+    noms: dict[Any, Any] = {}
+    lignes = []
+    for po in page:
+        if po["fournisseur_id"] not in noms:
+            noms[po["fournisseur_id"]] = _fiche_nom(po["fournisseur_id"])
+        lignes.append(po_lecture.projeter_liste(
+            po, noms[po["fournisseur_id"]], [m for m in registre if m.get("type_entree") == "transition_po"
+                                             and m.get("po_id") == po["po_id"]], aujourd_hui,
+                                             creations.get(po["po_id"])))
+    suivant = depart + limite if depart + limite < len(choisis) else None
+    return {"accepte": True, "resultat": {
+        "pos": lignes, "total": len(choisis), "depart": depart, "suivant": suivant,
+        "comptes": po_lecture.comptes_par_statut(tous), "aujourd_hui": aujourd_hui,
+    }}
+
+
+def lire_po(po_id: str, aujourd_hui: str | None = None) -> dict[str, Any]:
+    """Lit UN bon de commande (C3), lecture seule, admin : lignes (unité, perte, quantités), conditions, courriel,
+    historique des transitions (motifs, livraisons, envoi constaté) et ce qui a été reçu en tout."""
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    if aujourd_hui is not None and po_lecture.jour_valide(aujourd_hui) is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-PO-LECTURE-JOUR-INVALIDE", detail="aujourd_hui : un jour civil AAAA-MM-JJ")}
+    registre = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BONS_COMMANDE))
+    po = bons_commande.lire(registre, po_id)
+    if po is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-PO-INTROUVABLE", detail=f"PO inconnu : {po_id!r}")}
+    transitions = [m for m in registre if m.get("type_entree") == "transition_po" and m.get("po_id") == po_id]
+    return {"accepte": True, "resultat": po_lecture.projeter_detail(
+        po, _fiche_nom(po["fournisseur_id"]), transitions, aujourd_hui, _creations(registre).get(po_id))}
+
+
+def changer_statut_po(
+    po_id: str, statut_cible: str, motif: str, horodatage: str,
+    bons_commande_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Pilotage du cycle de vie d'un PO (C3) : revue demandée (`pending_admin_review`), litige (`disputed`), facturé
+    (`invoiced`), fermé (`closed`), selon la table des transitions, avec un motif. Une décision de PERSONNE (N3) :
+    M6 ne facture, ne paie et ne ferme rien seul. Aucune écriture financière."""
+    registre_cible = _bons_commande_de_l_appel(bons_commande_historique)
+    resultat, verdict = bons_commande.changer_statut(po_id, statut_cible, motif, horodatage, registre_cible)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return _reponse_po(resultat, registre_cible)
@@ -2775,18 +3020,15 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_declarer_materiaux_utilises",
             description=(
-                "Déclare le formulaire de fin de chantier enrichi (M6.10/M6.11 ; lignes typées "
-                "prévu/non prévu/retour/perte/bris/achat terrain — achat terrain refusé fail-closed "
-                "sans photo ni reçu) et l'écrit au registre : CONSOMMATION pour prévu/non prévu/achat "
-                "terrain, RETOUR pour un retour (réintègre le stock), PERTE/BRIS pour une perte ou un "
-                "bris (sortent du stock sans être une consommation de chantier). Même règle de coût "
-                "unitaire fail-closed que m6_consommer_materiaux, aucun coût inventé. Idempotente par "
-                "wct_id : une seconde déclaration pour le même WCT est refusée nommément, jamais "
-                "réécrite. On ne fournit que le wct_id (celui de l'accusé de m4_completer_intervention) : "
-                "M6 lit lui-même le WCT publié par M4 pour cet identifiant, et refuse un wct_id que M4 "
-                "n'a jamais publié (REJ-WCT-INCONNU) sans rien écrire. Distincte de "
-                "m6_consommer_materiaux, qui garde son contrat {materiau_id, quantite} exact et n'est "
-                "pas remplacé."
+                "Déclare le formulaire de fin de chantier enrichi (M6.10/M6.11 ; lignes typées prévu/non prévu/"
+                "retour/perte/bris/achat terrain — achat terrain refusé sans photo ni reçu) et l'écrit au registre : "
+                "CONSOMMATION, RETOUR (réintègre le stock), PERTE/BRIS. Le coût de sortie se résout au niveau de "
+                "l'ARTICLE, jamais par un refus : réception sous le chantier, sinon ailleurs (dépôt), sinon livre de "
+                "prix (même unité ; SOURCE_DECLAREE ou FALLBACK_PRICE_BOOK), sinon coût INCONNU dit à l'admin ; un "
+                "article inédit ou un achat sur place se déclare. Aucun coût n'est montré à l'employé. Idempotente par "
+                "wct_id (seconde déclaration refusée nommément). On ne fournit que le wct_id : M6 lit le WCT publié "
+                "par M4 et refuse un wct_id inconnu (REJ-WCT-INCONNU) sans rien écrire. Distincte de "
+                "m6_consommer_materiaux."
             ),
             parametres={
                 "type": "object",
@@ -2862,19 +3104,15 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_evaluer_variance_chantier",
             description=(
-                "Compare les besoins matériaux estimés (M3, toujours fournis en entrée) au réel "
-                "déclaré au formulaire de fin de chantier enrichi (lignes typées prévu/non prévu/"
-                "retour/perte/bris/achat terrain) et calcule un verdict neutre par matériau. Le réel "
-                "vient soit de lignes_declarees fourni explicitement, soit — si omis — relu "
-                "directement au registre pour wct_id (une déclaration précise) ou chantier_id seul "
-                "(tout le réel déclaré du chantier), déjà écrit par m6_declarer_materiaux_utilises. Ne "
-                "classe jamais la cause : cause_possible reste toujours null (classification humaine "
-                "uniquement parmi les 6 causes nommées de la définition produit, jamais « vol ») et "
-                "classification_requise indique si un écart attend cette classification. Émet "
-                "SignalVarianceChantierCritique quand l'écart d'au moins un matériau atteint ou "
-                "dépasse seuil_pourcentage, toujours fourni par l'appelant, jamais codé en dur. M6 "
-                "signale seulement : ce signal ne modifie jamais le statut du chantier côté M4. "
-                "Lecture et calcul purs, aucune écriture au registre."
+                "Compare les besoins matériaux estimés (M3, fournis en entrée) au réel déclaré au formulaire de fin "
+                "de chantier (prévu/non prévu/retour/perte/bris/achat terrain) et calcule un verdict neutre par "
+                "matériau. Le réel vient de lignes_declarees fourni, ou — si omis — relu au registre pour wct_id ou "
+                "chantier_id, déjà écrit par m6_declarer_materiaux_utilises. Ne classe jamais la cause : "
+                "cause_possible reste null (classification humaine parmi 6 causes, jamais « vol »). Émet "
+                "SignalVarianceChantierCritique quand l'écart d'un matériau atteint seuil_pourcentage (fourni par "
+                "l'appelant) et, alors, message_admin : "
+                "le texte imposé de Nathan. M6 signale seulement : jamais le statut du chantier côté M4. Lecture et "
+                "calcul purs, aucune écriture."
             ),
             parametres={
                 "type": "object",
@@ -3012,15 +3250,15 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_creer_po_brouillon",
             description=(
-                "Crée un PO au statut BROUILLON (M6.5) à partir des besoins matériaux prévus pour "
-                "un devis (m6_enregistrer_besoins_prevus, source m3.devis_accepte) et du stock déjà "
-                "disponible pour le chantier : seul l'écart est commandé, calculé par le code, "
-                "jamais deviné. Résout le prix attendu de chaque ligne depuis le livre de prix "
-                "(PRIX_LIVRE ou INDETERMINE — jamais inventé), avec provenance capturée séparément "
-                "des lignes économiques; un PO ancien sans capture est ESTIMATED/NON_CAPTURE. "
-                "Refuse fail-closed si le fournisseur "
-                "n'est pas enregistré (m6_enregistrer_fournisseur d'abord). Rend "
-                "statut=\"aucun_achat_requis\" (po=null) si le stock couvre déjà tout le besoin."
+                "Crée UN PO au statut BROUILLON commandable (M6.5) à partir des besoins matériaux prévus pour un "
+                "devis (m6_enregistrer_besoins_prevus) et du stock déjà disponible : seul l'écart est commandé, "
+                "calculé par le code. Chaque ligne porte son unité (celle de la fiche article quand elle existe), la "
+                "quantité nette, le facteur de perte DÉCLARÉ par M3 (jamais inventé, appliqué une fois) et la quantité "
+                "à commander. date_requise et mode_livraison (livraison au dépôt, au chantier — avec lieu —, ou "
+                "ramassage) obligatoires. materiau_ids limite le PO à certaines lignes (autre fournisseur pour le "
+                "reste : voir m6_creer_pos_depuis_besoin). Prix attendu du livre de prix, dans l'unité de la ligne, "
+                "jamais inventé. Refuse si le fournisseur n'est pas enregistré. Rend statut=\"aucun_achat_requis\" "
+                "(po=null) si le stock couvre le besoin. Tâche interne (N2) : rien n'est approuvé ni envoyé."
             ),
             parametres={
                 "type": "object",
@@ -3029,17 +3267,80 @@ def outils() -> tuple[Outil, ...]:
                     "devis_id": {"type": "string"},
                     "fournisseur_id": {"type": "string"},
                     "horodatage": {"type": "string"},
+                    "date_requise": {"type": "string",
+                                     "description": "Jour civil AAAA-MM-JJ, au plus tôt le jour de la création."},
+                    "mode_livraison": {"type": "string", "enum": ["livraison_depot", "livraison_chantier",
+                                                                  "ramassage"]},
+                    "lieu_livraison": {"type": ["string", "null"],
+                                       "description": "Requis pour une livraison au chantier."},
+                    "ville": {"type": ["string", "null"],
+                              "description": "Ville du chantier, dite dans l'objet du courriel."},
+                    "notes": {"type": ["string", "null"]},
+                    "materiau_ids": {"type": ["array", "null"], "items": {"type": "string"}},
                     "besoins_prevus_historique": _BESOINS_PREVUS_HISTORIQUE,
                     "registre_historique": _REGISTRE_HISTORIQUE,
                     "livre_prix_historique": _LIVRE_PRIX_HISTORIQUE,
                     "fournisseurs_historique": _FOURNISSEURS_HISTORIQUE,
                     "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
                 },
-                "required": ["po_id", "devis_id", "fournisseur_id", "horodatage"],
+                "required": ["po_id", "devis_id", "fournisseur_id", "horodatage", "date_requise", "mode_livraison"],
                 "additionalProperties": False,
             },
             fonction=creer_po_brouillon,
             autonomie=Autonomie.T1,
+            # N2 (règle d'autonomie r1 : brouillons N0-N2) : un brouillon est interne et réversible (on l'annule), rien
+            # n'est dépensé ni envoyé. L'approbation (N3) et l'envoi (décision humaine) restent plus haut.
+            niveau=Niveau.N2,
+        ),
+        Outil(
+            nom="m6_creer_pos_depuis_besoin",
+            description=(
+                "Un besoin, PLUSIEURS fournisseurs : crée UN PO brouillon commandable par fournisseur à partir du "
+                "besoin d'un devis. repartition = liste de {po_id, fournisseur_id, materiau_ids} ; chaque ligne à "
+                "commander doit être affectée à UN seul PO (ni oubliée, ni commandée deux fois, ni inconnue du "
+                "besoin), un fournisseur et un po_id n'apparaissent qu'une fois. TOUT OU RIEN : un seul refus et aucun "
+                "PO n'est écrit. Mêmes règles de ligne, de perte déclarée et de conditions que m6_creer_po_brouillon. "
+                "Rejouer la même répartition n'écrit rien. Tâche interne (N2)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "devis_id": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "date_requise": {"type": "string",
+                                     "description": "Jour civil AAAA-MM-JJ, au plus tôt le jour de la création."},
+                    "mode_livraison": {"type": "string", "enum": ["livraison_depot", "livraison_chantier",
+                                                                  "ramassage"]},
+                    "lieu_livraison": {"type": ["string", "null"],
+                                       "description": "Requis pour une livraison au chantier."},
+                    "ville": {"type": ["string", "null"],
+                              "description": "Ville du chantier, dite dans l'objet du courriel."},
+                    "notes": {"type": ["string", "null"]},
+                    "repartition": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "po_id": {"type": "string"},
+                                "fournisseur_id": {"type": "string"},
+                                "materiau_ids": {"type": "array", "items": {"type": "string"}},
+                            },
+                            "required": ["po_id", "fournisseur_id", "materiau_ids"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "besoins_prevus_historique": _BESOINS_PREVUS_HISTORIQUE,
+                    "registre_historique": _REGISTRE_HISTORIQUE,
+                    "livre_prix_historique": _LIVRE_PRIX_HISTORIQUE,
+                    "fournisseurs_historique": _FOURNISSEURS_HISTORIQUE,
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                },
+                "required": ["devis_id", "horodatage", "date_requise", "mode_livraison", "repartition"],
+                "additionalProperties": False,
+            },
+            fonction=creer_pos_depuis_besoin,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m6_approuver_po",
@@ -3085,11 +3386,12 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_generer_courriel_po",
             description=(
-                "Génère le corps texte du courriel de commande (M6.6 : objet, destinataire, liste "
-                "des matériaux, chantier, numéro de PO) pour un PO approved -> email_ready. AUCUN "
-                "envoi réel : le courriel est retourné et persisté sur le PO pour un repli manuel "
-                "(copier-coller) tant que M1 n'envoie pas réellement. repli_manuel_requis=true si "
-                "le fournisseur n'a pas de courriel de commande enregistré."
+                "Génère le courriel COMPLET de commande (M6.6) pour un PO approved -> email_ready : objet « Commande "
+                "matériaux — PO — ville », chantier, date requise, livraison ou ramassage, lignes avec unité (et "
+                "perte déclarée), notes, demande de confirmation ; aucun prix. Refuse un PO incomplet "
+                "(REJ-PO-NON-COMMANDABLE). AUCUN envoi : le courriel est persisté sur le PO, offert à M1 qui en fait "
+                "un brouillon dans son sas (une personne approuve l'envoi), et sert de repli manuel. "
+                "repli_manuel_requis=true si le fournisseur n'a pas de courriel de commande. Tâche interne (N2)."
             ),
             parametres={
                 "type": "object",
@@ -3105,6 +3407,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=generer_courriel_po,
             autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m6_marquer_po_envoye",
@@ -3126,6 +3429,78 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=marquer_po_envoye,
             autonomie=Autonomie.T2,
+        ),
+        Outil(
+            nom="m6_lister_po",
+            description=(
+                "Liste les bons de commande (C3) : statut, fournisseur, chantier, devis, date requise, mode de "
+                "livraison, montant prévu, commandable ou non (et ce qui manque), en retard, nombre de livraisons. "
+                "Filtres cumulables (statut, fournisseur_id, chantier_id, devis_id, en_retard) ; comptes par statut "
+                "sur l'ensemble ; pages de 25 au plus (depart, limite, suivant), sans troncature. aujourd_hui "
+                "(AAAA-MM-JJ) évalue « en retard » (envoyé, confirmé ou partiel, date requise dépassée), requis pour "
+                "filtrer dessus. Lecture seule, admin ; aucun contact de fournisseur dans la liste."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "statut": {"type": ["string", "null"], "enum": [*sorted(contrats.STATUTS_PO), None]},
+                    "fournisseur_id": {"type": ["string", "null"], "maxLength": 200},
+                    "chantier_id": {"type": ["string", "null"], "maxLength": 200},
+                    "devis_id": {"type": ["string", "null"], "maxLength": 200},
+                    "en_retard": {"type": ["boolean", "null"]},
+                    "aujourd_hui": {"type": ["string", "null"], "maxLength": 10},
+                    "depart": {"type": "integer", "minimum": 0, "maximum": 100000},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 25},
+                },
+                "additionalProperties": False,
+            },
+            fonction=lister_po,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m6_lire_po",
+            description=(
+                "Lit un bon de commande (C3) : lignes (unité, quantité nette, perte déclarée, quantité à commander, "
+                "prix attendu), conditions (date requise, livraison ou ramassage, lieu), courriel de commande, "
+                "historique des transitions (motifs, livraisons reçues, envoi constaté par M1) et réception cumulée. "
+                "Lecture seule, admin."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string", "maxLength": 200},
+                    "aujourd_hui": {"type": ["string", "null"], "maxLength": 10},
+                },
+                "required": ["po_id"],
+                "additionalProperties": False,
+            },
+            fonction=lire_po,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m6_changer_statut_po",
+            description=(
+                "Pilote le cycle de vie d'un PO (C3) vers un statut qu'aucun autre outil n'atteignait : "
+                "pending_admin_review (revue demandée), disputed (litige), invoiced (facturé), closed (fermé), "
+                "selon la table des transitions (REJ-PO-TRANSITION-ILLEGALE sinon). Motif requis, gardé au registre. "
+                "Décision de personne (N3) : M6 ne facture, ne paie ni ne ferme rien seul ; aucune écriture financière."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string"},
+                    "statut_cible": {"type": "string", "enum": ["pending_admin_review", "disputed", "invoiced",
+                                                                "closed"]},
+                    "motif": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                },
+                "required": ["po_id", "statut_cible", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=changer_statut_po,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
         ),
         # ----------------------------------------------------------------------------------- T4.14
         Outil(
@@ -3693,6 +4068,74 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
 # Même mécanisme de découverte que `consommateurs()` (`opsys.departements.Departement.charger_attentes`) :
 # fonction module-level, sans argument, appelée par `approbations.file_proprietaire` et par
 # `m9_lister_demandes_approbation` (section « À voir » de l'app admin) DANS une transaction déjà ouverte.
+def _attentes_cout_sortie() -> list[dict[str, Any]]:
+    """C1 : les sorties dont le coût est resté INCONNU, une attente par article, avec ce qu'il faut déclarer
+    (`cout_sortie.attentes_cout_inconnu`). Le jour de chaque WCT est lu à la charge que M4 a publiée."""
+    mouvements = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    wct_ids = {m["wct_id"] for m in mouvements
+               if m.get("wct_id") and (m.get("origine_cout") or {}).get("source") == cout_sortie.SOURCE_INCONNU}
+    if not wct_ids:
+        return []
+    jour_de = {}
+    for wct_id in sorted(wct_ids):
+        charge = evenements.charge_publiee(_TYPE_EVENEMENT_WCT, wct_id)
+        jour_de[wct_id] = cout_sortie.jour_du_wct(charge.get("horodatage_completion")) if charge else None
+    return cout_sortie.attentes_cout_inconnu(
+        mouvements, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_LIVRE_PRIX), jour_de)
+
+
+def _attentes_po() -> list[dict[str, Any]]:
+    """C3 : les PO à approuver (N3), tels qu'ils sont aujourd'hui. « En retard » demande un jour dit : M6 n'a pas
+    d'horloge, la lecture `m6_lister_po` l'évalue au jour que l'appelant donne (la console donne celui du serveur)."""
+    return po_lecture.attentes(bons_commande.lister(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BONS_COMMANDE)), None)
+
+
+def _attentes_ecart_critique() -> list[dict[str, Any]]:
+    """C3 : un écart de matériaux critique (`m6.variance_chantier` évaluée, au moins une ligne critique) attend la
+    validation de l'admin tant qu'une de ses lignes critiques n'a pas de cause classée par une personne
+    (`classements_variance`). Le résumé est le MESSAGE IMPOSÉ de Nathan, mot pour mot, suivi du chantier et des
+    matériaux ; aucune cause n'est attribuée, aucune personne n'est nommée. Lecture seule."""
+    from opsys.stockage.schema import EVENEMENTS_SORTANTS
+
+    cnx = stockage.connexion_courante()
+    lignes = cnx.execute(
+        select(EVENEMENTS_SORTANTS.c.charge, EVENEMENTS_SORTANTS.c.producteur).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == "m6.variance_chantier").order_by(
+            EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id)
+    ).all()
+    classes = {
+        (m["selection"]["wct_id"], m["selection"]["materiau_id"])
+        for m in stockage.maillons(_DEPARTEMENT, classement_variance_appareil.REGISTRE)
+        if isinstance(m.get("selection"), dict)
+    }
+    sortie = []
+    for ligne in lignes:
+        if ligne.producteur != _DEPARTEMENT:
+            continue
+        charge = codec.decoder(ligne.charge)
+        if charge.get("statut_variance") != "evaluee" or not charge.get("signal_critique"):
+            continue
+        critiques = [ligne["materiau"] for ligne in charge.get("lignes") or () if ligne.get("critique")]
+        restants = [m for m in critiques if (charge["wct_id"], m) not in classes]
+        if not restants:
+            continue
+        sortie.append({
+            "type": "ecart_materiaux_critique",
+            "id": f"ecart_materiaux_critique:{charge['wct_id']}",
+            "resume": (
+                f"{variance_chantier.MESSAGE_ECART_CRITIQUE} Chantier {charge.get('chantier_id')} : "
+                f"{', '.join(restants)}."
+            ),
+            "niveau": "N3",
+            "depuis": charge.get("horodatage_completion") or "",
+            "action_proposee": (
+                "Classer la cause de chaque écart (m6_classer_cause_variance_appareil), puis valider la complétion du "
+                "chantier ; M6 n'attribue rien à personne"
+            ),
+        })
+    return sortie
+
+
 def attentes() -> list[dict[str, Any]]:
     """Le stock bas et les seuils à configurer, tels qu'ils sont AUJOURD'HUI (`reapprovisionnement.attentes`) :
     une attente `besoin_commande` par article constaté dont le stock est encore sous le seuil, et une seule
@@ -3706,5 +4149,5 @@ def attentes() -> list[dict[str, Any]]:
         _articles_reapprovisionnement(),
         reserves=reservations.reserve_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)),
         hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
-    ) + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
+    ) + _attentes_cout_sortie() + _attentes_ecart_critique() + _attentes_po() + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
         stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE))

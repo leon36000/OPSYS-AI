@@ -97,6 +97,7 @@ def test_resoudre_prix_po_trouve_rend_prix_livre():
 def test_resoudre_prix_po_absent_rend_indetermine_jamais_invente():
     resolution = livre_prix.resoudre_prix_po("MAT-INCONNU", "gentek", [])
     assert resolution == {
+        "raison": "AUCUN_PRIX", "unite_prix": None, "unite_confirmee": None,
         "verdict_prix": "INDETERMINE",
         "prix_unitaire": None,
         "devise": None,

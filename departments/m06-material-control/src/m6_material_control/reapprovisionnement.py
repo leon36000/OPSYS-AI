@@ -55,6 +55,7 @@ __all__ = [
     "CLES_PARAMETRES_ARTICLE",
     "TYPE_ATTENTE_BESOIN_COMMANDE",
     "TYPE_ATTENTE_SEUIL_A_CONFIGURER",
+    "TYPE_ATTENTE_STOCK_NEGATIF",
     "attentes",
     "construire_constat",
     "constat_deja_range",
@@ -68,6 +69,7 @@ TYPE_SEUIL_A_CONFIGURER = "seuil_a_configurer"
 # Types d'attente rendus à la file de l'admin (`opsys.approbations.CHAMPS_ATTENTE`).
 TYPE_ATTENTE_BESOIN_COMMANDE = "besoin_commande"
 TYPE_ATTENTE_SEUIL_A_CONFIGURER = "seuil_a_configurer"
+TYPE_ATTENTE_STOCK_NEGATIF = "stock_negatif"
 ID_ATTENTE_SEUIL_A_CONFIGURER = "seuils-reapprovisionnement"
 
 # Statuts d'évaluation d'un article.
@@ -260,6 +262,26 @@ def _attente_besoin(dernier: Mapping[str, Any], verdict: Mapping[str, Any]) -> d
     }
 
 
+def _attente_stock_negatif(dernier: Mapping[str, Any], en_main: Decimal) -> dict[str, Any]:
+    materiau_id = dernier["materiau_id"]
+    unite = dernier.get("unite")
+    return {
+        "type": TYPE_ATTENTE_STOCK_NEGATIF,
+        "id": f"{TYPE_ATTENTE_STOCK_NEGATIF}:{materiau_id}",
+        "resume": (
+            f"Stock négatif : {materiau_id} — {_avec_unite(_texte(en_main), unite)} en main. Une sortie a été déclarée "
+            "sans réception correspondante (achat sur place, article sorti du dépôt ou réception non saisie) : "
+            "vérifier avant de commander."
+        ),
+        "niveau": NIVEAU_ATTENTE,
+        "depuis": _depuis(dernier),
+        "action_proposee": (
+            "Saisir la réception manquante (m6_receptionner_commande) ou compter le stock (m6_soumettre_comptage) ; "
+            "M6 ne corrige jamais le stock seul"
+        ),
+    }
+
+
 def _depuis(constat: Mapping[str, Any]) -> str:
     horodatage = constat.get("horodatage")
     return horodatage if isinstance(horodatage, str) else ""
@@ -324,6 +346,10 @@ def attentes(
             besoins.append(_attente_besoin(dernier, verdict))
         elif verdict["statut"] != STATUT_STOCK_SUFFISANT:
             a_configurer.append((materiau_id, dernier, verdict["statut"]))
+            if en_main < 0:
+                # C1 : une sortie d'un article jamais reçu (achat sur place, dépôt) rend le stock négatif. Sans seuil
+                # configuré, rien ne le disait : l'admin doit le voir, comme une donnée à vérifier, pas une quantité.
+                besoins.append(_attente_stock_negatif(dernier, en_main))
     if a_configurer:
         besoins.append(_attente_a_configurer(a_configurer))
     return besoins

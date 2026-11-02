@@ -6,8 +6,12 @@ Le flux (aucune étape n'envoie quoi que ce soit) :
   commande rapproché des devis et des WCT, ou confirmation de PO ; idempotent par message ; la provenance (message,
   règles, confiance, empreinte de l'expéditeur) est rangée avec chaque fait ;
 - sortant : `m6_generer_courriel_po` publie `m6.po_courriel_pret` ; M1 prépare le brouillon au fournisseur dans le
-sas ; quand une personne a approuvé et que le courriel est parti, `m1.commande_courriel_envoyee` rend ici une ATTENTE
-« marquer le PO envoyé » : le statut du PO ne change que par `m6_marquer_po_envoye` (N4, humain).
+sas ; quand une personne a approuvé et que le courriel est parti, `m1.commande_courriel_envoyee` est constaté ici ; si
+c'est
+bien le courriel de CE PO (empreinte identique,
+                           texte non modifié), le PO passe à « envoyé » en rangeant le constat (C2 :
+l'envoi a déjà été approuvé au sas, pas de seconde approbation). Sinon une ATTENTE « marquer le PO envoyé » attend
+une personne (`m6_marquer_po_envoye`, N4), comme pour un envoi hors M1.
 """
 
 from __future__ import annotations
@@ -136,11 +140,40 @@ def recevoir_courriel_aiguille(charge: dict[str, Any]) -> dict[str, Any]:
 
 
 def recevoir_commande_envoyee(charge: dict[str, Any]) -> dict[str, Any]:
-    """Consommateur de `m1.commande_courriel_envoyee` : constate l'envoi du courriel ; ne change PAS le PO."""
+    """Consommateur de `m1.commande_courriel_envoyee` : constate l'envoi du courriel et, si c'est bien celui du PO,
+    en prend acte (C2).
+
+    L'envoi a DÉJÀ été approuvé par une personne au sas de M1 (N3, empreinte exacte du brouillon) : exiger ensuite
+    `m6_marquer_po_envoye` (N4) était une seconde approbation du même geste. M6 passe donc le PO de `email_ready` à
+    `sent_to_supplier`, en rangeant le constat, SEULEMENT si toutes ces conditions tiennent :
+      - le PO existe et est encore `email_ready` (jamais un PO annulé, brouillon ou déjà envoyé) ;
+      - M1 rapporte l'empreinte du courriel que M6 lui a offert (`empreinte_courriel_po`) et elle est celle du courriel
+        PERSISTÉ sur CE PO (pas celle d'un autre bon) ;
+      - M1 dit que le brouillon envoyé est celui qu'il avait préparé (`contenu_identique`), donc que personne n'a
+      modifié
+        le texte dans le sas.
+    Sinon (vieux constat sans empreinte, texte modifié,
+           autre bon) rien ne change : l'attente N4 « marquer le PO envoyé »
+    reste à une personne. Aucun envoi n'est déclenché ici : M6 recopie un fait déjà approuvé."""
     registre = _reg()
     if any(m.get("type_entree") == cc.TYPE_ENVOI and m["brouillon_id"] == charge["brouillon_id"] for m in registre):
         return {"deja_constate": True}
-    po = bons_commande.lire(_registres()["bons_commande"], charge["po_id"])
+    bons = _registres()["bons_commande"]
+    po = bons_commande.lire(bons, charge["po_id"])
+    marque = False
+    if po is not None and po["statut"] == "email_ready":
+        courriel = po.get("courriel") or {}
+        if (
+            charge.get("contenu_identique") is True
+            and isinstance(courriel.get("empreinte"), str)
+            and charge.get("empreinte_courriel_po") == courriel["empreinte"]
+        ):
+            _, verdict = bons_commande.marquer_envoye(
+                charge["po_id"], charge["envoye_le"], bons,
+                {"source": "m1.commande_courriel_envoyee", "brouillon_id": charge["brouillon_id"],
+                 "empreinte_courriel_po": courriel["empreinte"], "envoye_le": charge["envoye_le"]},
+            )
+            marque = verdict is None
     registre.append(
         {
             "type_entree": cc.TYPE_ENVOI,
@@ -149,9 +182,11 @@ def recevoir_commande_envoyee(charge: dict[str, Any]) -> dict[str, Any]:
             "brouillon_id": charge["brouillon_id"],
             "empreinte": charge["empreinte"],
             "statut_po_au_constat": None if po is None else po["statut"],
+            "po_marque_envoye": marque,
         }
     )
-    return {"constate": True, "po_trouve": po is not None, "statut_po": None if po is None else po["statut"]}
+    return {"constate": True, "po_trouve": po is not None, "statut_po": None if po is None else po["statut"],
+            "po_marque_envoye": marque}
 
 
 # ------------------------------------------------------------------------------------------------- lectures
