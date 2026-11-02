@@ -152,10 +152,114 @@ jamais « à temps » par défaut.
 
 ## Preuves
 
-Voir la section « Preuves » de ce fichier mise à jour dans le rapport de livraison : tests, comptes avant → après, mutations.
+### Comptes avant → après
 
-PREUVES_A_COMPLETER
+- Suite complète du département M5 : **3 824 passés, 0 échec** sur `e0424b040` (copie propre de la base) → **4 095 passés, 1 sauté, 0 échec**
+  (+271 ; le sauté est la garde « en CI » de `test_facture_pdf.py`, qui ne s'exécute que lorsque la variable `CI` est posée).
+- Tests nouveaux du chantier : 146 (module pur) + 71 (PDF) + 49 (outils, vrai socle) + 5 (échéance et relances) + 3 (parcours entier) +
+  1 (PostgreSQL 17, opt-in) ; trois fichiers `test_*_sans_decaissement.py` et `test_analyse_mention.py` mis à jour (modules et outils
+  nouveaux déclarés), `tests/test_extra_soumission.py` étendu au job M5.
+- **Rouge avant** : sur `e0424b040`, les tests du chantier échouent (ou ne s'importent pas : les trois fichiers qui nomment
+  `facturation_jalons` et `facture_pdf`) ; les 4 tests d'échéance/relance qui n'utilisent que des fonctions d'avant échouent par
+  assertion, et le parcours entier échoue (3/3). Journaux conservés sous `scratchpad/rouge-avant-fact-*.txt`.
+
+### Tests (noms et rôle)
+
+| Fichier | Prouve |
+|---|---|
+| `departments/m05-financecore/tests/test_facturation_jalons.py` (pur) | somme au cent (40 répartitions aléatoires à graine fixe), arrondi du demi-cent, solde qui absorbe l'arrondi, refus de somme (montants, pourcentages, jalon nul, mode mixte), délai/chantier/ordre à déclarer, plan déterministe et empreinte, idempotence et révocation, numérotation (suite, rejeu, trou, doublon, altération, premier numéro), échéance, retard (jour même ≠ en retard), factures de jalon (ordre, solde après travaux, plafond, doublon, facture globale), agrégat de rentabilité, résumé et écart d'arrondi des taxes |
+| `departments/m05-financecore/tests/test_echeance_retard_relances.py` (pur) | échéance propre, « en retard » à la date injectée, relance sur l'échéance propre et numéro cité — **rouge sur la ligne d'avant** |
+| `departments/m05-financecore/tests/test_facture_pdf.py` (pur) | texte relu par `pypdf` (montants, TPS/TVQ, numéros, échéance, récapitulatif), bilingue, octets identiques, PDF identique après paiement, scellé rejouable/conflit, données déclarées absentes une à une, numéros mal formés, destinataire, caractères hors police, injection de balises, montants jamais arrondis, longue facture (plusieurs pages), brique absente, état de compte |
+| `departments/m05-financecore/tests/test_facturation_jalons_outils.py` (vrai socle) | niveaux et portée fermée, N3 par la file (agent seul refusé, employé refusé), refus lisibles, plan→jalon→émission→numéro, **panne et reprise**, **demi-écriture reprise**, **deux émissions simultanées**, précondition de rang, plafond d'envoi zéro en mode autonome, retard et relance, lecture du plan, PDF scellé/rejouable/conflit de fichier/dossier lien symbolique, rien de personnel au bus ni aux journaux |
+| `tests/test_facturation_jalons_bout_en_bout.py` (vrai bus, vrai sas, M2 et M8 réels) | le parcours entier : devis accepté → plan → acompte → approbation → numéro (panne puis reprise, puis deux émissions simultanées) → échéance dépassée → en retard → relance M2 → paiement partiel (relance reste) → paiement total (relance levée) → PDF ; somme fausse refusée ; données absentes bloquantes |
+| `tests/e2e/test_m5_numerotation_concurrente.py` (PostgreSQL 17, opt-in `OPSYS_QUALIFIER_M9_PG17=1`) | deux émissions qui se disputent le même numéro : le perdant est rejoué et reçoit le suivant |
+
+### Mutations (une à la fois, restaurées par `git checkout` ; 41, 40 tuées, 1 équivalente expliquée)
+
+| # | Mutation | Test qui la tue |
+|---|---|---|
+| M01 | somme des montants déclarés non contrôlée | `test_facturation_jalons.py::test_une_somme_de_montants_qui_ne_tombe_pas_juste_est_refusee_avec_l_ecart` |
+| M02 | somme des pourcentages non contrôlée | `test_facturation_jalons.py::test_des_pourcentages_qui_ne_totalisent_pas_100_sont_refuses` |
+| M03 | arrondi du jalon : demi-cent au pair (banquier) au lieu de vers le haut | `test_facturation_jalons.py::test_arrondi_demi_cent_vers_le_haut_et_non_vers_le_banquier` |
+| M04 | le dernier jalon n'est plus le solde (arrondi propre, la somme peut manquer) | `test_facturation_jalons.py::test_le_dernier_jalon_est_le_solde_et_absorbe_l_arrondi` |
+| M05 | jalon de moins d'un cent accepté | `test_facturation_jalons.py::test_un_jalon_qui_vaudrait_moins_d_un_cent_est_refuse_dans_les_deux_modes` |
+| M06 | numérotation : un numéro saute (trou) | `test_facturation_jalons.py::test_les_numeros_se_suivent_sans_trou_a_partir_du_premier_declare` |
+| M07 | numérotation : attribuer deux fois ne rend plus le même numéro | `test_facturation_jalons.py::test_attribuer_deux_fois_au_meme_document_rend_le_meme_numero_sans_rien_ecrire` |
+| M08 | vérification de la suite : les trous ne sont plus dits | `test_facturation_jalons.py::test_un_trou_un_doublon_ou_une_alteration_sont_dits_et_bloquent_toute_attribution` |
+| M09 | changement du premier numéro déclaré toléré | `test_facturation_jalons.py::test_le_premier_numero_ne_peut_plus_changer_une_fois_la_suite_commencee` |
+| M10 | ordre des jalons non contrôlé | `test_facturation_jalons.py::test_les_jalons_se_facturent_dans_l_ordre` |
+| M11 | solde « fin des travaux » facturé d'avance | `test_facturation_jalons.py::test_le_solde_de_fin_de_travaux_n_est_jamais_facture_d_avance` |
+| M12 | plafond du prix du devis supprimé | `test_facturation_jalons.py::test_le_total_facture_n_excede_jamais_le_prix_du_devis` |
+| M12b | plafond : le cas limite (égal au prix) devient un refus | `test_facturation_jalons.py::test_le_solde_de_fin_de_travaux_n_est_jamais_facture_d_avance` |
+| M13 | révocation d'un plan déjà facturé permise | `test_facturation_jalons.py::test_revoquer_un_plan_sans_facture_permet_d_en_declarer_un_autre_mais_pas_avec_une_facture` |
+| M14 | redéclarer le même plan n'est plus reconnu | `test_facturation_jalons.py::test_declarer_deux_fois_le_meme_plan_ne_cree_rien_et_un_autre_plan_actif_est_refuse` |
+| M15 | échéance : le délai de paiement est ignoré | `test_facturation_jalons.py::test_l_echeance_est_le_jour_d_emission_plus_le_delai_declare` |
+| M16 | en retard dès le jour de l'échéance (>= au lieu de >) | `test_echeance_retard_relances.py::test_une_facture_est_en_retard_seulement_apres_son_echeance_a_la_date_injectee` |
+| M17 | une facture payée peut être « en retard » | `test_facturation_jalons.py::test_payee_brouillon_et_annulee_ne_sont_jamais_en_retard_et_sans_echeance_le_retard_n_est_pas_calculable` |
+| M18 | numérotation non déclarée : la facture de jalon est émise sans numéro | `test_facturation_jalons_outils.py::test_sans_numerotation_declaree_une_facture_de_jalon_ne_s_emet_pas_et_dit_quoi_declarer` |
+| M19 | numéros de TPS/TVQ de l'entreprise plus exigés | `test_facturation_jalons_outils.py::test_le_pdf_de_la_facture_approuvee_est_scelle_rejouable_et_ne_porte_aucun_envoi` |
+| M20 | niveau d'approbation : déclarer un plan descend à N1 | `test_facturation_jalons_outils.py::test_niveaux_autonomie_et_portee_des_outils_de_facturation` |
+| M21 | plafond d'envoi automatique : émettre sans personne | `test_facturation_jalons_outils.py::test_emettre_exige_une_personne_meme_quand_le_departement_est_autonome` |
+| M22 | scellé du PDF : une empreinte différente passe pour rejouée | `test_facturation_jalons_outils.py::test_un_scelle_qui_ne_correspond_plus_au_rendu_est_un_conflit_jamais_reecrit` |
+| M23 | PDF non déterministe (mode invariant retiré) | `test_facturation_jalons_outils.py::test_le_pdf_de_la_facture_approuvee_est_scelle_rejouable_et_ne_porte_aucun_envoi` |
+| M24 | PDF : un montant à 3 décimales est arrondi sans refus | `test_facture_pdf.py::test_aucun_montant_n_est_arrondi_a_l_affichage` |
+| M25 | PDF : le texte du client n'est plus échappé (balises interprétées) | `test_facture_pdf.py::test_les_balises_et_les_controles_du_client_sont_des_donnees_jamais_interpretes` |
+| M26 | hachage lié à la facture : l'empreinte scellée n'est plus celle des octets du PDF | `test_facturation_jalons_outils.py::test_le_pdf_de_la_facture_approuvee_est_scelle_rejouable_et_ne_porte_aucun_envoi` |
+| M27 | facture globale permise pour un devis facturé par jalons (outil) | `test_facturation_jalons_outils.py::test_la_facture_globale_est_refusee_ou_non_creee_pour_un_devis_facture_par_jalons` |
+| M28 | facture globale automatique créée à la fin des travaux malgré le plan | `test_facturation_jalons_outils.py::test_la_facture_globale_est_refusee_ou_non_creee_pour_un_devis_facture_par_jalons` |
+| M29 | relance : l'échéance propre de la facture est ignorée | `test_echeance_retard_relances.py::test_la_relance_suit_l_echeance_propre_de_la_facture_pas_le_delai_general` |
+| M30 | rentabilité : le prix facturé est celui du premier acompte | `test_facturation_jalons.py::test_l_agregat_pour_la_rentabilite_est_le_prix_du_contrat_et_definitif_seulement_si_tous_les_jalons_sont_emis` |
+| M31 | émission : le numéro s'écrit sans précondition de rang | `test_facturation_jalons_outils.py::test_les_ecritures_de_l_emission_portent_la_precondition_de_rang` |
+| M32 | scellé de la facture : un rendu différent n'est plus un conflit | `test_facturation_jalons_outils.py::test_un_scelle_qui_ne_correspond_plus_au_rendu_est_un_conflit_jamais_reecrit` |
+| M33 | fichier PDF du même nom aux autres octets écrasé sans refus | `test_facturation_jalons_outils.py::test_un_fichier_du_meme_nom_aux_autres_octets_n_est_jamais_ecrase` |
+| M34 | facture de jalon permise à côté d'une facture globale | `test_facturation_jalons.py::test_jalon_inconnu_et_facture_globale_existante` |
+| M35 | chantier du devis écrasé par un autre déclaré | `test_facturation_jalons.py::test_le_chantier_vient_du_devis_ou_se_declare_jamais_inventé` |
+| M36 | déclarer un plan sans personne (N3) : agent seul accepté | `test_facturation_jalons_outils.py::test_declarer_un_plan_passe_par_la_file_et_une_personne_l_ecrit_un_agent_seul_jamais` |
+| M37 | comptage : le compte des factures en retard n'augmente plus | `test_echeance_retard_relances.py::test_une_facture_est_en_retard_seulement_apres_son_echeance_a_la_date_injectee` |
+| M38 | numéro de facture absent de la relance (identifiant interne cité) | `test_echeance_retard_relances.py::test_la_relance_cite_le_numero_de_facture_quand_il_existe` |
+| M39 | émission d'une facture déjà envoyée : le numéro est consommé avant la vérification | **survivante, équivalente** (voir ci-dessous) |
+| M40 | `relire_si_conflit` retiré de l'émission (PostgreSQL : le perdant de la course n'est plus rejoué) | `tests/e2e/test_m5_numerotation_concurrente.py` (**sans effet sur SQLite**, qui sérialise les écrivains : seule l'épreuve PostgreSQL la tue) |
+
+La mutation **M39** survit parce qu'elle est **équivalente** : le numéro n'est écrit qu'APRÈS l'acceptation de la transition par
+`facturation.envoyer_facture` ; déplacer la vérification d'envoi avant ou après l'attribution (copie en mémoire) ne change aucun
+registre. La garde qu'elle visait (ne jamais consommer un numéro pour une facture déjà envoyée) est prouvée par
+`test_emettre_deux_fois_ou_une_facture_inconnue_ne_consomme_aucun_numero`. La précondition de rang (M31) n'est tuée que par un
+test espion (la clé primaire du registre porte la même garde sur SQLite) ; `relire_si_conflit` (M40) n'est tué que par l'épreuve
+PostgreSQL.
+
+### Commandes
+
+```
+pytest departments/m05-financecore/tests/test_facturation_jalons.py departments/m05-financecore/tests/test_facture_pdf.py \
+       departments/m05-financecore/tests/test_facturation_jalons_outils.py departments/m05-financecore/tests/test_echeance_retard_relances.py \
+       tests/test_facturation_jalons_bout_en_bout.py
+OPSYS_QUALIFIER_M9_PG17=1 pytest tests/e2e/test_m5_numerotation_concurrente.py     # Docker requis
+```
 
 ## Limites (sans euphémisme)
 
-LIMITES_A_COMPLETER
+- **PostgreSQL** : seule la course de numérotation est éprouvée (une épreuve, PostgreSQL 17 éphémère). Le plan, les scellés, le PDF et
+  le reste du parcours n'ont tourné que sur SQLite ; ils reposent sur les mêmes primitives (`stockage.maillons`, clé primaire du
+  registre), mais rien ne le prouve ici.
+- **Rien d'envoyé ni de payé pour de vrai** : pas de courriel de facture (M1 n'est pas raccordé à la facture : le PDF est écrit dans
+  `exports/factures/` et l'envoi reste une décision humaine hors de ce chantier), pas de QuickBooks, de Stripe ni de vrai client.
+- **Déclarations du propriétaire** : plan, numérotation, conditions de paiement, raison sociale, adresse et numéros de TPS/TVQ sont
+  déclarés, jamais vérifiés ; seule leur **forme** l'est. Les mentions du PDF n'ont **pas** été validées par un CPA ; M5 ne prétend
+  pas satisfaire toutes les exigences légales d'une facture selon les seuils de montant (à valider auprès d'un comptable (CPA) /
+  professionnel qualifié). Le nom et l'adresse du client sont fournis à chaque appel (M5 ne les garde pas ; M2 n'est pas lu).
+- **Taxes** : arrondies facture par facture ; l'écart avec les taxes du total est dit, pas corrigé. Le traitement comptable d'un
+  **acompte** (produit ou dépôt de client) n'est pas tranché : le brouillon d'écriture de chaque facture suit le comportement existant.
+- **Pas d'annulation de facture client** (limite connue d'avant ce chantier) : un numéro émis reste dans la suite ; un plan ne se
+  révoque donc plus dès sa première facture, et un plan erroné après une première facture se corrige par note de crédit (brouillon,
+  N4) ou à la main, pas par OPSYS. Un devis déjà facturé en bloc (facture globale automatique de la fin des travaux, ou manuelle) ne
+  reçoit plus de plan : le déclarer AVANT la fin des travaux.
+- **Un seul jeu de numéros** par instance (un seul préfixe actif à la fois, la largeur et le préfixe peuvent changer en cours de
+  route ; la suite, elle, ne repart jamais à zéro : pas de remise à zéro annuelle).
+- **Retard** : calculé à la demande ou par `m5_preparer_relances_clients` ; rien ne le publie seul au bus. Les relances de M2
+  n'existent qu'après l'exécution de cet outil (ou du cycle comptable) ; le planificateur durable ne les déclenche pas encore.
+- **PDF** : « mêmes octets » vaut pour une même version de ReportLab (4.5.1, épinglée) et de zlib ; sur une autre machine ou version
+  l'empreinte peut changer et le rejeu dira `REJ-PDF-SCELLE-DIFFERENT` (jamais un écrasement). Police standard Helvetica : les
+  caractères hors Windows-1252 sont refusés. Aucun logo, aucun lien de paiement. Pas de gabarit HTML ni de rendu WeasyPrint (non installé).
+- **Mobile et console** : aucune surface (outils fermés aux appareils) ; l'app mobile continue de lire `m5_lire_comptes_a_recevoir`,
+  dont les entrées ont de nouveaux champs (`numero_facture`, `echeance`, `statut_effectif`, `jours_de_retard`) et dont le résumé a
+  `en_retard` : ajouts seulement.
