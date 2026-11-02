@@ -631,6 +631,41 @@ def plaintes_constatees(
     return _valide("m1.plaintes_constatees", charge)
 
 
+def preaudit_constate(
+    jour: str = "2026-10-30",
+    version: str = "0123456789abcdef",
+    constate_le: str = "2026-10-30T07:00:00-04:00",
+    **plus: Any,
+) -> dict[str, Any]:
+    """Le résumé du pré-audit de M5 : des comptes par règle (null pour une règle non évaluée), jamais une facture ni un
+    montant."""
+    par_regle = {
+        "FACTURE_SANS_PAIEMENT": 1,
+        "PAIEMENT_SANS_FACTURE": 0,
+        "DEPENSE_SANS_RECU": 2,
+        "TAXE_INCOHERENTE": 0,
+        "DOUBLON_PROBABLE": 1,
+        "TRANSACTION_HORS_NORME": None,
+        "FACTURE_MODIFIEE": 0,
+        "CHANGEMENT_COMPTE_INHABITUEL": None,
+        "PISTE_AUDIT_INCOMPLETE": 0,
+        "DOCUMENT_MANQUANT": 0,
+    }
+    charge = {
+        "evenement_id": f"m5-preaudit-{jour}-{version}-{hashlib.sha256(constate_le.encode()).hexdigest()[:8]}",
+        "date_reference": jour,
+        "constate_le": constate_le,
+        "version_donnees": version,
+        "constats_par_regle": par_regle,
+        "constats_total": 4,
+        "constats_par_gravite": {"haute": 1, "moyenne": 3, "faible": 0},
+        "regles_non_evaluees": ["TRANSACTION_HORS_NORME", "CHANGEMENT_COMPTE_INHABITUEL"],
+        "regles_partielles": [],
+    }
+    charge.update(plus)
+    return _valide("m5.preaudit_constate", charge)
+
+
 def publier_depuis(
     producteur: str, type_evenement: str, charge: dict[str, Any], evenement_id: str | None = None
 ) -> str:

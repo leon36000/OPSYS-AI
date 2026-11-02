@@ -5,7 +5,7 @@ Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge (« aujourd'hui
 seul point de contact avec le socle, reçoit les événements, range les faits au registre ``faits_operations`` et lit ce
 registre pour la section « operations_recues » de la vue exécutive.
 
-Seize types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
+Dix-sept types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
 
 - ``m7.signaux_marketing_constates`` : quelle source de données propres a été lue, sur quelle période, avec quelle
   fraîcheur (aucune valeur de mesure : les faits eux-mêmes se lisent chez M7) ;
@@ -22,7 +22,7 @@ action) ;
 - ``m1.commande_courriel_envoyee`` : le courriel d'un bon de commande de M6 est parti (après l'approbation humaine du
   sas de M1) : le bon de commande et l'instant, ni le brouillon ni l'adresse.
 
-Huit types de la phase 2 (D1 à D3 de ``docs/architecture/M8-ENTREPOT-SOURCES.md`` : les producteurs publient des RÉSUMÉS
+Neuf types de la phase 2 (D1 à D3 de ``docs/architecture/M8-ENTREPOT-SOURCES.md`` : les producteurs publient des RÉSUMÉS
 agrégés, M8 n'appelle aucun de leurs outils et n'a obtenu aucun droit nouveau) :
 
 - ``m5.depense_publicitaire_constatee`` (D1) : ce que le grand livre de M5 a COMPTABILISÉ des dépenses publicitaires
@@ -37,8 +37,12 @@ agrégés, M8 n'appelle aucun de leurs outils et n'a obtenu aucun droit nouveau)
 - ``m1.plaintes_constatees`` : l'ÉTAT de la lecture des plaintes et leur nombre seulement s'il est CONNUE ;
 - ``m2.filet_anti_perte_constate`` (M2-C1) : les comptes du filet anti-perte de M2 — violations par règle SLA (``null``
 pour
-  une règle non évaluée faute de délai déclaré), anomalies par contrôle d'intégrité des données.
-Pour ces huit types, la version qui fait foi est celle de la publication la plus récente (``publie_le``, donné par le
+  une règle non évaluée faute de délai déclaré), anomalies par contrôle d'intégrité des données ;
+- ``m5.preaudit_constate`` (M5-PRE-AUDIT) : les comptes de constats du pré-audit de M5 (dix règles déterministes) —
+  par règle
+  (``null`` pour une règle non évaluée faute de seuil déclaré), par gravité, sans facture, fournisseur, écriture ni
+  montant.
+Pour ces neuf types, la version qui fait foi est celle de la publication la plus récente (``publie_le``, donné par le
 bus) : l'ordre de livraison n'est pas garanti. Aucun n'entre dans la section « operations_recues » de la vue exécutive ;
 ils se lisent par leurs mesures du catalogue.
 
@@ -89,6 +93,7 @@ TYPE_PIPELINE = "pipeline_commercial"
 TYPE_DISPONIBILITE = "disponibilite_materiel"
 TYPE_PLAINTES = "plaintes_constatees"
 TYPE_FILET = "filet_anti_perte"
+TYPE_PREAUDIT = "preaudit_constate"
 
 EVENEMENT_PAR_TYPE = {
     "m7.signaux_marketing_constates": TYPE_SIGNAUX,
@@ -107,6 +112,7 @@ EVENEMENT_PAR_TYPE = {
     "m6.disponibilite_constatee": TYPE_DISPONIBILITE,
     "m1.plaintes_constatees": TYPE_PLAINTES,
     "m2.filet_anti_perte_constate": TYPE_FILET,
+    "m5.preaudit_constate": TYPE_PREAUDIT,
 }
 _EVENEMENT_DU_TYPE = {type_entree: evenement for evenement, type_entree in EVENEMENT_PAR_TYPE.items()}
 
@@ -138,6 +144,7 @@ _CLES_UNICITE = {
     TYPE_DISPONIBILITE: ("date_reference", "version_donnees", "constate_le"),
     TYPE_PLAINTES: ("date_reference", "jours", "empreinte_contenu"),
     TYPE_FILET: ("date_reference", "version_donnees", "constate_le"),
+    TYPE_PREAUDIT: ("date_reference", "version_donnees", "constate_le"),
 }
 # Les types dont deux versions du même objet ne s'ordonnent que par l'instant de PUBLICATION donné par le bus
 # (`publie_le`).
@@ -152,6 +159,7 @@ _TYPES_ORDONNES_PAR_PUBLICATION = frozenset(
         TYPE_DISPONIBILITE,
         TYPE_PLAINTES,
         TYPE_FILET,
+        TYPE_PREAUDIT,
     }
 )
 # Phase 2 : ce que M8 garde de chaque résumé, exactement les propriétés fermées du catalogue d'événements (une propriété
@@ -240,6 +248,16 @@ _CLES_PHASE_2 = {
         "anomalies_par_controle",
         "anomalies_total",
         "controles_non_evalues",
+    ),
+    TYPE_PREAUDIT: (
+        "date_reference",
+        "constate_le",
+        "version_donnees",
+        "constats_par_regle",
+        "constats_total",
+        "constats_par_gravite",
+        "regles_non_evaluees",
+        "regles_partielles",
     ),
 }
 # Ce que M8 garde d'une mesure de vision : ni la photo, ni le modèle, ni l'empreinte de décision.
@@ -584,6 +602,7 @@ __all__ = [
     "TYPE_PIPELINE",
     "TYPE_PLAINTES",
     "TYPE_FILET",
+    "TYPE_PREAUDIT",
     "TYPE_RECEPTION",
     "TYPE_SIGNAUX",
     "TYPES_PHASE_2",

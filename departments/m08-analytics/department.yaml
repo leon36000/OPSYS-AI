@@ -114,6 +114,7 @@ evenements:
     - m4.capacite_equipe_constatee
     - m2.pipeline_constate
     - m2.filet_anti_perte_constate
+    - m5.preaudit_constate
     - m6.disponibilite_constatee
     - m1.plaintes_constatees
   publie: [m8.alerte_proposee, m8.snapshot_chantier, m8.fait_consolide]

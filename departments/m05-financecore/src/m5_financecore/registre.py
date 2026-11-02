@@ -89,6 +89,9 @@ _TYPE_ENTREE_VALIDES = {
     # SCELLÉ d'un document (empreintes du contenu et du PDF), jamais ses octets ni le nom du client.
     "facture_pdf_scellee",
     "etat_compte_pdf_scelle",
+    # Budget déclaré par la direction (budgets.py, M5-RAPPORTS-1), dans le registre DÉDIÉ `budgets_declares` : une
+    # version complète du budget, déclarée par une personne (N3). Jamais un mouvement financier ; jamais modifiée.
+    "budget_declare",
 }
 
 _CHAMPS_MOUVEMENT = (

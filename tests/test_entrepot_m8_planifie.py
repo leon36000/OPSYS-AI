@@ -64,7 +64,8 @@ PREMIER_TOUR = {
     "m1.plaintes_constatees": 1, "m2.pipeline_constate": 1, "m2.filet_anti_perte_constate": 1,
     "m4.capacite_equipe_constatee": 1,
     "m5.cash_libre_constate": 1,  # sans mouvement ni déclaration : « non calculable », publié tel quel (jamais un zéro)
-    "m5.depense_publicitaire_constatee": 1, "m5.facture_emise_constatee": 2, "m6.disponibilite_constatee": 1,
+    "m5.depense_publicitaire_constatee": 1, "m5.facture_emise_constatee": 2, "m5.preaudit_constate": 1,
+    "m6.disponibilite_constatee": 1,
     "m7.performance_signaux_constatee": 4,
 }
 
@@ -368,6 +369,7 @@ def test_les_cadences_par_defaut_viennent_du_catalogue_et_la_capacite_passe_chaq
         "m4.constat.capacite-equipe": JOUR,  # fenêtre hebdomadaire (cadence 7 j du catalogue) : borné à un jour
         "m5.constat.cash-libre": INTERVALLE,  # fenêtre de 24 h des quatre mesures du cash libre, deux passages
         "m5.constat.depense-publicitaire": INTERVALLE, "m5.constat.factures-emises": INTERVALLE,
+        "m5.constat.preaudit": INTERVALLE,
         "m6.constat.disponibilite": INTERVALLE, "m7.constat.performance-signaux": INTERVALLE}
 
 

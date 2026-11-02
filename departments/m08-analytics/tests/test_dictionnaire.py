@@ -146,6 +146,8 @@ def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_ch
         "m8_cout_par_lead_pub_cad",
         # M2-C1 : le filet anti-perte de M2 (violations SLA, anomalies d'intégrité), tiré de son constat planifié
         "m8_violations_sla_commercial", "m8_anomalies_integrite_crm",
+        # M5-PRE-AUDIT : les constats du pré-audit de M5, tirés de son constat planifié
+        "m8_constats_preaudit",
     }
     assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
 

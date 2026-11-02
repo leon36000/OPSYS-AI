@@ -115,9 +115,9 @@ def test_une_mesure_perimee_rend_la_sante_indeterminee_et_les_mesures_disent_leu
     assert all(m["age_s"] is not None for m in perime["mesures"] if m["fraicheur"] == "perime")
 
 
-def test_les_cinquante_huit_mesures_sont_la_avec_valeur_en_texte_ou_nulle_jamais_un_zero_par_defaut(monkeypatch):
+def test_les_cinquante_neuf_mesures_sont_la_avec_valeur_en_texte_ou_nulle_jamais_un_zero_par_defaut(monkeypatch):
     mesures = _lire(_outil(monkeypatch, cash_libre_cad=None))["resultat"]["mesures"]
-    assert len(mesures) == 58 and len({m["metric_id"] for m in mesures}) == 58
+    assert len(mesures) == 59 and len({m["metric_id"] for m in mesures}) == 59
     cash = next(m for m in mesures if m["metric_id"] == "m8_cash_libre_cad")
     assert cash["valeur"] is None and cash["statut"] == "non_calculable" and cash["fraicheur"] == "manquant"
     for m in mesures:

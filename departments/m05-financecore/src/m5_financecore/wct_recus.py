@@ -30,6 +30,8 @@ def construire(
     horodatage_completion: Any,
     duree_reelle_minutes: Any = None,
     empreinte_charge: str | None = None,
+    service: Any = None,
+    ville: Any = None,
 ) -> dict[str, Any]:
     """Le maillon WCT reçu — construction pure, sans écriture (l'appelant, `outils.py`, vérifie
     d'abord `pour_wct_id` et n'ajoute que si absent : l'idempotence vit là, pas ici).
@@ -47,6 +49,14 @@ def construire(
     }
     if empreinte_charge is not None:
         resultat["empreinte_charge"] = empreinte_charge
+    # Dimensions que M4 publie à la fin des travaux (m4.travaux_termines) : gardées TELLES QUELLES pour la
+    # rentabilité par
+    # service et par ville (`rapports_financiers.py`), jamais déduites. Absentes de la charge : absentes du maillon (un
+    # ancien maillon et un maillon sans dimension se lisent pareil : « dimension inconnue », jamais une valeur devinée).
+    if isinstance(service, str) and service.strip():
+        resultat["service"] = service.strip()[:80]
+    if isinstance(ville, str) and ville.strip():
+        resultat["ville"] = ville.strip()[:80]
     return resultat
 
 

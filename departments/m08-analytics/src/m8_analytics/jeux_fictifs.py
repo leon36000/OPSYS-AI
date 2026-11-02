@@ -494,6 +494,21 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
             7,
         ),
         ordonne(
+            operations_recues.TYPE_PREAUDIT,
+            {
+                "evenement_id": f"m5-preaudit-{jour}-fictif", "date_reference": jour, "constate_le": _instant(jour, 7),
+                "version_donnees": "5566778899aabbcc",
+                "constats_par_regle": {
+                    "FACTURE_SANS_PAIEMENT": 1, "PAIEMENT_SANS_FACTURE": 0, "DEPENSE_SANS_RECU": 2,
+                    "TAXE_INCOHERENTE": 0, "DOUBLON_PROBABLE": 1, "TRANSACTION_HORS_NORME": None, "FACTURE_MODIFIEE": 0,
+                    "CHANGEMENT_COMPTE_INHABITUEL": None, "PISTE_AUDIT_INCOMPLETE": 0, "DOCUMENT_MANQUANT": 0},
+                "constats_total": 4, "constats_par_gravite": {"haute": 1, "moyenne": 3, "faible": 0},
+                "regles_non_evaluees": ["TRANSACTION_HORS_NORME", "CHANGEMENT_COMPTE_INHABITUEL"],
+                "regles_partielles": [],
+            },
+            7,
+        ),
+        ordonne(
             operations_recues.TYPE_PLAINTES,
             {
                 "evenement_id": f"m1-plaintes-{jour}-30-fictif", "date_reference": jour, "jours": 30, "etat": "CONNUE",

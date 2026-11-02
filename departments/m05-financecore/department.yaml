@@ -40,14 +40,16 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
   # fait constater le cash libre (m5_constater_cash_libre, N3) ou, une fois le constat « cash-libre » activé par un admin
   # (constats_planifies, plus bas), à chaque passage du planificateur (m5_constater_cash_libre_planifie, N2) ; jamais à
   # chaque lecture de m5_etat_tresorerie.
-  # Opérations comptables (docs/architecture/M5-SOPHIE.md, catalogue src/opsys/evenements/catalogue/) : m5.creance_relance_preparee
+  # Pré-audit (docs/architecture/M5-RAPPORTS-PREAUDIT.md) : m5.preaudit_constate, les SEULS comptes de constats (par règle, par
+  # gravité ; null pour une règle non évaluée), publiés par le planificateur (constats_planifies) pour M8. Opérations comptables
+  # (docs/architecture/M5-SOPHIE.md, catalogue src/opsys/evenements/catalogue/) : m5.creance_relance_preparee
   # (brouillon de relance, pour M2 ; rien n'est envoyé), m5.mesures_comptables_constatees (nombres et montants comptés par le
   # code, pour M8), m5.rapprochement_po_constate (facture fournisseur contre la commande réceptionnée, pour M6),
   # m5.dossier_cpa_scelle (dossier de période scellé, pour M10). Aucun ne porte de nom, de libellé ni de texte libre ; les
   # consommateurs (M2, M8, M6, M10) les déclarent dans leur propre `evenements.consomme`.
   publie: [m5.rentabilite_chantier, m5.cash_libre_constate, m5.creance_relance_preparee, m5.mesures_comptables_constatees,
            m5.rapprochement_po_constate, m5.dossier_cpa_scelle,
-           m5.depense_publicitaire_constatee, m5.facture_emise_constatee]
+           m5.depense_publicitaire_constatee, m5.facture_emise_constatee, m5.preaudit_constate]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
   n3: [finance, nathan_owner]                        # M5-FACT-1 : déclarer / révoquer un plan de facturation par jalons
   n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture : numéro et échéance fixés à l'émission,
@@ -227,6 +229,67 @@ constats_planifies:
       zéro. Aucun paiement, aucune écriture comptable.
     appels:
       - aujourd_hui: {calcul: jour}
+  # Le pré-audit (M5-PRE-AUDIT) : les COMPTES de constats du contrôleur déterministe (dix règles), sans facture, fournisseur, client,
+  # écriture ni montant. Une règle dont le seuil déclaré est absent part en null, jamais en zéro. Inactif par défaut comme tout constat ;
+  # en ombre, le planificateur dit seulement « aurait » et ne publie rien.
+  - nom: preaudit
+    outil: m5_constater_preaudit
+    mesures: [m8_constats_preaudit]
+    description: >-
+      Comptes de constats du pré-audit (par règle et par gravité), ou « règle non évaluée, manque X » : jamais un zéro. Aucune
+      action proposée n'est exécutée.
+    appels:
+      - aujourd_hui: {calcul: jour}
+        horodatage: {calcul: instant}
+# Rapports financiers et pré-audit (M5-RAPPORTS-1, M5-PRE-AUDIT ; docs/architecture/M5-RAPPORTS-PREAUDIT.md). Ce que la direction décide
+# et que M5 ne devine jamais (GATE NATHAN) ; relu à chaque appel. Absent, la règle ou la ligne du rapport est « non calculable /
+# non évaluée » et dit quoi déclarer, jamais un zéro.
+#  * Les trois SEUILS du pré-audit se déclarent par l'écran « Réglages de direction » de la console (bloc `reglages:` plus bas,
+#    adoption N3 par le propriétaire) ; ils peuvent aussi s'écrire ici, sous configuration.preaudit :
+#      preaudit:
+#        seuil_transaction_hors_norme_cad: "5000.00"   # EXEMPLE de forme fictif : à partir de quel montant une transaction est « hors norme »
+#        jours_fenetre_doublon: 3                       # EXEMPLE : jours d'écart sous lesquels deux factures identiques sont un doublon probable
+#        historique_changement_compte: 3                # EXEMPLE : factures de suite sur le même compte avant qu'un changement soit « inhabituel »
+#  * Les comptes de charges rangés dans les COÛTS DIRECTS (marge brute de l'état des résultats ; le plan comptable ne le dit pas) :
+#      rapports:
+#        comptes_couts_directs: ["5100", "5200"]        # EXEMPLE de forme : numéros de comptes de CHARGES du plan, décidés avec le CPA
+#  * Le BUDGET ne s'écrit pas ici : il se déclare par m5_declarer_budget (N3, une personne l'approuve).
+configuration:
+  preaudit: {}
+reglages:
+  - cle: m5.seuil_transaction_hors_norme_cad
+    libelle: "Montant à partir duquel une transaction est hors norme"
+    chemin: configuration.preaudit.seuil_transaction_hors_norme_cad
+    type: decimal
+    unite: "$ CAD"
+    min: 1
+    max: 1000000000
+    niveau: N3
+    debloque: >-
+      La règle « transaction hors norme » du pré-audit (m5_controler_preaudit, constat planifié preaudit) : sans seuil, elle est non
+      évaluée et le dit.
+  - cle: m5.jours_fenetre_doublon
+    libelle: "Jours d'écart sous lesquels deux factures identiques sont un doublon probable"
+    chemin: configuration.preaudit.jours_fenetre_doublon
+    type: entier
+    unite: jours
+    min: 1
+    max: 366
+    niveau: N3
+    debloque: >-
+      La règle « doublon probable » du pré-audit sur toute la fenêtre voulue : sans fenêtre, seuls les doublons de la MÊME date
+      sont évalués (règle partielle, dite).
+  - cle: m5.historique_changement_compte
+    libelle: "Factures de suite sur le même compte avant qu'un changement soit inhabituel"
+    chemin: configuration.preaudit.historique_changement_compte
+    type: entier
+    unite: factures
+    min: 1
+    max: 50
+    niveau: N3
+    debloque: >-
+      La règle « changement de compte inhabituel » du pré-audit (compte de charge d'un fournisseur) : sans historique déclaré, elle
+      est non évaluée et le dit.
 budget:
   tokens_jour: 200000
   tokens_mois: 3000000
