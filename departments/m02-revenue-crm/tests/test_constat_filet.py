@@ -249,3 +249,12 @@ def test_un_vendeur_ou_un_horodatage_illisible_ne_publie_rien(monde):
 def test_l_administrateur_peut_constater_comme_l_agent(monde):
     monde.accepte(_constater(monde, ADMIN))
     assert len(_publies()) == 1
+
+
+def test_la_date_de_reference_est_le_jour_de_montreal_pas_le_jour_utc(monde):
+    monde.configurer(sla=SLA_TOUS)
+    monde.lead("lead-un", "vendeur.un", contact("Cliente A", 1))
+    tard = monde.accepte(_constater(monde, horodatage="2026-10-15T23:30:00-04:00"))  # = 03:30 UTC le 16
+    tot = monde.accepte(_constater(monde, horodatage="2026-10-16T00:30:00-04:00"))  # = 04:30 UTC le 16
+    assert tard["date_reference"] == "2026-10-15" and tot["date_reference"] == "2026-10-16"
+    assert tard["evenement_id"].startswith("m2-filet-2026-10-15-")
