@@ -179,7 +179,7 @@
      "niveau": "T+S"
     }
    ],
-   "verified_commit": "PENDING_C4",
+   "verified_commit": "86fc08bf7",
    "current_status": "PARTIEL",
    "limite": "Validation d'entrée (devise CAD), évaluation de qualité d'une métrique d'agent ET, depuis le chantier C4, des règles d'invariants (plage, relation, cohérence d'un fait) évaluées de façon déterministe sur les faits reçus : un échec BLOQUE la mesure (non calculable, raison nommée), la tuile (pastille QUALITY_FAIL), le copilote (refus), le score (composante indéterminée) et est mémorisé par M10 ; prouvé de bout en bout sur SQLite avec un relevé aberrant et un constat de cash libre incohérent. Non couvert : unicité, intégrité référentielle, chantier sans adresse (M8 ne reçoit pas ces champs) ; une valeur plausible mais fausse passe (le bus n'authentifie pas le producteur) ; aucun historique daté des échecs ; PostgreSQL et navigateur réel non rejoués."
   },
@@ -213,7 +213,7 @@
      "niveau": "T+S"
     }
    ],
-   "verified_commit": "PENDING_C4",
+   "verified_commit": "86fc08bf7",
    "current_status": "PARTIEL",
    "limite": "Fraîcheur attendue déclarable par lecture, vide à la livraison ; « non calculable, manque X » ; le jour d'un constat de M5 se date à minuit LOCAL de l'entreprise (correctif D0 : avant, les mesures datées par jour étaient périmées de 19 h à minuit) ; six pastilles FRESH, STALE, PARTIAL, MISSING, QUALITY_FAIL, GATED DÉRIVÉES des états existants (aucune table) et montrées sur la tuile ; LIVE abandonné par arbitrage (aucune source n'est temps réel) et ESTIMATED absent (M8 n'estime rien). Aucune lignée (graphe de parents, version de transformation), aucun score de confiance ; GATED exige l'état du planificateur (sinon MISSING).",
    "verification": "pastilles.py : code_pastille ; tests/test_m8_qualite_planifiee.py (tuile de la vraie console)"
@@ -329,7 +329,7 @@
      "niveau": "T+S"
     }
    ],
-   "verified_commit": "PENDING_C3",
+   "verified_commit": "86fc08bf7",
    "current_status": "PARTIEL",
    "limite": "Chantier C3 : huit règles déclaratives sur le catalogue fermé (trésorerie, créances de 90 jours et plus, taux d'acceptation, soumissions sans réponse, rupture, pipeline bas, donnée périmée, qualité en échec), seuils DÉCLARÉS par la direction (six réglages N3, aucune valeur proposée ; sans seuil la règle est non évaluée et le dit), action d'un gabarit fermé, département propriétaire nommé, jamais de cause, cycle de vie ouverte / accusée / reportée / résolue en registre append-only (une alerte par épisode), proposition à M9 (m8.alerte_proposee étendu de façon additive) et section « À voir » : prouvé de bout en bout sur SQLite (vrai planificateur à horloge injectée, vrai bus, vrai sas N3). Non livré : poussée vers un téléphone ou un courriel (décision du propriétaire en attente) ; « baisse de leads » en variation (comptes cumulatifs, pas d'historique de période) ; écran d'accusé ou de report (outils d'agent seulement) ; résolution manuelle ; hystérésis ; escalade ; PostgreSQL et navigateur réel non rejoués."
   },
