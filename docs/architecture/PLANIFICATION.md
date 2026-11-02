@@ -210,7 +210,7 @@ La descente est refusée dès qu'une ligne existe. Aucune table existante n'est 
 **Le problème.** La phase 2 de l'entrepôt de M8 ([M8-ENTREPOT-SOURCES](M8-ENTREPOT-SOURCES.md)) a livré sept outils de constat
 (T1/N2, agent seulement, aucun droit d'appareil) : `m5_constater_depense_publicitaire`, `m5_constater_factures_emises`,
 `m7_constater_performance_signaux`, `m4_constater_capacite_equipe`, `m2_constater_pipeline`, `m6_constater_disponibilite`,
-`m1_constater_plaintes` ; le huitième, `m2_constater_filet` (M2-C1, filet anti-perte), les a rejoints ensuite. Rien ne les lançait : sans geste d'agent, les mesures de M8 étaient non calculables puis périmées.
+`m1_constater_plaintes` ; le huitième, `m2_constater_filet` (M2-C1, filet anti-perte), les a rejoints ensuite, puis `m5_constater_preaudit` (M5-PRE-AUDIT : les comptes de constats du contrôleur de pré-audit, [M5-RAPPORTS-PREAUDIT](M5-RAPPORTS-PREAUDIT.md)). Rien ne les lançait : sans geste d'agent, les mesures de M8 étaient non calculables puis périmées.
 
 **Décision d'architecture : l'hôte existant convient, aucun second mécanisme.** Les constats sont des appels déterministes
 d'outils N2 : c'est ce que font déjà `m8.entrepot` et `m5.cycle`. Les `planifications:` du manifeste (cron d'un AGENT avec
@@ -243,6 +243,7 @@ console et l'activation les traitent comme les autres tours.
 | `m4.constat.capacite-equipe` | `m4_constater_capacite_equipe` | heures disponibles, heures planifiées, charge | 1 : semaine ISO en cours | 24 h (borné) |
 | `m2.constat.pipeline` | `m2_constater_pipeline` | leads ouverts, taux de conversion, valeur pondérée | 1 | 12 h |
 | `m2.constat.filet` | `m2_constater_filet` | violations du SLA commercial, anomalies d'intégrité du CRM | 1 | 12 h |
+| `m5.constat.preaudit` | `m5_constater_preaudit` | constats du pré-audit (M5-PRE-AUDIT) : comptes par règle et par gravité | 1 : le jour local et l'instant du créneau | 12 h |
 | `m6.constat.disponibilite` | `m6_constater_disponibilite` | ruptures, sur-réservés, réservations incomplètes | 1 | 12 h |
 | `m1.constat.plaintes` | `m1_constater_plaintes` | plaintes de la période | 1 : période par défaut de l'outil | 12 h |
 

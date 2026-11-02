@@ -188,7 +188,7 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 modeles:
   defaut: standard
   extraction: rapide
-skills: [tenir-le-registre-financier, gerer-les-approbations-f0-f7]
+skills: [tenir-le-registre-financier, gerer-les-approbations-f0-f7, rapports-et-preaudit]
 planifications:
   - nom: digest-financier
     cron: "0 7 * * 1-5"
@@ -253,7 +253,7 @@ constats_planifies:
 #  * Les comptes de charges rangés dans les COÛTS DIRECTS (marge brute de l'état des résultats ; le plan comptable ne le dit pas) :
 #      rapports:
 #        comptes_couts_directs: ["5100", "5200"]        # EXEMPLE de forme : numéros de comptes de CHARGES du plan, décidés avec le CPA
-#  * Le BUDGET ne s'écrit pas ici : il se déclare par m5_declarer_budget (N3, une personne l'approuve).
+#  * Le BUDGET ne s'écrit pas ici : il se déclare par m5_etablir_budget (N3, une personne l'approuve).
 configuration:
   preaudit: {}
 reglages:

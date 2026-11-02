@@ -353,7 +353,13 @@ def _taxe_incoherente(d: Mapping[str, Any]) -> Resultat:
     if not taxes["disponible"]:
         return [], "NON_EVALUEE", [f"rapprochement des taxes impossible : {taxes['raison']}"]
     groupes: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+    # Une pièce SANS écriture définitive n'a pas de taxe incohérente : elle n'a pas d'écriture (DOCUMENT_MANQUANT si
+    # elle n'a
+    # même pas de brouillon) ou son brouillon attend une validation (le rapport le compte). Ici, seulement ce qui
+    # DIFFÈRE.
     for ecart in taxes["ecarts"]:
+        if ecart.get("sans_ecriture"):
+            continue
         groupes[f"{ecart['cote']}:{ecart['reference'] or 'sans-piece'}"].append(ecart)
     constats = []
     for cle in sorted(groupes):

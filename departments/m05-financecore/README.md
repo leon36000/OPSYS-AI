@@ -6,7 +6,7 @@ Statut au 1er octobre 2026 : **PARTIEL — consolidation requise**. Les opérati
 rapports préparatoires sont raccordés, mais le périmètre CFO complet n'est pas livré. Le comptage
 historique au commit `2e56c0d` (17 outils) et le constat initial DEP-001 ne décrivent plus l'arbre
 courant : DEP-001 est corrigé localement, avec régression en mémoire et sur stockage durable
-(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**97 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
+(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**107 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
 `opsys-metier verifier` confirme les nombres de départements, outils et portées d'appareil dans sa preuve de cette tranche. Voir le [périmètre cible](../../docs/produit/PERIMETRE-MODULES.md), la
 [recherche actuelle](../../docs/research/R16-2026-09-30/recherche-m5.md) et le
 [bilan intégré](../../docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md).
@@ -463,3 +463,22 @@ ce que le code a déjà calculé (aucun chiffre d'un modèle), avec les mentions
 entrées, mêmes octets ; l'empreinte SHA-256 est scellée au registre `documents_facturation` et se rejoue. Le fichier est écrit sous
 `<OPSYS_HOME>/exports/factures/` : **rien n'est envoyé**. Architecture, configuration, preuves, mutations et limites :
 [M5-FACTURATION](../../docs/architecture/M5-FACTURATION.md). À valider auprès d'un comptable (CPA) / professionnel qualifié.
+
+## Rapports financiers en brouillon, budget déclaré et pré-audit (M5-RAPPORTS-1, M5-PRE-AUDIT)
+
+M5 sort maintenant, **depuis le grand livre** (écritures définitives seulement, `Decimal` exact, aucun chiffre d'un modèle), un **état des
+résultats**, un **bilan** et un **rapport mensuel de direction**, tous marqués « Brouillon préparatoire — à valider auprès d'un comptable
+(CPA) » (`m5_etat_des_resultats`, `m5_bilan_brouillon`, `m5_rapport_mensuel_direction`) ; un **budget contre réel** à partir d'un budget que
+la direction DÉCLARE (`m5_etablir_budget`, N3 : une personne l'approuve ; `m5_lire_budget`, `m5_budget_contre_reel`) ; la **rentabilité par
+service et par ville** (`m5_rentabilite_par_axe`, à partir des rentabilités de chantier à coût complet et des dimensions que M4 publie à la
+fin des travaux, désormais gardées par M5) ; et un **contrôleur de pré-audit** déterministe en lecture seule (`m5_controler_preaudit` : dix
+règles — factures sans paiement, paiements sans facture, dépenses sans reçu, taxes incohérentes selon le moteur fiscal versionné, doublons,
+transactions hors norme, factures modifiées, changement de compte inhabituel, piste d'audit incomplète, documents manquants — qui sort des
+constats avec règle, raison, sources et action proposée, **jamais exécutée**). `m5_constater_preaudit` (T1/N2) publie au bus les seuls
+comptes de constats (`m5.preaudit_constate`, mesure `m8_constats_preaudit` de M8) ; le constat planifié `preaudit` est déclaré au manifeste
+et **inactif par défaut**. Chaque rapport rend un reçu rejouable (`m5_rejouer_rapport_financier`).
+
+Une donnée que seule la direction connaît (budget, comptes de coûts directs, trois seuils du pré-audit) est « non calculable / non évaluée »
+et dit quoi déclarer : jamais zéro. Aucune clôture de période, aucune écriture, aucun envoi, aucun PDF, aucune valeur fiscale inventée.
+Architecture, règles, preuves, mutations et limites : [M5-RAPPORTS-PREAUDIT](../../docs/architecture/M5-RAPPORTS-PREAUDIT.md).
+Aucun CPA n'a validé ces états. À valider auprès d'un comptable (CPA) / professionnel qualifié.

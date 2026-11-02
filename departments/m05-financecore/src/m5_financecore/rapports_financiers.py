@@ -17,6 +17,9 @@ Règles non négociables.
 * Fail-closed. Un compte du grand livre que le plan courant ne connaît pas fait refuser le rapport (jamais classé au
   hasard). Une donnée absente (budget, comptes de coûts directs, service ou ville d'un chantier) donne
   « NON_CALCULABLE » avec ce qu'il faut déclarer : jamais zéro.
+* SOURCES CITÉES. Chaque rapport nomme les registres qu'il a lus, avec leur taille et la tête de leur chaîne
+  (`sources`, dans les
+  entrées du reçu) : le reçu se rejoue sur les MÊMES registres tant que ces têtes n'ont pas changé.
 * REÇU REJOUABLE. Chaque rapport rend un reçu (`recu_calcul`) dont les `entrees` sont les mouvements normalisés ;
   `rejouer`
   refait le calcul à partir d'elles et compare les empreintes. Un reçu compact (sans `entrees`) reste vérifiable par son
@@ -264,6 +267,7 @@ def calculer_etat_des_resultats(entrees: Mapping[str, Any], parametres: Mapping[
     complet = {
         "type": "ETAT_DES_RESULTATS",
         **_entete(),
+        "sources": [dict(source) for source in entrees.get("sources", ())],
         "periode": {"debut": entrees["debut"], "fin": entrees["fin"]},
         "devise": "CAD",
         "total_produits": _txt(produits),
@@ -343,6 +347,7 @@ def calculer_bilan(entrees: Mapping[str, Any], parametres: Mapping[str, Any]) ->
     complet = {
         "type": "BILAN",
         **_entete(),
+        "sources": [dict(source) for source in entrees.get("sources", ())],
         "au": entrees["au"],
         "devise": "CAD",
         "total_actif": _txt(totaux["actif"]),
@@ -418,6 +423,7 @@ def calculer_budget_contre_reel(entrees: Mapping[str, Any], parametres: Mapping[
     base = {
         "type": "BUDGET_CONTRE_REEL",
         **_entete(),
+        "sources": [dict(source) for source in entrees.get("sources", ())],
         "devise": "CAD",
         "budget": {"budget_id": entrees["budget"]["budget_id"], "version": entrees["budget"]["version"]},
         "mois_demandes": mois_demandes,
@@ -432,7 +438,7 @@ def calculer_budget_contre_reel(entrees: Mapping[str, Any], parametres: Mapping[
             "non_budgetes": [],
             "manque": "le budget déclaré ne couvre aucun des mois demandés : déclarer le budget de "
             + ", ".join(mois_demandes)
-            + " (m5_declarer_budget)",
+            + " (m5_etablir_budget)",
         }
         resume = {"statut": "NON_CALCULABLE", "mois_compares": 0}
         recu = _recu(
@@ -513,7 +519,7 @@ def calculer_budget_contre_reel(entrees: Mapping[str, Any], parametres: Mapping[
         "brouillons_non_comptabilises": entrees["brouillons"],
     }
     avertissements = [
-        "Le budget est celui que la direction a DÉCLARÉ (m5_declarer_budget), version "
+        "Le budget est celui que la direction a DÉCLARÉ (m5_etablir_budget), version "
         f"{entrees['budget']['version']} ; M5 n'en invente aucun.",
         "Réel : écritures DÉFINITIVES seulement.",
         MENTION_BROUILLON + ".",
@@ -563,6 +569,7 @@ def calculer_rentabilite_par_axe(entrees: Mapping[str, Any], parametres: Mapping
     base = {
         "type": "RENTABILITE_PAR_AXE",
         **_entete(),
+        "sources": [dict(source) for source in entrees.get("sources", ())],
         "axe": axe,
         "devise": "CAD",
         "chantiers_examines": len(entrees["chantiers"]),

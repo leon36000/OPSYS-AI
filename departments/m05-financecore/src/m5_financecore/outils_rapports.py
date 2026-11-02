@@ -10,7 +10,7 @@ Qui décide quoi.
 * LIRE (états des résultats, bilan, budget contre réel, rentabilité par axe, rapport de direction, contrôle de
   pré-audit,
   vérification d'un reçu) : T0, lecture pure, aucune écriture, tous en BROUILLON.
-* DÉCLARER un budget (`m5_declarer_budget`) engage la direction : N3, une PERSONNE identifiée par le socle (propriétaire
+* DÉCLARER un budget (`m5_etablir_budget`) engage la direction : N3, une PERSONNE identifiée par le socle (propriétaire
   ou finance), jamais un argument ni un agent seul. Les montants sont ceux qu'elle déclare ; rien n'est supposé.
 * CONSTATER le pré-audit (`m5_constater_preaudit`) publie au bus les seuls COMPTES de constats (`m5.preaudit_constate`,
   pour M8) : T1 / N2, sans droit d'appareil, déclenché par le planificateur durable (`constats_planifies`, inactif par
@@ -23,6 +23,7 @@ tous (`roles_appareil` vide), refusée dans le code. Toute sortie porte la menti
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -40,6 +41,7 @@ from . import (
     comptes_a_payer,
     constat_preaudit,
     controleur_preaudit,
+    encodage,
     facturation,
     facturation_jalons,
     grand_livre,
@@ -87,6 +89,34 @@ def _page(depart: Any, limite: Any) -> tuple[tuple[int, int] | None, dict[str, s
     return (depart, limite), None
 
 
+_TEXTE_SUR = re.compile(r"[^A-Za-z0-9_.:~/-]")
+
+
+def _sur(valeur: Any, longueur: int = 60) -> str:
+    """Un texte saisi par une personne (numéro de facture d'un fournisseur, référence de pièce) réduit à des caractères
+    d'identifiant : une consigne glissée dans un numéro de facture ne traverse jamais vers le modèle qui lit un
+    constat."""
+    return _TEXTE_SUR.sub("?", str(valeur))[:longueur]
+
+
+def _une_ligne(valeur: Any, longueur: int = 200) -> str:
+    """Un texte produit par le code à partir d'un registre (détail d'une chaîne altérée, anomalie) sur une ligne, sans
+    caractère de contrôle, borné : un registre retouché ne peut pas y loger un long texte."""
+    return "".join(c if c.isprintable() else " " for c in " ".join(str(valeur).split()))[:longueur]
+
+
+def _source(nom: str, registre: Any) -> dict[str, Any]:
+    """Un registre lu, tel qu'un rapport le cite : son nom, sa taille et la tête de sa chaîne (un registre sans chaîne,
+    comme celui des rentabilités tracées, cite l'empreinte de son dernier maillon)."""
+    taille = registre.taille() if hasattr(registre, "taille") else len(registre)
+    if hasattr(registre, "tete"):
+        tete = registre.tete()
+    else:
+        maillons = list(registre)
+        tete = maillons[-1].get("ligne_id") or encodage.empreinte(maillons[-1]) if maillons else None
+    return {"registre": nom, "taille": taille, "tete": tete}
+
+
 def _contexte() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Grand livre (état, plan) d'un rapport, ou le refus nommé : appareil, stockage non durable, plan illisible, chaîne
     altérée. Jamais un chiffre tiré d'une chaîne qui ne se rejoue pas."""
@@ -97,7 +127,11 @@ def _contexte() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     if refus is not None:
         return None, refus
     registre_gl, plan = ctx
-    return {"etat": grand_livre.etat_grand_livre(registre_gl.lire()), "plan": plan}, None
+    return {
+        "etat": grand_livre.etat_grand_livre(registre_gl.lire()),
+        "plan": plan,
+        "sources": [_source("grand_livre", registre_gl)],
+    }, None
 
 
 def _jour_ou_refus(valeur: Any) -> tuple[date | None, dict[str, str] | None]:
@@ -191,6 +225,7 @@ def _construire_resultats(
         "brouillons": mouvements["brouillons"],
         "periode_close": mouvements["periode_close"],
         "plan_comptable_version": mouvements["plan_comptable_version"],
+        "sources": ctx["sources"],
     }
     return rapports_financiers.calculer_etat_des_resultats(
         entrees, {"debut": entrees["debut"], "fin": entrees["fin"]}
@@ -223,6 +258,7 @@ def _construire_bilan(ctx: Mapping[str, Any], au: date) -> tuple[dict[str, Any] 
         "ecritures_definitives": mouvements["ecritures_definitives"],
         "brouillons": mouvements["brouillons"],
         "plan_comptable_version": mouvements["plan_comptable_version"],
+        "sources": ctx["sources"],
     }
     return rapports_financiers.calculer_bilan(entrees, {"au": entrees["au"]}), None
 
@@ -263,7 +299,7 @@ def _etat_budgets() -> tuple[tuple[Any, dict[str, Any]] | None, dict[str, Any] |
 
 
 _A_DECLARER_BUDGET = (
-    "aucun budget n'est déclaré : la direction le déclare avec m5_declarer_budget (N3), ligne par ligne — un "
+    "aucun budget n'est déclaré : la direction le déclare avec m5_etablir_budget (N3), ligne par ligne — un "
     "compte de produits "
     "ou de charges du plan comptable, un mois AAAA-MM, un montant au cent. M5 n'en suppose aucun."
 )
@@ -306,6 +342,7 @@ def _construire_budget_contre_reel(ctx: Mapping[str, Any], mois_debut: str, mois
         "reel": reel,
         "ecritures_definitives": mouvements["ecritures_definitives"],
         "brouillons": mouvements["brouillons"],
+        "sources": [*ctx["sources"], _source("budgets_declares", lecture[0])],
     }
     return rapports_financiers.calculer_budget_contre_reel(entrees, {"mois_debut": mois[0], "mois_fin": mois[-1]}), None
 
@@ -325,7 +362,7 @@ def budget_contre_reel(
     return _sortie(resultat["etat"], resultat["recu"], "lignes", *page)
 
 
-def declarer_budget(
+def etablir_budget(
     libelle: str, lignes: list[dict[str, str]], motif: str | None, version_attendue: int | None, horodatage: str
 ) -> dict[str, Any]:
     refus = _appareil_refuse()
@@ -334,7 +371,7 @@ def declarer_budget(
     registre = _registre_budgets()
     if registre is None:
         return refuse(_verdict("REJ-BUDGET-STOCKAGE-NON-DURABLE", "registre durable des budgets requis"))
-    humain, refus = humain_requis("m5_declarer_budget", "déclarer le budget")
+    humain, refus = humain_requis("m5_etablir_budget", "déclarer le budget")
     if refus is not None:
         return refuse(_verdict("REJ-BUDGET-HUMAIN-REQUIS", refus["detail"]))
     try:
@@ -496,6 +533,10 @@ def _construire_rentabilite(axe: str, debut: date | None, fin: date | None):
         "debut": debut.isoformat() if debut else None,
         "fin": fin.isoformat() if fin else None,
         "chantiers": _chantiers_rentabilite(debut, fin),
+        "sources": [
+            _source("rentabilite", stockage.maillons(_o._DEPARTEMENT, _o._NOM_REGISTRE_RENTABILITE)),
+            _source("wct_recus", stockage.maillons(_o._DEPARTEMENT, _o._NOM_REGISTRE_WCT_RECUS)),
+        ],
     }
     return rapports_financiers.calculer_rentabilite_par_axe(
         entrees, {"axe": axe, "debut": entrees["debut"], "fin": entrees["fin"]}
@@ -559,7 +600,7 @@ def _normaliser_gl(etat: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "date_effet": e["date_effet"],
                 "cle": e["cle_piece"],
                 "piece_type": e["piece"]["type"],
-                "piece_ref": e["piece"]["reference"],
+                "piece_ref": _sur(e["piece"]["reference"], 120),
                 "nature": e["nature"],
                 "contre_passe": e["contre_passe"],
                 "contre_passee_par": e.get("contre_passee_par"),
@@ -590,6 +631,7 @@ def _ecarts_taxes(resultat: Mapping[str, Any]) -> list[dict[str, Any]]:
                     "reference": e.get("facture_id"),
                     "raison": e["raison"],
                     "attendu": e.get("attendu_taxes"),
+                    "sans_ecriture": e["raison"] == "sans écriture définitive",
                     "au_grand_livre": e["au_grand_livre"],
                 }
             )
@@ -603,6 +645,7 @@ def _ecarts_taxes(resultat: Mapping[str, Any]) -> list[dict[str, Any]]:
                     "role": role,
                     "reference": e.get("facture_fournisseur_id"),
                     "raison": e["raison"],
+                    "sans_ecriture": e["raison"] == "sans écriture définitive",
                     "attendu": e.get("attendu_facture"),
                     "au_grand_livre": e["au_grand_livre"],
                 }
@@ -628,7 +671,7 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
 
     def chaine(nom: str, registre: Any) -> bool:
         valide, raison = registre.valider_chaine()
-        chaines.append({"registre": nom, "ok": bool(valide), "detail": raison or ""})
+        chaines.append({"registre": nom, "ok": bool(valide), "detail": _une_ligne(raison or "")})
         return bool(valide)
 
     registre_gl = _o._registre_grand_livre()
@@ -662,7 +705,7 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
         try:
             ap_etats = list(comptes_a_payer._etats_factures(registre_ap.lire()).values())
         except RuntimeError as exc:
-            chaines.append({"registre": "comptes_a_payer", "ok": False, "detail": str(exc)[:200]})
+            chaines.append({"registre": "comptes_a_payer", "ok": False, "detail": _une_ligne(exc)})
     fournisseurs = []
     for f in ap_etats:
         compte, _refus = plan_comptable.compte_de_charge(
@@ -672,7 +715,7 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
             {
                 "id": f["facture_fournisseur_id"],
                 "fournisseur_id": str(f["fournisseur_id"]),
-                "numero": str(f["numero_facture"]),
+                "numero": _sur(f["numero_facture"], 40),
                 "date_facture": str(f["date_facture"])[:10],
                 "montant_avant_taxes": _txt(f["montant_avant_taxes"]),
                 "statut": f["statut"],
@@ -757,7 +800,7 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
     dossier = {
         "aujourd_hui": aujourd_hui.isoformat(),
         "gl_utilisable": gl_utilisable,
-        "anomalies_gl": list(etat_gl["anomalies"]),
+        "anomalies_gl": [_une_ligne(a) for a in etat_gl["anomalies"]],
         "plan": {
             "banque": plan["roles"]["banque"],
             "comptes_clients": plan["roles"]["comptes_clients"],
@@ -774,9 +817,16 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
         "pieces_illisibles": illisibles,
         "taxes": taxes,
         "chaines": chaines,
-        "numerotation": {"ok": not defauts, "defauts": defauts[:100]},
+        "numerotation": {"ok": not defauts, "defauts": [_une_ligne(d) for d in defauts[:100]]},
         "seuils": seuils,
         "seuils_problemes": problemes_seuils,
+        "sources": [
+            _source("grand_livre", registre_gl),
+            _source("factures", registre_factures),
+            _source("comptes_a_payer", registre_ap),
+            _source("operations_comptables", registre_ops),
+            _source("numerotation_factures", registre_numeros),
+        ],
     }
     return dossier, None
 
@@ -812,9 +862,10 @@ def controler_preaudit(aujourd_hui: str, depart: int | None = None, limite: int 
         ],
         "constats": rapport["constats"],
     }
-    problemes = rapport["recu"]["entrees"]["dossier"]["seuils_problemes"]
-    if problemes:
-        corps["seuils_problemes"] = problemes
+    dossier = rapport["recu"]["entrees"]["dossier"]
+    corps["sources"] = dossier["sources"]
+    if dossier["seuils_problemes"]:
+        corps["seuils_problemes"] = dossier["seuils_problemes"]
     return _sortie(corps, rapport["recu"], "constats", *page)
 
 
@@ -1133,7 +1184,7 @@ def outils_rapports() -> tuple[Outil, ...]:
             nom="m5_budget_contre_reel",
             description=(
                 "Budget DÉCLARÉ contre le réel du grand livre, mois par mois et compte par compte (écart, favorable ou "
-                "défavorable). Aucun budget déclaré : refus qui dit quoi déclarer (m5_declarer_budget), jamais un "
+                "défavorable). Aucun budget déclaré : refus qui dit quoi déclarer (m5_etablir_budget), jamais un "
                 "budget "
                 "supposé ; un mois sans budget est nommé, jamais comparé à zéro. Reçu rejouable. Lecture pure."
                 + brouillon
@@ -1148,7 +1199,7 @@ def outils_rapports() -> tuple[Outil, ...]:
             autonomie=Autonomie.T0,
         ),
         Outil(
-            nom="m5_declarer_budget",
+            nom="m5_etablir_budget",
             description=(
                 "DÉCLARE le budget de la direction : des lignes {compte de produits ou de charges, mois AAAA-MM, "
                 "montant "
@@ -1194,7 +1245,7 @@ def outils_rapports() -> tuple[Outil, ...]:
                 },
                 "required": ["libelle", "lignes", "motif", "version_attendue", "horodatage"],
             },
-            fonction=declarer_budget,
+            fonction=etablir_budget,
             autonomie=Autonomie.T1,
             niveau=Niveau.N3,
         ),

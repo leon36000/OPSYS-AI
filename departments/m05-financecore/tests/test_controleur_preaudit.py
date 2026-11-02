@@ -373,6 +373,32 @@ def test_taxe_sur_intrants_et_ecriture_non_rattachee():
     assert {k["sources"][0]["reference"] for k in r["constats"]} == {"A1", "ecritures-non-rattachees"}
 
 
+def test_une_piece_sans_ecriture_definitive_n_a_pas_de_taxe_incoherente_elle_n_a_pas_d_ecriture():
+    d = dossier_propre()
+    d["taxes"]["ecarts"] = [
+        {
+            "cote": "intrants",
+            "role": "tps_cti",
+            "reference": "A2",
+            "raison": "sans écriture définitive",
+            "attendu": "20.00",
+            "au_grand_livre": "0.00",
+            "sans_ecriture": True,
+        },
+        {
+            "cote": "clients",
+            "role": "tps_a_percevoir",
+            "reference": "F2",
+            "raison": "montant différent",
+            "attendu": "50.00",
+            "au_grand_livre": "75.00",
+            "sans_ecriture": False,
+        },
+    ]
+    k = un_seul(controler(d), "TAXE_INCOHERENTE")
+    assert k["sources"] == [{"registre": "factures", "reference": "F2"}] and "A2" not in k["raison"]
+
+
 def test_taxes_non_comparables_la_regle_est_non_evaluee_et_dit_pourquoi():
     d = dossier_propre()
     d["taxes"] = {

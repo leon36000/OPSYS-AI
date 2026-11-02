@@ -433,12 +433,78 @@ def test_les_recus_se_rejouent_a_l_identique_et_sur_les_memes_registres(monde):
     assert _utile(appeler(monde, "m5_rejouer_rapport_financier", {"recu": bilan["recu"]}))["rejoue"] is True
 
 
+def tete_du_grand_livre():
+    with stockage.transaction():
+        registre_gl = m5_outils._registre_grand_livre()
+        return {"registre": "grand_livre", "taille": registre_gl.taille(), "tete": registre_gl.tete()}
+
+
+def test_chaque_rapport_cite_ses_sources_avec_la_taille_et_la_tete_des_registres_lus(monde):
+    exercice(monde)
+    gl = tete_du_grand_livre()
+    assert gl["taille"] > 14 and gl["tete"]
+    for nom, arguments in (
+        ("m5_etat_des_resultats", {"debut": "2026-08-01", "fin": "2026-10-31"}),
+        ("m5_bilan_brouillon", {"au": "2026-10-31"}),
+    ):
+        rapport = _utile(appeler(monde, nom, arguments))
+        assert rapport["sources"] == [gl], nom
+    # le pré-audit cite les cinq registres qu'il a lus
+    controle = _utile(appeler(monde, "m5_controler_preaudit", {"aujourd_hui": "2026-11-12"}))
+    sources = {x["registre"]: x for x in controle["sources"]}
+    assert set(sources) == {
+        "grand_livre",
+        "factures",
+        "comptes_a_payer",
+        "operations_comptables",
+        "numerotation_factures",
+    }
+    assert sources["grand_livre"] == gl and all(x["taille"] > 0 and x["tete"] for x in sources.values())
+    # la rentabilité cite ses deux registres ; le budget le sien
+    rentabilite = _utile(appeler(monde, "m5_rentabilite_par_axe", {"axe": "ville"}))
+    assert {x["registre"] for x in rentabilite["sources"]} == {"rentabilite", "wct_recus"}
+    assert all(x["taille"] >= 1 for x in rentabilite["sources"])
+    decider(
+        monde,
+        "m5_etablir_budget",
+        {"libelle": "B", "lignes": BUDGET, "motif": None, "version_attendue": 0, "horodatage": H},
+        par="nathan",
+    )
+    budget = _utile(appeler(monde, "m5_budget_contre_reel", {"periode_debut": "2026-08", "periode_fin": "2026-10"}))
+    assert {x["registre"] for x in budget["sources"]} == {"grand_livre", "budgets_declares"}
+    # une écriture de plus change la tête citée, donc l'empreinte du reçu : le reçu dit sur QUELLES données il porte
+    avant = _utile(appeler(monde, "m5_bilan_brouillon", {"au": "2026-10-31"}))
+    _utile(
+        appeler(
+            monde,
+            "m5_proposer_ecriture_comptable",
+            {
+                "date_effet": "2026-10-31",
+                "libelle": "Brouillon (fictif)",
+                "piece_type": "manuelle",
+                "piece_reference": "B-9",
+                "lignes": [
+                    {"compte": "5990", "debit": "1.00", "credit": None},
+                    {"compte": "1010", "debit": None, "credit": "1.00"},
+                ],
+                "horodatage": H,
+            },
+        )
+    )
+    apres = _utile(appeler(monde, "m5_bilan_brouillon", {"au": "2026-10-31"}))
+    assert (
+        apres["sources"][0]["tete"] != avant["sources"][0]["tete"]
+        and apres["recu"]["empreinte"] != avant["recu"]["empreinte"]
+    )
+    assert apres["total_actif"] == avant["total_actif"]  # le brouillon n'est pas additionné, mais la source a changé
+
+
 # ================================================================================== données déclarées absentes
 def test_donnees_declarees_absentes_budget_couts_directs_dimension_et_seuils_disent_quoi_declarer_jamais_zero(monde):
     exercice(monde)
     # budget : aucun déclaré
     verdict = _refus(appeler(monde, "m5_budget_contre_reel", {"periode_debut": "2026-08", "periode_fin": "2026-10"}))
-    assert verdict["code"] == "REJ-BUDGET-A-DECLARER" and "m5_declarer_budget" in verdict["detail"]
+    assert verdict["code"] == "REJ-BUDGET-A-DECLARER" and "m5_etablir_budget" in verdict["detail"]
     assert _refus(appeler(monde, "m5_lire_budget", {}))["code"] == "REJ-BUDGET-A-DECLARER"
     # marge brute : comptes de coûts directs non déclarés
     etat = _utile(appeler(monde, "m5_etat_des_resultats", {"debut": "2026-08-01", "fin": "2026-10-31"}))
@@ -509,10 +575,10 @@ def test_budget_declare_par_une_personne_puis_compare_au_reel(monde):
     }
     # un agent seul ne déclare rien ; la demande attend une personne (N3)
     capacites = Capacites({M5: monde.dep5}, stockage.transaction)
-    assert capacites.appeler("m5_declarer_budget", arguments)["statut"] == "en_attente_approbation"
+    assert capacites.appeler("m5_etablir_budget", arguments)["statut"] == "en_attente_approbation"
     assert registre("budgets_declares") == []
-    assert _refus(appeler(monde, "m5_declarer_budget", arguments))["code"] == "REJ-BUDGET-HUMAIN-REQUIS"
-    declare = _executee(decider(monde, "m5_declarer_budget", arguments, par="nathan"))
+    assert _refus(appeler(monde, "m5_etablir_budget", arguments))["code"] == "REJ-BUDGET-HUMAIN-REQUIS"
+    declare = _executee(decider(monde, "m5_etablir_budget", arguments, par="nathan"))
     assert declare["statut"] == "ecrit" and declare["version"] == 1 and declare["mois_debut"] == "2026-08"
     assert declare["declare_par"]["role"] in ("nathan_owner", "admin") and len(registre("budgets_declares")) == 1
 
@@ -552,20 +618,20 @@ def test_budget_declare_par_une_personne_puis_compare_au_reel(monde):
     )
     # redéclarer le même contenu ne crée rien ; une version révisée exige un motif ; le passé reste lisible
     assert (
-        _executee(decider(monde, "m5_declarer_budget", {**arguments, "version_attendue": 1}, par="nathan"))["statut"]
+        _executee(decider(monde, "m5_etablir_budget", {**arguments, "version_attendue": 1}, par="nathan"))["statut"]
         == "deja"
     )
     assert len(registre("budgets_declares")) == 1
     revise = [*BUDGET, {"compte": "5990", "mois": "2026-10", "montant": "100.00"}]
     sans_motif = decider(
-        monde, "m5_declarer_budget", {**arguments, "lignes": revise, "version_attendue": 1}, par="nathan"
+        monde, "m5_etablir_budget", {**arguments, "lignes": revise, "version_attendue": 1}, par="nathan"
     )
     assert sans_motif["statut"] == "echec" or sans_motif["reponse"]["resultat"]["accepte"] is False
     assert len(registre("budgets_declares")) == 1
     v2 = _executee(
         decider(
             monde,
-            "m5_declarer_budget",
+            "m5_etablir_budget",
             {**arguments, "lignes": revise, "motif": "Frais divers ajoutés", "version_attendue": 1},
             par="nathan",
         )
@@ -575,7 +641,7 @@ def test_budget_declare_par_une_personne_puis_compare_au_reel(monde):
     assert [v["version"] for v in lecture["versions"]] == [1, 2] and lecture["lignes_total"] == 8
     # une déclaration concurrente (version attendue périmée) est refusée
     perimee = decider(
-        monde, "m5_declarer_budget", {**arguments, "lignes": revise, "motif": "x", "version_attendue": 1}, par="nathan"
+        monde, "m5_etablir_budget", {**arguments, "lignes": revise, "motif": "x", "version_attendue": 1}, par="nathan"
     )
     assert perimee["reponse"]["resultat"]["verdict"]["code"] == "REJ-BUDGET-VERSION-ATTENDUE"
 
@@ -590,7 +656,7 @@ def test_un_budget_mal_forme_est_refuse_et_n_ecrit_rien(monde):
         ([{"compte": "4100", "mois": "2026-13", "montant": "5.00"}], "REJ-BUDGET-MOIS-INVALIDE"),
         ([{"compte": "4100", "mois": "2026-08", "montant": "5.00"}] * 2, "REJ-BUDGET-LIGNE-DOUBLE"),
     ):
-        decision = decider(monde, "m5_declarer_budget", {**base, "lignes": lignes}, par="nathan")
+        decision = decider(monde, "m5_etablir_budget", {**base, "lignes": lignes}, par="nathan")
         assert decision["reponse"]["resultat"]["verdict"]["code"] == code, (lignes, decision)
     assert registre("budgets_declares") == []
 
@@ -896,7 +962,7 @@ def test_le_rapport_mensuel_distingue_faits_hypotheses_et_donnees_manquantes_et_
     } == {"Le bilan s'équilibre": True}
     # budget absent : NON_CALCULABLE avec ce qu'il faut déclarer, aucun fait
     assert sections["budget"]["statut"] == "NON_CALCULABLE" and sections["budget"]["faits"] == []
-    assert "m5_declarer_budget" in sections["budget"]["donnees_manquantes"][0]["a_declarer"]
+    assert "m5_etablir_budget" in sections["budget"]["donnees_manquantes"][0]["a_declarer"]
     for axe in ("service", "ville"):
         assert (
             sections[f"rentabilite_{axe}"]["statut"] == "NON_CALCULABLE"
@@ -916,7 +982,7 @@ def test_le_rapport_mensuel_distingue_faits_hypotheses_et_donnees_manquantes_et_
     # un budget déclaré fait passer la section en CALCULE
     decider(
         monde,
-        "m5_declarer_budget",
+        "m5_etablir_budget",
         {"libelle": "B", "lignes": BUDGET, "motif": None, "version_attendue": 0, "horodatage": H},
         par="nathan",
     )

@@ -120,7 +120,7 @@ SORTIES_RAPPORTS = frozenset({
     "m5_etat_des_resultats",
     "m5_bilan_brouillon",  # bilan en brouillon : actif = passif + capitaux + résultat cumulé non clos
     "m5_budget_contre_reel",  # budget déclaré contre réel du grand livre : écarts, jamais un budget supposé
-    "m5_declarer_budget",  # budget déclaré par une personne (N3) : lignes compte / mois / montant
+    "m5_etablir_budget",  # budget déclaré par une personne (N3) : lignes compte / mois / montant
     "m5_lire_budget",  # budget déclaré actif, versions et lignes
     "m5_rentabilite_par_axe",  # marge réelle par service ou par ville, ou « non calculable, manque X »
     "m5_rapport_mensuel_direction",  # sections faits / hypothèses / données manquantes, chacune avec son reçu

@@ -417,7 +417,7 @@ def test_aucun_mois_budgete_est_non_calculable_et_dit_quoi_declarer(livre, plan)
     r = budget_contre_reel(livre, plan, ["2026-01"], lignes=[x for x in lignes_budget() if x["mois"] == "2026-02"])[
         "etat"
     ]
-    assert r["statut"] == "NON_CALCULABLE" and "2026-01" in r["manque"] and "m5_declarer_budget" in r["manque"]
+    assert r["statut"] == "NON_CALCULABLE" and "2026-01" in r["manque"] and "m5_etablir_budget" in r["manque"]
     assert r["lignes"] == [] and "totaux" not in r
 
 
@@ -741,3 +741,30 @@ def test_le_rapport_de_direction_distingue_faits_hypotheses_et_donnees_manquante
     # le reçu composite se VÉRIFIE (ses empreintes) ; chaque section se rejoue par son propre reçu
     assert recu_calcul.verifier(rapport["recu"]) == (True, "")
     assert rapports_financiers.rejouer(rapport["recu"])[0] is False
+
+
+def test_les_sources_citees_dans_les_entrees_se_retrouvent_dans_chaque_rapport_et_dans_le_recu(livre, plan):
+    source = [{"registre": "grand_livre", "taille": 12, "tete": "ab" * 32}]
+    m = mouvements(livre, plan, "2026-01-01", "2026-01-31")
+    entrees = {
+        "debut": "2026-01-01",
+        "fin": "2026-01-31",
+        "comptes": m["comptes"],
+        "couts_directs": None,
+        "ecritures_definitives": m["ecritures_definitives"],
+        "brouillons": m["brouillons"],
+        "periode_close": m["periode_close"],
+        "plan_comptable_version": m["plan_comptable_version"],
+        "sources": source,
+    }
+    avec = rapports_financiers.calculer_etat_des_resultats(entrees, {"debut": "2026-01-01", "fin": "2026-01-31"})
+    sans = rapports_financiers.calculer_etat_des_resultats(
+        {k: v for k, v in entrees.items() if k != "sources"}, {"debut": "2026-01-01", "fin": "2026-01-31"}
+    )
+    assert (
+        avec["etat"]["sources"] == source
+        and avec["recu"]["entrees"]["sources"] == source
+        and sans["etat"]["sources"] == []
+    )
+    assert avec["recu"]["empreinte"] != sans["recu"]["empreinte"]  # citer une autre source change l'empreinte
+    assert rapports_financiers.rejouer(avec["recu"]) == (True, "")
