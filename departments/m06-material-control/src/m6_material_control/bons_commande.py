@@ -63,8 +63,12 @@ partielle ferait passer le PO à `received` alors que la moitié seulement est a
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import math
+import re
 from collections.abc import Iterable, Mapping
+from datetime import date, datetime
 from decimal import Decimal
 from fractions import Fraction
 from typing import Any
@@ -83,6 +87,10 @@ from . import (
 
 __all__ = [
     "calculer_lignes_a_commander",
+    "changer_statut",
+    "manques_commandabilite",
+    "repartir_besoin",
+    "STATUTS_PILOTABLES",
     "construire_bon_demande",
     "creer_brouillon",
     "approuver",
@@ -108,7 +116,16 @@ __all__ = [
 # contrats.TRANSITIONS_PO) — recevoir directement depuis sent_to_supplier est le même raccourci
 # documenté que draft -> approved.
 _STATUTS_AVANT_RECEPTION = frozenset({"sent_to_supplier", "supplier_confirmed", "partially_received"})
-_CLES_CONTENU_PO = ("chantier_id", "fournisseur_id", "lignes", "montant_total_prevu")
+_CLES_CONTENU_PO = (
+    "chantier_id", "fournisseur_id", "lignes", "montant_total_prevu",
+    "devis_id", "date_requise", "mode_livraison", "lieu_livraison", "ville", "notes",
+)
+# C3 : les statuts qu'aucun autre outil n'atteignait (`pending_admin_review`, `disputed`, `invoiced`, `closed`).
+STATUTS_PILOTABLES = frozenset({"pending_admin_review", "disputed", "invoiced", "closed"})
+_MOTIF_DECIMAL = re.compile(r"[0-9]+(\.[0-9]+)?")
+_REPARTITION_ENTREES_MAX = 20
+_REPARTITION_LIGNES_MAX = 200
+_TEXTE_LONGUEUR = {"lieu_livraison": 200, "ville": 80, "notes": 500, "unite": 40, "designation": 200}
 
 
 def _texte_non_vide(valeur: Any) -> bool:
@@ -130,7 +147,9 @@ def calculer_lignes_a_commander(
     source ``m3.devis_accepte``), l'écart entre la quantité estimée et le stock déjà disponible
     pour ce chantier (``stock.deriver_stock_theorique``, réutilisé SANS modification). Un matériau
     déjà entièrement couvert par le stock disponible n'apparaît PAS ici — jamais une ligne à
-    quantité nulle ou négative. Pure : aucune écriture, aucun ``po_id`` construit ici."""
+    quantité nulle ou négative. C2 : la quantité est la quantité NETTE (``quantite_nette``) et la ligne porte
+    l'unité du besoin ; la perte, si elle est déclarée, s'applique à la création du PO. Pure : aucune écriture,
+    aucun ``po_id`` construit ici."""
     lignes: list[dict[str, Any]] = []
     for besoin in besoins_estimes:
         materiau_id = besoin["materiau_id"]
@@ -140,18 +159,105 @@ def calculer_lignes_a_commander(
         # au bon de commande fait de la réception de 7,2 une réception « inférieure », donc un PO jamais complet.
         ecart = Decimal(str(quantite_estimee)) - Decimal(str(disponible))
         if ecart > 0:
-            lignes.append({"materiau_id": materiau_id, "quantite_demandee": float(ecart)})
+            lignes.append({"materiau_id": materiau_id, "quantite_nette": float(ecart), "unite": besoin.get("unite")})
     return lignes
 
 
+def _texte_une_ligne(valeur: Any, maximum: int) -> bool:
+    """Un texte imprimable d'UNE ligne (ni retour de ligne, ni caractère de contrôle : il entre dans un objet de
+    courriel) de 1 à `maximum` caractères, sans espace en tête ni en queue."""
+    return (
+        isinstance(valeur, str) and 0 < len(valeur) <= maximum and valeur == valeur.strip() and valeur.isprintable()
+    )
+
+
 def _valider_ligne_po(ligne: Any) -> tuple[bool, str | None]:
-    if not isinstance(ligne, dict) or set(ligne.keys()) != contrats.CHAMPS_LIGNE_PO:
+    if (
+        not isinstance(ligne, dict)
+        or not set(ligne.keys()) >= contrats.CHAMPS_LIGNE_PO
+        or not set(ligne.keys()) <= contrats.CHAMPS_LIGNE_PO | contrats.CHAMPS_LIGNE_PO_OPTIONNELS
+    ):
         return False, "REJ-PO-LIGNE-INVALIDE"
     if not _texte_non_vide(ligne.get("materiau_id")):
         return False, "REJ-PO-LIGNE-INVALIDE"
-    if not _quantite_positive_finie(ligne.get("quantite_demandee")):
+    if not _quantite_positive_finie(ligne.get("quantite_nette")):
         return False, "REJ-PO-LIGNE-INVALIDE"
+    if not _texte_une_ligne(ligne.get("unite"), _TEXTE_LONGUEUR["unite"]):
+        return False, "REJ-PO-UNITE-REQUISE"
+    facteur = ligne.get("facteur_perte")
+    if facteur is not None and (
+        not isinstance(facteur, str) or len(facteur) > 20 or _MOTIF_DECIMAL.fullmatch(facteur) is None
+        or Decimal(facteur) >= 1
+    ):
+        return False, "REJ-PO-FACTEUR-PERTE-INVALIDE"
+    designation = ligne.get("designation")
+    if designation is not None and not _texte_une_ligne(designation, _TEXTE_LONGUEUR["designation"]):
+        return False, "REJ-PO-TEXTE-INVALIDE"
     return True, None
+
+
+def _valider_conditions(conditions: Any, horodatage: str) -> tuple[dict[str, Any] | None, dict | None]:
+    """Date requise, mode de livraison ou de ramassage, lieu, ville, notes (C2). Chaque refus est nommé ; rien n'est
+    deviné (pas de date par défaut, pas de mode par défaut)."""
+    if (
+        not isinstance(conditions, Mapping)
+        or not set(conditions) >= contrats.CHAMPS_CONDITIONS_PO_REQUIS
+        or not set(conditions) <= contrats.CHAMPS_CONDITIONS_PO_REQUIS | contrats.CHAMPS_CONDITIONS_PO_OPTIONNELS
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-PO-CONDITIONS-INVALIDES",
+            detail="date_requise et mode_livraison requis ; lieu_livraison, ville, notes facultatifs",
+        )
+    date_requise = conditions["date_requise"]
+    try:
+        jour = date.fromisoformat(date_requise) if isinstance(date_requise, str) and len(date_requise) == 10 else None
+        creation = datetime.fromisoformat(horodatage).date()
+    except ValueError:
+        jour = creation = None
+    if jour is None or creation is None or jour < creation:
+        return None, verdicts.construire_verdict(
+            "REJ-PO-DATE-REQUISE-INVALIDE",
+            detail="date_requise : un jour civil AAAA-MM-JJ, au plus tôt le jour de la création du bon de commande",
+        )
+    mode = conditions["mode_livraison"]
+    if mode not in contrats.MODES_LIVRAISON:
+        return None, verdicts.construire_verdict(
+            "REJ-PO-MODE-LIVRAISON-INVALIDE", detail=f"mode_livraison parmi {sorted(contrats.MODES_LIVRAISON)}"
+        )
+    propres: dict[str, Any] = {"date_requise": date_requise, "mode_livraison": mode}
+    for cle in ("lieu_livraison", "ville", "notes"):
+        valeur = conditions.get(cle)
+        if valeur is not None and not _texte_une_ligne(valeur, _TEXTE_LONGUEUR[cle]):
+            return None, verdicts.construire_verdict(
+                "REJ-PO-TEXTE-INVALIDE", detail=f"{cle} : une ligne de texte de 1 à {_TEXTE_LONGUEUR[cle]} caractères"
+            )
+        propres[cle] = valeur
+    if mode == "livraison_chantier" and propres["lieu_livraison"] is None:
+        return None, verdicts.construire_verdict(
+            "REJ-PO-LIEU-LIVRAISON-REQUIS", detail="une livraison au chantier dit où livrer (lieu_livraison)"
+        )
+    devis_id = conditions.get("devis_id")
+    if devis_id is not None and not _texte_non_vide(devis_id):
+        return None, verdicts.construire_verdict("REJ-PO-TEXTE-INVALIDE", detail="devis_id : texte non vide ou absent")
+    propres["devis_id"] = devis_id
+    return propres, None
+
+
+def manques_commandabilite(po: Mapping[str, Any]) -> list[str]:
+    """Ce qui manque à un PO pour être COMMANDÉ à un vrai fournisseur (C2) : une date requise, un mode de livraison
+    ou de ramassage (et le lieu pour une livraison au chantier), l'unité de chaque ligne. Vide : commandable. Un PO
+    d'avant C2 les a tous à dire : il n'est ni approuvé ni envoyé, on l'annule et on le refait."""
+    manques = []
+    if not _texte_non_vide(po.get("date_requise")):
+        manques.append("date_requise")
+    mode = po.get("mode_livraison")
+    if mode not in contrats.MODES_LIVRAISON:
+        manques.append("mode_livraison")
+    elif mode == "livraison_chantier" and not _texte_non_vide(po.get("lieu_livraison")):
+        manques.append("lieu_livraison")
+    manques += [f"unite:{ligne.get('materiau_id')}" for ligne in po.get("lignes",
+                                                                        ()) if not _texte_non_vide(ligne.get("unite"))]
+    return manques
 
 
 def _etats_courants(registre_cible: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -252,13 +358,22 @@ def creer_brouillon(
     registre_po: Any,
     registre_prix: Any,
     registre_fournisseurs: Any,
+    conditions: Any = None,
+    unites_fiche: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict | None]:
-    """Crée un PO BROUILLON (statut ``draft``, PLAN T2.5 point 3) : matériau + quantité fournis
-    par l'appelant (typiquement ``calculer_lignes_a_commander``), prix ATTENDU résolu ligne par
-    ligne depuis ``livre_prix.resoudre_prix_po`` (PLAN T2.4, jamais inventé). Idempotent par
-    ``po_id`` : un contenu identique (même chantier, même fournisseur, mêmes lignes, MÊME prix
-    résolu) rend l'existant sans écrire ; un contenu différent (y compris un prix qui a changé
-    entre-temps au livre) est un rejet nommé — deux PO distincts n'ont jamais le même identifiant."""
+    """Crée un PO BROUILLON (statut ``draft``, PLAN T2.5 point 3) commandable à un vrai fournisseur (C2).
+
+    ``lignes_demandees`` : par ligne le matériau, la quantité NETTE et l'UNITÉ (obligatoire), plus un facteur de perte
+    DÉCLARÉ s'il existe (``contrats.CHAMPS_LIGNE_PO``). La quantité à commander est dérivée ICI, une seule fois :
+    nette x (1 + perte), en décimal exact ; sans perte déclarée elle est la nette, jamais une perte inventée.
+    ``unites_fiche`` : l'unité de la fiche article de chaque matériau qui en a une ; une ligne dans une autre unité est
+    refusée (``REJ-PO-UNITE-INCOHERENTE``). ``conditions`` : date requise et mode de livraison ou de ramassage
+    (``_valider_conditions``), lieu, ville, notes, ``devis_id``.
+
+    Prix ATTENDU résolu ligne par ligne depuis ``livre_prix.resoudre_prix_po`` (PLAN T2.4, jamais inventé, dans l'unité
+    de la ligne). Idempotent par ``po_id`` : un contenu identique (mêmes conditions, mêmes lignes, MÊME prix résolu)
+    rend l'existant sans écrire ; un contenu différent est un rejet nommé — deux PO distincts n'ont jamais le même
+    identifiant."""
     if not _texte_non_vide(po_id):
         return None, verdicts.construire_verdict("REJ-PO-ID-VIDE", detail="po_id requis, non vide")
     if not _texte_non_vide(chantier_id):
@@ -291,6 +406,10 @@ def creer_brouillon(
             )
         materiaux_vus.add(ligne["materiau_id"])
 
+    propres, verdict = _valider_conditions(conditions, horodatage)
+    if verdict is not None:
+        return None, verdict
+
     if fournisseurs.lire_fournisseur(registre_fournisseurs, fournisseur_id) is None:
         return None, verdicts.construire_verdict(
             "REJ-PO-FOURNISSEUR-INCONNU",
@@ -302,8 +421,21 @@ def creer_brouillon(
     montants_lignes: list[float | None] = []
     for ligne in lignes_demandees:
         materiau_id = ligne["materiau_id"]
-        quantite_demandee = ligne["quantite_demandee"]
-        resolution = livre_prix.resoudre_prix_po(materiau_id, fournisseur_id, registre_prix)
+        unite = ligne["unite"]
+        unite_fiche = (unites_fiche or {}).get(materiau_id)
+        if unite_fiche is not None and unite_fiche != unite:
+            return None, verdicts.construire_verdict(
+                "REJ-PO-UNITE-INCOHERENTE",
+                detail=f"{materiau_id!r} : la fiche de l'article est en {unite_fiche!r}, la ligne en {unite!r}",
+            )
+        net = Decimal(str(ligne["quantite_nette"]))
+        facteur = ligne.get("facteur_perte")
+        # Une seule application de la perte, ici : nette x (1 + perte déclarée). Sans perte déclarée : la nette.
+        quantite_demandee = float(net * (1 + Decimal(facteur))) if facteur is not None else float(net)
+        if not math.isfinite(quantite_demandee) or quantite_demandee <= 0:
+            return None, verdicts.construire_verdict("REJ-PO-LIGNE-INVALIDE",
+                                                     detail=f"{materiau_id!r} : quantité hors domaine")
+        resolution = livre_prix.resoudre_prix_po(materiau_id, fournisseur_id, registre_prix, unite)
         prix_unitaire_prevu = resolution["prix_unitaire"]
         capture, non_capture, _ = contrats.CAPTURE_SOURCE_PRIX
         provenance_prix_lignes.append(
@@ -329,11 +461,17 @@ def creer_brouillon(
         lignes.append(
             {
                 "materiau_id": materiau_id,
+                "designation": ligne.get("designation"),
+                "unite": unite,
+                "unite_source": "fiche_catalogue" if unite_fiche is not None else ligne.get("unite_source", "declaree"),
+                "quantite_nette": float(net),
+                "facteur_perte": facteur,
                 "quantite_demandee": quantite_demandee,
                 "verdict_prix": resolution["verdict_prix"],
                 "prix_unitaire_prevu": prix_unitaire_prevu,
                 "devise_prevue": resolution["devise"],
                 "montant_ligne_prevu": montant_ligne_prevu,
+                "prix_unite_confirmee": resolution["unite_confirmee"],
             }
         )
     # Équivalence stricte null<->INDETERMINE, même patron que AccuseReceptionPO.montant_total_estime
@@ -352,6 +490,8 @@ def creer_brouillon(
         "fournisseur_id": fournisseur_id,
         "lignes": lignes,
         "montant_total_prevu": montant_total_prevu,
+        **{cle: propres[cle] for cle in ("devis_id", "date_requise", "mode_livraison", "lieu_livraison", "ville",
+                                         "notes")},
     }
 
     existant = lire(registre_po, po_id)
@@ -366,6 +506,78 @@ def creer_brouillon(
                "provenance_prix_lignes": provenance_prix_lignes}
     registre_po.append(dict(maillon))
     return lire(registre_po, po_id), None
+
+
+def repartir_besoin(
+    lignes_a_commander: list[dict[str, Any]], repartition: Any
+) -> tuple[list[dict[str, Any]] | None, dict | None]:
+    """Répartit les lignes d'un besoin entre fournisseurs, UN PO par fournisseur (C2). ``repartition`` : une liste
+    d'objets ``{po_id, fournisseur_id, materiau_ids}``. Chaque ligne à commander doit être affectée à UN seul PO :
+    ni oubliée (``REJ-PO-REPARTITION-INCOMPLETE`` — la ligne ne serait commandée nulle part), ni doublée
+    (``REJ-PO-REPARTITION-DOUBLE`` — elle serait commandée deux fois), ni inconnue du besoin
+    (``REJ-PO-REPARTITION-INCONNUE``) ; un fournisseur ou un ``po_id`` n'apparaît qu'une fois. Rend les affectations
+    ``[{po_id, fournisseur_id, lignes}]`` dans l'ordre de la répartition. Fonction pure."""
+    if not isinstance(repartition, list):
+        return None, verdicts.construire_verdict("REJ-PO-REPARTITION-INCOMPLETE", detail="repartition : une liste")
+    if len(repartition) > _REPARTITION_ENTREES_MAX or any(
+        isinstance(e, Mapping) and isinstance(e.get("materiau_ids"), list)
+        and len(e["materiau_ids"]) > _REPARTITION_LIGNES_MAX
+        for e in repartition
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-PO-REPARTITION-TROP-GRANDE",
+            detail=f"au plus {_REPARTITION_ENTREES_MAX} fournisseurs et {_REPARTITION_LIGNES_MAX} lignes par bon",
+        )
+    par_materiau = {ligne["materiau_id"]: ligne for ligne in lignes_a_commander}
+    affectees: dict[str, str] = {}
+    fournisseurs_vus: set[str] = set()
+    pos_vus: set[str] = set()
+    affectations: list[dict[str, Any]] = []
+    for entree in repartition:
+        if (
+            not isinstance(entree, Mapping)
+            or set(entree) != {"po_id", "fournisseur_id", "materiau_ids"}
+            or not _texte_non_vide(entree["po_id"])
+            or not _texte_non_vide(entree["fournisseur_id"])
+            or not isinstance(entree["materiau_ids"], list)
+            or not entree["materiau_ids"]
+            or not all(_texte_non_vide(m) for m in entree["materiau_ids"])
+        ):
+            return None, verdicts.construire_verdict(
+                "REJ-PO-REPARTITION-INCOMPLETE", detail="chaque entrée : po_id, fournisseur_id, materiau_ids non vide"
+            )
+        if entree["po_id"] in pos_vus:
+            return None, verdicts.construire_verdict(
+                "REJ-PO-REPARTITION-PO-DOUBLE", detail=f"po_id en double : {entree['po_id']!r}"
+            )
+        if entree["fournisseur_id"] in fournisseurs_vus:
+            return None, verdicts.construire_verdict(
+                "REJ-PO-REPARTITION-FOURNISSEUR-DOUBLE",
+                detail=f"un seul PO par fournisseur : {entree['fournisseur_id']!r} apparaît deux fois",
+            )
+        pos_vus.add(entree["po_id"])
+        fournisseurs_vus.add(entree["fournisseur_id"])
+        lignes = []
+        for materiau_id in entree["materiau_ids"]:
+            if materiau_id not in par_materiau:
+                return None, verdicts.construire_verdict(
+                    "REJ-PO-REPARTITION-INCONNUE",
+                    detail=f"{materiau_id!r} n'est pas une ligne à commander de ce besoin",
+                )
+            if materiau_id in affectees:
+                return None, verdicts.construire_verdict(
+                    "REJ-PO-REPARTITION-DOUBLE",
+                    detail=f"{materiau_id!r} serait commandé deux fois ({affectees[materiau_id]} et {entree['po_id']})",
+                )
+            affectees[materiau_id] = entree["po_id"]
+            lignes.append(par_materiau[materiau_id])
+        affectations.append({"po_id": entree["po_id"], "fournisseur_id": entree["fournisseur_id"], "lignes": lignes})
+    oubliees = sorted(set(par_materiau) - set(affectees))
+    if oubliees:
+        return None, verdicts.construire_verdict(
+            "REJ-PO-REPARTITION-INCOMPLETE", detail=f"lignes commandées nulle part : {oubliees}"
+        )
+    return affectations, None
 
 
 def _transitionner(
@@ -403,6 +615,15 @@ def approuver(po_id: Any, horodatage: Any, registre_po: Any) -> tuple[dict[str, 
     etat = lire(registre_po, po_id)
     if etat is None:
         return None, verdicts.construire_verdict("REJ-PO-INTROUVABLE", detail=f"PO inconnu : {po_id!r}")
+    manques = manques_commandabilite(etat)
+    if manques:
+        return None, verdicts.construire_verdict(
+            "REJ-PO-NON-COMMANDABLE",
+            detail=(
+                f"ce bon de commande ne peut pas être commandé tel quel, il manque : {manques} "
+                "(l'annuler et le refaire)"
+            ),
+        )
     lignes_indeterminees = [ligne["materiau_id"] for ligne in etat["lignes"] if ligne["verdict_prix"] == "INDETERMINE"]
     if lignes_indeterminees:
         return None, verdicts.construire_verdict(
@@ -420,14 +641,78 @@ def annuler(po_id: Any, motif: Any, horodatage: Any, registre_po: Any) -> tuple[
     return _transitionner(registre_po, po_id, "cancelled", horodatage, motif_annulation=motif)
 
 
+_LIBELLE_MODE = {
+    "livraison_chantier": "Livraison au chantier",
+    "livraison_depot": "Livraison à notre dépôt",
+    "ramassage": "Ramassage par nos soins",
+}
+
+
+def _texte_quantite(valeur: Any) -> str:
+    """Quantité en texte décimal canonique (`108`, `7.776`) : jamais `108.0` ni `1e-05`."""
+    return stock.texte_canonique(Decimal(str(valeur)))
+
+
+def _pourcentage(facteur: str) -> str:
+    return stock.texte_canonique(Decimal(facteur) * 100).replace(".", ",")
+
+
+def construire_courriel(
+    po: Mapping[str, Any], destinataire: str | None, nom_entreprise: str
+) -> dict[str, Any]:
+    """Le courriel de commande d'un PO commandable, tel que M1 le reçoit (C2) : objet « Commande matériaux — PO —
+    ville », chantier, date requise, mode de livraison ou de ramassage (et lieu), lignes avec leur UNITÉ (et, quand une
+    perte est déclarée, la nette et la perte visibles à côté de la quantité à commander), notes, demande de
+    confirmation. AUCUN prix ni montant : le prix attendu est interne, le fournisseur confirme le sien. Texte pur,
+    déterministe ; `empreinte` identifie ce courriel exact (M1 la rapporte à l'envoi)."""
+    po_id = po["po_id"]
+    ville = po.get("ville")
+    objet = f"Commande matériaux — {po_id}" + (f" — {ville}" if ville else "")
+    chantier = f"Chantier : {po['chantier_id']}" + (f" — {ville}" if ville else "")
+    mode = _LIBELLE_MODE[po["mode_livraison"]]
+    if po.get("lieu_livraison"):
+        mode += f" : {po['lieu_livraison']}"
+    lignes_texte = []
+    for ligne in po["lignes"]:
+        nom = f"{ligne['designation']} ({ligne['materiau_id']})" if ligne.get("designation") else ligne["materiau_id"]
+        texte = f"- {nom} : {_texte_quantite(ligne['quantite_demandee'])} {ligne['unite']}"
+        if ligne.get("facteur_perte") is not None:
+            texte += (
+                f" ({_texte_quantite(ligne['quantite_nette'])} {ligne['unite']} nets"
+                f" + perte déclarée de {_pourcentage(ligne['facteur_perte'])} %)"
+            )
+        lignes_texte.append(texte)
+    parties = [
+        "Bonjour,",
+        f"Voici le bon de commande {po_id} de {nom_entreprise}.",
+        f"{chantier}\nDate requise : {po['date_requise']}\n{mode}"
+        + (f"\nNotes : {po['notes']}" if po.get("notes") else ""),
+        "Matériaux commandés :\n" + "\n".join(lignes_texte),
+        f"Merci de confirmer par retour de courriel, en citant {po_id} : la réception de cette commande, la date de "
+        "livraison ou de ramassage, et tout article indisponible, remplacé ou en retard.",
+        f"Cordialement,\n{nom_entreprise}",
+    ]
+    corps = "\n\n".join(parties)
+    empreinte = hashlib.sha256(
+        json.dumps({"objet": objet, "destinataire": destinataire, "corps": corps}, sort_keys=True,
+                   ensure_ascii=False).encode()
+    ).hexdigest()
+    return {
+        "objet": objet,
+        "destinataire": destinataire,
+        "corps": corps,
+        "repli_manuel_requis": destinataire is None,
+        "empreinte": empreinte,
+    }
+
+
 def generer_courriel(
     po_id: Any, horodatage: Any, registre_po: Any, registre_fournisseurs: Any, nom_entreprise: Any
 ) -> tuple[dict[str, Any] | None, dict | None]:
-    """approved -> email_ready. Génère le CORPS TEXTE d'un courriel (M6.6 : objet, destinataire,
-    liste des matériaux, chantier, numéro de PO) — AUCUNE primitive d'envoi, jamais un réseau
-    (voir la docstring du module). Le courriel est PERSISTÉ sur le PO (relecture possible par
-    ``lire``), destiné au repli manuel documenté (copier-coller) tant que M1 n'envoie pas
-    réellement (PLAN T2.5 point 3)."""
+    """approved -> email_ready. Génère le courriel COMPLET (`construire_courriel`) — AUCUNE primitive d'envoi, jamais un
+    réseau (voir la docstring du module). Le courriel est PERSISTÉ sur le PO (relecture possible par ``lire``), offert
+    à M1 par l'outil, et sert de repli manuel (copier-coller) quand le fournisseur n'a pas de boîte de commande. Un PO
+    qui n'est pas commandable (ancien, sans date ni unité) n'a pas de courriel."""
     if not _texte_non_vide(nom_entreprise):
         return None, verdicts.construire_verdict(
             "REJ-PO-NOM-ENTREPRISE-VIDE", detail="nom_entreprise requis, non vide (identifie l'expéditeur)"
@@ -435,33 +720,46 @@ def generer_courriel(
     etat = lire(registre_po, po_id)
     if etat is None:
         return None, verdicts.construire_verdict("REJ-PO-INTROUVABLE", detail=f"PO inconnu : {po_id!r}")
+    manques = manques_commandabilite(etat)
+    if manques:
+        return None, verdicts.construire_verdict(
+            "REJ-PO-NON-COMMANDABLE", detail=f"pas de courriel pour un bon de commande incomplet, il manque : {manques}"
+        )
 
     fiche = fournisseurs.lire_fournisseur(registre_fournisseurs, etat["fournisseur_id"])
     destinataire = fiche.get("courriel_commande") if fiche is not None else None
-    lignes_texte = "\n".join(
-        f"- {ligne['materiau_id']} : {ligne['quantite_demandee']}" for ligne in etat["lignes"]
-    )
-    corps = (
-        f"Bon de commande {po_id}\n"
-        f"Chantier : {etat['chantier_id']}\n"
-        f"Fournisseur : {etat['fournisseur_id']}\n\n"
-        f"Matériaux demandés :\n{lignes_texte}\n\n"
-        f"— {nom_entreprise}"
-    )
-    courriel = {
-        "objet": f"Bon de commande {po_id} — {nom_entreprise}",
-        "destinataire": destinataire,
-        "corps": corps,
-        "repli_manuel_requis": destinataire is None,
-    }
+    courriel = construire_courriel(etat, destinataire, nom_entreprise)
     return _transitionner(registre_po, po_id, "email_ready", horodatage, courriel=courriel)
 
 
-def marquer_envoye(po_id: Any, horodatage: Any, registre_po: Any) -> tuple[dict[str, Any] | None, dict | None]:
-    """email_ready -> sent_to_supplier. Verrou d'envoi (N4, voir la docstring du module) : AUCUNE
-    primitive d'envoi ici — le courriel généré par ``generer_courriel`` reste à transmettre par le
-    repli manuel documenté (M1 plus tard)."""
-    return _transitionner(registre_po, po_id, "sent_to_supplier", horodatage)
+def marquer_envoye(
+    po_id: Any, horodatage: Any, registre_po: Any, constat: Mapping[str, Any] | None = None
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """email_ready -> sent_to_supplier. Verrou d'envoi (N4, voir la docstring du module) : AUCUNE primitive d'envoi ici.
+
+    ``constat`` (C2) : le fait que M1 a constaté l'envoi du courriel de CE PO après l'approbation d'une personne au
+    sas (`m1.commande_courriel_envoyee`, empreinte du courriel identique) ; il est rangé sur la transition. M6 ne
+    fait alors que recopier un envoi déjà approuvé et constaté ; sans constat (envoi hors M1 : téléphone, portail),
+    la transition reste la décision N4 d'une personne."""
+    supplementaires = {"envoi_constate": dict(constat)} if constat is not None else {}
+    return _transitionner(registre_po, po_id, "sent_to_supplier", horodatage, **supplementaires)
+
+
+def changer_statut(
+    po_id: Any, statut_cible: Any, motif: Any, horodatage: Any, registre_po: Any
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """Pilotage des statuts qu'aucun autre outil n'atteignait (C3) : ``pending_admin_review`` (revue demandée),
+    ``disputed`` (litige), ``invoiced`` (facturé), ``closed`` (fermé). La table ``contrats.TRANSITIONS_PO`` dit ce qui
+    est
+    légal ; ``motif`` humain requis (piste d'audit). Aucun paiement, aucune écriture financière : M5 en est la
+    source."""
+    if statut_cible not in STATUTS_PILOTABLES:
+        return None, verdicts.construire_verdict(
+            "REJ-PO-STATUT-NON-PILOTABLE", detail=f"statut_cible parmi {sorted(STATUTS_PILOTABLES)}"
+        )
+    if not _texte_non_vide(motif):
+        return None, verdicts.construire_verdict("REJ-PO-MOTIF-VIDE", detail="motif requis, non vide")
+    return _transitionner(registre_po, po_id, statut_cible, horodatage, motif_statut=motif)
 
 
 def confirmer_fournisseur(

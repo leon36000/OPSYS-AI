@@ -170,6 +170,59 @@ chantier sont déclarés avant que M6 ait reçu son WCT (`m4.travaux_termines`) 
 la réservation créée reste active ; les événements étant livrés dans l'ordre de création (devis avant travaux), le cas
 n'est pas observé.
 
+PLAN C1/C2/C3 (2026-11-02, branche `claude/m6-sortie-article-po`) — la sortie de stock se chiffre au niveau de l'ARTICLE, le
+bon de commande se COMMANDE à un vrai fournisseur, et l'admin le VOIT. **PARTIEL, prouvé sur doubles** (SQLite, bus réel, M1 sur
+double de Gmail) ; aucun fournisseur réel, aucun courriel réel.
+
+*C1 — coût de sortie par article* (`cout_sortie.py`, pur ; défaut F1 de l'analyse M6). `m6_declarer_materiaux_utilises` n'est
+plus refusée en entier (`REJ-COUT-UNITAIRE-INTROUVABLE`) quand un article n'a jamais été reçu SOUS CE chantier : l'achat sur place
+d'un article inédit, l'article non prévu inédit et la sortie du dépôt vers un autre chantier se déclarent. Le coût de chaque ligne
+vient d'une source ORDONNÉE et DITE (`origine_cout`, sur le mouvement, dans son empreinte) : 1. dernière réception de l'article sous
+le chantier (`RECEPTION_CHANTIER`) ; 2. sinon sa dernière réception ailleurs (`RECEPTION_ARTICLE`, une livraison de quantité nulle
+ne compte pas) ; 3. sinon le livre de prix (`LIVRE_PRIX`), comme M5 le lit : dernière entrée de chaque fournisseur datée au plus
+tard du jour du WCT, DANS L'UNITÉ DE LA LIGNE (une unité absente ou différente n'est jamais présumée égale), en CAD ; un seul prix
+distinct : ce prix, marqué `SOURCE_DECLAREE` (document cité) ou `FALLBACK_PRICE_BOOK` (aucun document) ; des prix différents selon le
+fournisseur : AMBIGU, aucun prix choisi ; 4. sinon `INCONNU` (`cout_unitaire: null`, motif `AUCUN_PRIX`, `UNITE_NON_CONFIRMEE`,
+`PRIX_AMBIGU` ou `DATE_ILLISIBLE`) : la déclaration est ACCEPTÉE et l'admin reçoit une attente `cout_sortie_inconnu` qui dit quoi
+déclarer (`m6_enregistrer_prix`, unité comprise) ; elle disparaît dès qu'un prix applicable existe, sans réécrire le mouvement.
+Aucun coût n'est « validé » (le mot n'existe pas dans ce chemin) ; l'employé ne voit ni coût ni origine. Un stock devenu négatif
+par cette voie est dit à l'admin (attente `stock_negatif`, même sans seuil de réapprovisionnement). Décision d'écart avec la
+consigne « puis refus lisible » : refuser la déclaration pour un prix manquant AURAIT ÉTÉ le défaut F1 lui-même ; le refus lisible
+est donc l'attente adressée à l'admin, pas un blocage du terrain.
+
+*C2 — PO commandable* (`bons_commande.py`, `po_lecture.py`, `outils.py`, `commande_courriel_outils.py`). Chaque ligne porte son
+UNITÉ (obligatoire ; égale à celle de la fiche article `catalogue_materiaux` quand elle existe, sinon l'unité du besoin, et le PO
+le dit : `unite_source`), sa quantité NETTE, le facteur de perte DÉCLARÉ par l'estimation M3 (jamais inventé : sans déclaration,
+quantité à commander = nette, et la réponse liste `facteurs_perte_absents`) et la quantité à commander = nette x (1 + perte),
+appliquée UNE seule fois, en décimal exact (aucun arrondi à l'unité de commande n'est inventé). Le PO porte `date_requise`
+(jour civil, au plus tôt celui de la création), `mode_livraison` (`livraison_depot`, `livraison_chantier` avec `lieu_livraison`,
+`ramassage`), `ville` (pour l'objet), `notes` et `devis_id`. Un prix du livre dans une autre unité ne s'applique pas
+(`INDETERMINE`, approbation refusée) ; sans unité il s'applique mais `prix_unite_confirmee` est faux. Un PO d'avant C2 se lit mais
+n'est ni approuvé ni envoyé (`REJ-PO-NON-COMMANDABLE`) : on l'annule et on le refait. UN besoin, PLUSIEURS fournisseurs :
+`m6_creer_pos_depuis_besoin` crée un PO brouillon par fournisseur ; chaque ligne à commander est affectée à un seul PO (ni oubliée,
+ni doublée, ni inconnue) et tout est écrit ou rien. Le courriel de M1 est complet (objet « Commande matériaux — PO — ville »,
+chantier, date requise, livraison ou ramassage, lignes avec unité et perte visibles, demande de confirmation ; AUCUN prix) et son
+`empreinte` identifie le texte exact. `m6_creer_po_brouillon`, `m6_creer_pos_depuis_besoin` et `m6_generer_courriel_po` passent
+en N2 (règle d'autonomie r1 : brouillons N0-N2) ; l'APPROBATION du PO reste N3 et l'envoi reste approuvé par une personne au sas de
+M1. Plus de double approbation : `m1.commande_courriel_envoyee` porte maintenant l'empreinte du courriel du PO et dit si le texte
+envoyé est celui qui avait été préparé ; M6 passe le PO à `sent_to_supplier` seulement si le PO est `email_ready`, l'empreinte est
+celle du courriel de CE PO et le texte n'a pas été modifié au sas (constat rangé sur la transition) ; sinon l'attente N4 « marquer le PO
+envoyé » reste à une personne, comme pour un envoi hors M1. Aucun chemin d'envoi n'est ouvert.
+
+*C3 — lire et piloter* (`po_lecture.py`). `m6_lister_po` / `m6_lire_po` (T0/N0, admin ; aucun rôle d'appareil) : liste blanche de
+champs, pages de 25 au plus sans troncature, comptes par statut, « en retard » (envoyé, confirmé ou partiel, date requise passée à
+un jour dit) ; `m6_changer_statut_po` (N3, motif) pilote `pending_admin_review`, `disputed`, `invoiced`, `closed`. Attentes de
+l'admin : `po_a_approuver` (N3), `ecart_materiaux_critique` (le MESSAGE IMPOSÉ de Nathan mot pour mot, jamais « vol », jusqu'à ce que
+la cause de chaque ligne critique soit classée par une personne ; le résultat de `m6_evaluer_variance_chantier` le porte aussi).
+Les seuils de variance (0.30) et d'écart de prix (0.15) sont des RÉGLAGES DE DIRECTION (`reglages:` du manifeste, adoption N3 du
+propriétaire depuis la console, retour arrière) étiquetés « recommandation, non validée » : ils viennent d'un agent, pas de Nathan.
+Écran admin « Commandes » de la console (`src/opsys/console/commandes_ui.py`, lecture seule).
+*Fournisseurs connus, amorçage VIDE* (`fournisseurs_a_fournir.py`, `configuration.fournisseurs_a_fournir` du manifeste) : Gentek, Royal Solution
+de Bâtiment, O.A.M. et Kaycan n'ont fourni ni courriel, ni compte, ni tarif, ni délai ; le manifeste ne porte que leurs NOMS et ce qu'il faut
+fournir pour chacun, et l'écran « Fournisseurs » de la console les montre « à fournir » tant qu'aucune fiche de ce nom n'existe (aucune fiche
+n'est créée, aucun PO ne peut leur être adressé). Déclarer un fournisseur reste le geste d'une personne.
+Limites : voir `docs/utilisation/LIMITES-CONNUES.md` (M6).
+
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`
   et `soumettre_comptage`, prescrits par `docs/bmad/03-ARCHITECTURE.md`

@@ -66,7 +66,7 @@ def test_flux_complet_prevu_m3_jusqu_a_la_reception():
     bh = besoins["registre_historique"]
 
     creation = m6_outils.creer_po_brouillon(
-        "PO-1", "DEVIS-1", "gentek", "2026-01-02T00:00:00Z",
+        "PO-1", "DEVIS-1", "gentek", "2026-01-02T00:00:00Z", "2099-12-31", "ramassage",
         besoins_prevus_historique=bh, registre_historique=rh, livre_prix_historique=lph, fournisseurs_historique=fh,
     )
     assert creation["accepte"] is True
@@ -74,8 +74,10 @@ def test_flux_complet_prevu_m3_jusqu_a_la_reception():
     assert po["statut"] == "draft"
     # Seul l'écart (10 - 4 = 6) est commandé, jamais la quantité estimée complète.
     assert po["lignes"] == [
-        {"materiau_id": "BARDEAU", "quantite_demandee": 6.0, "verdict_prix": "PRIX_LIVRE",
-         "prix_unitaire_prevu": 20.0, "devise_prevue": "CAD", "montant_ligne_prevu": 120.0}
+        {"materiau_id": "BARDEAU", "designation": None, "unite": "boite", "unite_source": "besoin_prevu",
+         "quantite_nette": 6.0, "facteur_perte": None, "quantite_demandee": 6.0, "verdict_prix": "PRIX_LIVRE",
+         "prix_unitaire_prevu": 20.0, "devise_prevue": "CAD", "montant_ligne_prevu": 120.0,
+         "prix_unite_confirmee": False}
     ]
     bch = creation["bons_commande_historique"]
 
@@ -137,7 +139,7 @@ def test_flux_complet_prevu_m3_jusqu_a_la_reception():
         "CHANTIER-2", "DEVIS-2", [{"materiau_id": "BARDEAU", "quantite_estimee": 3.0, "unite": "boite"}]
     )
     creation2 = m6_outils.creer_po_brouillon(
-        "PO-2", "DEVIS-2", "gentek", "2026-01-09T00:00:00Z",
+        "PO-2", "DEVIS-2", "gentek", "2026-01-09T00:00:00Z", "2099-12-31", "ramassage",
         besoins_prevus_historique=besoins2["registre_historique"], registre_historique=rh,
         livre_prix_historique=lph, fournisseurs_historique=fh,
     )
@@ -188,14 +190,15 @@ def test_creer_po_brouillon_stock_deja_suffisant_ne_cree_aucun_po():
     )["registre_historique"]
 
     resultat = m6_outils.creer_po_brouillon(
-        "PO-INUTILE", "DEVIS-STOCK-OK", "gentek", "2026-01-02T00:00:00Z",
+        "PO-INUTILE", "DEVIS-STOCK-OK", "gentek", "2026-01-02T00:00:00Z", "2099-12-31", "ramassage",
         besoins_prevus_historique=bh, registre_historique=rh,
     )
     assert resultat == {"accepte": True, "po": None, "statut": "aucun_achat_requis"}
 
 
 def test_creer_po_brouillon_besoin_introuvable_refuse_nomme():
-    resultat = m6_outils.creer_po_brouillon("PO-1", "DEVIS-INCONNU", "gentek", "2026-01-02T00:00:00Z")
+    resultat = m6_outils.creer_po_brouillon("PO-1", "DEVIS-INCONNU", "gentek", "2026-01-02T00:00:00Z", "2099-12-31",
+                                            "ramassage")
     assert resultat == {"accepte": False, "verdict": {"code": "REJ-PO-BESOIN-INTROUVABLE"}}
 
 
@@ -204,7 +207,8 @@ def test_creer_po_brouillon_chantier_inconnu_refuse_nomme():
         None, "DEVIS-SANS-CHANTIER", [{"materiau_id": "MAT-X", "quantite_estimee": 5.0, "unite": "boite"}]
     )["registre_historique"]
     resultat = m6_outils.creer_po_brouillon(
-        "PO-1", "DEVIS-SANS-CHANTIER", "gentek", "2026-01-02T00:00:00Z", besoins_prevus_historique=bh
+        "PO-1", "DEVIS-SANS-CHANTIER", "gentek", "2026-01-02T00:00:00Z", "2099-12-31", "ramassage",
+        besoins_prevus_historique=bh
     )
     assert resultat == {"accepte": False, "verdict": {"code": "REJ-PO-CHANTIER-INCONNU"}}
 
@@ -231,7 +235,7 @@ def test_enregistrer_prix_outil():
         "C-PRIX-OUTIL", "DEVIS-PRIX-OUTIL", [{"materiau_id": "BARDEAU", "quantite_estimee": 2.0, "unite": "boite"}]
     )["registre_historique"]
     creation = m6_outils.creer_po_brouillon(
-        "PO-PRIX-OUTIL", "DEVIS-PRIX-OUTIL", "gentek", "2026-01-02T00:00:00Z",
+        "PO-PRIX-OUTIL", "DEVIS-PRIX-OUTIL", "gentek", "2026-01-02T00:00:00Z", "2099-12-31", "ramassage",
         besoins_prevus_historique=bh, livre_prix_historique=lph, fournisseurs_historique=fh,
     )
     assert creation["accepte"] is True
@@ -292,7 +296,8 @@ def _po_email_ready_en_transaction(po_id="PO-SOCLE"):
         m6_outils.enregistrer_besoins_prevus(
             "C-SOCLE", f"DEVIS-{po_id}", [{"materiau_id": "BARDEAU", "quantite_estimee": 5.0, "unite": "boite"}]
         )
-        m6_outils.creer_po_brouillon(po_id, f"DEVIS-{po_id}", "gentek", "2026-01-02T00:00:00Z")
+        m6_outils.creer_po_brouillon(po_id, f"DEVIS-{po_id}", "gentek", "2026-01-02T00:00:00Z", "2099-12-31",
+                                     "ramassage")
         m6_outils.approuver_po(po_id, "2026-01-03T00:00:00Z")
         m6_outils.generer_courriel_po(po_id, "2026-01-04T00:00:00Z", "GRS")
     return po_id
@@ -387,14 +392,25 @@ def test_manager_peut_approuver_et_generer_le_courriel_n3(dep, personnes):
     capacites = Capacites({_DEPARTEMENT: dep}, stockage.transaction)
     outils_dispo = outils_executables({_DEPARTEMENT: dep}, stockage.transaction)
 
-    ident = capacites.appeler(
+    # C2 : le brouillon est une tâche interne (N2), il s'exécute sans file d'approbation ; l'APPROBATION du PO reste N3.
+    creation = capacites.appeler(
         "m6_creer_po_brouillon",
-        {"po_id": "PO-N3", "devis_id": "DEVIS-N3", "fournisseur_id": "gentek", "horodatage": "2026-01-02T00:00:00Z"},
-    )["demande_id"]
+        {"po_id": "PO-N3", "devis_id": "DEVIS-N3", "fournisseur_id": "gentek", "horodatage": "2026-01-02T00:00:00Z",
+         "date_requise": "2099-12-31", "mode_livraison": "ramassage"},
+    )
+    assert creation["ok"] is True and "demande_id" not in creation and creation["resultat"]["accepte"] is True
+    assert _statut_po("PO-N3") == "draft"
+    ident = capacites.appeler("m6_approuver_po", {"po_id": "PO-N3", "horodatage": "2026-01-02T00:00:00Z"})["demande_id"]
     with stockage.transaction() as cnx:
         decision = opsys_approbations.decider(cnx, ident, True, personnes["manager"], outils_dispo, {_DEPARTEMENT: dep})
     assert decision["statut"] == "executee"
-    assert _statut_po("PO-N3") == "draft"
+    assert _statut_po("PO-N3") == "approved"
+    courriel = capacites.appeler(
+        "m6_generer_courriel_po",
+        {"po_id": "PO-N3", "horodatage": "2026-01-03T00:00:00Z", "nom_entreprise": "Atelier Fictif"},
+    )
+    assert courriel["ok"] is True and "demande_id" not in courriel, "le courriel est une tâche interne (N2)"
+    assert _statut_po("PO-N3") == "email_ready"
 
 
 def test_provenance_prix_publique_cap_native_sans_recriture(base_durable, dep, personnes):
@@ -409,6 +425,9 @@ def test_provenance_prix_publique_cap_native_sans_recriture(base_durable, dep, p
             "m6_creer_po_brouillon",
         }
         reponse = capacites.appeler(nom, arguments)
+        if nom == "m6_creer_po_brouillon":  # N2 (C2) : s'exécute sans approbation
+            assert reponse["ok"] is True and "demande_id" not in reponse and reponse["resultat"]["accepte"] is True
+            return reponse["resultat"]
         assert reponse["ok"] is True and reponse["statut"] == "en_attente_approbation"
         with stockage.transaction() as cnx:
             decision = opsys_approbations.decider(
@@ -448,6 +467,8 @@ def test_provenance_prix_publique_cap_native_sans_recriture(base_durable, dep, p
         "devis_id": "DEVIS-FICTIF",
         "fournisseur_id": "gentek",
         "horodatage": "2026-01-02T00:00:00Z",
+        "date_requise": "2099-12-31",
+        "mode_livraison": "ramassage",
     }
     creation = appeler_interne("m6_creer_po_brouillon", arguments_po)
     assert creation["po"]["statut"] == "draft" and creation["po"]["montant_total_prevu"] == 25.0
@@ -502,6 +523,8 @@ def test_reponse_outil_po_legacy_projette_estimated_sans_mutation():
         devis_id="DEVIS-FICTIF",
         fournisseur_id="gentek",
         horodatage="2026-01-02T00:00:00Z",
+        date_requise="2099-12-31",
+        mode_livraison="ramassage",
         besoins_prevus_historique=bh,
         livre_prix_historique=livre,
         fournisseurs_historique=fh,

@@ -84,7 +84,8 @@ def _preparer_po(moteur: Moteur) -> None:
             {"materiau_id": GOUTTIERE, "quantite_estimee": 60.0, "unite": "pi"},
             {"materiau_id": VIS, "quantite_estimee": 40.0, "unite": "boite"}]})
     creation = _agent(m6["m6_creer_po_brouillon"], {
-        "po_id": PO, "devis_id": DEVIS, "fournisseur_id": FOURNISSEUR, "horodatage": iso(maintenant)})
+        "po_id": PO, "devis_id": DEVIS, "fournisseur_id": FOURNISSEUR, "horodatage": iso(maintenant),
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage"})
     assert creation["po"]["montant_total_prevu"] == 320.0, creation
     _agent(m6["m6_approuver_po"], {"po_id": PO, "horodatage": iso(maintenant, 60)})
     _agent(m6["m6_generer_courriel_po"], {

@@ -237,6 +237,7 @@ def test_m3_estime_m6_recoit_le_prevu_est_disponible_pour_la_declaration(base_du
     assert _registre("principal") == []
     creation = executer_atomique(_outils(deps, M6)["m6_creer_po_brouillon"], {
         "po_id": "PO-1", "devis_id": besoins["devis_id"], "fournisseur_id": "F-1", "horodatage": _iso(10),
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage",
     })
     assert creation["resultat"] == {"accepte": False, "verdict": {"code": "REJ-PO-CHANTIER-INCONNU"}}
 

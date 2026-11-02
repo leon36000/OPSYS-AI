@@ -62,6 +62,14 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
             corps += f'<li><a href="{pages.e(lien)}">{pages.e(f["nom"])}</a></li>'
         corps += '</ul>' if r['fournisseurs'] else '</ul><p>Aucun fournisseur enregistré.</p>'
         corps += f'<p>{r["total"]} fournisseur(s).</p>'
+        manquants = r['a_fournir']['noms']
+        if manquants:
+            exigences = ''.join(f'<li>{pages.e(e)}</li>' for e in r['a_fournir']['pour_chacun'])
+            corps += ('<h2>À fournir</h2><p>Fournisseurs connus du produit sans aucune fiche : '
+                      + ', '.join(pages.e(n) for n in manquants)
+                      + '. Aucun courriel, contact, compte ni tarif n’est connu ni deviné ; tant qu’ils ne sont pas '
+                      'déclarés, aucun bon de commande ne peut leur être adressé. Pour chacun, à fournir :</p>'
+                      f'<ul>{exigences}</ul>')
         for offset, libelle in [(max(0, debut - 25) if debut else None, 'Page précédente'),
                                 (r['suivant'], 'Page suivante')]:
             if offset is not None:

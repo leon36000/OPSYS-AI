@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m1.commande_courriel_envoyee",
   "title": "M1 — Courriel de commande envoyé au fournisseur",
-  "description": "Émis par M1 quand le courriel d'un bon de commande, préparé à partir de `m6.po_courriel_pret`, a été ENVOYÉ par le planificateur après l'approbation humaine du sas (m1.courriel_envoye). M6 en tire une attente « marquer le PO envoyé » : il ne change pas lui-même le statut du PO (m6_marquer_po_envoye reste N4 et humain). Aucun texte ni adresse. evenement_id déterministe : un rejeu est un no-op.",
+  "description": "Émis par M1 quand le courriel d'un bon de commande, préparé à partir de `m6.po_courriel_pret`, a été ENVOYÉ par le planificateur après l'approbation humaine du sas (m1.courriel_envoye). M6 en prend acte : si `empreinte_courriel_po` (l'empreinte du courriel du PO que M6 avait offert à M1) est celle du courriel de CE PO et que `contenu_identique` est vrai (le texte envoyé est celui qui avait été préparé, rien n'a été modifié au sas), le PO passe à « envoyé » sans seconde approbation ; sinon M6 en tire une attente « marquer le PO envoyé » (m6_marquer_po_envoye, N4, humain). Les deux champs sont facultatifs : un constat sans eux ne change jamais le PO. Aucun texte ni adresse. evenement_id déterministe : un rejeu est un no-op.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -24,6 +24,13 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 200
+    },
+    "empreinte_courriel_po": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "contenu_identique": {
+      "type": "boolean"
     }
   },
   "required": [

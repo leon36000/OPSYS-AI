@@ -504,8 +504,11 @@ def test_cascade_par_le_bus_le_besoin_arrive_dans_la_file_de_l_admin(
         file = approbations.file_proprietaire(cnx, dep_m6)
         attentes, illisibles = approbations.attentes_departements(cnx, dep_m6)
     assert illisibles == []
-    assert [(a["type"], a["departement"]) for a in file] == [("besoin_commande", _DEPT)]
-    assert attentes == file and set(file[0]) == {*approbations.CHAMPS_ATTENTE, "departement"}
+    # +40 % est AUSSI un écart critique (C3) : l'admin le voit, avec le message imposé, avant le besoin de commande.
+    assert [(a["type"], a["departement"]) for a in file] == [
+        ("ecart_materiaux_critique", _DEPT), ("besoin_commande", _DEPT)]
+    assert file[0]["resume"].startswith("Écart matériaux critique — validation admin requise.")
+    assert attentes == file and all(set(a) == {*approbations.CHAMPS_ATTENTE, "departement"} for a in file)
 
 
 def test_declaration_avant_la_livraison_du_wct_evalue_quand_meme_et_la_livraison_ne_double_rien(

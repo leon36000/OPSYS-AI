@@ -1276,8 +1276,9 @@ d'accès appartient au serveur, jamais au mobile.
 §9.3 : « quantités réelles ajustables… **Aucun coût affiché** ») —
 `src/ecrans/materials.ts::creerLigneVide` ne pré-remplit RIEN : l'employé compose chaque ligne à
 la main (type parmi `prevu`/`non_prevu`/`retour`/`perte`/`bris`/`achat_terrain`, matériau,
-quantité, unité) ; le serveur résout seul le coût unitaire
-(`materiel.py::_dernier_cout_unitaire_connu`), jamais transmis par le mobile.
+quantité, unité) ; le serveur résout seul le coût unitaire au niveau de l'article
+(`cout_sortie.py`, C1 : réception du chantier, réception ailleurs, livre de prix dans la même unité, sinon coût inconnu dit à
+l'admin), jamais transmis par le mobile ni montré à l'employé.
 
 **Aucune liste « prévue » (M3/M6) pré-remplie — décision documentée, pas un oubli.** Le contrat
 fixe donné pour cette tranche ne couvre QUE `m4_deposer_fichier`/`m4_etat_fichier` ; aucune route
@@ -1298,7 +1299,8 @@ pour éviter un aller-retour réseau voué à l'échec, l'autorité finale reste
 
 **Verdict serveur affiché TEL QUEL** (même discipline que `complete.tsx`) : `REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`,
 `REJ-DECLARATION-DEJA-SOUMISE` (idempotence par `wct_id` — une seconde déclaration pour le même
-WCT est refusée nommément), `REJ-COUT-UNITAIRE-INTROUVABLE`, `REJ-WCT-INCONNU` (T1.4-i), et tout autre code de
+WCT est refusée nommément), `REJ-WCT-INCONNU` (T1.4-i) ; `REJ-COUT-UNITAIRE-INTROUVABLE` n'existe plus pour cette
+déclaration (C1 : un article inédit s'accepte, son coût est dit inconnu), et tout autre code de
 `validation.valider_wct`/`valider_formulaire_materiaux_utilises` (non lus ici, jamais devinés).
 **Forme confirmée en lisant `outils.py` (`declarer_materiaux_utilises`) : le verdict
 de refus de CET outil ne porte que `{"code": code}`, JAMAIS de `detail`** — contrairement au

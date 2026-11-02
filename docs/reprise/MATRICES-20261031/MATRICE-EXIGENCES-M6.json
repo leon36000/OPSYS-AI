@@ -121,11 +121,21 @@
       "docs/grs/inventory/M6-IMPORT-TARIFS-CANDIDATS.md"
      ],
      "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_cout_sortie_article.py",
+      "departments/m06-material-control/tests/test_po_commandable.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/README.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "Livre de prix, historique et import testés ; unité des prix non déclarée ; prix float dans les registres."
+   "limite": "Livre de prix, historique et import testés ; C1 : un prix du livre sert au coût de sortie d'un article sans réception (même unité, daté au plus tard du jour du chantier, `SOURCE_DECLAREE` ou `FALLBACK_PRICE_BOOK`, jamais « validé » ; prix différents selon le fournisseur = ambigu, aucun choix) ; C2 : un prix dans une autre unité n'est pas appliqué à une ligne de PO. Toujours : unité des prix facultative (une entrée sans unité s'applique mais n'est pas confirmée), prix float dans les registres, source = texte libre non authentifié."
   },
   {
    "id": "M6.4",
@@ -178,11 +188,23 @@
      ],
      "docs": [],
      "niveau": "T+N(CI)"
+    },
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_po_commandable.py",
+      "departments/m06-material-control/tests/test_po_lecture.py",
+      "departments/m06-material-control/tests/test_po_envoi_constate.py",
+      "tests/test_m6_scenario_sortie_article_po.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/README.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "supplier_confirmed n'existe que comme état d'entrée de réception, sans outil pour l'atteindre ; marquer_po_envoye (N4) n'envoie rien ; le test Core TS est présent mais non rejoué ici."
+   "limite": "C2/C3 : lignes à unité (= fiche article), perte déclarée appliquée une fois, date requise, livraison/ramassage, devis lié, un PO par fournisseur depuis un besoin (tout ou rien), lecture et liste des PO (`m6_lister_po`, `m6_lire_po`), pilotage de `pending_admin_review`, `disputed`, `invoiced`, `closed` (`m6_changer_statut_po`), prise d'acte de l'envoi constaté par M1 sans seconde approbation ; prouvé en S sur SQLite. Reste : `supplier_confirmed` n'est atteint que par la confirmation courriel (pas d'outil dédié), `invoiced`/`closed` ne se déduisent pas encore de M5 (geste de personne), prix confirmé et notes de ligne absents, `marquer_po_envoye` (N4) n'envoie rien, le test Core TS `opsys-m6-po-authority` fige l'ancien comportement (création N3) et n'est pas rejoué ici."
   },
   {
    "id": "M6.6",
@@ -211,11 +233,23 @@
       "docs/architecture/M1-M6-LEA-ROSALIE.md"
      ],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_po_commandable.py",
+      "departments/m06-material-control/tests/test_po_envoi_constate.py",
+      "tests/test_m1_m6_courriel_flux.py",
+      "tests/test_m6_scenario_sortie_article_po.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/README.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
+   "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "Entrant : une demande de commande reçue par courriel (via le tri de M1) devient un brouillon de demande rapproché des devis et des WCT par identifiant exact, idempotent par message, avec provenance, sans PO créé ; la confirmation d'un fournisseur ne met le PO à « confirmé » que si PO unique, expéditeur = boîte de commande, authentification de confiance et aucune anomalie, sinon une personne tranche. Sortant : m6_generer_courriel_po publie m6.po_courriel_pret, M1 prépare le brouillon dans le sas, une personne approuve, le planificateur envoie une fois, M6 reçoit une attente « marquer le PO envoyé » (N4 inchangé). Pont M1 vers M5 : facture reçue = attente « à saisir », aucun montant lu. Doubles seulement : aucun courriel réel, aucun fournisseur réel (Gentek, Royal, O.A.M., Kaycan non joints), aucune politique d'envoi réel validée par Nathan ; l'authentification de confiance n'est pas câblée en production.",
+   "limite": "Entrant : une demande de commande reçue par courriel (via le tri de M1) devient un brouillon de demande rapproché des devis et des WCT par identifiant exact, idempotent par message, avec provenance, sans PO créé ; la confirmation d'un fournisseur ne met le PO à « confirmé » que si PO unique, expéditeur = boîte de commande, authentification de confiance et aucune anomalie, sinon une personne tranche. Sortant : m6_generer_courriel_po publie m6.po_courriel_pret, M1 prépare le brouillon dans le sas, une personne approuve, le planificateur envoie une fois, M6 reçoit une attente « marquer le PO envoyé » (N4 inchangé). Pont M1 vers M5 : facture reçue = attente « à saisir », aucun montant lu. Doubles seulement : aucun courriel réel, aucun fournisseur réel (Gentek, Royal, O.A.M., Kaycan non joints), aucune politique d'envoi réel validée par Nathan ; l'authentification de confiance n'est pas câblée en production. C2 : le courriel de PO est complet (objet « Commande matériaux — PO — ville », chantier, date requise, livraison ou ramassage, unités, perte déclarée, aucun prix) ; l'envoi approuvé UNE fois au sas de M1 est pris en acte par M6 (PO « envoyé ») seulement si l'empreinte du courriel et son intégrité concordent, sinon l'attente N4 reste ; toujours prouvé sur doubles, aucun compte réel, serveurs de réception de confiance non déclarés.",
    "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
@@ -325,11 +359,21 @@
      ],
      "docs": [],
      "niveau": "H"
+    },
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_cout_sortie_article.py",
+      "tests/test_m6_scenario_sortie_article_po.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/README.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "Déclaration par la porte d'appareil (H, porte Python) ; employé refusé pour un WCT d'équipe tant que la décision 3 n'est pas prise ; mobile Jest seulement."
+   "limite": "Déclaration par la porte d'appareil (H, porte Python) ; employé refusé pour un WCT d'équipe tant que la décision 3 n'est pas prise ; mobile Jest seulement. C1 : la déclaration n'est plus refusée pour un article jamais reçu sous le chantier (achat sur place inédit, non prévu inédit, sortie du dépôt) ; le coût est dit (RECEPTION_CHANTIER, RECEPTION_ARTICLE, LIVRE_PRIX ou INCONNU) et l'employé ne voit ni coût ni origine (S). Toujours absent : raison d'écart d'un article non prévu, « non utilisé » déclaré, signature de l'employé."
   },
   {
    "id": "M6.11",
@@ -384,11 +428,22 @@
       "departments/m06-material-control/docs/VARIANCE-UNITES-DECLAREES.md"
      ],
      "niveau": "S+H"
+    },
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_po_lecture.py",
+      "tests/test_reglages_m6.py",
+      "tests/test_m6_scenario_sortie_article_po.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/README.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "Le cœur (quantités, non prévu, non utilisé, retours, pertes, unités indéterminées, cause toujours None, classement humain) est prouvé en S/H ; l'écart de prix n'est pas dans ce moteur (il est évalué à la réception, M6.7) ; seuil critique fourni par l'appelant/configuration.",
+   "limite": "Le cœur (quantités, non prévu, non utilisé, retours, pertes, unités indéterminées, cause toujours None, classement humain) est prouvé en S/H ; l'écart de prix n'est pas dans ce moteur (il est évalué à la réception, M6.7). C3 : l'écart critique porte le MESSAGE IMPOSÉ de Nathan mot pour mot (attente de l'admin `ecart_materiaux_critique`, résultat de `m6_evaluer_variance_chantier`), jamais « vol » ; les seuils de variance et de prix sont des réglages de direction (adoption N3 du propriétaire, retour arrière), valeurs d'un agent étiquetées « recommandation, non validée ». Reste : seuils par matériau/catégorie, plancher en quantité et en dollars, variance de coût, scores d'estimation (non faits, à dessein pour les scores par personne).",
    "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE ; la cible inclut l'écart de prix, absent du moteur de variance (variance_chantier.py ne traite pas les prix) : rétrogradée PARTIEL."
   },
   {
@@ -521,11 +576,21 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_cout_sortie_article.py",
+      "tests/test_m6_scenario_sortie_article_po.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/README.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "Rejet REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE ; flux d'approbation et envoi à M5 non confirmés."
+   "limite": "Rejet REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE ; C1 : l'achat sur place d'un article inédit est accepté (coût inconnu dit, attente `cout_sortie_inconnu` et stock négatif visibles à l'admin). Toujours absents : montant, fournisseur, raison, photo du reçu stockée, plafond, approbation, événement vers M5 (C6 non fait) ; l'achat n'entre pas au stock."
   },
   {
    "id": "M6.18",
@@ -548,11 +613,21 @@
      ],
      "docs": [],
      "niveau": "T+H"
+    },
+    {
+     "tests": [
+      "tests/test_console_commandes_m6.py",
+      "departments/m06-material-control/tests/test_po_lecture.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/README.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "Consoles catalogue/fournisseurs/prix et lectures d'appareil ; pas de tableau de bord complet ; aucun navigateur."
+   "limite": "Consoles catalogue/fournisseurs/prix, lectures d'appareil ; C3 : écran admin « Commandes » de la console (liste filtrée par statut/retard, détail, lecture seule, client HTTP de test) et attentes « PO à approuver ». Pas de tableau de bord complet ; aucun écran mobile des commandes ; aucun navigateur réel."
   },
   {
    "id": "M6.19",

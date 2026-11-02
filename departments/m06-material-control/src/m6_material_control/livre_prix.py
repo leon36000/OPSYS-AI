@@ -125,21 +125,36 @@ def prix_en_vigueur(
 
 
 def resoudre_prix_po(
-    materiau_id: Any, fournisseur_id: Any, registre_cible: Iterable[Mapping[str, Any]]
+    materiau_id: Any, fournisseur_id: Any, registre_cible: Iterable[Mapping[str, Any]], unite: Any = None
 ) -> dict[str, Any]:
     """Le prix qu'un PO doit porter pour cette ligne (PLAN T2.5 point 3, T2.4) : ``PRIX_LIVRE`` si
     le livre de prix en a un pour ce couple, sinon ``INDETERMINE`` — un VERDICT qui DEMANDE un
-    prix, jamais un prix inventé (0, le dernier prix d'un AUTRE fournisseur, ou une moyenne)."""
+    prix, jamais un prix inventé (0, le dernier prix d'un AUTRE fournisseur, ou une moyenne).
+
+    C2 : si ``unite`` (celle de la ligne du PO) est fournie et que l'entrée du livre déclare une AUTRE unité, le
+    prix ne s'applique pas (``INDETERMINE``, ``raison`` « UNITE_DIFFERENTE ») : un prix à la boîte n'est pas un prix à
+    la
+    feuille. Une entrée sans unité reste applicable (anciennes entrées) mais ``unite_confirmee`` est faux : la
+    personne qui approuve le sait."""
     entree = prix_en_vigueur(materiau_id, fournisseur_id, registre_cible)
+    vide = {
+        "verdict_prix": _VERDICT_PRIX_INDETERMINE,
+        "prix_unitaire": None,
+        "devise": None,
+        "date_effet": None,
+        "source_document": None,
+        "marquage_source": None,
+        "unite_prix": None,
+        "unite_confirmee": None,
+        "raison": None,
+    }
     if entree is None:
-        return {
-            "verdict_prix": _VERDICT_PRIX_INDETERMINE,
-            "prix_unitaire": None,
-            "devise": None,
-            "date_effet": None,
-            "source_document": None,
-            "marquage_source": None,
-        }
+        return {**vide, "raison": "AUCUN_PRIX"}
+    unite_prix = entree.get("unite")
+    if (
+        _texte_non_vide(unite) and _texte_non_vide(unite_prix) and unite_prix.strip() != unite.strip()
+    ):
+        return {**vide, "raison": "UNITE_DIFFERENTE", "unite_prix": unite_prix}
     return {
         "verdict_prix": _VERDICT_PRIX_LIVRE,
         "prix_unitaire": entree["prix_unitaire"],
@@ -147,4 +162,7 @@ def resoudre_prix_po(
         "date_effet": entree["date_effet"],
         "source_document": entree.get("source_document"),
         "marquage_source": marquage_source_document(entree.get("source_document")),
+        "unite_prix": unite_prix if _texte_non_vide(unite_prix) else None,
+        "unite_confirmee": _texte_non_vide(unite_prix),
+        "raison": None,
     }

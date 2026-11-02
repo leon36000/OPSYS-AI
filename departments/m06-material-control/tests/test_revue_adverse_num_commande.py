@@ -14,6 +14,8 @@ from m6_material_control import bons_commande, fournisseurs, livre_prix, reorder
 from m6_material_control.reception import traiter_reception
 from m6_material_control.registre import Registre
 
+CONDITIONS_PO = {"date_requise": "2099-12-31", "mode_livraison": "ramassage"}
+
 FICTIF = True
 
 
@@ -30,7 +32,7 @@ def _registre(quantite_en_stock):
 def test_la_quantite_a_commander_est_l_ecart_decimal_exact(estimee, stock, attendu):
     lignes = bons_commande.calculer_lignes_a_commander(
         [{"materiau_id": "M1", "quantite_estimee": estimee, "unite": "u"}], "C1", _registre(stock))
-    assert lignes == [{"materiau_id": "M1", "quantite_demandee": attendu}]
+    assert lignes == [{"materiau_id": "M1", "quantite_nette": attendu, "unite": "u"}]
 
 
 @pytest.mark.parametrize("estimee, stock", [(10.3, 10.3), (0.3, 0.3), (3.0, 3.5), (1.1, 1.1000000000000001)])
@@ -48,7 +50,8 @@ def test_recevoir_exactement_ce_qui_etait_a_commander_est_une_reception_conforme
     prix: list[dict] = []
     livre_prix.enregistrer_prix("M1", "gentek", 2.0, "CAD", "2026-01-01", prix)
     po, verdict = bons_commande.creer_brouillon(
-        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], prix, fournisseurs_registre)
+        "PO-1", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], prix, fournisseurs_registre,
+        conditions=CONDITIONS_PO)
     assert verdict is None and po["lignes"][0]["quantite_demandee"] == 7.2 and po["montant_total_prevu"] == 14.4
     bon = bons_commande.construire_bon_demande(po)
     recu = {"po_id": "PO-1", "chantier_id": "C1", "lignes_recues": [{"materiau_id": "M1", "quantite_recue": 7.2}],

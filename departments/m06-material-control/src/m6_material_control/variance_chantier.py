@@ -151,6 +151,16 @@ def comparer(besoins_estimes, lignes_declarees) -> list[dict]:
     ]
 
 
+# C3 — le message de Nathan pour un écart de matériaux critique, MOT POUR MOT (prompt M6, 2026-06-23) : ce que l'admin
+# lit
+# à l'attente, dans le résultat de l'évaluation et à l'écran de revue. Il dit « validation requise » et liste des CAUSES
+# POSSIBLES, toutes neutres : M6 n'attribue rien à personne et ce texte ne contient jamais le mot « vol ». Changer une
+# lettre est changer une règle dure de Nathan : un test fige l'empreinte du texte.
+MESSAGE_ECART_CRITIQUE = (
+    "Écart matériaux critique — validation admin requise. Causes possibles : erreur d'estimation, changement terrain, "
+    "perte, bris, mauvaise saisie, retour non déclaré ou usage non expliqué."
+)
+
 # PLAN T1.1-d2 point 3 : types de mouvement du registre qui composent le « réel déclaré »
 # d'un chantier — exactement ceux écrits par materiel.soumettre_materiaux_utilises.
 # CONSOMMATION est aussi écrit par l'ancien m6_consommer_materiaux (WCT simple) : cette

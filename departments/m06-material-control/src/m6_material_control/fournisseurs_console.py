@@ -1,12 +1,20 @@
 """Fiches fournisseurs privées : PATCH conservateur, CAS et reçu atomique."""
 import re
+from pathlib import Path
 
 from opsys import idempotence, stockage
 from opsys.outils import Autonomie, Outil, valider_arguments
 from opsys.stockage import codec
 
 from . import catalogue_console as acces
-from . import catalogue_materiaux, contrats, fournisseurs, prix_console, tarif_soumission
+from . import (
+    catalogue_materiaux,
+    contrats,
+    fournisseurs,
+    fournisseurs_a_fournir,
+    prix_console,
+    tarif_soumission,
+)
 
 NOMS = frozenset({'m6_lire_fournisseur_console', 'm6_enregistrer_fournisseur_console',
                   'm6_lister_fournisseurs_console'})
@@ -26,6 +34,7 @@ _ECRITURE = prix_console.schema(dict(fournisseur_id=_ID,
     source_attendue={'type': 'string', 'maxLength': 64, 'pattern': r'^(|[0-9a-f]{64})$'}))
 _LISTE = prix_console.schema(dict(debut={'type': 'integer', 'minimum': 0, 'maximum': 10000},
                                    limite={'type': 'integer', 'minimum': 1, 'maximum': 50}))
+_MANIFESTE = Path(__file__).resolve().parents[2] / 'department.yaml'
 _CHAMPS = contrats.CHAMPS_FOURNISSEUR_REQUIS | contrats.CHAMPS_FOURNISSEUR_OPTIONNELS
 
 
@@ -51,6 +60,14 @@ def _valider_modifications(modifications, courant):
     courriel = changements.get('courriel_commande')
     if courriel is not None and re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', courriel) is None:
         raise catalogue_materiaux.CatalogueRefuse('ARGUMENTS')
+
+
+def _configuration():
+    """Le bloc `configuration` de `department.yaml` (amorçage vide des fournisseurs connus), relu à chaque appel."""
+    import yaml
+
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding='utf-8')) or {}
+    return donnees.get('configuration')
 
 
 def _journal():
@@ -100,8 +117,10 @@ def lister(debut, limite):
             raise catalogue_materiaux.CatalogueRefuse('ARGUMENTS')
         fiches = fournisseurs.lister_fournisseurs(_journal())
         page = [_projection(f) for f in fiches[debut:debut + limite]]
+        noms, exigences = fournisseurs_a_fournir.lire_configuration(_configuration())
         resultat = dict(fournisseurs=[{k: f[k] for k in ('fournisseur_id', 'nom')} for f in page],
-                        total=len(fiches), suivant=debut + limite if debut + limite < len(fiches) else None)
+                        total=len(fiches), suivant=debut + limite if debut + limite < len(fiches) else None,
+                        a_fournir=dict(noms=fournisseurs_a_fournir.a_fournir(noms, fiches), pour_chacun=exigences))
         return acces._borner({'accepte': True, 'resultat': resultat})
     except (catalogue_materiaux.CatalogueRefuse, tarif_soumission.SelectionTarifRefusee) as exc:
         return prix_console._refus(exc)

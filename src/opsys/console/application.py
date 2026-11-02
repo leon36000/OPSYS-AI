@@ -66,6 +66,7 @@ from . import (
     calendrier_marketing_ui,
     cfo_ui,
     collecte_ui,
+    commandes_ui,
     connaissances_ui,
     connecteurs_ui,
     courriel_ui,
@@ -518,6 +519,11 @@ def creer_application(
     # administration seulement.
     app.include_router(collecte_ui.creer_router(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+    ))
+    # Commandes (commandes_ui) : les bons de commande de M6 (à approuver, envoyés, partiels, en retard) ; lecture seule,
+    # administration seulement.
+    app.include_router(commandes_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
     ))
     # Ingestion d'onboarding (onboarding_ui) : suivi des lots en lecture, administration seulement.
     app.include_router(onboarding_ui.creer_router(

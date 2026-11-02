@@ -15,6 +15,8 @@ import pytest
 from m6_material_control import bons_commande, contrats_sortie, fournisseurs, livre_prix
 from m6_material_control.reception import traiter_reception
 
+CONDITIONS_PO = {"date_requise": "2099-12-31", "mode_livraison": "ramassage"}
+
 FICTIF = True
 
 
@@ -26,8 +28,9 @@ def _po(prix, quantite, po_id="PO-NUM-1", registre_po=None):
     livre_prix.enregistrer_prix("MAT-1", "gentek", prix, "CAD", "2026-01-01", prix_registre)
     registre_po = [] if registre_po is None else registre_po
     reponse = bons_commande.creer_brouillon(
-        po_id, "C1", "gentek", [{"materiau_id": "MAT-1", "quantite_demandee": quantite}], "2026-01-02T00:00:00Z",
-        registre_po, prix_registre, fournisseurs_registre)
+        po_id, "C1", "gentek", [{"materiau_id": "MAT-1", "quantite_nette": quantite,
+                                 "unite": "boite"}], "2026-01-02T00:00:00Z",
+        registre_po, prix_registre, fournisseurs_registre, conditions=CONDITIONS_PO)
     return reponse, registre_po
 
 
@@ -55,10 +58,12 @@ def test_le_total_de_plusieurs_lignes_est_la_somme_exacte_des_montants_de_ligne(
     prix_registre: list[dict] = []
     for materiau, prix in (("MAT-1", 0.1), ("MAT-2", 0.2), ("MAT-3", 4.35)):
         livre_prix.enregistrer_prix(materiau, "gentek", prix, "CAD", "2026-01-01", prix_registre)
-    lignes = [{"materiau_id": "MAT-1", "quantite_demandee": 3}, {"materiau_id": "MAT-2", "quantite_demandee": 3},
-              {"materiau_id": "MAT-3", "quantite_demandee": 100}]
+    lignes = [{"materiau_id": "MAT-1", "quantite_nette": 3, "unite": "u"}, {"materiau_id": "MAT-2",
+                                                                            "quantite_nette": 3, "unite": "u"},
+              {"materiau_id": "MAT-3", "quantite_nette": 100, "unite": "u"}]
     po, verdict = bons_commande.creer_brouillon(
-        "PO-NUM-2", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], prix_registre, fournisseurs_registre)
+        "PO-NUM-2", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], prix_registre, fournisseurs_registre,
+        conditions=CONDITIONS_PO)
     assert verdict is None
     assert [ligne["montant_ligne_prevu"] for ligne in po["lignes"]] == [0.3, 0.6, 435.0]
     assert po["montant_total_prevu"] == 435.9  # 0,3 + 0,6 + 435 en flottant donnerait 435.90000000000003
@@ -88,9 +93,11 @@ def test_le_total_de_deux_lignes_est_exact():
     prix_registre: list[dict] = []
     for materiau, prix in (("MAT-1", 0.1), ("MAT-2", 0.2)):
         livre_prix.enregistrer_prix(materiau, "gentek", prix, "CAD", "2026-01-01", prix_registre)
-    lignes = [{"materiau_id": "MAT-1", "quantite_demandee": 1}, {"materiau_id": "MAT-2", "quantite_demandee": 1}]
+    lignes = [{"materiau_id": "MAT-1", "quantite_nette": 1, "unite": "u"}, {"materiau_id": "MAT-2",
+                                                                            "quantite_nette": 1, "unite": "u"}]
     po, verdict = bons_commande.creer_brouillon(
-        "PO-NUM-3", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], prix_registre, fournisseurs_registre)
+        "PO-NUM-3", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [], prix_registre, fournisseurs_registre,
+        conditions=CONDITIONS_PO)
     assert verdict is None and po["montant_total_prevu"] == 0.3  # 0.1 + 0.2 = 0.30000000000000004 en flottant
 
 

@@ -520,7 +520,8 @@ def test_le_brouillon_de_po_commande_ce_qui_manque_a_la_reservation_pas_l_ecart_
     _outil(m6, "m6_enregistrer_fournisseur", {"fournisseur_id": "gentek", "nom": "Gentek", "horodatage": H_DEVIS})
 
     reponse = _outil(m6, "m6_creer_po_brouillon", {
-        "po_id": "PO-FICT-B", "devis_id": "DEVIS-B", "fournisseur_id": "gentek", "horodatage": H_ACTION})
+        "po_id": "PO-FICT-B", "devis_id": "DEVIS-B", "fournisseur_id": "gentek", "horodatage": H_ACTION,
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage"})
 
     assert reponse["accepte"] is True and reponse["quantites_depuis"] == "reservation"
     lignes = [(ligne["materiau_id"], ligne["quantite_demandee"]) for ligne in reponse["po"]["lignes"]]
@@ -534,7 +535,8 @@ def test_un_devis_pret_n_a_rien_a_commander(base, m6):
     _outil(m6, "m6_enregistrer_fournisseur", {"fournisseur_id": "gentek", "nom": "Gentek", "horodatage": H_DEVIS})
 
     reponse = _outil(m6, "m6_creer_po_brouillon", {
-        "po_id": "PO-FICT-A", "devis_id": "DEVIS-FICT-1", "fournisseur_id": "gentek", "horodatage": H_ACTION})
+        "po_id": "PO-FICT-A", "devis_id": "DEVIS-FICT-1", "fournisseur_id": "gentek", "horodatage": H_ACTION,
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage"})
 
     assert reponse == {"accepte": True, "po": None, "statut": "aucun_achat_requis"}
     assert _maillons("bons_commande") == []
@@ -547,7 +549,8 @@ def test_sans_reservation_le_brouillon_de_po_est_celui_d_avant(base, m6):
     _outil(m6, "m6_enregistrer_fournisseur", {"fournisseur_id": "gentek", "nom": "Gentek", "horodatage": H_DEVIS})
 
     reponse = _outil(m6, "m6_creer_po_brouillon", {
-        "po_id": "PO-FICT-M", "devis_id": "DEVIS-MANUEL", "fournisseur_id": "gentek", "horodatage": H_ACTION})
+        "po_id": "PO-FICT-M", "devis_id": "DEVIS-MANUEL", "fournisseur_id": "gentek", "horodatage": H_ACTION,
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage"})
 
     assert "quantites_depuis" not in reponse
     assert [ligne["quantite_demandee"] for ligne in reponse["po"]["lignes"]] == [10.0]

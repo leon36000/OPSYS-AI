@@ -77,6 +77,9 @@ LECTURES = {
     "m8_lire_etat_collecte": "m08-analytics",
     "m3_lister_devis_lead_admin": "m03-estimation",
     "m3_lire_devis": "m03-estimation",
+    # C3 : commandes de M6 (lecture admin, liste blanche de champs, aucune écriture)
+    "m6_lister_po": "m06-material-control",
+    "m6_lire_po": "m06-material-control",
 }
 # Les lecteurs M9 revérifient l'admin SQL de la persona : jamais la persona propriétaire, même cumulée.
 _LECTURES_ADMIN_M9 = frozenset({
@@ -96,7 +99,11 @@ _LECTURES_ADMIN_M2 = frozenset({
 _LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
 _LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine", "m4_lire_calendrier_plan"})
 _LECTURES_ADMIN_M8 = frozenset({"m8_lire_wallboard", "m8_lire_etat_collecte"})
-_LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4 | _LECTURES_ADMIN_M8
+_LECTURES_ADMIN_M6 = frozenset({"m6_lister_po", "m6_lire_po"})
+_LECTURES_ADMIN = (
+    _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4 | _LECTURES_ADMIN_M8
+    | _LECTURES_ADMIN_M6
+)
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
 _COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule", "m4_signaler_report",
                                   "m4_replanifier_visite_console", "m4_interrompre_visite_console_v2"})

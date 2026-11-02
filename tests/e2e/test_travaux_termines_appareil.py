@@ -151,6 +151,18 @@ def _attentes_du_telephone(admin) -> dict[str, Any]:
     return admin.appeler("m9_lister_demandes_approbation", {}).resultat
 
 
+def _toutes_les_attentes_du_telephone(admin) -> list[dict[str, Any]]:
+    """Toutes les pages de la liste de l'app (`decalage_attentes` / `attentes_suivant`, T1.5-e) : l'écran borne chaque
+    page à `BUDGET_ATTENTES` caractères, et le message imposé de M6 (C3) fait déborder la première."""
+    attentes: list[dict[str, Any]] = []
+    decalage: int | None = 0
+    while decalage is not None:
+        page = admin.appeler("m9_lister_demandes_approbation", {} if decalage == 0 else {"decalage_attentes": decalage})
+        attentes += page.resultat["attentes"]
+        decalage = page.resultat["attentes_suivant"]
+    return attentes
+
+
 def _mesure(nom: str, s: _Scenario) -> dict[str, Any]:
     """Mesures du scénario, imprimées (`pytest -s`) : durée, appels, requêtes, troncatures. `trajet` : la
     journée de l'employé et la livraison du bus (l'amont, préparé la veille, n'y est pas) ; `lectures` : ce
@@ -523,11 +535,17 @@ def test_b_ecart_de_quarante_pour_cent_reste_en_revue_et_alerte_l_admin(moteur, 
         "demandes", "total_en_attente", "affichees", "reste", "proprietaire",
         "attentes", "total_attentes", "attentes_affichees", "attentes_reste", "attentes_illisibles",
         "attentes_decalage", "attentes_suivant"}  # les deux derniers : la lecture par pages (T1.5-e), additifs
-    assert (telephone["attentes_decalage"], telephone["attentes_suivant"]) == (0, None)  # tout tient : rien ne suit
+    assert telephone["attentes_decalage"] == 0
+    toutes = _toutes_les_attentes_du_telephone(s.admin)
     assert all(set(a) == {"type", "id", "departement", "departement_nom", "resume", "niveau", "depuis",
-                          "action_proposee"} for a in telephone["attentes"])
-    par_type = {a["type"]: a for a in telephone["attentes"]}
-    assert set(par_type) == {"completion_en_revue", "facture_brouillon", "chantier_a_reviser"}
+                          "action_proposee"} for a in toutes)
+    par_type = {a["type"]: a for a in toutes}
+    # C3 : M6 ajoute SA attente d'écart critique, avec le message imposé de Nathan, aux trois d'avant.
+    assert set(par_type) == {
+        "completion_en_revue", "facture_brouillon", "chantier_a_reviser", "ecart_materiaux_critique"}
+    ecart_m6 = par_type["ecart_materiaux_critique"]
+    assert ecart_m6["departement"] == "m06-material-control" and ecart_m6["niveau"] == "N3"
+    assert ecart_m6["resume"].startswith("Écart matériaux critique — validation admin requise. Causes possibles : ")
     en_revue = par_type["completion_en_revue"]
     assert en_revue["id"] == ch.intervention_id and en_revue["departement"] == "m04-field-ops"
     assert en_revue["niveau"] == "N4" and "écart matériaux CRITIQUE signalé par M6" in en_revue["resume"]
@@ -535,7 +553,8 @@ def test_b_ecart_de_quarante_pour_cent_reste_en_revue_et_alerte_l_admin(moteur, 
     a_reviser = par_type["chantier_a_reviser"]
     assert a_reviser["id"] == f"variance-{wct_id}" and a_reviser["departement"] == "m05-financecore"
     assert "Écart matériaux critique" in a_reviser["resume"] and ch.chantier_id in a_reviser["resume"]
-    assert (telephone["total_attentes"], telephone["attentes_affichees"], telephone["attentes_reste"]) == (3, 3, 0)
+    assert telephone["total_attentes"] == len(toutes) == 4
+    assert telephone["attentes_affichees"] + telephone["attentes_reste"] == 4
     assert telephone["attentes_illisibles"] == [] and telephone["total_en_attente"] == 0
     # Le briefing du matin de M9 (aussi de portée admin) porte les mêmes trois décisions.
     briefing = s.admin.appeler("m9_produire_briefing_matin", {"maintenant": iso(moteur.horloge.maintenant)})
@@ -787,11 +806,12 @@ def test_d_sans_seuil_configure_l_admin_voit_un_signal_a_configurer_puis_le_beso
 
 
 @SQLITE_SEULEMENT
-def test_e_ecart_de_quarante_pour_cent_et_stock_bas_quatre_alertes_dont_le_telephone_compte_ce_qu_il_coupe(
+def test_e_ecart_de_quarante_pour_cent_et_stock_bas_cinq_alertes_dont_le_telephone_compte_ce_qu_il_coupe(
     moteur, scenario_e
 ):
     """Le cas de §6 : l'écart est important ET le stock est bas. La file du propriétaire (console) et le briefing
-    du matin portent les quatre alertes ; la complétion reste en revue (M4) et le besoin n'y change rien.
+    du matin portent les cinq alertes (dont le message imposé de M6, C3) ; la complétion reste en revue (M4) et le
+    besoin n'y change rien.
     Constat de cette mesure : la liste de l'app (`m9_lister_demandes_approbation`) borne les attentes à
     `BUDGET_ATTENTES` (1500 caractères) PAR PAGE ; les trois premières tiennent dans la première, la quatrième est
     COMPTÉE (`attentes_reste`), jamais perdue en silence. Elle se lit par la page suivante (`decalage_attentes`,
@@ -805,9 +825,10 @@ def test_e_ecart_de_quarante_pour_cent_et_stock_bas_quatre_alertes_dont_le_telep
     assert s.app.statut().resultat["statut"] == "completed_pending_review"
     assert _constat_du_besoin(ch, wct_id)["quantite_a_commander"] == "156.0"
     _rien_de_commande_n_a_ete_cree()
-    tous = {"completion_en_revue", "facture_brouillon", "chantier_a_reviser", "besoin_commande"}
+    tous = {"completion_en_revue", "facture_brouillon", "chantier_a_reviser", "besoin_commande",
+            "ecart_materiaux_critique"}
 
-    # -- la file du propriétaire (console) et le briefing du matin de M9 : les quatre ------------------------------
+    # -- la file du propriétaire (console) et le briefing du matin de M9 : les cinq ------------------------------
     with stockage.transaction() as cnx:
         file, illisibles = approbations.attentes_departements(cnx, moteur.departements)
     assert illisibles == [] and {a["type"] for a in file} == tous
@@ -819,8 +840,9 @@ def test_e_ecart_de_quarante_pour_cent_et_stock_bas_quatre_alertes_dont_le_telep
     # -- la liste de l'app : bornée, mais honnête sur ce qu'elle ne montre pas -----------------------------------
     telephone = _attentes_du_telephone(s.admin)
     montrees = {a["type"] for a in telephone["attentes"]}
-    assert montrees <= tous and telephone["total_attentes"] == 4
-    assert telephone["attentes_affichees"] + telephone["attentes_reste"] == 4
+    assert montrees <= tous and telephone["total_attentes"] == 5  # C3 : le message imposé de M6 est la cinquième
+    assert telephone["attentes_affichees"] + telephone["attentes_reste"] == 5
+    assert {a["type"] for a in _toutes_les_attentes_du_telephone(s.admin)} == tous
     assert telephone["attentes_illisibles"] == []
 
 

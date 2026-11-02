@@ -27,6 +27,8 @@ from opsys import evenements, stockage
 from opsys.stockage import EcritureConcurrente, MaillonsDurables, codec
 from opsys.stockage.schema import REGISTRES
 
+CONDITIONS_PO = {"date_requise": "2099-12-31", "mode_livraison": "ramassage"}
+
 _DEPARTEMENT = "m06-material-control"
 _NOM_REGISTRE = "principal"
 _CHANTIER = "CHANTIER-1"
@@ -394,10 +396,10 @@ def test_bons_commande_flux_complet_survit_au_redemarrage(base_sqlite):
 
     with stockage.transaction():
         bons_commande.creer_brouillon(
-            "PO-DURABLE", _CHANTIER, "gentek", [{"materiau_id": _MATERIAU, "quantite_demandee": 5.0}],
+            "PO-DURABLE", _CHANTIER, "gentek", [{"materiau_id": _MATERIAU, "quantite_nette": 5.0, "unite": "boite"}],
             "2026-01-02T00:00:00Z", stockage.maillons(_DEPARTEMENT, "bons_commande"),
-            stockage.maillons(_DEPARTEMENT, "livre_prix"), stockage.maillons(_DEPARTEMENT, "fournisseurs"),
-        )
+            stockage.maillons(_DEPARTEMENT, "livre_prix"), stockage.maillons(_DEPARTEMENT,
+                                                                             "fournisseurs"), conditions=CONDITIONS_PO)
     with stockage.transaction():
         bons_commande.approuver("PO-DURABLE", "2026-01-03T00:00:00Z", stockage.maillons(_DEPARTEMENT, "bons_commande"))
     with stockage.transaction():
@@ -434,7 +436,8 @@ def test_outils_creer_po_brouillon_utilise_le_registre_durable_en_production(bas
         )
 
     with stockage.transaction():
-        reponse = outils.creer_po_brouillon("PO-OUTILS-DURABLE", "DEVIS-DURABLE", "gentek", "2026-01-02T00:00:00Z")
+        reponse = outils.creer_po_brouillon("PO-OUTILS-DURABLE", "DEVIS-DURABLE", "gentek", "2026-01-02T00:00:00Z",
+                                            "2099-12-31", "ramassage")
 
     assert reponse["accepte"] is True
     assert "bons_commande_historique" not in reponse, "registre durable : pas d'historique à transporter"

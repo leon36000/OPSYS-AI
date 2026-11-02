@@ -1,8 +1,11 @@
 # Réglages de direction (CFG-1) : décider les seuils depuis la console, sans éditer un fichier
 
 Statut (2026-11-02) : **livré et prouvé sur SQLite, avec des données fictives, sur les vrais outils de M2 et de M8, le vrai sas
-N3 et la vraie console (client HTTP de test).** Branchés : **M2** (trois délais, les bandes de valeur du score) et **M8** (les
-six couples « pire / cible » du score de santé). Les autres départements (M3 barème, M4, M5…) se branchent de la même façon
+N3 et la vraie console (client HTTP de test).** Branchés : **M2** (trois délais, les bandes de valeur du score), **M8** (les
+six couples « pire / cible » du score de santé) et **M6** (le seuil d'écart de matériaux d'un chantier terminé et le seuil d'écart de
+prix à la réception : `m6.seuil_variance_chantier_pourcentage` et `m6.seuil_ecart_prix_reception_pourcentage`, décimaux de 0.01 à 5, dont la valeur
+en vigueur est déjà celle de `department.yaml` — 0.30 et 0.15, choisies par un agent — et la proposition étiquetée « recommandation, non validée » ;
+prouvé par `tests/test_reglages_m6.py`). Les autres départements (M3 barème, M4, M5…) se branchent de la même façon
 (§7) ; rien n'y est fait. Aucune valeur réelle, aucun envoi : ce chantier ne fait que ranger des décisions de direction.
 
 ## 1. Le problème

@@ -302,9 +302,11 @@ def _lire(deps, **args):
 
 def test_lire_a_la_livraison_dit_dix_manquants_avec_ce_que_ca_bloque_et_la_proposition(deps):
     page = _lire(deps)
-    assert page["accepte"] is True and page["total"] == 10 and page["manquants"] == 10
+    # 10 réglages vides (M2, M8) + 2 de M6 (C3) dont la valeur d'un agent est déjà écrite à department.yaml.
+    assert page["accepte"] is True and page["total"] == 12 and page["manquants"] == 10
     assert page["chaine"]["valide"] is True and "recommandation, non validée" in page["mention"]
     lignes = page["reglages"]
+    # la liste ne rend que ce qui MANQUE : les deux seuils de M6 ont déjà une valeur, ils ne s'y trouvent pas.
     assert len(lignes) == 10 and page["prochain_depart"] is None
     relances = next(r for r in lignes if r["cle"] == CLE)
     assert relances["statut"] == "vide" and relances["valeur"] is None

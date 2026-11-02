@@ -11,9 +11,11 @@ journée de l'employé, bus livré) :
 - deux chantiers terminés avec un écart de matériaux de 40 % : chacun laisse une complétion en revue (M4), une
   facture prête à envoyer et un chantier à réviser (M5) ;
 - un chantier terminé sans histoire : une facture prête à envoyer (M5) ;
+- chaque écart critique : l'attente de M6 qui porte le message imposé de Nathan (C3) ;
 - le stock de l'article passe sous son seuil : un besoin de commande (M6, un par article).
 
-Huit attentes, de trois départements. Ce que ces tests ne prouvent PAS : l'écran (Jest, `mobile/`) ni le core.
+Dix attentes, de trois départements (M4, M5, M6) ; les deux écarts critiques de M6 portent le message imposé.
+Ce que ces tests ne prouvent PAS : l'écran (Jest, `mobile/`) ni le core.
 
 Suite (PLAN T1.5-d) : `m9_lire_alertes_m8` (`admin`) rendait TOUTES les alertes de M8 reçues, sans limite. Il est
 borné comme le reste : ce fichier prouve, par la même porte d'appareil, que l'admin lit les alertes page par page
@@ -51,6 +53,7 @@ LISTER = "m9_lister_demandes_approbation"
 SEUIL_FRANCHI = {MATERIAU_ID: {"seuil_reapprovisionnement": 450, "quantite_cible": 600}}
 TYPES_ATTENDUS = {
     "completion_en_revue": 2, "chantier_a_reviser": 2, "facture_brouillon": 3, "besoin_commande": 1,
+    "ecart_materiaux_critique": 2,  # C3 : M6 dit chaque écart critique avec le message imposé de Nathan
 }
 
 
@@ -148,13 +151,13 @@ def _lire_tout(admin) -> list[dict[str, Any]]:
 
 
 @SQLITE_SEULEMENT
-def test_l_admin_lit_les_huit_attentes_page_par_page_chacune_une_seule_fois(moteur, equipe, semaine_chargee):
+def test_l_admin_lit_les_dix_attentes_page_par_page_chacune_une_seule_fois(moteur, equipe, semaine_chargee):
     admin = equipe["admin"]
     verite = _console(moteur)
 
-    # -- la semaine chargée : huit attentes, de trois départements ---------------------------------------------
+    # -- la semaine chargée : dix attentes, de quatre départements ---------------------------------------------
     par_type = {t: sum(1 for a in verite if a["type"] == t) for t in TYPES_ATTENDUS}
-    assert par_type == TYPES_ATTENDUS and len(verite) == 8
+    assert par_type == TYPES_ATTENDUS and len(verite) == 10
     assert {a["departement"] for a in verite} == {"m04-field-ops", "m05-financecore", "m06-material-control"}
     (besoin,) = (a for a in verite if a["type"] == "besoin_commande")
     assert "446.0 pi en main, sous le seuil de 450 pi" in besoin["resume"]
@@ -162,8 +165,8 @@ def test_l_admin_lit_les_huit_attentes_page_par_page_chacune_une_seule_fois(mote
 
     # -- avant T1.5-e : la première page ne montrait que les premières, et comptait le reste ---------------------
     avant = _page(admin)
-    assert avant["total_attentes"] == 8 and 1 <= avant["attentes_affichees"] < 8
-    assert avant["attentes_reste"] == 8 - avant["attentes_affichees"] > 0
+    assert avant["total_attentes"] == 10 and 1 <= avant["attentes_affichees"] < 10
+    assert avant["attentes_reste"] == 10 - avant["attentes_affichees"] > 0
     assert avant["attentes_decalage"] == 0 and avant["attentes_suivant"] == avant["attentes_affichees"]
 
     # -- l'app lit la suite, page par page, sans rien changer à l'état du moteur ----------------------------------
@@ -172,22 +175,22 @@ def test_l_admin_lit_les_huit_attentes_page_par_page_chacune_une_seule_fois(mote
     assert moteur.empreinte_etat() == empreinte  # lire n'écrit rien : ni approbation, ni journal, ni registre
 
     print("MESURE-A-VOIR " + json.dumps({
-        "attentes": 8, "pages": len(pages), "par_page": [p["attentes_affichees"] for p in pages],
+        "attentes": 10, "pages": len(pages), "par_page": [p["attentes_affichees"] for p in pages],
         "octets_attentes": [sum(len(json.dumps(a, ensure_ascii=False)) for a in p["attentes"]) for p in pages],
         "duree_s": [round(m.duree_s, 3) for m in moteur.mesures if m.outil == LISTER][-len(pages):],
     }))
     assert len(pages) > 1
     lues = [a for page in pages for a in page["attentes"]]
     assert [_cle(a) for a in lues] == [_cle(a) for a in verite]  # toutes, une seule fois, dans l'ordre de la console
-    assert len({_cle(a) for a in lues}) == 8
+    assert len({_cle(a) for a in lues}) == 10
     rang = 0
     for page in pages:
-        assert page["attentes_decalage"] == rang and page["total_attentes"] == 8
+        assert page["attentes_decalage"] == rang and page["total_attentes"] == 10
         assert page["attentes_affichees"] == len(page["attentes"]) >= 1
         assert sum(len(json.dumps(a, ensure_ascii=False)) for a in page["attentes"]) <= BUDGET_ATTENTES
         assert page["attentes_illisibles"] == []
         rang += page["attentes_affichees"]
-        assert page["attentes_reste"] == 8 - rang
+        assert page["attentes_reste"] == 10 - rang
     assert pages[-1]["attentes_suivant"] is None and pages[-1]["attentes_reste"] == 0
     assert all(set(a) == {"type", "id", "departement", "departement_nom", "resume", "niveau", "depuis",
                           "action_proposee"} for a in lues)  # rien de plus qu'avant : pas de décision, pas d'argument
@@ -197,11 +200,11 @@ def test_l_admin_lit_les_huit_attentes_page_par_page_chacune_une_seule_fois(mote
     assert all(p["proprietaire"] is True for p in pages)
 
     # -- au-delà de la fin : une page vide, jamais une erreur ni une attente inventée -----------------------------
-    for hors_plage in (8, 9, 500):
+    for hors_plage in (10, 11, 500):
         vide = _page(admin, hors_plage)
         assert vide["attentes"] == [] and vide["attentes_affichees"] == 0
         assert vide["attentes_suivant"] is None and vide["attentes_reste"] == 0
-        assert vide["attentes_decalage"] == hors_plage and vide["total_attentes"] == 8
+        assert vide["attentes_decalage"] == hors_plage and vide["total_attentes"] == 10
 
 
 @SQLITE_SEULEMENT
@@ -235,7 +238,7 @@ def test_une_attente_traitee_entre_deux_pages_change_le_total_et_la_relecture_re
     utilise pour relire depuis le début est `total_attentes`, qui change ; une relecture depuis 0 est complète."""
     admin = equipe["admin"]
     premiere = _page(admin)
-    assert premiere["total_attentes"] == 8
+    assert premiere["total_attentes"] == 10
 
     # L'admin réapprovisionne (réception au dépôt) : le stock d'aujourd'hui remonte, le besoin de commande s'efface.
     chantier = _chantier_du_depot(moteur)
@@ -247,10 +250,10 @@ def test_une_attente_traitee_entre_deux_pages_change_le_total_et_la_relecture_re
     assert reception.metier["accepte"] is True
 
     suivante = _page(admin, premiere["attentes_suivant"])
-    assert suivante["total_attentes"] == 7  # le signal : l'écran relit depuis le début
+    assert suivante["total_attentes"] == 9  # le signal : l'écran relit depuis le début
 
     relues = [a for page in _lire_tout(admin) for a in page["attentes"]]
-    assert len(relues) == 7 and len({_cle(a) for a in relues}) == 7
+    assert len(relues) == 9 and len({_cle(a) for a in relues}) == 9
     assert "besoin_commande" not in {a["type"] for a in relues}
     assert [_cle(a) for a in relues] == [_cle(a) for a in _console(moteur)]
 

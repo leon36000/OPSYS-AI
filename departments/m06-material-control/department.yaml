@@ -28,8 +28,10 @@ approbations:                                        # ADR-0009 §5, PLAN T2.5 p
   # référencer que ces 8 rôles (src/opsys/identite.py::Role). « inventory_manager » du produit
   # correspond au rôle générique « manager » du socle — même fonction (tenir l'inventaire/les
   # achats au quotidien), nom différent selon la couche.
-  # N3 (interne, réversible avant tout contact fournisseur) : brouillon de PO, approbation
-  # interne, génération du corps de courriel.
+  # N3 (décision de personne, interne, avant tout contact fournisseur) : approbation interne du PO, changement de
+  # statut d'un PO (revue, litige, facturé, fermé), réception. Depuis C2 le BROUILLON de PO et la génération du
+  # courriel sont des tâches internes réversibles (N2, règle d'autonomie r1 : brouillons N0-N2) : ils ne demandent
+  # plus d'approbation ; l'approbation du PO et l'envoi, eux, restent des décisions de personne.
   n3: [manager, admin, nathan_owner]
   # N4 (m6_marquer_po_envoye — engagement externe, « envoi sensible » ADR-0009 §4) : l'admin qui
   # gère les achats au quotidien (§9.5, « PO à approuver » sur son tableau de bord), plus le
@@ -119,3 +121,59 @@ configuration:
   # Quand le catalogue M6.1 sera persisté, ces deux champs iront dans la fiche de l'article (un seul endroit).
   reapprovisionnement:
     articles: {}
+  # Fournisseurs connus du produit (DEFINITION-PRODUIT §7 M6) : AMORÇAGE VIDE. Seulement leurs NOMS, que l'écran « Fournisseurs »
+  # de la console montre « à fournir » tant qu'aucune fiche n'existe. Aucun courriel, contact, compte, tarif ni délai n'est connu
+  # ni deviné : la personne qui a ces données déclare le fournisseur (m6_enregistrer_fournisseur ou l'écran), puis importe sa
+  # grille de prix par l'écran de confirmation. Un nom sans fiche n'est PAS un fournisseur : aucun PO ne peut lui être adressé.
+  fournisseurs_a_fournir:
+    noms: ["Gentek", "Royal Solution de Bâtiment", "O.A.M.", "Kaycan"]
+    pour_chacun:
+      - "courriel de commande (boîte où le bon de commande est envoyé)"
+      - "contact et téléphone"
+      - "numéro de compte client chez le fournisseur"
+      - "grille tarifaire (CSV ou PDF) avec date d'effet et unité de chaque prix"
+      - "délai habituel de livraison"
+      - "conditions de livraison et de ramassage"
+# Réglages de direction (CFG-1, docs/architecture/REGLAGES-DIRECTION.md) : ce que la direction décide depuis la console
+# (« Réglages de direction », geste N3 du propriétaire), sans éditer ce fichier. Précédence : valeur adoptée > valeur déjà
+# écrite à `configuration` ci-dessus > absence (le département reste fail-closed). Les deux seuils ci-dessous valent
+# AUJOURD'HUI 0.30 et 0.15 parce qu'un agent les a écrits dans `configuration` (T1.1-d, T2.5), PAS parce que Nathan les a
+# décidés : la proposition est donc étiquetée « recommandation, non validée » et la direction peut adopter une autre
+# valeur, ou la même (ce qui la rend sienne), en un geste, avec retour arrière.
+reglages:
+  - cle: m6.seuil_variance_chantier_pourcentage
+    libelle: "Écart de matériaux qui déclenche la revue de l'admin"
+    chemin: configuration.seuil_variance_chantier_pourcentage
+    type: decimal
+    unite: "fraction (0.3 = 30 %)"
+    min: "0.01"
+    max: "5"
+    niveau: N3
+    debloque: >-
+      L'écart de matériaux critique d'un chantier terminé (m6.variance_chantier) : au-dessus de ce seuil, le chantier reste
+      en revue chez M4 et l'admin reçoit le message « Écart matériaux critique — validation admin requise ».
+    proposition:
+      valeur: "0.3"
+      etiquette: "recommandation, non validée"
+      justification: >-
+        Valeur écrite par un agent en T1.1-d pour qu'un écart de 40 % (exemple de DEFINITION-PRODUIT §7 M6) déclenche la
+        revue ; aucune calibration sur les chantiers de l'entreprise. Valeur en vigueur aujourd'hui, à confirmer ou changer.
+      source: "departments/m06-material-control/department.yaml (configuration, T1.1-d) ; ANALYSE-M6 §5 question 4"
+  - cle: m6.seuil_ecart_prix_reception_pourcentage
+    libelle: "Écart de prix à la réception qui est signalé"
+    chemin: configuration.seuil_ecart_prix_reception_pourcentage
+    type: decimal
+    unite: "fraction (0.15 = 15 %)"
+    min: "0.01"
+    max: "5"
+    niveau: N3
+    debloque: >-
+      Le signal d'écart de prix à la réception d'un bon de commande (m6_receptionner_commande) : sans seuil, aucun
+      écart de prix n'est signalé.
+    proposition:
+      valeur: "0.15"
+      etiquette: "recommandation, non validée"
+      justification: >-
+        Valeur écrite par un agent en T2.5 comme point de départ raisonnable (aucun exemple chiffré dans DEFINITION-PRODUIT
+        §7 M6.7) ; aucune calibration sur les prix de l'entreprise. Valeur en vigueur aujourd'hui, à confirmer ou changer.
+      source: "departments/m06-material-control/department.yaml (configuration, T2.5) ; ANALYSE-M6 §5 question 4"
