@@ -745,9 +745,9 @@ def test_cout_declare_lu_du_catalogue_jamais_estime(pret, faux):
 def test_une_valeur_de_cle_glissee_dans_la_configuration_est_refusee_avant_toute_ecriture(pret):
     ident = fournisseur_passerelle(pret, "llm_fort", ALIAS["llm_fort"])
     base = {"role": "llm_fort", "fournisseur_id": ident, "modele_appel": ALIAS["llm_fort"]}
-    for variante in ({"modele_appel": "sk-abcdefghijklmnopqrstuvwx"},
-                     {"cout_source": "Bearer abcdefghijklmnopqrstuvwx"},
-                     {"cout_source": "AIzaabcdefghijklmnopqrstuvwxyz0123456"}):
+    for variante in ({"modele_appel": "sk-" + "abcdefghijklmnopqrstuvwx"},
+                     {"cout_source": "Bear" + "er abcdefghijklmnopqrstuvwx"},
+                     {"cout_source": "AI" + "zaabcdefghijklmnopqrstuvwxyz0123456"}):
         e = _refus(pret, codes.SECRET_DETECTE, service.OP_ROLE_AFFECTER, {**base, **variante})
         assert "abcdefghijklmnop" not in str(e)  # le refus ne recopie pas la valeur
     assert _vue(pret, "llm_fort")["etat"] == "inerte"

@@ -180,7 +180,8 @@ def test_parcours_http_passerelle_catalogue_role_plafonds_raisonnement_retour_ar
     assert "ok=role_connecte" in r.headers["location"]
     page = _suivre(client, r).text
     assert "llm.passerelle.opsys-haiku-5-5" in page and "Conforme" in page and "Non mesuré" in page
-    assert "sur_contrat" in page and "EFVP-FICTIVE-1" in page and "coût non déclaré" in page
+    assert "sur_contrat" in page and "EFVP-FICTIVE-1" in page
+    assert "1 / 5 USD par million de jetons" in page and "Source du coût : catalogue de la passerelle" in page
     # test de connexion : un appel minuscule
     r = _post(client, "/plateforme/modeles/role/tester", role="llm_rapide")
     assert "ok=teste" in r.headers["location"]
