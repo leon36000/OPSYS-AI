@@ -13,7 +13,7 @@ Point de départ : l'analyse d'écarts du 2026-10-31 (`ANALYSE-ECARTS-MODULES.md
 |---|---|---|---|---|---|---|---|---|
 | M1 | 20 | 0 | 18 | 1 | 1 | 0 | Front Office | 1766 passed, 0 failed, 0 skipped |
 | M2 | 15 | 1 | 14 | 0 | 0 | 0 | Revenue CRM | 2269 passed, 0 failed, 0 skipped (rejouée le 2026-11-01 sur la branche claude/m2-victor, base 1b58f4e6c) |
-| M3 | 18 | 1 | 15 | 2 | 0 | 0 | Estimation | 2491 passed, 0 failed, 9 skipped (8 tests de test_mesure_plan.py : extra vision-photo absent ; 1 garde de CI) en excluant test_gardes_des_outils.py (32 tests d'outils de preuve de mutation) : ce fichier échoue (« n'a pas restauré son entrée capturée ») aussi en exécution isolée, cause non investiguée, donc non concluant |
+| M3 | 18 | 1 | 15 | 2 | 0 | 0 | Estimation | 3018 passed, 0 failed, 36 skipped le 2026-11-02 (M3-C1/M3-C2, 9ed79e649 ; avant : 2774 passed, 36 skipped) : 8 tests de test_mesure_plan.py (extra vision-photo absent), 25 cas de campagne de mutation de test_gardes_des_outils.py (réservés au job CI m03-preuves), 3 gardes de CI ; test_gardes_des_outils.py passe |
 | M4 | 24 | 2 | 22 | 0 | 0 | 0 | Field Ops | 3304 passed, 0 failed, 20 skipped (pyvrp absent) |
 | M5 | 18 | 0 | 18 | 0 | 0 | 0 | FinanceCore | 2702 passed, 0 failed, 0 skipped (base d'origine) ; vague 3 : voir `run_summary` de MATRICE-EXIGENCES-M5.json |
 | M6 | 21 | 0 | 21 | 0 | 0 | 0 | Material Control | 1725 passed, 0 failed, 0 skipped |
@@ -70,7 +70,7 @@ Lecture : le produit reste PARTIEL (mode `ombre` partout). Aucun département n'
 
 ## Exécution (2026-10-31, base ci-dessus, hors ligne)
 
-- Suites de départements : `python -m pytest -p no:cacheprovider --import-mode=importlib departments/<mNN-…>/tests` (résultats dans la colonne de droite du tableau ; M3 : voir la note, un fichier de 32 tests d'outils de preuve de mutation n'a pas pu être conclu).
+- Suites de départements : `python -m pytest -p no:cacheprovider --import-mode=importlib departments/<mNN-…>/tests` (résultats dans la colonne de droite du tableau ; M3 : le fichier de 32 tests d'outils de preuve de mutation passe (7 réussis, 25 réservés au job CI)).
 - Tests de socle cités sous `tests/` (97 fichiers) : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL ou job CI dédié).
 - `tests/test_matrices_exigences.py`, `tests/test_portees_appareil.py` (compteurs de `docs/architecture/ROLES.md`), tests qui lisent des README (`departments/m10-memoire/tests/test_paquet_affaire.py`, `departments/m01-front-office/tests/test_formulaire_site.py`, tests `test_module_structure.py` de M1 et M3) : verts après les corrections de statut périmé.
 - `ruff check tests src departments` : vert.

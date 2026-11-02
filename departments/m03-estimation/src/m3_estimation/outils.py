@@ -45,6 +45,7 @@ from . import (
     modeles_soumission,
     monte_carlo,
     outils_apprentissage_durees,
+    outils_bareme,
     outils_site_vision,
     plancher,
     politique_photos,
@@ -85,6 +86,34 @@ _PHOTO = {
     },
     "required": list(contrats.CHAMPS_PHOTO),
 }
+_BAREME_REF = {
+    "type": ["object", "null"],
+    "description": (
+        "Référence d'un barème DÉCLARÉ : {bareme_id, version} (et empreinte, vérifiée si fournie). La version doit "
+        "exister, être validée et en vigueur (m3_lister_baremes). Source du barème, du plancher rentable, des taux de "
+        "marge et des seuils."
+    ),
+    "properties": {
+        "bareme_id": {"type": "string"}, "version": {"type": "integer", "minimum": 1},
+        "empreinte": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    },
+    "required": ["bareme_id", "version"],
+    "additionalProperties": False,
+}
+_MESURE_REF = {
+    "type": ["object", "null"],
+    "description": (
+        "Référence d'une mesure DÉCLARÉE par une personne : {mesure_id} (révision facultative : la dernière sinon, "
+        "empreinte vérifiée si fournie). Source de la quantité et de ses bornes."
+    ),
+    "properties": {
+        "mesure_id": {"type": "string"}, "revision": {"type": "integer", "minimum": 1},
+        "empreinte": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    },
+    "required": ["mesure_id"],
+    "additionalProperties": False,
+}
+_LIBRE_ESSAI = "Voie d'essai seulement : refusé avec bareme_ref et à tout agent (la valeur vient des déclarations)."
 _SEUILS = {
     "type": "object",
     "properties": {"resolution_minimale": {"type": "integer"}, "eclairage_minimal": {"type": "number"}},
@@ -353,6 +382,8 @@ def _projeter_estimation_employe(reponse: dict[str, Any]) -> dict[str, Any]:
                 "intervalle_confiance": {**intervalle, "borne_basse": None, "borne_haute": None},
             }
     projection["prix_recommande"] = None
+    if "declaration" in projection:  # M3-C1 : l'intervalle de coût et le plancher rentable du reçu
+        projection["declaration"] = None
     # PLAN T4.11 : P50 et P80 sont des coûts, les scénarios des prix et des marges : rien n'en reste pour l'employé.
     for cle in scenarios.CHAMPS_SOEURS_ESTIMATION:
         projection[cle] = None
@@ -372,8 +403,23 @@ def classifier_confiance(photos: list[dict[str, Any]], seuils: dict[str, Any]) -
 
 
 def simuler_intervalle(
-    bareme: dict[str, Any], type_travaux: str, quantite: float, graine: int, niveau: float = 0.9
+    bareme: dict[str, Any] | None = None, type_travaux: str | None = None, quantite: float | None = None,
+    graine: int | None = None, niveau: float = 0.9, bareme_ref: dict[str, Any] | None = None,
+    mesure_ref: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Intervalle de coût Monte Carlo. Avec `bareme_ref` et `mesure_ref` (M3-C1, M3-C2) : le barème en vigueur et la
+    mesure déclarée donnent l'enveloppe de la mesure à bornes (le lead est celui de la mesure) ; graine, barème et
+    quantité libres sont refusés. Sans référence : voie d'essai seulement (`outils_bareme.voie_libre_autorisee`)."""
+    libres = outils_bareme.arguments_libres_presents(bareme=bareme, quantite=quantite, graine=graine)
+    if bareme_ref is not None:
+        if libres:
+            return {"accepte": False, "verdict": outils_bareme.verdict_voie_libre_refusee(libres, avec_reference=True)}
+        return outils_bareme.simuler_declare(bareme_ref, mesure_ref, type_travaux, niveau)
+    if not outils_bareme.voie_libre_autorisee():
+        return {"accepte": False, "verdict": outils_bareme.verdict_voie_libre_refusee(libres, avec_reference=False)}
+    if bareme is None or type_travaux is None or quantite is None or graine is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="voie d'essai : bareme, type_travaux, quantite et graine sont requis")}
     services: tuple[str, ...] = ()
     if isinstance(type_travaux, str) and type_travaux not in contrats.TYPES_TRAVAUX:
         # Ni type v1 ni rien d'autre : c'est un service, qui doit être déclaré par l'entreprise. Le
@@ -398,7 +444,25 @@ def simuler_intervalle(
     return depuis_couple((intervalle, None))
 
 
-def confronter_plancher(intervalle: dict[str, Any], plancher_rentable: float) -> dict[str, Any]:
+def confronter_plancher(
+    intervalle: dict[str, Any], plancher_rentable: float | None = None, bareme_ref: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Confronte l'intervalle au plancher rentable DÉCLARÉ (`bareme_ref` : plancher du barème en vigueur). Un plancher
+    libre n'est accepté que sur la voie d'essai (`outils_bareme.voie_libre_autorisee`), jamais d'un agent."""
+    if bareme_ref is not None:
+        if plancher_rentable is not None:
+            return {"accepte": False, "verdict": outils_bareme.verdict_voie_libre_refusee(
+                ["plancher_rentable"], avec_reference=True)}
+        plancher_declare, verdict = outils_bareme.plancher_declare(bareme_ref)
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+        return depuis_couple(plancher.confronter_au_plancher(intervalle, plancher_declare))
+    if not outils_bareme.voie_libre_autorisee():
+        libres = outils_bareme.arguments_libres_presents(plancher_rentable=plancher_rentable)
+        return {"accepte": False, "verdict": outils_bareme.verdict_voie_libre_refusee(libres, avec_reference=False)}
+    if plancher_rentable is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="voie d'essai : plancher_rentable est requis (ou fournir bareme_ref)")}
     return depuis_couple(plancher.confronter_au_plancher(intervalle, plancher_rentable))
 
 
@@ -407,13 +471,15 @@ def estimer_projet(
     marqueur: dict[str, Any],
     photos: list[dict[str, Any]],
     seuils: dict[str, Any],
-    bareme: dict[str, Any],
-    quantite: float,
-    plancher_rentable: float,
+    bareme: dict[str, Any] | None = None,
+    quantite: float | None = None,
+    plancher_rentable: float | None = None,
     graine: int | None = None,
     taux_marge: str | None = None,
     taux_marge_scenarios: dict[str, Any] | None = None,
     contexte_site_empreinte: str | None = None,
+    bareme_ref: dict[str, Any] | None = None,
+    mesure_ref: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Point d'entrée agent (PLAN T2.3) : appelle l'orchestrateur pur
     `estimation.orchestrer_estimation` sur le registre DURABLE de production. Toute la logique
@@ -448,7 +514,34 @@ def estimer_projet(
     accompagnent la
     réponse en clé sœur `contexte_site`, hors d'EstimationV1 et du registre ; elles ne changent ni le prix ni le
     blocage (la
-    garde photos/échelle reste la seule). Une empreinte inconnue de ce lead est refusée AVANT tout calcul."""
+    garde photos/échelle reste la seule). Une empreinte inconnue de ce lead est refusée AVANT tout calcul.
+
+    BARÈME ET MESURE DÉCLARÉS (M3-C1 et M3-C2, `bareme_registre.py`, `mesure_declaree.py`, `entrees_declarees.py`) :
+    l'estimation EXIGE `bareme_ref` ({bareme_id, version}, existante, validée et en vigueur) et `mesure_ref`
+    ({mesure_id}, d'une personne, pour CE lead). Le barème, la quantité, le plancher rentable, les taux de marge, les
+    seuils et la graine viennent alors de ces déclarations : les passer en arguments est refusé
+    (`REJ-BAREME-LIBRE-REFUSE`), et l'absence de référence l'est aussi (`REJ-BAREME-REFERENCE-REQUISE`), chaque refus
+    disant quoi déclarer. Seule la VOIE D'ESSAI (`outils_bareme.voie_libre_autorisee` : variable d'environnement du
+    serveur ET appel hors MCP) accepte encore les arguments libres, pour les tests et les appels historiques ; aucun
+    agent ne peut l'ouvrir. La réponse rappelle la référence exacte et le reçu (clé sœur `declaration`) :
+    `m3_rejouer_estimation` refait le calcul avec la version citée."""
+    libres = outils_bareme.arguments_libres_presents(
+        bareme=bareme, quantite=quantite, plancher_rentable=plancher_rentable, taux_marge=taux_marge,
+        taux_marge_scenarios=taux_marge_scenarios, graine=graine,
+    )
+    declaree = bareme_ref is not None
+    if declaree and libres:
+        return {"etape": "bareme", "accepte": False,
+                "verdict": outils_bareme.verdict_voie_libre_refusee(libres, avec_reference=True)}
+    if not declaree:
+        if not outils_bareme.voie_libre_autorisee():
+            return {"etape": "bareme", "accepte": False,
+                    "verdict": outils_bareme.verdict_voie_libre_refusee(libres, avec_reference=False)}
+        if bareme is None or quantite is None or plancher_rentable is None:
+            return {"etape": "validation", "accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail="voie d'essai : bareme, quantite et plancher_rentable sont requis (ou fournir bareme_ref)",
+            )}
     vue = _vue_projection_effective(None)
     if not vue["accepte"]:
         return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
@@ -472,9 +565,18 @@ def estimer_projet(
                 lead_du_contrat, contexte_site_empreinte)
             if verdict_contexte is not None:
                 return {"etape": "contexte_site", "accepte": False, "verdict": verdict_contexte}
-        calibration_candidate, erreur_calibration = _calibration_active_pour_demande(
-            contrat, bareme, quantite,
-        )
+        calibration_candidate, erreur_calibration = None, None
+        declaration = None
+        if declaree:
+            # Point d'accroche (non construit ici) : une calibration de durée appliquée à une estimation déclarée
+            # devra se référer à la version du barème (`bareme_registre.compiler` : version « <id>@v<n> », empreinte
+            # du barème compilé) ; tant que `_calibration_active_pour_demande` ne lit pas la déclaration, aucune
+            # n'est appliquée.
+            declaration = outils_bareme.construire_declaration(bareme_ref, mesure_ref)
+        else:
+            calibration_candidate, erreur_calibration = _calibration_active_pour_demande(
+                contrat, bareme, quantite,
+            )
         if erreur_calibration is not None:
             return {"etape": "calibration_active", "accepte": False,
                     "raisons": [erreur_calibration], "candidate_active": False}
@@ -487,6 +589,7 @@ def estimer_projet(
             registre_production(), graine, taux_marge,
             taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(), calibration_candidate,
             apprentissage_actif, apprentissage_ombre,
+            declaration,
         ))
         if (
             raison_apprentissage is not None and resultat.get("accepte") is True
@@ -1731,6 +1834,15 @@ def generer_soumission_brouillon(devis_id: str, format: str = "html") -> dict[st
         return {"accepte": False, "verdict": verdict}
     if _hors_portee_du_vendeur(vue, devis):
         return {"accepte": False, "verdict": _devis_inconnu(devis_id)}
+    # M3-C2 : exclusions, hypothèses, délai et validité, tirés du barème et de la mesure DÉCLARÉS que l'estimation
+    # source cite.
+    source = devis.get("estimation_source_hash")
+    charge_source = _source_estimation_exacte(source, devis_id, devis["lead_id"]) if source is not None else None
+    conditions, verdict = outils_bareme.conditions_pour_devis(devis, charge_source)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    if conditions is not None:
+        devis = {**devis, "conditions_soumission": conditions}
     if format == "pdf":
         return _soumission_pdf(devis, devis_id)
     return depuis_couple(soumission.generer_brouillon_html(devis))
@@ -1800,6 +1912,10 @@ _CONTEXTE_REVUE = {
         "client_a_risque": {"type": "boolean"},
         "distance_km": {"type": ["string", "number"], "description": "kilomètres, texte décimal ou nombre"},
         "donnees_fournisseur_completes": {"type": "boolean"},
+        "mesure_a_bornes_larges": {
+            "type": "boolean",
+            "description": "recopié de declaration.revue_humaine_requise (mesure déclarée à bornes larges)",
+        },
     },
     "additionalProperties": False,
 }
@@ -1869,6 +1985,8 @@ def _decision_approuvee_en_cours(cnx: Any, arguments: dict[str, Any]) -> tuple[s
 
 
 _CHAMPS_FAITS_REVUE = ("verdict_estimation", "niveau_confiance_hierarchie", "alerte_plancher")
+_FAITS_REVUE_V1 = "m3.faits-revue/v1"
+_FAITS_REVUE_V2 = "m3.faits-revue/v2"  # M3-C2 : + mesure_a_bornes_larges, pour les estimations à mesure déclarée
 
 
 def _evaluer_revue_source(devis: dict[str, Any], contexte_revue: Any, seuils: Any) -> tuple[Any, Any]:
@@ -1883,10 +2001,13 @@ def _evaluer_revue_source(devis: dict[str, Any], contexte_revue: Any, seuils: An
             "REJ-REVUE-DEVIS-INVALIDE", detail="source d'estimation liée absente, altérée ou hors identité"
         )
     faits = charge.get("faits_revue")
+    declaree = isinstance(faits, dict) and faits.get("version") == _FAITS_REVUE_V2
+    champs_faits = (*_CHAMPS_FAITS_REVUE, "mesure_a_bornes_larges") if declaree else _CHAMPS_FAITS_REVUE
     valide = (
         isinstance(faits, dict)
-        and set(faits) == {"version", "prix_bloque", *_CHAMPS_FAITS_REVUE}
-        and faits.get("version") == "m3.faits-revue/v1"
+        and set(faits) == {"version", "prix_bloque", *champs_faits}
+        and faits.get("version") in (_FAITS_REVUE_V1, _FAITS_REVUE_V2)
+        and (not declaree or type(faits.get("mesure_a_bornes_larges")) is bool)
         and type(faits.get("prix_bloque")) is bool
         and type(faits.get("alerte_plancher")) is bool
         and faits.get("verdict_estimation") in contrats.VERDICTS_ESTIMATION
@@ -1894,11 +2015,19 @@ def _evaluer_revue_source(devis: dict[str, Any], contexte_revue: Any, seuils: An
     )
     if contexte_revue is not None and not isinstance(contexte_revue, dict):
         return revue_devis.evaluer_revue(devis, contexte_revue, seuils)
+    bloc_declare = charge.get("declaration")
+    if isinstance(bloc_declare, dict) and (seuils is None or isinstance(seuils, dict)):
+        # M3-C1 : un devis chiffré avec un barème déclaré est jugé avec les seuils DÉCLARÉS dans ce barème (clé par
+        # clé ; une clé non déclarée garde celle de department.yaml, sinon reste « seuil à configurer »).
+        seuils_barème, verdict_seuils = outils_bareme.seuils_revue_declares(bloc_declare)
+        if verdict_seuils is not None:
+            return None, verdict_seuils
+        seuils = {**(seuils or {}), **seuils_barème}
     contexte_effectif = dict(contexte_revue or {})
-    for cle in _CHAMPS_FAITS_REVUE:
+    for cle in (*_CHAMPS_FAITS_REVUE, "mesure_a_bornes_larges"):
         contexte_effectif.pop(cle, None)
     if valide:
-        contexte_effectif.update({cle: faits[cle] for cle in _CHAMPS_FAITS_REVUE})
+        contexte_effectif.update({cle: faits[cle] for cle in champs_faits})
     revue, verdict = revue_devis.evaluer_revue(devis, contexte_effectif, seuils)
     if verdict is not None:
         return None, verdict
@@ -1909,7 +2038,7 @@ def _evaluer_revue_source(devis: dict[str, Any], contexte_revue: Any, seuils: An
     }
     if valide:
         for motif in revue["motifs"]:
-            if motif["donnee"]["nom"] in _CHAMPS_FAITS_REVUE:
+            if motif["donnee"]["nom"] in (*_CHAMPS_FAITS_REVUE, "mesure_a_bornes_larges"):
                 motif["donnee"]["source"] = "estimation_canonique"
     else:
         # Anciennes charges, valeur None ou snapshot mal formé: jamais le contexte en repli.
@@ -2124,17 +2253,14 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m3_estimer_projet",
             description=(
-                "Estime un projet de bout en bout : valide le contrat LeadQualifie et le marqueur M2, la qualité des "
-                "photos, la hiérarchie d'échelle, puis Monte Carlo et plancher de rentabilité ; assemble EstimationV1 "
-                "(gelé), inscrit au registre durable. Photos ou échelle insuffisantes : prix bloqué, "
-                "elements_manquants et signal_relance_m2. Sans bloquer : REFERENCE_ECHELLE_ABSENTE. Durée de "
-                "main-d'œuvre si le barème porte duree_minutes_par_unite ; prix_recommande si taux_marge est fourni "
-                "(jamais codé en dur). Voie non bloquée, clés sœurs d'EstimationV1 : distribution_cout (P50 et P80 "
-                "du coût ; PERT si cout_unitaire_mode, sinon uniforme), facteurs_dominants, "
-                "scenarios_prix (prudent, normal, agressif : coût x (1 + taux), taux de taux_marge_scenarios ou "
-                "de department.yaml ; sans taux : aucun prix, un verdict dit où le déclarer ; sous le minimum "
-                "rentable, alerte rouge). Si le poste porte materiaux : besoins_materiaux, "
-                "publiés à M6 (facteur_perte absent : signalé, jamais inventé). Rôle employee : coût et prix retirés."
+                "EXIGE bareme_ref {bareme_id, version} (barème déclaré, validé, en vigueur) et mesure_ref {mesure_id} "
+                "(mesure d'une personne, de CE lead) : barème, quantité, plancher et taux ne sont jamais des arguments "
+                "libres (refus nommé qui dit quoi déclarer). Valide contrat et marqueur M2, photos, hiérarchie "
+                "d'échelle, puis Monte Carlo (enveloppe des bornes de la mesure) et plancher ; assemble EstimationV1 "
+                "(gelé), inscrit au registre. Photos ou échelle insuffisantes : prix bloqué, elements_manquants. "
+                "Rend la référence et un reçu rejouable (declaration), revue_humaine_requise si bornes larges. Clés "
+                "sœurs : prix_recommande, distribution_cout (P50, P80), facteurs_dominants, scenarios_prix, "
+                "besoins_materiaux (publiés à M6). Rôle employee : coût et prix retirés."
             ),
             parametres={
                 "type": "object",
@@ -2143,15 +2269,17 @@ def outils() -> tuple[Outil, ...]:
                     "marqueur": _MARQUEUR,
                     "photos": {"type": "array", "items": _PHOTO},
                     "seuils": _SEUILS,
+                    "bareme_ref": _BAREME_REF,
+                    "mesure_ref": _MESURE_REF,
                     "bareme": _BAREME,
-                    "quantite": {"type": "number"},
-                    "plancher_rentable": {"type": "number"},
-                    "graine": {"type": "integer"},
+                    "quantite": {"type": "number", "description": _LIBRE_ESSAI},
+                    "plancher_rentable": {"type": "number", "description": _LIBRE_ESSAI},
+                    "graine": {"type": "integer", "description": _LIBRE_ESSAI},
                     "taux_marge": {
                         "type": ["string", "null"],
                         "description": (
-                            "texte décimal, ex. \"0.35\" pour 35 % — jamais codé en dur ; absent "
-                            "ou null : aucun prix_recommande calculé (coût seulement)"
+                            "Voie d'essai seulement (refusé avec bareme_ref : le taux 'normal' du barème s'applique). "
+                            "texte décimal, ex. \"0.35\" pour 35 % ; absent ou null : aucun prix_recommande"
                         ),
                     },
                     "contexte_site_empreinte": {
@@ -2165,8 +2293,9 @@ def outils() -> tuple[Outil, ...]:
                     "taux_marge_scenarios": {
                         "type": ["object", "null"],
                         "description": (
-                            "taux de marge des scénarios, texte décimal (ex. \"0.35\"), jamais codé en dur ; un "
-                            "scénario absent ou null prend celui de department.yaml, sinon n'a aucun prix"
+                            "Voie d'essai seulement (refusé avec bareme_ref : les taux du barème s'appliquent). "
+                            "taux de marge des scénarios, texte décimal ; un scénario absent ou null prend celui de "
+                            "department.yaml, sinon n'a aucun prix"
                         ),
                         "properties": {
                             "prudent": {"type": ["string", "null"]},
@@ -2176,7 +2305,7 @@ def outils() -> tuple[Outil, ...]:
                         "additionalProperties": False,
                     },
                 },
-                "required": ["contrat", "marqueur", "photos", "seuils", "bareme", "quantite", "plancher_rentable"],
+                "required": ["contrat", "marqueur", "photos", "seuils"],
                 "additionalProperties": False,
             },
             fonction=estimer_projet,
@@ -2212,31 +2341,41 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m3_simuler_intervalle",
-            description="Intervalle de coût Monte Carlo reproductible pour un type de travaux et une quantité.",
+            description=(
+                "Intervalle de coût Monte Carlo reproductible. Avec bareme_ref et mesure_ref (déclarés) : l'enveloppe "
+                "de la mesure à bornes avec le barème en vigueur. Barème, quantité et graine libres : refusés à tout "
+                "agent (voie d'essai seulement)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
+                    "bareme_ref": _BAREME_REF,
+                    "mesure_ref": _MESURE_REF,
                     "bareme": _BAREME,
                     "type_travaux": _TYPE_TRAVAUX,
-                    "quantite": {"type": "number"},
-                    "graine": {"type": "integer"},
+                    "quantite": {"type": "number", "description": _LIBRE_ESSAI},
+                    "graine": {"type": "integer", "description": _LIBRE_ESSAI},
                     "niveau": {"type": "number", "description": "entre 0 et 1 exclus, défaut 0,9"},
                 },
-                "required": ["bareme", "type_travaux", "quantite", "graine"],
+                "required": [],
                 "additionalProperties": False,
             },
             fonction=simuler_intervalle,
         ),
         Outil(
             nom="m3_confronter_plancher",
-            description="Compare la borne basse d'un intervalle au plancher de rentabilité fourni.",
+            description=(
+                "Compare la borne basse d'un intervalle au plancher de rentabilité DÉCLARÉ par le barème en vigueur "
+                "(bareme_ref). Un plancher libre est refusé à tout agent (voie d'essai seulement)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
                     "intervalle": {"type": "object"},
-                    "plancher_rentable": {"type": "number"},
+                    "bareme_ref": _BAREME_REF,
+                    "plancher_rentable": {"type": "number", "description": _LIBRE_ESSAI},
                 },
-                "required": ["intervalle", "plancher_rentable"],
+                "required": ["intervalle"],
                 "additionalProperties": False,
             },
             fonction=confronter_plancher,
@@ -2620,6 +2759,7 @@ def outils() -> tuple[Outil, ...]:
             fonction=verifier_politique_photos,
             autonomie=Autonomie.T0,
         ),
+        *outils_bareme.outils_bareme(),
         *_outils_modeles(),
         *_outils_devis_modele(),
         *_outils_prefill(),

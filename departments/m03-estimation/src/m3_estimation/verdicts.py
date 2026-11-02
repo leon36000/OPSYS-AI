@@ -133,6 +133,35 @@ CODES_M3_LIST = [
     "REJ-GEO-SOURCE-INCONNUE",
     # Journal du site et de la vision (journal_site.py) : chaîne altérée.
     "REJ-SITE-JOURNAL-ALTERE",
+    # M3-C1 (barème déclaré, bareme_registre.py, entrees_declarees.py) : le barème, le plancher rentable et les taux
+    # de marge viennent d'une déclaration versionnée du propriétaire, jamais d'un argument libre. Chaque refus dit
+    # ce qu'il faut déclarer ou corriger.
+    "REJ-BAREME-REFERENCE-REQUISE",
+    "REJ-BAREME-LIBRE-REFUSE",
+    "REJ-BAREME-INTROUVABLE",
+    "REJ-BAREME-VERSION-INCONNUE",
+    "REJ-BAREME-EMPREINTE-DIFFERENTE",
+    "REJ-BAREME-A-VALIDER",
+    "REJ-BAREME-HORS-VIGUEUR",
+    "REJ-BAREME-PERIME",
+    "REJ-BAREME-INCOMPLET",
+    "REJ-BAREME-INVALIDE",
+    "REJ-BAREME-REVISION-PERIMEE",
+    "REJ-BAREME-IDENTITE",
+    "REJ-BAREME-ALTERE",
+    # M3-C2 (mesure déclarée, mesure_declaree.py) : la quantité est une mesure d'une personne, avec ses bornes.
+    "REJ-MESURE-REQUISE",
+    "REJ-MESURE-INTROUVABLE",
+    "REJ-MESURE-AUTRE-LEAD",
+    "REJ-MESURE-UNITE",
+    "REJ-MESURE-INVALIDE",
+    "REJ-MESURE-INSUFFISANTE",
+    "REJ-MESURE-PERIMEE",
+    "REJ-MESURE-IDENTITE",
+    "REJ-MESURE-REVISION-PERIMEE",
+    "REJ-MESURE-ALTEREE",
+    # Rejeu d'une estimation déclarée (m3_rejouer_estimation).
+    "REJ-REJEU-IMPOSSIBLE",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 

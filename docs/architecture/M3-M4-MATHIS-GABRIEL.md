@@ -4,6 +4,8 @@ Statut : tranche 1 (2026-11-01, base 1b58f4e6c). Code : `departments/m03-estimat
 `departments/m04-field-ops/src/m4_field_ops/`. Matrices : `docs/reprise/MATRICES-20261031/MATRICE-EXIGENCES-M3.json` et `…-M4.json`.
 Migration : `0049` (une CHECK élargie, aucune table). Rien de ce qui suit n'est branché à un service réel.
 
+**Suite (vague 10, M3-C1 et M3-C2)** : le barème, la quantité, le plancher rentable et les taux de marge d'une estimation ne sont plus des arguments libres ; ils viennent d'un barème **déclaré** (versionné, chaîné, en vigueur) et d'une mesure **déclarée** par une personne. Voir [`M3-BAREME-MESURE-DECLARES.md`](M3-BAREME-MESURE-DECLARES.md). Les lignes ci-dessous qui disent « barème fourni par l'appelant » décrivent l'état d'avant.
+
 ## En une table : ce qui existe, ce qui est prouvé, ce qui ne l'est pas
 
 | Exigence | Statut visé | Ce qui existe (exécuté, avec tests) | Ce qui n'est PAS prouvé |

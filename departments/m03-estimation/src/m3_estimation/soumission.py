@@ -26,7 +26,7 @@ from __future__ import annotations
 from html import escape
 from typing import Any
 
-from . import verdicts
+from . import conditions_soumission, verdicts
 from .modeles_soumission import valider_modele_fige
 
 __all__ = ["MENTION_BROUILLON", "contenu_client", "generer_brouillon_html"]
@@ -84,6 +84,12 @@ def contenu_client(devis: dict[str, Any]) -> tuple[dict[str, Any] | None, dict |
                 "REJ-CONTRAT-INVALIDE", detail="modèle de soumission figé invalide"
             )
         resultat["modele_soumission"] = {cle: modele[cle] for cle in ("titre", "description", "clauses")}
+    if "conditions_soumission" in devis:
+        # M3-C2 : exclusions, hypothèses, délai et validité tirés de données déclarées (conditions_soumission.py).
+        conditions, verdict = conditions_soumission.valider(devis["conditions_soumission"])
+        if verdict is not None:
+            return None, verdict
+        resultat["conditions_soumission"] = conditions
     return resultat, None
 
 
@@ -98,6 +104,21 @@ def _modele_html(modele: dict[str, str] | None) -> str:
         f'<div style="white-space: pre-wrap">{escape(modele["clauses"])}</div>'
         '</section>'
     )
+
+
+def _conditions_html(conditions: dict[str, Any] | None) -> str:
+    """Les sections déclarées (exclusions, hypothèses, délai, validité) ; absentes si rien n'est déclaré."""
+    if conditions is None:
+        return ""
+    sections = ""
+    for titre, textes in (("Exclusions", conditions["exclusions"]), ("Hypothèses", conditions["hypotheses"])):
+        if textes:
+            sections += f"<h3>{titre}</h3><ul>" + "".join(f"<li>{escape(texte)}</li>" for texte in textes) + "</ul>"
+    if conditions["delai"] is not None:
+        sections += f"<h3>Délai</h3><p>{escape(conditions['delai']['texte'])}</p>"
+    if conditions["validite"] is not None:
+        sections += f"<h3>Validité</h3><p>{escape(conditions['validite']['texte'])}</p>"
+    return f'<section class="conditions-soumission">{sections}</section>' if sections else ""
 
 
 def _ligne_html(ligne: dict[str, Any]) -> str:
@@ -134,6 +155,7 @@ def generer_brouillon_html(devis: dict[str, Any]) -> tuple[str | None, dict | No
         "</table>"
         f"<p><strong>Prix total : {escape(str(contenu['prix_total']))} $ CAD, taxes (TPS/TVQ) en "
         "sus.</strong></p>"
+        + _conditions_html(contenu.get("conditions_soumission")) +
         "</body></html>"
     )
     return document, None

@@ -345,6 +345,26 @@ def _preparer(devis: dict[str, Any]) -> tuple[dict[str, Any] | None, dict | None
                 return None, verdict
             modele[cle] = texte
         resultat["modele_soumission"] = modele
+    if "conditions_soumission" in contenu:
+        conditions = contenu["conditions_soumission"]
+        sections: list[tuple[str, list[str]]] = []
+        for titre, textes in (("Exclusions", conditions["exclusions"]), ("Hypothèses", conditions["hypotheses"])):
+            if textes:
+                sections.append((titre, textes))
+        if conditions["delai"] is not None:
+            sections.append(("Délai", [conditions["delai"]["texte"]]))
+        if conditions["validite"] is not None:
+            sections.append(("Validité", [conditions["validite"]["texte"]]))
+        preparees = []
+        for titre, textes in sections:
+            valides = []
+            for texte in textes:
+                propre, verdict = _texte(texte, f"conditions : {titre}", "REJ-CONTRAT-INVALIDE", multiligne=True)
+                if verdict is not None:
+                    return None, verdict
+                valides.append(propre)
+            preparees.append((titre, valides))
+        resultat["conditions_soumission"] = preparees
     return resultat, None
 
 
@@ -456,6 +476,9 @@ def _rendre(contenu: dict[str, Any]) -> bytes:
             _paragraphe("Clauses", entete),
             _paragraphe(contenu["modele_soumission"]["clauses"], normal, multiligne=True),
         ])
+    for titre, textes in contenu.get("conditions_soumission", []):
+        elements.extend([Spacer(1, 10), _paragraphe(titre, entete)])
+        elements.extend(_paragraphe("• " + texte, normal, multiligne=True) for texte in textes)
     document.build(
         elements,
         onFirstPage=decorer,

@@ -229,6 +229,86 @@ def graine_stable(bareme: dict[str, Any], type_travaux: str, quantite: float) ->
     return int(hashlib.sha256(empreinte.encode("utf-8")).hexdigest()[:8], 16)
 
 
+VERSION_BLOC_DECLARATION = "m3.declaration/v1"
+
+
+def enveloppe_de_mesure(
+    bareme: dict[str, Any], service: str, quantite_basse: float, quantite_haute: float, graine: int, niveau: float,
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """L'intervalle de coût HONNÊTE d'une mesure à bornes : borne basse à la quantité basse, haute à la haute.
+
+    Le coût croît avec la quantité et le coût unitaire : l'enveloppe ``[bas(quantité basse), haut(quantité haute)]``
+    contient l'intervalle à la valeur retenue et ne le cache pas derrière une précision que la mesure n'a pas. Bornes
+    de mesure égales : l'enveloppe est exactement l'intervalle d'avant. Mêmes graine et niveau aux deux extrémités."""
+    services = () if service in contrats.TYPES_TRAVAUX else (service,)
+    bas, verdict = monte_carlo.simuler_intervalle(bareme, service, quantite_basse, graine, niveau, services=services)
+    if verdict is not None:
+        return None, verdict
+    haut, verdict = monte_carlo.simuler_intervalle(bareme, service, quantite_haute, graine, niveau, services=services)
+    if verdict is not None:
+        return None, verdict
+    return {
+        "borne_basse": arrondir_au_cent(bas["borne_basse"]),
+        "borne_haute": arrondir_au_cent(haut["borne_haute"]),
+        "niveau": bas["niveau"],
+    }, None
+
+
+def bloc_declaration(
+    declare: dict[str, Any], *, service: str, niveau_statistique: float, prix_bloque: bool,
+    intervalle_confiance: dict[str, Any] | None, duree_estimee_minutes: str | None,
+) -> dict[str, Any]:
+    """Le bloc que l'estimation range au registre et rend à l'appelant : le reçu rejouable (sans Decimal)."""
+    evaluation = declare["evaluation"]
+    revue = bool(evaluation["motifs_revue"])
+    statut = "bloque" if prix_bloque else ("a_revoir" if revue else "retenu")
+    return {
+        "version": VERSION_BLOC_DECLARATION,
+        "service": service,
+        "bareme_ref": dict(declare["bareme_ref"]),
+        "mesure_ref": dict(declare["mesure_ref"]),
+        "quantite": evaluation["quantite"],
+        "quantite_basse": evaluation["quantite_basse"],
+        "quantite_haute": evaluation["quantite_haute"],
+        "unite": evaluation["unite"],
+        "largeur_relative": evaluation["largeur_relative"],
+        "plancher_rentable_cad": declare["plancher_rentable_cad"],
+        "niveau_statistique": niveau_statistique,
+        "statut_prix": statut,
+        "revue_humaine_requise": revue,
+        "motifs_revue": list(evaluation["motifs_revue"]),
+        "intervalle_confiance": dict(intervalle_confiance) if intervalle_confiance is not None else None,
+        "duree_estimee_minutes": duree_estimee_minutes,
+    }
+
+
+def _source_bareme(incertitude: dict[str, Any]) -> dict[str, Any]:
+    """Étiquette « barème » (et non « configuration ») la source des taux et des seuils d'une estimation déclarée.
+
+    ``scenarios.py`` nomme sa source « configuration » (department.yaml) ; pour une estimation déclarée, les taux et le
+    minimum rentable viennent du barème : la réponse le dit, et dit où déclarer ce qui manque."""
+    scenarios_prix = incertitude["scenarios_prix"]
+    entrees = []
+    for entree in scenarios_prix["scenarios"]:
+        source = "bareme" if entree["source_taux"] == "configuration" else entree["source_taux"]
+        entree = {**entree, "source_taux": source}
+        if entree["verdict"] is not None and entree["verdict"]["code"] == "REJ-SCENARIOS-TAUX-ABSENT":
+            entree["verdict"] = verdicts.construire_verdict(
+                "REJ-SCENARIOS-TAUX-ABSENT",
+                detail=f"taux de marge non déclaré dans le barème : parametres.taux_marge.{entree['scenario']} "
+                "(révision du barème, m3_declarer_bareme)",
+            )
+        entrees.append(entree)
+    non_evaluables = [
+        {**manque, "a_faire": [
+            ligne.replace("department.yaml, configuration, revue_devis", "le barème (parametres.seuils_revue)")
+            for ligne in manque["a_faire"]
+        ]}
+        for manque in scenarios_prix["non_evaluables"]
+    ]
+    return {**incertitude, "scenarios_prix": {**scenarios_prix, "scenarios": entrees, "non_evaluables": non_evaluables}}
+
+
 def _duree_estimee_minutes_texte(
     quantite: Any, bareme: dict[str, Any], type_travaux: str
 ) -> tuple[str | None, Decimal | None, dict | None]:
@@ -337,6 +417,7 @@ def orchestrer_estimation(
     calibration_candidate: dict[str, Any] | None = None,
     apprentissage_duree: dict[str, Any] | None = None,
     apprentissage_ombre: dict[str, Any] | None = None,
+    declaration: Any = None,
 ) -> dict[str, Any]:
     """Compose la chaîne complète d'estimation M3 — voir la docstring du module pour l'ordre et
     les décisions de conception. Chaque étape qui échoue rend un verdict NOMMÉ qui dit quoi
@@ -344,7 +425,16 @@ def orchestrer_estimation(
 
     ``taux_scenarios`` (``{prudent, normal, agressif}`` : texte décimal, ou ``None``), ``taux_scenarios_configures``
     (même forme, lue dans ``department.yaml`` par ``outils.py``) et ``seuils_revue`` (``configuration.revue_devis``,
-    pour le minimum rentable) alimentent ``scenarios_prix`` ; voir ``scenarios.py``."""
+    pour le minimum rentable) alimentent ``scenarios_prix`` ; voir ``scenarios.py``.
+
+    ``declaration`` (M3-C1 et M3-C2, ``entrees_declarees.Declaration``) : quand elle est fournie, le barème, la
+    quantité, le plancher rentable, les taux de marge et les seuils de revue ne sont PLUS les arguments ``bareme``,
+    ``quantite``, ``plancher_rentable``, ``taux_marge``, ``taux_scenarios*`` et ``seuils_revue`` (ignorés) : ils
+    viennent des registres de barème et de mesure déclarés, résolus pour ce lead et ce service. Une référence
+    absente, inconnue, périmée ou insuffisante est un refus nommé (étapes ``bareme`` et ``mesure``) avant toute
+    autre étape. L'intervalle devient l'enveloppe de la mesure à bornes (``enveloppe_de_mesure``), la clé sœur
+    ``declaration`` rend le reçu rejouable, et la charge du registre en garde le bloc (``m3.declaration/v1``) pour
+    ``entrees_declarees.rejouer``."""
     accuse, verdict = validation.valider_entrees(contrat, marqueur, photos)
     if verdict is not None:
         return {"etape": "validation", "accepte": False, "verdict": verdict}
@@ -356,6 +446,21 @@ def orchestrer_estimation(
     est_lead_v2 = "service" in accuse
     type_travaux = accuse["service"] if est_lead_v2 else accuse["type_travaux"]
     empreinte_marqueur_m2 = accuse["empreinte_marqueur_m2"]
+
+    declare: dict[str, Any] | None = None
+    if declaration is not None:
+        declare, verdict = declaration.preparer(lead_id, type_travaux)
+        if verdict is not None:
+            etape = "mesure" if verdict["code"].startswith("REJ-MESURE") else "bareme"
+            return {"etape": etape, "accepte": False, "verdict": verdict}
+        bareme = declare["bareme"]
+        quantite = declare["quantite"]
+        plancher_rentable = declare["plancher_rentable"]
+        taux_marge = declare["taux_marge_prix_recommande"]
+        taux_scenarios = None
+        taux_scenarios_configures = declare["taux_scenarios"]
+        seuils_revue = declare["seuils_revue"]
+        graine = None  # la graine se dérive des entrées déclarées : choisir sa graine serait choisir son intervalle
 
     qualification, verdict = qualite_photos.qualifier_photos(photos, seuils)
     if verdict is not None:
@@ -423,6 +528,14 @@ def orchestrer_estimation(
             "niveau": intervalle["niveau"],
         }
         bareme_version = bareme.get("version") if isinstance(bareme, dict) else None
+        if declare is not None:
+            # Mesure à bornes : l'intervalle honnête est l'enveloppe des quantités basse et haute (voir la docstring).
+            intervalle_confiance, verdict = enveloppe_de_mesure(
+                bareme, type_travaux, declare["quantite_basse"], declare["quantite_haute"], graine_effective,
+                niveau_statistique,
+            )
+            if verdict is not None:
+                return {"etape": "intervalle", "accepte": False, "verdict": verdict}
 
         constat, verdict = plancher.confronter_au_plancher(intervalle_confiance, plancher_rentable)
         if verdict is not None:
@@ -501,6 +614,8 @@ def orchestrer_estimation(
         )
         if verdict is not None:
             return {"etape": "scenarios", "accepte": False, "verdict": verdict}
+        if declare is not None:
+            incertitude = _source_bareme(incertitude)
 
         # Besoins matériaux (PLAN T2.3-e) : voie NON bloquée seulement, comme la durée et le prix.
         # Le contrat est assemblé une première fois à blanc, AVANT le registre : sa validation
@@ -539,6 +654,14 @@ def orchestrer_estimation(
     if verdict is not None:
         return {"etape": "assemblage", "accepte": False, "verdict": verdict}
 
+    bloc_declare: dict[str, Any] | None = None
+    if declare is not None:
+        bloc_declare = bloc_declaration(
+            declare, service=type_travaux, niveau_statistique=niveau_confiance_numerique,
+            prix_bloque=prix_bloque, intervalle_confiance=None if prix_bloque else intervalle_confiance,
+            duree_estimee_minutes=duree_estimee_minutes,
+        )
+
     charge: dict[str, Any] = {
         "devis_id": devis_id,
         "lead_id": lead_id,
@@ -554,6 +677,12 @@ def orchestrer_estimation(
             "alerte_plancher": estimation["alerte_plancher"],
         },
     }
+    if bloc_declare is not None:
+        charge["faits_revue"] = {
+            **charge["faits_revue"], "version": "m3.faits-revue/v2",
+            "mesure_a_bornes_larges": bloc_declare["revue_humaine_requise"],
+        }
+        charge["declaration"] = bloc_declare
     if duree_estimee_minutes is not None:
         charge["duree_estimee_minutes"] = duree_estimee_minutes
         trace_temps, verdict = trace_calibration_temps.construire_trace(
@@ -633,4 +762,5 @@ def orchestrer_estimation(
         # P50/P80 du coût, facteurs dominants, trois scénarios de prix (scenarios.py, PLAN T4.11) : clés sœurs, jamais
         # dans EstimationV1, toutes None sur la voie bloquée.
         **incertitude,
+        **({"declaration": bloc_declare} if bloc_declare is not None else {}),
     }

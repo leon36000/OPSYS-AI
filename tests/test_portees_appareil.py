@@ -46,6 +46,8 @@ VENDEUR = frozenset({
     "m2_lister_relances", "m2_preparer_relance", "m2_enregistrer_consentement_contact",
     "m3_generer_soumission_brouillon", "m3_lire_devis", "m3_lister_devis", "m3_qualifier_photos",
     "m3_demander_envoi_devis",  # DEMANDE l'envoi d'un devis (N4, T4.7) : le propriétaire décide dans la file
+    # M3-C2 : déclarer et relire la mesure d'un chantier de SES leads (une personne ; un agent est refusé)
+    "m3_declarer_mesure", "m3_lire_mesure",
     # M2 « ventes » (m2-victor) : profil de propriété de SES clients (proposer, confirmer en personne, lire), score
     # expliqué
     # et file classée de SES leads, valeur déclarée, analytique et prévisions de SON périmètre, reçu rejouable, décision
@@ -70,6 +72,8 @@ ADMIN_SEUL = frozenset({
     "m2_reconcilier_memoire_contact_client",  # correction humaine et lectures privées CRM-04
     "m2_proposer_profil_propriete_depuis_onboarding",  # brouillon de propriété à l'adresse d'une fiche importée (admin)
     "m3_lister_devis_lead_admin",  # inventaire par lead, distinct du lecteur vendeur
+    # M3-C1 : déclarer, valider, lire et lister les versions du barème de l'entreprise (une personne, jamais un agent)
+    "m3_declarer_bareme", "m3_valider_bareme", "m3_lire_bareme", "m3_lister_baremes",
     # Calibration du temps M3 : lecture/évaluation, candidate inactive et demandes de décision N4.
     "m3_evaluer_calibration_cohortes", "m3_proposer_calibration_temps", "m3_evaluer_candidate_calibration",
     "m3_activer_candidate_calibration", "m3_rollback_candidate_calibration",

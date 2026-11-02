@@ -434,23 +434,45 @@ def _preparer_affaire(
         cle=cle_locale("liaison-verticale"),
     )
     assert liaison.metier["accepte"] is True, liaison.corps
-    # Adaptation déclarée de test_estimation.BAREME_AVEC_DUREE (8..14 et 2.5 minutes/unité)
-    # au service gouttieres et à l'unité pi de CE scénario. Ce n'est pas un tarif terrain.
-    # Sans matières dans le barème : le besoin définitif M6 vient encore des lignes acceptées.
-    bareme_fictif = {
-        "version": "verticale-m3-temps-fictif/1", "unite": "pi",
-        "semantique_temps": "duree_ecoulee_intervention",
-        "postes": {"gouttieres": {
-            "cout_unitaire_min": 8.0, "cout_unitaire_max": 14.0, "duree_minutes_par_unite": 2.5,
-        }},
-    }
+    # M3-C1 et M3-C2 : le barème et la mesure sont DÉCLARÉS par des personnes (l'admin et le vendeur du lead, depuis
+    # leur appareil) puis référencés ; un agent ne passe plus de barème ni de quantité. Adaptation déclarée de
+    # test_estimation.BAREME_AVEC_DUREE (8..14 et 2.5 minutes/unité) au service gouttieres et à l'unité pi de CE
+    # scénario. Ce n'est pas un tarif terrain. Sans matières dans le barème : le besoin définitif M6 vient encore des
+    # lignes acceptées.
+    mesure_id = "mesure-" + lead_id[:16]  # une mesure par chantier : jamais prêtée d'un lead à l'autre
+    declaration_bareme = _app(
+        moteur, admin, "m3_declarer_bareme",
+        {
+            "bareme_id": "verticale-m3-fictif", "version_attendue": 0, "date_effet": "2026-01-01T00:00:00-05:00",
+            "lignes": [{
+                "service": "gouttieres", "genre": "ouvrage", "element": "pose (fictif)", "unite": "pi",
+                "cout_unitaire_min": "8", "cout_unitaire_max": "14", "duree_minutes_par_unite": "2.5",
+                "semantique_temps": "duree_ecoulee_intervention",
+                "source_ecrite": "Barème fictif de la verticale (essai)",
+            }],
+            "parametres": {"plancher_rentable_cad": "0", "taux_marge": {"normal": "0.25"}},
+        },
+        cle=cle_locale("bareme-verticale"),
+    )
+    assert declaration_bareme.metier["accepte"] is True, declaration_bareme.corps
+    declaration_mesure = _app(
+        moteur, affaire["vendeur"], "m3_declarer_mesure",
+        {
+            "mesure_id": mesure_id, "revision_attendue": 0, "lead_id": lead_id, "service": "gouttieres",
+            "grandeur": "longueur de gouttière", "valeur": "40", "unite": "pi", "borne_basse": "40",
+            "borne_haute": "40", "methode": "releve_sur_place", "confiance": "elevee",
+            "mesure_le": "2026-10-30T12:00:00-04:00", "pieces": [],
+        },
+        cle=cle_locale("mesure-" + mesure_id),
+    )
+    assert declaration_mesure.metier["accepte"] is True, declaration_mesure.corps
 
     def estimer(photos):
         decision = appeler_agent( "m03-estimation", "m3_estimer_projet", {
             "contrat": lead, "marqueur": marqueur, "photos": photos,
             "seuils": {"resolution_minimale": 1000, "eclairage_minimal": 4},
-            "bareme": bareme_fictif, "quantite": 40, "plancher_rentable": 0,
-            "graine": 7000, "taux_marge": "0.25",
+            "bareme_ref": {"bareme_id": "verticale-m3-fictif", "version": 1},
+            "mesure_ref": {"mesure_id": mesure_id},
         }, niveau_attendu="N3")
         # Mode ombre conservé : la demande seule ne serait pas une estimation exécutée.
         assert decision["statut"] == "executee", decision

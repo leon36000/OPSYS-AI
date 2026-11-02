@@ -17,15 +17,24 @@ description: Procédure pour estimer un projet {{qualificatif_secteur}} à parti
    pas une validation des photos. M3 vérifie la structure du marqueur, sans recalculer son
    empreinte : ne présente pas cette lecture comme une signature cryptographique vérifiée.
 2. Rassemble : photos (avec résolution, éclairage, angle, référence d'échelle), seuils de
-   qualité, barème en vigueur (avec un poste pour le service demandé), service (ou type de
-   travaux d'un lead v1), quantité mesurée, plancher de rentabilité.
-   Si une donnée manque, demande-la. N'en invente aucune.
+   qualité, service (ou type de travaux d'un lead v1), et DEUX RÉFÉRENCES : `bareme_ref`
+   `{bareme_id, version}` (le barème déclaré par le propriétaire et en vigueur : `m3_lister_baremes`
+   le donne) et `mesure_ref` `{mesure_id}` (la mesure déclarée du chantier par une personne :
+   `m3_lire_mesure`). Tu ne fournis JAMAIS le barème, la quantité, le plancher, un taux de marge ni
+   une graine : ils viennent des déclarations, et l'outil refuse (`REJ-BAREME-LIBRE-REFUSE`) tout
+   chiffre libre. Sans barème ou sans mesure déclarés, l'outil dit quoi déclarer
+   (`m3_declarer_bareme`, `m3_declarer_mesure` : ces deux gestes sont ceux d'une personne, pas les tiens) :
+   transmets ce message à un humain. N'en invente aucune donnée.
 3. Appelle `m3_estimer_projet` une seule fois avec toutes les données. Un nouvel appel exige
    une correction effective d'entrée ou une nouvelle demande; pas de retry identique sur un refus.
    Si la porte rend `en_attente_approbation`, donne le `demande_id` et attends la décision;
    ne passe pas à la présentation d'une estimation avant son exécution réussie.
 4. Lis la réponse :
    - `prix_bloque: true` → rédige une demande courte au client avec `elements_manquants`.
+   - `declaration` : le reçu (version exacte du barème, révision de la mesure, plage de quantité). Si
+     `revue_humaine_requise: true` (bornes larges ou confiance faible : `motifs_revue`), l'intervalle est une
+     PLAGE à faire revoir par une personne : dis-le, ne présente pas un prix comme final (`statut_prix`).
+     Pour refaire le calcul d'une estimation passée : `m3_rejouer_estimation`.
    - `alerte_plancher: true` → signale à un humain que le projet est sous le seuil de rentabilité.
    - sinon → `estimation.intervalle_confiance` et `distribution_cout` (P50, P80) sont des COÛTS,
      jamais le prix client. Les lire uniquement dans une vue financière autorisée, avec la loi
@@ -34,7 +43,7 @@ description: Procédure pour estimer un projet {{qualificatif_secteur}} à parti
      Si `prix_recommande` est nul faute de `taux_marge`, demande le taux déclaré; ne rebaptise
      jamais l'intervalle de coût en prix, et ne calcule pas la marge toi-même.
    - `scenarios_prix` : chaque scénario a un `prix` (coût de base x (1 + taux)), ou un `verdict` qui dit où déclarer
-     son taux (`taux_marge_scenarios`, ou `department.yaml`) : demande le taux à un humain, ne propose aucun prix et
+     son taux (le barème déclaré, `parametres.taux_marge`) : demande le taux à un humain, ne propose aucun prix et
      n'en devine jamais un. `alerte_rouge: true` (prix sous le minimum rentable) : signale-la à Nathan, avec le motif ;
      `null` : le minimum rentable n'est pas déclaré (`non_evaluables` le dit), ne dis pas « pas d'alerte ».
      `facteurs_dominants` : le poste qui fait le plus varier le coût et sa part.
@@ -44,7 +53,8 @@ description: Procédure pour estimer un projet {{qualificatif_secteur}} à parti
 6. Toute réponse `accepte: false` contient un `verdict` : corrige l'entrée indiquée ou escalade.
 7. Pour faire envoyer un devis créé (`m3_creer_devis`), appelle `m3_demander_envoi_devis` avec le `devis_id` et,
    dans `contexte_revue`, les faits de la réponse de l'estimation : `niveau_confiance_hierarchie`,
-   `estimation.verdict_estimation`, `estimation.alerte_plancher`. Ajoute `service_complexe`, `client_a_risque`,
+   `estimation.verdict_estimation`, `estimation.alerte_plancher` et `mesure_a_bornes_larges`
+   (= `declaration.revue_humaine_requise`). Ajoute `service_complexe`, `client_a_risque`,
    `distance_km` ou `donnees_fournisseur_completes` seulement si une personne te les a donnés ; sinon laisse-les
    absents (la revue les dira « non évaluables »). Ne les devine jamais. La réponse est `en_attente_approbation` :
    le propriétaire décide, le devis n'est PAS envoyé. Ne le présente pas comme envoyé.

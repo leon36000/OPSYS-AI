@@ -23,7 +23,7 @@ modifiables pour votre entreprise (clé `avatars` du profil d'entreprise).
 |---|---|---|---|---:|
 | M1 | Front Office | Léa | Reçoit chaque demande (courriel, SMS, formulaire, texte), la filtre, la qualifie par règles et la dirige vers le bon département. Aucune demande ne se perd : chacune laisse une ligne dans un registre. | 51 |
 | M2 | Revenue CRM | Victor | Tient la vérité commerciale : clients, pistes, entonnoir de vente, relances préparées, prévisions. | 46 |
-| M3 | Estimation | Mathis | Transforme une piste prête en estimation chiffrée, avec sa marge d'incertitude. Les prix viennent de calculs, jamais d'une estimation « de tête » du modèle. | 48 |
+| M3 | Estimation | Mathis | Transforme une piste prête en estimation chiffrée, avec sa marge d'incertitude. Les prix viennent de calculs, jamais d'une estimation « de tête » du modèle. | 55 |
 | M4 | Field Ops | Gabriel | Équipes, cédule, routes, exécution et clôture des chantiers, heures et preuves de fin de travaux. | 72 |
 | M5 | FinanceCore | Sophie | Comptabilité, facturation, rapprochements, préparation fiscale et de paie, tableau de bord du CFO. Prépare des brouillons ; ne remplace pas votre CPA. | 96 |
 | M6 | Material Control | Rosalie | Inventaire, achats, fournisseurs, sorties sur le terrain, écarts entre le prévu et l'utilisé. | 48 |
@@ -32,7 +32,7 @@ modifiables pour votre entreprise (clé `avatars` du profil d'entreprise).
 | M9 | Strategic Intelligence | Athéna | Conseil de direction : scénarios, risques, priorités, suivi des décisions. Elle propose, vous décidez. | 90 |
 | M10 | Mémoire | Mnémo | Garde ce qui a été fait, décidé et appris ; base de connaissances sourcée. | 62 |
 
-Total : **640 outils** (un outil = un geste précis qu'un département sait faire). **248** de ces outils sont ouverts à un téléphone
+Total : **647 outils** (un outil = un geste précis qu'un département sait faire). **254** de ces outils sont ouverts à un téléphone
 appairé (employé, vendeur ou administrateur) ; les autres sont réservés à l'ordinateur et aux agents.
 
 Le cœur du système est **générique pour une PME**. Le vocabulaire d'un métier vient d'un « pack sectoriel » : `generique-pme` par défaut,
