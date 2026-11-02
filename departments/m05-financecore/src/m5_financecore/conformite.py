@@ -863,6 +863,13 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "outils_bancaire": None,
     "outils_dossier": None,
     "outils_conseillers": None,
+    # Facturation par jalons, numérotation et PDF (M5-FACT-1/2) : des brouillons, des numéros et des documents ;
+    # facturer
+    # ne fait bouger aucun argent.
+    "facturation_jalons": None,
+    "facture_pdf": None,
+    "verdicts_facturation": None,
+    "outils_facturation": None,
     "outils": (
         "_lire_export_qbo",
         "_exports_qbo",

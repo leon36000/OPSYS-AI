@@ -234,6 +234,10 @@ _FICHIERS = (
     "outils_bancaire",
     "outils_dossier",
     "outils_conseillers",
+    "facturation_jalons",
+    "facture_pdf",
+    "verdicts_facturation",
+    "outils_facturation",
 )
 
 

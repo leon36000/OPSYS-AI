@@ -104,18 +104,25 @@
       "tests/e2e/test_correction_facture_appareil.py",
       "tests/e2e/test_m5_envoi_facture_concurrent.py",
       "departments/m05-financecore/tests/test_operations_comptables.py",
-      "departments/m05-financecore/tests/test_operations_outils.py"
+      "departments/m05-financecore/tests/test_operations_outils.py",
+      "departments/m05-financecore/tests/test_facturation_jalons.py",
+      "departments/m05-financecore/tests/test_facturation_jalons_outils.py",
+      "departments/m05-financecore/tests/test_facture_pdf.py",
+      "departments/m05-financecore/tests/test_echeance_retard_relances.py",
+      "tests/test_facturation_jalons_bout_en_bout.py",
+      "tests/e2e/test_m5_numerotation_concurrente.py"
      ],
      "docs": [
-      "docs/architecture/M5-SOPHIE.md"
+      "docs/architecture/M5-SOPHIE.md",
+      "docs/architecture/M5-FACTURATION.md"
      ],
      "niveau": "S+H+P"
     }
    ],
    "verified_commit": "f2d44f1bd",
    "current_status": "PARTIEL",
-   "limite": "Cycle de facture et AP avec saisie humaine, rapprochement PO-réception-facture proposé, âge des créances (existant) ; vague 3 : relances client en BROUILLON selon la politique du propriétaire (M1 envoie sous approbation, événement pour M2), notes de crédit, dépenses d'employés, paiement fournisseur PRÉPARÉ net des notes de crédit (N3 humain, jamais exécuté). Toujours absent : PDF de facture, OCR de factures fournisseurs, décaissement (voulu, N5). Les variantes de concurrence tests/e2e/test_m5_*_concurrent*.py sont PostgreSQL : présentes, non rejouées ici.",
-   "verification": "relances : outil m5_preparer_relances_clients et test_operations_outils ; PDF/OCR : toujours aucun hit"
+   "limite": "Cycle de facture et AP avec saisie humaine, rapprochement PO-réception-facture proposé, âge des créances, relances client en BROUILLON (M1 envoie sous approbation, événement pour M2), notes de crédit, dépenses d'employés, paiement fournisseur PRÉPARÉ. M5-FACT-1/2 (2026-11-02, base e0424b040) : plan de facturation par jalons déclaré par une personne (N3, somme au cent, taxes du moteur fiscal), factures de jalon en BROUILLON, numérotation sans trou ni doublon fixée à l'émission humaine (N4), échéance, statut « en retard » calculé à une date injectée qui alimente les relances de M2 par les événements existants, PDF déterministe de la facture et de l'état de compte scellé par son empreinte (ReportLab, rendu exécuté ici) ; prouvé sur SQLite avec le vrai bus et le vrai sas, données fictives, 41 mutations, 40 tuées et une équivalente expliquée ; une épreuve de concurrence PostgreSQL 17 pour la numérotation. Toujours absent ou non prouvé : envoi de la facture au client (M1 non raccordé), QuickBooks/Stripe réels, annulation d'une facture client, traitement comptable d'un acompte, mentions légales validées par un CPA, plan modifiable après la première facture, OCR de factures fournisseurs, décaissement (voulu, N5). PostgreSQL : seule la numérotation est éprouvée.",
+   "verification": "plan/PDF/numérotation : outils m5_etablir_plan_facturation, m5_creer_facture_jalon, m5_preparer_pdf_facture et tests/test_facturation_jalons_bout_en_bout.py ; relances : m5_preparer_relances_clients et test_operations_outils"
   },
   {
    "id": "M5.3",

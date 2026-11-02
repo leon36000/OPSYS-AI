@@ -30,7 +30,7 @@ embeddings-local = [
     "tokenizers==0.23.2; python_version == '3.12'",
 ]
 tournees = ["pyvrp==0.14.0"]  # solveur de tournées de M4 (PLAN T4.1-c) ; sans lui, repli exact jusqu'à 12 chantiers
-soumission = ["reportlab==4.5.1"]  # soumission brouillon de M3 en PDF (PLAN T2.3-f) ; sans lui, un verdict dit d'installer l'extra
+soumission = ["reportlab==4.5.1"]  # soumission brouillon de M3 (PLAN T2.3-f) et facture / état de compte de M5 (M5-FACT-2) en PDF ; sans lui, un verdict dit d'installer l'extra
 dev = [
     "pytest==9.1.1", "ruff>=0.6", "fastapi==0.133.1", "uvicorn>=0.31.1,<1", "psycopg[binary]==3.2.3",
     "pypdf==6.19.0",  # tests M3 ; l'exécution PDF exige explicitement l'extra ingestion-pdf

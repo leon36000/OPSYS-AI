@@ -40,6 +40,7 @@ __all__ = [
     "enregistrer_jugement",
     "montant_texte",
     "credits_par_facture",
+    "credits_ttc_par_facture",
     "texte_relance",
     "formater_cad",
     "cibles_piece",
@@ -210,6 +211,12 @@ def _credits_ttc(etat_ops: Mapping[str, Any], genre: str) -> dict[str, Decimal]:
     return totaux
 
 
+def credits_ttc_par_facture(etat_ops: Mapping[str, Any], genre: str) -> dict[str, Decimal]:
+    """Le total (taxes comprises) déjà crédité par facture, d'après les notes de crédit du registre : ce que l'état de
+    compte d'un client déduit du montant de chaque facture."""
+    return _credits_ttc(etat_ops, genre)
+
+
 def preparer_relances(
     registre_ops: Any,
     etat_ops: Mapping[str, Any],
@@ -253,13 +260,18 @@ def preparer_relances(
         if net <= 0:
             soldees += 1
             continue
-        echeance = date.fromisoformat(envoi) + timedelta(days=politique["delai_echeance_jours"])
+        # L'échéance PROPRE de la facture (fixée à l'émission d'après les conditions de paiement déclarées, M5-FACT-1)
+        # prime sur le délai général de la politique de relance : un acompte payable à la réception n'est pas relancé
+        # 30 jours plus tard. Sans échéance sur la facture, le délai de la politique s'applique comme avant.
+        echeance = _date(facture.get("echeance")) or (
+            date.fromisoformat(envoi) + timedelta(days=politique["delai_echeance_jours"])
+        )
         retard = (jour - echeance).days
         niveau = sum(1 for palier in politique["paliers_jours_apres_echeance"] if retard >= palier)
         if niveau == 0:
             sans_retard += 1
             continue
-        texte = texte_relance(niveau, ident, net, echeance.isoformat(), retard)
+        texte = texte_relance(niveau, str(facture.get("numero_facture") or ident), net, echeance.isoformat(), retard)
         corps = {
             "facture_id": ident,
             "client_id": facture.get("client_id"),

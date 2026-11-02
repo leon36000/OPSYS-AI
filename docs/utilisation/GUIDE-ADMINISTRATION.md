@@ -168,7 +168,7 @@ Déclarez aussi les serveurs de réception de confiance par compte, sinon toute 
 ## 8. Registre MCP des outils
 
 Le registre scellé (`src/opsys/registre_mcp/registre.v1.json`) liste chaque outil exposé avec une empreinte de son nom, de sa description et de son
-schéma, et son niveau d'approbation. À la révision actuelle, **643 outils** y sont scellés (les 620 outils de départements, plus les outils communs, de
+schéma, et son niveau d'approbation. À la révision actuelle, **650 outils** y sont scellés (les 627 outils de départements, plus les outils communs, de
 contexte et d'hôte).
 
 ```bash

@@ -79,6 +79,16 @@ _TYPE_ENTREE_VALIDES = {
     "op_depense_pub_constatee",
     "op_flux_fournisseur_constate",
     "op_dossier_cpa_scelle",
+    # Facturation par jalons (facturation_jalons.py, M5-FACT-1), dans leurs registres DÉDIÉS `plans_facturation` et
+    # `numerotation_factures` : un plan déclaré par une personne (N3) puis son éventuelle révocation, et un numéro de
+    # facture attribué à l'émission. Aucun n'est un mouvement financier ; aucun ne se modifie.
+    "plan_facturation_declare",
+    "plan_facturation_revoque",
+    "numero_facture_attribue",
+    # PDF de facture et état de compte (facture_pdf.py, M5-FACT-2), dans le registre DÉDIÉ `documents_facturation` : le
+    # SCELLÉ d'un document (empreintes du contenu et du PDF), jamais ses octets ni le nom du client.
+    "facture_pdf_scellee",
+    "etat_compte_pdf_scelle",
 }
 
 _CHAMPS_MOUVEMENT = (
