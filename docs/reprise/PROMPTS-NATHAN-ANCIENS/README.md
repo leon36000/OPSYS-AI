@@ -12,9 +12,10 @@ d'approbation de niveau N3+). Les règles d'or du prompt (jamais de faux likes/b
 avant vitesse, pas de « terminé » sans preuve) restent valables et sont déjà celles du dépôt.
 
 Fichiers :
+- `M1-RECEPTION-FRONT-OFFICE.md` — condensé fonctionnel du prompt M1 (réception, adjointe administrative, voix, omnicanal).
 - `M7-MARKETING-CROISSANCE.md` — condensé fonctionnel du prompt M7.
 - `M10-MEMOIRE.md` — condensé fonctionnel du prompt M10.
 - `M5-FINANCECORE-CFO.md` — condensé fonctionnel du prompt M5 (comptabilité, finance, paie, fiscalité, CFO IA).
-- `ANALYSE-M5-M7-M10.md` — (à produire) correspondance exigence → état réel → écart → backlog.
+- `ANALYSE-M1-M5-M7-M10.md` — (à produire) correspondance exigence → état réel → écart → backlog.
 
 Les autres départements seront ajoutés par Nathan au fur et à mesure (1 ou 2 à la fois).
