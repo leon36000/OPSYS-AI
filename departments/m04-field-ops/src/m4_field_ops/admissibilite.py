@@ -62,8 +62,12 @@ def _ecartee(equipe, code, detail):
     return {"equipe": equipe["id"], "code": code, "detail": detail}
 
 
-def equipes_admissibles(profil, service):
+def equipes_admissibles(profil, service, duree_visite_min=None):
     """``(résultat, None)`` ou ``(None, verdict)`` : les équipes admissibles pour ``service``, et les autres.
+
+    ``duree_visite_min`` (P4-01, P4-02) : la durée de la plus longue VISITE du chantier à placer, quand elle vient de
+    l'estimation M3 ou du découpage en visites ; elle remplace la durée du service du profil pour le test de quart
+    (« un quart assez long »). Absente : la durée du service, comme avant.
 
     Le résultat porte ``service``, ``duree_min``, ``competences_requises``, ``admissibles`` (identifiants, triés) et
     ``ecartees`` (une ligne par équipe : ``equipe``, ``code``, ``detail``). Sans équipe déclarée, ou sans exigence pour
@@ -76,7 +80,7 @@ def equipes_admissibles(profil, service):
         return None, _verdict(
             f"aucune équipe déclarée : les déclarer dans le profil des équipes (clé equipes.liste, `{_DECLARER}`)"
         )
-    duree = exigences["duree_min"]
+    duree = exigences["duree_min"] if duree_visite_min is None else duree_visite_min
     requises = set(exigences["competences"])
     admissibles = []
     ecartees = []

@@ -97,6 +97,18 @@
       "pattern": "^[0-9]+(\\.[0-9]+)?$",
       "description": "OPTIONNEL (PLAN T1.5-d) — durée de main-d'œuvre estimée du chantier, en minutes (texte décimal, estimation.py::duree_estimee_minutes = quantité × durée par unité du barème). M8 la compare à la durée réelle du WCT (m4.travaux_termines). Absente quand le barème ne fournit aucune durée : M8 répond alors « non calculable, manque duree_estimee_minutes », jamais une durée par défaut. Additive : toute charge valide avant reste valide."
     },
+    "duree_origine": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OPTIONNEL, avec duree_estimee_minutes (P4-01) — d'où vient cette durée : `bareme` (le barème tel quel) ou `calibration` (une version de calibration, apprise ou exacte, APPLIQUÉE à l'estimation d'origine : trace de temps de schéma 3). Provenance lue sur la trace que M3 a déjà écrite, jamais un calcul. M4 planifie avec la durée et dit si elle est corrigée ; il ne recalcule rien.",
+      "properties": {
+        "origine": {"type": "string", "enum": ["bareme", "calibration"]},
+        "calibration_version_id": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "taux_minutes_par_unite_source": {"type": ["string", "null"], "description": "Taux du barème (minutes par unité) avant la calibration, texte décimal ; null sans calibration."},
+        "taux_minutes_par_unite": {"type": ["string", "null"], "description": "Taux appliqué (minutes par unité), texte décimal."}
+      },
+      "required": ["origine", "calibration_version_id", "taux_minutes_par_unite_source", "taux_minutes_par_unite"]
+    },
     "horodatage_acceptation": {
       "type": "string",
       "description": "Horodatage fourni à m3_marquer_devis_accepte (jamais celui de la création ou d'un envoi antérieur du même devis)."

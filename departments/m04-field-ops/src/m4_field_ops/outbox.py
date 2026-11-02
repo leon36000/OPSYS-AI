@@ -23,7 +23,7 @@ import copy
 from datetime import datetime
 from pathlib import Path
 
-from . import encodage, etats, horodatage, pointage, preuves, verdicts
+from . import encodage, etats, horodatage, pointage, preuves, reserves_completion, verdicts
 
 # --------------------------------------------------------------------- constantes
 # L'ordre exact des tuples ci-dessous fait partie du contrat Ratifié WorkCompletionTriggerV1.
@@ -80,6 +80,12 @@ NON_FOURNI = object()
 
 CLE_WCT = "wct"
 
+# P4-07 : bloc sœur du WCT sur le maillon de complétion (jamais DANS le WCT, qui garde ses 13 clés requises) : les
+# réserves que l'employé a nommées pour ce qui manque à sa preuve (``reserves_completion.py``). Il entre dans
+# l'empreinte du maillon (``hash_maillon``) comme ``preuves_completion``.
+CLE_RESERVES = "reserves_completion"
+CLE_RESERVES_ACCEPTEES = "reserves_acceptees"
+
 # T1.1-b#2 : les deux SEULES cibles que la complétion peut écrire (ex-``terminee``
 # scindée selon ``ecart_detecte``, jamais déduit). Centralisé ici : c'est la
 # même paire que ``completer_intervention`` calcule, que ``garde_ecriture_unique``
@@ -133,6 +139,17 @@ def _extraire_travaux(registre_cible, intervention_id):
                 return None, None
             return etats.travaux_de(maillon)
     return None, None
+
+
+def reserves_de_la_completion(registre_cible, intervention_id):
+    """Codes (triés) des réserves nommées à la fin de chantier de l'intervention, ou ``()`` : lus sur le maillon de
+    complétion (le seul qui porte le WCT), jamais fournis par un appelant. Un bloc invalide au registre n'est pas
+    ignoré : ``verifier_invariants_outbox`` le refuse."""
+    for maillon in registre_cible.lire():
+        if maillon.get("intervention_id") == intervention_id and CLE_WCT in maillon:
+            codes, _valide = reserves_completion.codes_du_bloc(maillon.get(CLE_RESERVES))
+            return codes
+    return ()
 
 
 def _dernier_depart(registre_cible, intervention_id):
@@ -403,7 +420,7 @@ def completer_intervention(
     consentement_marketing=NON_FOURNI, client_satisfait=NON_FOURNI,
     consentement_demande_avis=NON_FOURNI, consentement_recueilli_par=NON_FOURNI,
     consentement_recueilli_le=NON_FOURNI, consentement_version_texte=NON_FOURNI,
-    registre_visites=None,
+    registre_visites=None, reserves=NON_FOURNI,
 ):
     """
     Réalise la complétion et émet le WCT en une unique écriture.
@@ -454,6 +471,14 @@ def completer_intervention(
             sinon) ; qui a le droit de les fournir, et d'où viennent la personne et l'heure, est
             la décision de ``outils.py``.
 
+    reserves (P4-07, ``reserves_completion.py``) : liste de codes fermés qui NOMMENT ce qui manque à la preuve (liste de
+    contrôle non terminée, photos absentes ou en échec, signature impossible, matériel écarté non documenté). Avec
+    elles, une preuve incomplète n'est plus refusée : la complétion est enregistrée ``completed_pending_review`` (jamais
+    ``completed_verified``) avec les réserves au maillon (bloc ``reserves_completion``, dans l'empreinte), et seule une
+    revue HUMAINE (``resoudre_revue_completion``) peut les accepter. Elles exigent le dossier de preuves
+    (``preuves_completion``) ; une réserve sans manque réel, ou un manque sans réserve, est refusé. Le WCT garde ses 13
+    clés requises : les réserves n'y figurent pas.
+
     Les deux arguments preuves_completion/signature_requise sont optionnels ensemble :
     leur snapshot borné est lié au hash du maillon privé, jamais recopié dans le WCT.
     Les anciens appels sans ces deux arguments gardent leur forme et leurs hashes.
@@ -463,8 +488,19 @@ def completer_intervention(
     """
     # Les preuves futures restent privées dans l'unique maillon; l'absence conserve les anciens hashes.
     archive = NON_FOURNI
+    codes_reserves = ()
+    if reserves is not NON_FOURNI:
+        codes_reserves, refus_reserves = reserves_completion.normaliser(reserves)
+        if refus_reserves is not None:
+            return None, refus_reserves
+        if codes_reserves and (preuves_completion is NON_FOURNI or signature_requise is NON_FOURNI):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail="reserves exige le dossier de preuves (preuves_completion et signature_requise) : une réserve "
+                       "nomme ce qui manque à un dossier, elle n'en tient pas lieu",
+            )
     if preuves_completion is not NON_FOURNI or signature_requise is not NON_FOURNI:
-        archive, refus_archive = preuves.preparer_archive(preuves_completion, signature_requise)
+        archive, refus_archive = preuves.preparer_archive(preuves_completion, signature_requise, codes_reserves)
         if refus_archive is not None:
             return None, refus_archive
 
@@ -488,7 +524,7 @@ def completer_intervention(
             detail="verification_en_attente doit être un booléen explicite (jamais déduit)",
         )
     statut_cible = (
-        "completed_pending_review" if (ecart_detecte or verification_en_attente)
+        "completed_pending_review" if (ecart_detecte or verification_en_attente or codes_reserves)
         else "completed_verified"
     )
 
@@ -615,6 +651,8 @@ def completer_intervention(
 
     if archive is not NON_FOURNI:
         partie_transition["preuves_completion"] = archive
+    if codes_reserves:
+        partie_transition[CLE_RESERVES] = reserves_completion.bloc(codes_reserves)
 
     # 9. Empreinte de la partie transition (jamais circulaire car le wct n'y figure pas)
     hash_maillon = encodage.empreinte(partie_transition)
@@ -677,6 +715,9 @@ def completer_intervention(
         "ecart_signale": ecart_detecte,
         "tete_chaine": registre_cible.tete(),
     }
+    if codes_reserves:
+        accuse["reserves"] = list(codes_reserves)
+        accuse["reserves_par_categorie"] = reserves_completion.par_categorie(codes_reserves)
     return accuse, None
 
 
@@ -741,6 +782,15 @@ def confirmer_verification(intervention_id, horodatage_arg, registre_cible, *, e
             ),
         )
 
+    # P4-07 : une fin de chantier avec réserves ne se vérifie JAMAIS d'elle-même (signal M6 sans dépassement compris) :
+    # seule la revue humaine, qui nomme les réserves qu'elle accepte, la confirme.
+    if reserves_de_la_completion(registre_cible, intervention_id):
+        return None, verdicts.construire_verdict(
+            "REJ-RESERVES-REVUE-HUMAINE-REQUISE",
+            statut=courant,
+            detail="cette fin de chantier porte des réserves : seule une revue humaine peut la confirmer",
+        )
+
     try:
         horodatage.valider_horodatage(horodatage_arg)
     except ValueError:
@@ -779,7 +829,7 @@ def confirmer_verification(intervention_id, horodatage_arg, registre_cible, *, e
 
 
 def resoudre_revue_completion(
-    intervention_id, decision, horodatage_arg, registre_cible, *, motif,
+    intervention_id, decision, horodatage_arg, registre_cible, *, motif, reserves_acceptees=NON_FOURNI,
 ):
     """
     TROISIÈME et DERNIER chemin d'écriture d'un statut de complétion (avec
@@ -815,6 +865,12 @@ def resoudre_revue_completion(
         registre_cible: instance de Registre.
         motif: chaîne non vide obligatoire — la décision cite TOUJOURS pourquoi (personne, rôle,
             motif : les deux premiers sont ceux de l'approbation du socle, le motif est ici).
+        reserves_acceptees (P4-07): pour ``verifiee`` sur une fin de chantier AVEC RÉSERVES, la liste EXACTE des codes
+        de
+            réserves que la personne accepte (``REJ-RESERVES-NON-ACCEPTEES`` si elle diffère de celles de la
+            complétion :
+            on n'accepte pas ce qu'on n'a pas nommé). Inscrite au maillon de revue. Interdite pour une complétion sans
+            réserve ; sans objet pour ``correction``.
 
     Returns:
         (accusé, None) ou (None, verdict). Fail-closed : ``decision`` hors ``DECISIONS_REVUE``,
@@ -848,6 +904,7 @@ def resoudre_revue_completion(
         )
 
     statut_cible = "completed_verified" if decision == "verifiee" else "completed_pending_review"
+    declarees = reserves_de_la_completion(registre_cible, intervention_id)
     maillon = {
         "type_entree": etats.TYPE_TRANSITION,
         "intervention_id": intervention_id,
@@ -857,15 +914,41 @@ def resoudre_revue_completion(
         "decision_revue": decision,
         "motif_revue": motif.strip(),
     }
+    if decision == "verifiee":
+        if declarees:
+            acceptees, refus = reserves_completion.normaliser(
+                None if reserves_acceptees is NON_FOURNI else reserves_acceptees)
+            if refus is not None or acceptees != declarees:
+                return None, verdicts.construire_verdict(
+                    "REJ-RESERVES-NON-ACCEPTEES",
+                    statut=courant,
+                    detail=(
+                        "cette fin de chantier porte des réserves ("
+                        + ", ".join(declarees)
+                        + ") : la revue doit les nommer toutes, exactement, dans reserves_acceptees pour les accepter"
+                    ),
+                )
+            maillon[CLE_RESERVES_ACCEPTEES] = list(acceptees)
+        elif reserves_acceptees is not NON_FOURNI and reserves_acceptees:
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                statut=courant,
+                detail="reserves_acceptees : cette fin de chantier ne porte aucune réserve à accepter",
+            )
     ligne_id = registre_cible.ajouter(maillon)
 
-    return {
+    accuse = {
         "intervention_id": intervention_id,
         "statut": statut_cible,
         "decision": decision,
         "ligne_id": ligne_id,
         "tete_chaine": registre_cible.tete(),
-    }, None
+    }
+    if declarees:
+        accuse["reserves"] = list(declarees)
+        accuse["reserves_acceptees"] = list(maillon.get(CLE_RESERVES_ACCEPTEES, ()))
+        accuse["cout_reel_provisoire"] = reserves_completion.cout_provisoire(declarees)
+    return accuse, None
 
 
 def enregistrer_signal_variance(intervention_id, charge_variance, registre_cible):
@@ -971,7 +1054,17 @@ def verifier_invariants_outbox(registre_cible):
     Returns:
         (True, "") ou (False, message) en cas d'incohérence.
     """
-    for maillon in registre_cible.lire():
+    maillons = registre_cible.lire()
+    # P4-07 : les réserves de chaque fin de chantier, lues d'abord (la revue et la confirmation qui suivent s'y
+    # mesurent).
+    reserves_par_intervention = {}
+    for maillon in maillons:
+        if CLE_WCT in maillon and CLE_RESERVES in maillon:
+            codes, valide = reserves_completion.codes_du_bloc(maillon[CLE_RESERVES])
+            if not valide:
+                return False, "bloc de réserves de complétion invalide"
+            reserves_par_intervention[maillon.get("intervention_id")] = codes
+    for maillon in maillons:
         statut = maillon.get("statut")
         statut_precedent = maillon.get("statut_precedent")
         wct = maillon.get(CLE_WCT)
@@ -981,14 +1074,33 @@ def verifier_invariants_outbox(registre_cible):
             or decision_revue is not None
         )
 
+        if CLE_RESERVES in maillon and (
+            wct is None or confirmation or statut != "completed_pending_review" or "preuves_completion" not in maillon
+        ):
+            return False, "réserves de complétion hors d'une première complétion en revue, ou sans dossier de preuves"
+        if CLE_RESERVES_ACCEPTEES in maillon and decision_revue != "verifiee":
+            return False, "reserves_acceptees hors d'une revue verifiee"
         if "preuves_completion" in maillon and (
-            wct is None or confirmation or not preuves.archive_valide(maillon["preuves_completion"])
+            wct is None or confirmation
+            or not preuves.archive_valide(
+                maillon["preuves_completion"],
+                reserves_par_intervention.get(maillon.get("intervention_id"), ()) if CLE_RESERVES in maillon else (),
+            )
         ):
             return False, "bloc privé de preuves de complétion invalide"
 
         if confirmation:
             if wct is not None:
                 return False, "maillon de confirmation porte un wct (devrait vivre sur le premier)"
+            declarees = reserves_par_intervention.get(maillon.get("intervention_id"), ())
+            if declarees and statut == "completed_verified" and (
+                decision_revue is None or maillon.get(CLE_RESERVES_ACCEPTEES) != list(declarees)
+            ):
+                return False, (
+                    "fin de chantier avec réserves vérifiée sans revue humaine qui les accepte nommément"
+                )
+            if not declarees and CLE_RESERVES_ACCEPTEES in maillon:
+                return False, "reserves_acceptees pour une fin de chantier sans réserve"
             if decision_revue is not None:
                 # PLAN T1.3-b : revue humaine — seules ces deux paires exactes sont légales.
                 attendu = {

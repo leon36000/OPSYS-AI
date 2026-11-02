@@ -51,6 +51,9 @@ CODES_M4_LIST = [
     "REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE",     # un créneau confirmé au client ne peut être tenu.
     "REJ-TOURNEES-SOLVEUR-ECHEC",                 # le solveur a levé une exception ou rendu un plan absurde.
     "REJ-TOURNEES-PLAN-INVALIDE",                 # le plan échoue à verifier_plan : jamais appliqué.
+    "REJ-TOURNEES-MULTIJOURS-MOTEUR",             # chantier de plusieurs visites : seul le repli exact le résout.
+    "REJ-RESERVES-REVUE-HUMAINE-REQUISE",         # P4-07 : une fin de chantier avec réserves ne se vérifie pas seule.
+    "REJ-RESERVES-NON-ACCEPTEES",                 # P4-07 : la revue n'a pas nommé exactement les réserves déclarées.
     "REJ-CEDULE-RIEN-A-PLANIFIER",                # aucune intervention planifiable, ou un plan sans visite.
     "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",    # intervention inconnue ou plus au statut planifiee.
     "REJ-CEDULE-PLAN-INTROUVABLE",                # aucun plan proposé sous cet identifiant.

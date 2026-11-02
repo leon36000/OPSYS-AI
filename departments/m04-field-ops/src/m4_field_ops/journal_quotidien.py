@@ -62,14 +62,16 @@ def _previsions(sources, maillons, jour):
                 raise ValueError('prévisions du jour trop volumineuses')
             ancre = {'plan_id': m['plan_id'], 'intervention_id': visite['chantier'],
                      'source_ligne_id': m['ligne_id'], 'source_application_id': m['source_application_id']}
-            creneau = annotations._creneau((par_id, {}), ancre)
+            creneau = annotations._creneau((par_id, {}), ancre, visite.get('visite'))
             courante = courantes.get(annotations._cle(ancre))
             lignes.append({'type': 'prevision', **ancre, 'revision': creneau['revision_calendrier'],
                            'equipe_planifiee': creneau['equipe_id'], 'debut': creneau['debut'],
                            'fin': creneau['fin'], 'remplace_par': suivantes[m['ligne_id']],
                            'source_courante': courante is not None,
                            'validite': courante['validite'] if courante is not None else 'historique',
-                           'instant': creneau['debut']})
+                           'instant': creneau['debut'],
+                           **({'visite': visite['visite'], 'visites_total': visite['visites_total']}
+                              if 'visite' in visite else {})})
     return lignes
 
 

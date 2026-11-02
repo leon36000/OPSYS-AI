@@ -21,14 +21,15 @@ def url(ancre, prefixe):
 
 
 def badges(cnx_factory, deps, session, vue):
-    ancres = [notes.ancre_de(ligne) for ligne in vue['interventions']]
+    lignes = notes.lignes_a_ancre(vue)
+    ancres = [notes.ancre_de(ligne) for ligne in lignes]
     if not ancres:
         return
     resultat = notes.appeler(cnx_factory, deps, session, 'm4_resumer_couleurs_calendrier', {'ancres': ancres})
     items = resultat.get('couleurs')
     if not isinstance(items, list) or len(items) != len(ancres):
         raise HTTPException(503, 'Repères couleur indisponibles')
-    for ligne, ancre, item in zip(vue['interventions'], ancres, items, strict=True):
+    for ligne, ancre, item in zip(lignes, ancres, items, strict=True):
         if (item.get('ancre') != ancre or item.get('source_courante') is not True
                 or item.get('validite') != ligne['validite']):
             raise HTTPException(409, 'La cédule a changé : recharger la semaine.')

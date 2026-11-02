@@ -50,6 +50,9 @@ EXPECTED_CODES_M4_LIST = [
     "REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE",
     "REJ-TOURNEES-SOLVEUR-ECHEC",
     "REJ-TOURNEES-PLAN-INVALIDE",
+    "REJ-TOURNEES-MULTIJOURS-MOTEUR",
+    "REJ-RESERVES-REVUE-HUMAINE-REQUISE",
+    "REJ-RESERVES-NON-ACCEPTEES",
     "REJ-CEDULE-RIEN-A-PLANIFIER",
     "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",
     "REJ-CEDULE-PLAN-INTROUVABLE",
@@ -212,6 +215,6 @@ def test_les_codes_de_matrice_et_de_tournees_sont_au_catalogue():
     l'étaient pas quand aucun outil ne les exposait) ; un code ajouté à l'un sans l'autre est refusé ici."""
     assert set(distances.CODES_MATRICE) <= verdicts_mod.CODES_M4
     assert set(tournees.CODES_TOURNEES) <= verdicts_mod.CODES_M4
-    assert len(distances.CODES_MATRICE) == 3 and len(tournees.CODES_TOURNEES) == 5
+    assert len(distances.CODES_MATRICE) == 3 and len(tournees.CODES_TOURNEES) == 6
     for code in (*distances.CODES_MATRICE, *tournees.CODES_TOURNEES):
         assert verdicts_mod.construire_verdict(code, detail="x")["code"] == code

@@ -159,3 +159,69 @@ def test_source_corrompue_ne_devient_pas_semaine_vide(client_crm, planning, monk
     page = client_crm.get(SEMAINE)
     assert page.status_code == 503
     assert "Aucun créneau" not in page.text
+
+
+# -- P4-02 : un chantier de plusieurs journées dans la grille ---------------------------------------------------------
+@pytest.fixture
+def planning_multijours(client_crm):
+    """Un seul chantier, découpé en deux visites (durée 150 min, visite de 100 min au plus) : deux jours datés."""
+    par_nom = {o.nom: o for o in outils()}
+    lead = {**terrain.SCENARIO["leads"][0], "lead_id": "lead-fictif-001"}
+    iid = terrain._inscrire(par_nom, lead, "2030-01-01T00:00:00+00:00")
+    terrain._resultat(terrain._confirmer(par_nom, lead))
+    ids = {"lead-fictif-001": iid}
+    equipes = [{**equipe, "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020},
+                                     {"jour": 1, "debut_min": 480, "fin_min": 1020}]} for equipe in terrain._equipes()]
+    fenetre = {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}
+    durees = {**terrain.SCENARIO["durees_par_type_travaux"], lead["type_travaux"]: 150}
+    plan = terrain._resultat(terrain._proposer(
+        par_nom, ids, equipes=equipes, durees_par_type_travaux=durees,
+        chantiers=[{"intervention_id": iid, "fenetre": fenetre, "creneau_fige": None}],
+        multijours={"visite_max_minutes": 100, "jours_consecutifs": False}))
+    assert [v.get("visite") for r in plan["plan"] for v in r["visites"]] == [1, 2]
+    terrain._resultat(terrain._appliquer(par_nom, plan["plan_id"]))
+    terrain._resultat(terrain._appeler(par_nom, "m4_confirmer_dates_cedule", {
+        "plan_id": plan["plan_id"], "calendrier": {"0": "2030-06-03", "1": "2030-06-04"}, "revision_attendue": 0},
+        terrain.ADMIN))
+    return iid
+
+
+def test_la_grille_montre_chaque_visite_d_un_chantier_de_plusieurs_journees(client_crm, planning_multijours, session):
+    iid = planning_multijours
+    base._connecter(client_crm, "admin.fictif")
+    avant = base._instantane_base(session)
+    page = client_crm.get(SEMAINE)
+    assert page.status_code == 200, page.text
+    assert page.text.count(f'data-intervention="{iid}"') == 2
+    assert "Visite 1 sur 2 du chantier" in page.text and "Visite 2 sur 2 du chantier" in page.text
+    assert 'data-jour="2030-06-03"' in page.text and 'data-jour="2030-06-04"' in page.text
+    assert "Notes :" not in page.text and "Changer le repère" not in page.text   # aucune ancre sur ces créneaux
+    assert base._instantane_base(session) == avant
+
+
+def test_la_grille_refuse_une_visite_illisible_ou_dupliquee(planning_multijours):
+    from opsys.console import cedule_ui
+
+    ligne = {"intervention_id": "i", "lead_id": "l", "plan_id": "p", "equipe_id": "eq-a", "technicien_actuel": "eq-a",
+             "debut": "2030-06-03T08:00:00-04:00", "fin": "2030-06-03T09:00:00-04:00", "statut": "planifiee",
+             "validite": "date_confirmee", "revision": 1, "source_ligne_id": "s", "source_application_id": "a",
+             "confirme_le": "2030-06-02T09:00:00+00:00"}
+    vue = {"debut_semaine": "2030-06-03", "fuseau": "America/Montreal", "total_interventions": 2, "total_sans_date": 0,
+           "sans_date": [], "tronque": False, "avertissements": []}
+
+    def rendre(lignes):
+        return cedule_ui.contenu({**vue, "interventions": lignes, "total_interventions": len(lignes)}, set(), "")
+
+    assert "Visite 1 sur 2" in rendre([{**ligne, "visite": 1, "visites_total": 2},
+                                       {**ligne, "visite": 2, "visites_total": 2,
+                                        "debut": "2030-06-04T08:00:00-04:00", "fin": "2030-06-04T09:00:00-04:00"}])
+    for mauvaises in (
+        [{**ligne, "visite": 1, "visites_total": 2}] * 2,                      # même visite deux fois
+        [ligne, {**ligne, "visite": 1, "visites_total": 2}],                   # visite et sans visite
+        [{**ligne, "visite": 1, "visites_total": 2}, ligne],
+        [{**ligne, "visite": 3, "visites_total": 2}],                                                # hors total
+        [{**ligne, "visite": True, "visites_total": 2}],
+        [ligne, ligne],                                                                              # comme avant
+    ):
+        with pytest.raises(ValueError):
+            rendre(mauvaises)

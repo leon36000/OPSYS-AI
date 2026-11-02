@@ -103,8 +103,13 @@ def _sources(principal):
         raise Refus("SOURCE-INVALIDE") from None
 
 
-def _creneau(sources, ancre):
-    """Résout aussi une ancienne confirmation sans lui substituer le calendrier courant."""
+def _creneau(sources, ancre, visite=None):
+    """Résout aussi une ancienne confirmation sans lui substituer le calendrier courant.
+
+    ``visite`` (P4-02) : le rang de la visite d'un chantier de PLUSIEURS JOURS (les lectures de calendrier le
+    donnent). Sans
+    lui, une ancre qui désigne une intervention à plusieurs visites est ambiguë et refusée (``ANCRE-MULTI-VISITES``) :
+    une note ou une couleur se pose sur un créneau, pas sur un chantier de plusieurs journées."""
     _ancre(ancre)
     par_id, _ = sources
     try:
@@ -143,6 +148,10 @@ def _creneau(sources, ancre):
             raise Refus("SOURCE-INVALIDE")
         visites = [(r, v) for r, v in toutes_visites if v["chantier"] == ancre["intervention_id"]]
         assignations = [a for a in application["assignations"] if a["intervention_id"] == ancre["intervention_id"]]
+        if visite is None and any(v.get("visite") is not None for _r, v in visites):
+            raise Refus("ANCRE-MULTI-VISITES")
+        if visite is not None:
+            visites = [(r, v) for r, v in visites if v.get("visite") == visite]
         if len(visites) != 1 or len(assignations) != 1:
             raise Refus("SOURCE-INVALIDE")
         route, visite = visites[0]

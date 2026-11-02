@@ -56,7 +56,7 @@ def lire(reg, debut_semaine, offset_interventions=0, offset_sans_date=0, source_
         non_datees = sans_date[offset_sans_date:offset_sans_date + TAILLE_PAGE]
         for ligne in page:
             ancre = {k: ligne[k] for k in sources._CLES_ANCRE}
-            creneau = sources._creneau(index_sources, ancre)
+            creneau = sources._creneau(index_sources, ancre, ligne.get("visite"))
             if (ligne["debut"] != creneau["debut"] or ligne["fin"] != creneau["fin"]
                     or ligne["equipe_id"] != creneau["equipe_id"]
                     or type(ligne["revision"]) is not int or ligne["revision"] != creneau["revision_calendrier"]):

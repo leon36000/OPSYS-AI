@@ -222,6 +222,26 @@ def _duree_estimee_minutes(
     )
 
 
+def _origine_duree(devis_id: str, registre_devis: Any, maillons_estimations: Iterable[Any]) -> dict[str, Any]:
+    """D'où vient la durée publiée : le barème tel quel, ou une version de calibration (apprise ou exacte) APPLIQUÉE à
+    l'estimation d'origine (trace de temps de schéma 3). Lecture seule de la trace que M3 a déjà écrite : rien n'est
+    recalculé. Appelée seulement quand ``_duree_estimee_minutes`` a réussi (la trace existe et est qualifiée)."""
+    devis, _verdict = devis_durable.lire_devis(registre_devis, devis_id)
+    estimation = _estimation_origine(devis, maillons_estimations) if isinstance(devis, dict) else None
+    trace = estimation.get("trace_calibration_temps") if isinstance(estimation, dict) else None
+    if (isinstance(trace, dict) and trace.get("version_schema") == 3
+            and isinstance(trace.get("calibration_version_id"), str)):
+        return {
+            "origine": "calibration", "calibration_version_id": trace["calibration_version_id"],
+            "taux_minutes_par_unite_source": trace.get("taux_minutes_par_unite_source"),
+            "taux_minutes_par_unite": trace.get("taux_minutes_par_unite"),
+        }
+    return {
+        "origine": "bareme", "calibration_version_id": None, "taux_minutes_par_unite_source": None,
+        "taux_minutes_par_unite": trace.get("taux_minutes_par_unite") if isinstance(trace, dict) else None,
+    }
+
+
 def avec_duree_estimee(
     charge_devis_accepte: dict[str, Any], devis_id: str, registre_devis: Any, maillons_estimations: Iterable[Any]
 ) -> dict[str, Any]:
@@ -236,9 +256,13 @@ def avec_duree_estimee(
     charge = dict(charge_devis_accepte)
     charge.pop("duree_estimee_minutes", None)
     charge.pop("semantique_temps", None)
+    charge.pop("duree_origine", None)
     if verdict is None:
         charge["duree_estimee_minutes"] = format(duree, "f")
         charge["semantique_temps"] = "duree_ecoulee_intervention"
+        # P4-01 : M4 planifie avec cette durée et doit dire si une version apprise l'a corrigée (provenance, pas
+        # calcul).
+        charge["duree_origine"] = _origine_duree(devis_id, registre_devis, maillons_estimations)
     return charge
 
 

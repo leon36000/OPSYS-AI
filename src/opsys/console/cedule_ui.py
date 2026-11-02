@@ -137,9 +137,11 @@ def _carte(ligne, debut, fin, dossiers, prefixe):
         repere = (f'<p>{couleurs_cedule_ui.marqueur(ligne["couleur"])}</p>'
                   f'<p><a href="{pages.e(lien)}" aria-label="Couleur de ce créneau">Changer le repère</a></p>')
     statut = STATUTS.get(ligne["statut"], ligne["statut"])
+    etiquette = (f'<p class="cedule-visite">Visite {ligne["visite"]} sur {ligne["visites_total"]} du chantier</p>'
+                 if ligne.get("visite") is not None else "")
     return (
         f'<article class="cedule-job {classe}" data-intervention="{pages.e(iid)}">'
-        f'<p><strong>{debut:%H:%M}–{fin:%H:%M}</strong></p><p>{pages.e(statut)}</p>'
+        f'<p><strong>{debut:%H:%M}–{fin:%H:%M}</strong></p>{etiquette}<p>{pages.e(statut)}</p>'
         f'<p class="cedule-validite">{qualite}</p><p>{dossier}</p>'
         f'<p>{_lien_plan(ligne["plan_id"], prefixe)}</p>{repere}{annotation}'
         '<details><summary>Origine et confirmation</summary>'
@@ -168,9 +170,15 @@ def contenu(vue: Mapping, dossiers: set[str], prefixe: str) -> str:
     cellules = {}
     ids = set()
     for ligne in lignes:
-        if ligne["intervention_id"] in ids:
+        visite = ligne.get("visite")   # chantier de plusieurs journées (P4-02) : une carte par visite
+        if visite is not None and (type(visite) is not int or type(ligne.get("visites_total")) is not int
+                                   or not 1 <= visite <= ligne["visites_total"]):
+            raise ValueError("visite illisible")
+        cle = (ligne["intervention_id"], visite)
+        if cle in ids or (visite is None and any(i == ligne["intervention_id"] for i, _ in ids)) or (
+                visite is not None and (ligne["intervention_id"], None) in ids):
             raise ValueError("intervention dupliquée")
-        ids.add(ligne["intervention_id"])
+        ids.add(cle)
         debut, fin = _instant(ligne["debut"]), _instant(ligne["fin"])
         if (debut >= fin or debut.date() not in jours
                 or fin.date() not in {debut.date(), debut.date() + timedelta(days=1)}):

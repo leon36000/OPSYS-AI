@@ -21,6 +21,17 @@ Ce que M4 lit dans le PROFIL DES ÉQUIPES de l'entreprise (T4.12 ; ``lire_equipe
     donne un : c'est une SURCHARGE, et le maillon du plan garde la provenance de chaque valeur (``provenance`` :
     ``profil`` ou ``surcharge``) et l'empreinte du profil lu.
 
+La DURÉE d'un chantier (P4-01) vient d'abord de l'estimation de M3 pour son devis, retenue à l'inscription de
+l'intervention (durée sur site, correction apprise comprise quand une version est appliquée ; le déplacement est
+calculé à
+part par la matrice de distances) ; à défaut, la durée du service du profil (ou l'argument ``durees_par_service``), dite
+REPLI avec sa raison ; à défaut de l'une comme de l'autre : « durée à déclarer », jamais une durée inventée
+(``duree_chantier.py``). Un chantier plus long que la durée maximale d'une visite que l'entreprise a déclarée
+(``equipes.cedule.multijours``, ou l'argument ``multijours``) se découpe en VISITES, une par journée, de la même équipe,
+et le solveur les place sur des jours distincts et croissants (``tournees.py``). Cédule interne : aucune date n'est
+promise
+au client, la confirmation reste une décision humaine (``m4_confirmer_dates_cedule``).
+
 Ce que M4 ne sait pas (ARGUMENT explicite de l'appelant, ou un verdict « à fournir » qui liste tout)
     durée et compétences requises par type de travaux (leads v1, gelés : le profil est par service), fenêtre du client
     et créneau déjà confirmé au client pour chaque intervention ``planifiee`` (le profil ne connaît que la fenêtre
@@ -65,7 +76,18 @@ from __future__ import annotations
 
 import copy
 
-from . import admissibilite, cedule, distances, encodage, etats, horodatage, localisation, tournees, verdicts
+from . import (
+    admissibilite,
+    cedule,
+    distances,
+    duree_chantier,
+    encodage,
+    etats,
+    horodatage,
+    localisation,
+    tournees,
+    verdicts,
+)
 from . import preparation as preparation_intervention
 
 # ---------------------------------------------------------------------------
@@ -171,7 +193,7 @@ _CLES_ARGUMENTS = (
     "equipes", "durees_par_type_travaux", "competences_par_type_travaux",
     "durees_par_service", "competences_par_service", "chantiers", "parametres",
 )
-_CLES_ARGUMENTS_OPTIONNELLES = ("intervention_ids",)
+_CLES_ARGUMENTS_OPTIONNELLES = ("intervention_ids", "multijours")
 _CLES_EQUIPE = ("id", "competences", "depot", "quarts")
 _CLES_DEPOT = ("id", "latitude_microdegres", "longitude_microdegres")
 _CLES_CHANTIER = ("intervention_id", "fenetre", "creneau_fige")
@@ -187,6 +209,8 @@ _AIDE = {
                           "lead v2), fournie par l'entreprise",
     "competences_par_service": "compétences requises par chaque service à planifier (interventions issues d'un "
                                "lead v2), liste vide s'il n'y en a aucune",
+    "multijours": "règles des chantiers de plusieurs jours : visite_max_minutes (durée maximale d'une visite, en "
+                  "minutes entières) et jours_consecutifs (booléen)",
     "chantiers": "une entrée par intervention à planifier : intervention_id, fenetre du client "
                  "(jours, debut_min, fin_min) et creneau_fige (null, ou {equipe, jour, debut_min} si le créneau "
                  "est déjà confirmé au client) ; une intervention a_planifier sans entrée prend la fenetre_par_defaut "
@@ -651,8 +675,14 @@ def _completer_par_le_profil(arguments, selection, lire_equipes):
     if donne("parametres"):
         provenance["parametres"] = SOURCE_SURCHARGE
     elif profil is not None and "cedule" in profil:
-        effectifs["parametres"] = copy.deepcopy(profil["cedule"])
+        effectifs["parametres"] = {cle: copy.deepcopy(valeur) for cle, valeur in profil["cedule"].items()
+                                   if cle != "multijours"}
         provenance["parametres"] = SOURCE_PROFIL
+    if donne("multijours"):
+        provenance["multijours"] = SOURCE_SURCHARGE
+    elif profil is not None and isinstance(profil.get("cedule"), dict) and "multijours" in profil["cedule"]:
+        effectifs["multijours"] = copy.deepcopy(profil["cedule"]["multijours"])
+        provenance["multijours"] = SOURCE_PROFIL
     if services_requis:
         for cle, champ in (("durees_par_service", "duree_min"), ("competences_par_service", "competences")):
             services = None if profil is None else profil.get("services")
@@ -712,8 +742,14 @@ def _verdict_avec_le_profil(verdict, verdict_profil, lire_equipes):
     return _verdict(code, f"{verdict['detail']} ; {verdict_profil['detail']}")
 
 
-def _lire_arguments(arguments, inscriptions_a_planifier):
+_SOURCE_DUREE_DE_LA_TABLE = {
+    SOURCE_PROFIL: duree_chantier.SOURCE_PROFIL, SOURCE_SURCHARGE: duree_chantier.SOURCE_SURCHARGE,
+}
+
+
+def _lire_arguments(arguments, inscriptions_a_planifier, provenance=None):
     """Assemble les chantiers et les équipes du solveur. ``(dict, None)`` ou ``(None, verdict)``."""
+    provenance = {} if provenance is None else provenance
     problemes = _Problemes()
     en_trop = sorted(
         str(cle) for cle in arguments if cle not in _CLES_ARGUMENTS + _CLES_ARGUMENTS_OPTIONNELLES
@@ -727,8 +763,18 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
     natures = [etats.travaux_de(inscription) for inscription in inscriptions_a_planifier]
     types_requis = sorted({valeur for cle, valeur in natures if cle == etats.CLE_TYPE_TRAVAUX})
     services_requis = sorted({valeur for cle, valeur in natures if cle == etats.CLE_SERVICE})
-    requises = _CLES_ARGUMENTS_COMMUNES + (_CLES_ARGUMENTS_V1 if types_requis else ()) + (
-        _CLES_ARGUMENTS_V2 if services_requis else ())
+    # P4-01 : une durée par type ou par service n'est exigée que pour les interventions SANS estimation M3 retenue.
+    sans_estimation = [
+        etats.travaux_de(inscription) for inscription in inscriptions_a_planifier
+        if duree_chantier.estimation_retenue(inscription) is None
+    ]
+    types_requis_duree = sorted({valeur for cle, valeur in sans_estimation if cle == etats.CLE_TYPE_TRAVAUX})
+    services_requis_duree = sorted({valeur for cle, valeur in sans_estimation if cle == etats.CLE_SERVICE})
+    requises = _CLES_ARGUMENTS_COMMUNES
+    if types_requis:
+        requises += ("competences_par_type_travaux",) + (("durees_par_type_travaux",) if types_requis_duree else ())
+    if services_requis:
+        requises += ("competences_par_service",) + (("durees_par_service",) if services_requis_duree else ())
     presents = {}
     for cle in _CLES_ARGUMENTS:
         if arguments.get(cle) is None:
@@ -741,7 +787,7 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
     durees = competences = durees_service = competences_service = fiches = parametres = None
     if "durees_par_type_travaux" in presents:
         durees = _lire_par_type(
-            presents["durees_par_type_travaux"], "durees_par_type_travaux", types_requis, _est_entier,
+            presents["durees_par_type_travaux"], "durees_par_type_travaux", types_requis_duree, _est_entier,
             _AIDE["durees_par_type_travaux"], problemes,
         )
     if "competences_par_type_travaux" in presents:
@@ -751,7 +797,7 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
         )
     if "durees_par_service" in presents:
         durees_service = _lire_par_service(
-            presents["durees_par_service"], "durees_par_service", services_requis, _est_entier,
+            presents["durees_par_service"], "durees_par_service", services_requis_duree, _est_entier,
             _AIDE["durees_par_service"], problemes,
         )
     if "competences_par_service" in presents:
@@ -763,6 +809,40 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
         fiches = _lire_chantiers(presents["chantiers"], set(identifiants), problemes)
     if "parametres" in presents:
         parametres = _lire_parametres(presents["parametres"], problemes)
+    regles = None
+    if arguments.get("multijours") is not None:
+        regles, motif = duree_chantier.lire_multijours(arguments["multijours"])
+        if motif is not None:
+            problemes.invalides.append(motif)
+
+    # Durée effective de chaque intervention (P4-01), découpée en visites au besoin (P4-02).
+    durees_effectives = {}
+    for inscription in inscriptions_a_planifier:
+        identifiant = inscription["intervention_id"]
+        cle_travaux, nature = etats.travaux_de(inscription)
+        if cle_travaux == etats.CLE_SERVICE:
+            table, source_table = durees_service, provenance.get("durees_par_service", SOURCE_SURCHARGE)
+        else:
+            table, source_table = durees, SOURCE_SURCHARGE
+        cle_table = "durees_par_service" if cle_travaux == etats.CLE_SERVICE else "durees_par_type_travaux"
+        duree_table = None if table is None else table.get(nature)
+        brut_table = presents.get(cle_table)
+        if duree_table is None and isinstance(brut_table, dict) and _est_entier(brut_table.get(nature)):
+            duree_table = brut_table[nature]  # pour l'écart avec l'estimation M3 : la table n'est alors pas exigée
+        if cle_table in presents and duree_table is None and duree_chantier.estimation_retenue(inscription) is None:
+            continue  # table fournie mais inutilisable pour ce service : déjà rapporté, pas un second « à déclarer »
+        bloc, detail = duree_chantier.resoudre(
+            inscription, duree_table, _SOURCE_DUREE_DE_LA_TABLE[source_table], regles,
+        )
+        if bloc is None:
+            problemes.absents.append(f"durée à déclarer, intervention {identifiant!r} ({nature}) : {detail}")
+            continue
+        if bloc["visites"] and fiches is not None and fiches.get(identifiant, {}).get("creneau_fige") is not None:
+            problemes.invalides.append(
+                f"intervention {identifiant!r} : un créneau déjà confirmé au client n'est pas pris en charge pour un "
+                "chantier de plusieurs jours (chaque journée se confirme par une personne, jour par jour)")
+            continue
+        durees_effectives[identifiant] = bloc
     verdict = problemes.verdict()
     if verdict is not None:
         return None, verdict
@@ -777,23 +857,30 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
         urgences[identifiant] = urgence
         fiche = fiches[identifiant]
         cle_travaux, nature = etats.travaux_de(inscription)
-        if cle_travaux == etats.CLE_SERVICE:
-            duree, requises_competences = durees_service[nature], competences_service[nature]
-        else:
-            duree, requises_competences = durees[nature], competences[nature]
-        chantiers.append({
+        requises_competences = (
+            competences_service[nature] if cle_travaux == etats.CLE_SERVICE else competences[nature]
+        )
+        bloc = durees_effectives[identifiant]
+        chantier = {
             "id": identifiant,
-            "duree_min": duree,
+            "duree_min": bloc["minutes"],
             "fenetre": copy.deepcopy(fiche["fenetre"]),
             "competences_requises": list(requises_competences),
             "urgence": urgence,
             "creneau_fige": copy.deepcopy(fiche["creneau_fige"]),
-        })
+        }
+        if bloc["visites"]:
+            chantier["visites"] = list(bloc["visites"])
+            chantier["continuite"] = {
+                "equipe": tournees.EQUIPE_UNIQUE, "jours_consecutifs": regles["jours_consecutifs"],
+            }
+        chantiers.append(chantier)
     equipes_solveur, depots = equipes
     parametres_distance, parametres_solveur = parametres
     return {
         "equipes": equipes_solveur, "depots": depots, "chantiers": chantiers, "urgences": urgences,
         "parametres_distance": parametres_distance, "parametres_solveur": parametres_solveur,
+        "durees": {identifiant: copy.deepcopy(bloc) for identifiant, bloc in sorted(durees_effectives.items())},
     }, None
 
 
@@ -886,9 +973,26 @@ def _avertissement(mode_bride):
     return AVERTISSEMENT_MODE_BRIDE if mode_bride else None
 
 
-def _resultat_proposition(maillon, deja, provenance, non_pretes):
-    """Le plan rangé, tel que le maillon le garde ; ``provenance`` (d'où vient chaque valeur) et ``non_pretes`` (les
-    interventions a_planifier laissées de côté) sont ceux de CET appel, pas ceux d'un appel antérieur."""
+def _resume_durees(durees):
+    """Ce que la proposition dit de la durée de chaque intervention : minutes, source (estimation M3 ou durée du
+    service),
+    repli et sa raison, correction apprise, écart avec le service, visites. Rien de personnel, aucune coordonnée."""
+    return {
+        identifiant: {
+            "minutes": bloc["minutes"], "source": bloc["source"], "repli": bloc["repli"],
+            "raison_repli": bloc["raison_repli"], "origine_m3": bloc["origine_m3"],
+            "calibration_version_id": bloc["calibration_version_id"], "ecart_profil_min": bloc["ecart_profil_min"],
+            "visites": None if bloc["visites"] is None else list(bloc["visites"]),
+            "libelle": duree_chantier.libelle(bloc),
+        }
+        for identifiant, bloc in durees.items()
+    }
+
+
+def _resultat_proposition(maillon, deja, provenance, non_pretes, durees):
+    """Le plan rangé, tel que le maillon le garde ; ``provenance`` (d'où vient chaque valeur), ``non_pretes`` (les
+    interventions a_planifier laissées de côté) et ``durees`` (d'où vient la durée de chaque chantier) sont ceux de CET
+    appel, pas ceux d'un appel antérieur."""
     sortie = maillon["sortie"]
     meta = sortie["meta"]
     return {
@@ -911,6 +1015,7 @@ def _resultat_proposition(maillon, deja, provenance, non_pretes):
         "propose_par": maillon["propose_par"],
         "provenance": copy.deepcopy(provenance),
         "non_pretes": copy.deepcopy(non_pretes),
+        "durees": _resume_durees(durees),
         "a_appliquer_par": "m4_appliquer_cedule (N3, admin) avec ce plan_id ; rien n'est assigné avant",
     }
 
@@ -955,7 +1060,7 @@ def proposer(
     effectifs, provenance, empreinte_profil, verdict_profil = _completer_par_le_profil(
         arguments, selection, lire_equipes,
     )
-    preparation, verdict = _lire_arguments(effectifs, a_planifier)
+    preparation, verdict = _lire_arguments(effectifs, a_planifier, provenance)
     if verdict is not None:
         return None, _verdict_avec_le_profil(verdict, verdict_profil, lire_equipes)
     leads = {inscription["intervention_id"]: inscription["lead_id"] for inscription in a_planifier}
@@ -974,7 +1079,7 @@ def proposer(
     )
     existant = _maillon_du_plan(instantane, TYPE_PROPOSEE, plan_id)
     if existant is not None:
-        return _resultat_proposition(existant, True, provenance, selection["non_pretes"]), None
+        return _resultat_proposition(existant, True, provenance, selection["non_pretes"], preparation["durees"]), None
 
     maillon = {
         "type_entree": TYPE_PROPOSEE,
@@ -986,6 +1091,7 @@ def proposer(
         "entree": _entree_stockee(preparation),
         "etat": etat,
         "provenance": provenance,
+        "durees": _resume_durees(preparation["durees"]),
         "empreinte_profil": empreinte_profil,
         "empreinte_entree": meta["empreinte_entree"],
         "empreinte_sortie": meta["empreinte_sortie"],
@@ -993,7 +1099,7 @@ def proposer(
         "sortie": sortie,
     }
     registre_cible.ajouter(maillon)
-    return _resultat_proposition(maillon, False, provenance, selection["non_pretes"]), None
+    return _resultat_proposition(maillon, False, provenance, selection["non_pretes"], preparation["durees"]), None
 
 
 # ---------------------------------------------------------------------------
@@ -1030,7 +1136,9 @@ def _resultat_application(marqueur, proposee, deja):
     }
 
 
-def _equipes_admissibles_pour_les_sorties(instantane, inscriptions, visites, preparations, lire_equipes):
+def _equipes_admissibles_pour_les_sorties(
+    instantane, inscriptions, visites, preparations, lire_equipes, durees_visite=None,
+):
     """``None`` ou un verdict : l'équipe qui reçoit une intervention SORTANT de ``a_planifier`` est admissible selon le
     profil des équipes (``admissibilite.py``), même si le plan a été proposé avec des équipes en surcharge.
 
@@ -1046,7 +1154,9 @@ def _equipes_admissibles_pour_les_sorties(instantane, inscriptions, visites, pre
         if profil is None:
             raison = "profil des équipes illisible" + ("" if verdict_profil is None else f" ({verdict_profil['code']})")
         else:
-            resultat, verdict = admissibilite.equipes_admissibles(profil, service)
+            resultat, verdict = admissibilite.equipes_admissibles(
+                profil, service, duree_visite_min=(durees_visite or {}).get(chantier),
+            )
             if verdict is not None:
                 raison = verdict["detail"]
             elif equipe in resultat["admissibles"]:
@@ -1154,14 +1264,31 @@ def appliquer(
             tournees.CODE_PLAN_INVALIDE, " ; ".join(violations[:_MAX_PROBLEMES]),
         )
 
-    visites = [
-        (visite["chantier"], route["equipe"]) for route in sortie["plan"] for visite in route["visites"]
-    ]
+    # Un chantier de plusieurs visites apparaît une fois par visite, toujours chez la même équipe (verifier_plan l'a
+    # contrôlé) : l'assignation et le passage à planifiee se font UNE fois par intervention.
+    equipe_du_chantier = {}
+    nombre_de_visites = {}
+    for route in sortie["plan"]:
+        for visite in route["visites"]:
+            if equipe_du_chantier.setdefault(visite["chantier"], route["equipe"]) != route["equipe"]:
+                return None, tournees.verdict_tournees(
+                    tournees.CODE_PLAN_INVALIDE,
+                    f"le chantier {visite['chantier']!r} est confié à deux équipes : "
+                    "une intervention n'a qu'une équipe",
+                )
+            nombre_de_visites[visite["chantier"]] = nombre_de_visites.get(visite["chantier"], 0) + 1
+    visites = list(equipe_du_chantier.items())
     if not visites:
         return None, _verdict(
             "REJ-CEDULE-RIEN-A-PLANIFIER", "le plan ne place aucun chantier : rien à appliquer",
         )
-    verdict = _equipes_admissibles_pour_les_sorties(instantane, inscriptions, visites, preparations, lire_equipes)
+    durees_visite = {
+        chantier["id"]: max(chantier.get("visites") or [chantier["duree_min"]])
+        for chantier in proposee["entree"]["chantiers"]
+    }
+    verdict = _equipes_admissibles_pour_les_sorties(
+        instantane, inscriptions, visites, preparations, lire_equipes, durees_visite,
+    )
     if verdict is not None:
         return None, verdict
 
@@ -1186,9 +1313,12 @@ def appliquer(
                 # interne. On lève pour que l'appel atomique annule les assignations déjà écrites.
                 raise RuntimeError(f"assignation refusée après un contrôle valide : {verdict['code']}")
             effet = EFFET_ASSIGNEE
-        assignations.append({
+        assignation = {
             "intervention_id": chantier, "technicien_id": equipe, "effet": effet, "transition": transition,
-        })
+        }
+        if nombre_de_visites[chantier] > 1:
+            assignation["visites"] = nombre_de_visites[chantier]
+        assignations.append(assignation)
     conservees = {ligne["intervention_id"]: ligne["technicien_assigne"] for ligne in avant}
     marqueur = {
         "type_entree": TYPE_APPLIQUEE,

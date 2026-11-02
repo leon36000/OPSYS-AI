@@ -52,9 +52,10 @@ def _instantane(principal):
     for ligne in lignes:
         ancre = {k: ligne[k] for k in sources._CLES_ANCRE}
         sources._ancre(ancre)
-        cle, iid = sources._cle(ancre), ancre["intervention_id"]
-        if (cle in ancres or iid in interventions or ligne["validite"] not in {"date_confirmee", "a_reconfirmer"}
-                or ligne["statut"] not in etats.ETATS):
+        visite = ligne.get("visite")  # chantier de plusieurs journées : une ligne par visite (P4-02)
+        cle, iid = (*sources._cle(ancre), visite), ancre["intervention_id"]
+        if (cle in ancres or (iid in interventions and visite is None) or ligne["validite"] not in {
+                "date_confirmee", "a_reconfirmer"} or ligne["statut"] not in etats.ETATS):
             raise Refus("SOURCE-INVALIDE")
         ancres.add(cle)
         interventions.add(iid)
@@ -98,7 +99,7 @@ def lire(principal, premier_mois, limite_sortie=BORNE_SORTIE):
             if jour not in par_jour:
                 continue
             ancre = {k: ligne[k] for k in sources._CLES_ANCRE}
-            creneau = sources._creneau(index_sources, ancre)
+            creneau = sources._creneau(index_sources, ancre, ligne.get("visite"))
             if (ligne["debut"] != creneau["debut"] or ligne["fin"] != creneau["fin"]
                     or ligne["equipe_id"] != creneau["equipe_id"]
                     or type(ligne["revision"]) is not int or ligne["revision"] != creneau["revision_calendrier"]):
