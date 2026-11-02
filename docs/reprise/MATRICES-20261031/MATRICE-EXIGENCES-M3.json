@@ -25,7 +25,7 @@
   "M": "téléphone ou émulateur (jamais atteint)"
  },
  "run_summary": {
-  "suite_du_departement": "departments/m03-estimation/tests rejoué le 2026-11-02 sur 1bb184af1 : 3016 passed, 0 failed, 36 skipped (avant M3-C1/M3-C2, base e0424b040 : 2774 passed, 0 failed, 36 skipped ; +242 tests). Sautés : 8 tests de test_mesure_plan.py (extra vision-photo absent) ; 25 cas de la campagne de mutation de test_gardes_des_outils.py réservés au job CI m03-preuves (OPSYS_QUALIFIER_M3_MUTATIONS=1) ; 3 gardes de CI. test_gardes_des_outils.py passe (7 réussis) : la note d'échec antérieure est périmée.",
+  "suite_du_departement": "departments/m03-estimation/tests rejoué le 2026-11-02 sur 9ed79e649 : 3018 passed, 0 failed, 36 skipped (avant M3-C1/M3-C2, base e0424b040 : 2774 passed, 0 failed, 36 skipped ; +244 tests). Sautés : 8 tests de test_mesure_plan.py (extra vision-photo absent) ; 25 cas de la campagne de mutation de test_gardes_des_outils.py réservés au job CI m03-preuves (OPSYS_QUALIFIER_M3_MUTATIONS=1) ; 3 gardes de CI. test_gardes_des_outils.py passe (7 réussis) : la note d'échec antérieure est périmée.",
   "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
   "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
  },
@@ -221,7 +221,7 @@
      "niveau": "S"
     }
    ],
-   "verified_commit": "1bb184af1",
+   "verified_commit": "9ed79e649",
    "current_status": "PARTIEL",
    "limite": "Garde correcte et testée (prix bloqué sans référence d'échelle). M3-C2 : la quantité est une MESURE DÉCLARÉE par une personne (valeur, unité, bornes, méthode, confiance, pièces ; docs/architecture/M3-BAREME-MESURE-DECLARES.md) qui élargit l'intervalle honnêtement et exige la revue au-delà d'un seuil déclaré — prouvé en processus (S), valeurs fictives. Aucune mesure réelle, aucune vision, aucun écran de saisie, aucun mesureur par type d'élément (descentes, coins) ; la quantité n'est pas tirée dans le Monte Carlo (M3-C8)."
   },
@@ -288,7 +288,7 @@
      "niveau": "S"
     }
    ],
-   "verified_commit": "1bb184af1",
+   "verified_commit": "9ed79e649",
    "current_status": "PARTIEL",
    "limite": "Un poste de barème par service, maintenant DÉCLARÉ par une personne, versionné, chaîné et référencé (bareme_ref ; M3-C1, S) : un barème libre est refusé à tout agent. Pas d'estimateurs distincts par service ; aucun barème dans le dépôt (jamais codé en dur) : les valeurs de Nathan restent à fournir, aucun écran de saisie, PostgreSQL non éprouvé."
   },
@@ -330,7 +330,7 @@
      "niveau": "S"
     }
    ],
-   "verified_commit": "1bb184af1",
+   "verified_commit": "9ed79e649",
    "current_status": "PARTIEL",
    "limite": "Besoins publiés vers M6 (m3.besoins_materiaux) prouvés en S ; unité des prix non déclarée ; main-d'œuvre et pertes viennent désormais des lignes d'un barème déclaré (source écrite par ligne) et non d'un argument ; les besoins sont calculés à la valeur retenue de la mesure ; valeurs réelles absentes."
   },
@@ -399,9 +399,9 @@
      "niveau": "S"
     }
    ],
-   "verified_commit": "1bb184af1",
+   "verified_commit": "9ed79e649",
    "current_status": "PARTIEL",
-   "limite": "Mécanique testée ; plancher rentable, taux de marge des trois scénarios et seuils de revue sont des paramètres du barème DÉCLARÉ (jamais un argument libre pour un agent) ; sans eux, aucun prix chiffré. Scénarios calculés à la valeur retenue de la mesure ; valeurs réelles absentes ; department.yaml reste lu par la revue d'envoi et la voie d'essai (à unifier avec CFG-1)."
+   "limite": "Mécanique testée ; plancher rentable, taux de marge des trois scénarios et seuils de revue sont des paramètres du barème DÉCLARÉ (jamais un argument libre pour un agent) ; sans eux, aucun prix chiffré. Scénarios calculés à la valeur retenue de la mesure ; valeurs réelles absentes ; department.yaml reste lu par la voie d'essai et, pour les seuils de revue que le barème ne déclare pas, par la revue d'envoi (à unifier avec CFG-1)."
   },
   {
    "id": "M3.12",
@@ -462,7 +462,7 @@
      "niveau": "S"
     }
    ],
-   "verified_commit": "1bb184af1",
+   "verified_commit": "9ed79e649",
    "current_status": "PARTIEL",
    "limite": "Le contenu client est une liste blanche (identité, date, lignes, prix total, modèle) et, pour un devis dont l'estimation est déclarée, quatre sections tirées de données déclarées : exclusions, hypothèses (textes déclarés + phrases de mesure à gabarit fixe), délai (durée de travail, jamais une date) et validité (jours déclarés à partir de la date du devis) ; aucune garantie écrite par le code. Options et ventes additionnelles, références photo : absentes. Gabarits de phrases à faire valider (À valider auprès d'un professionnel qualifié). Jamais envoyé automatiquement.",
    "verification": "soumission.py::contenu_client relu"
@@ -503,7 +503,7 @@
      "niveau": "S"
     }
    ],
-   "verified_commit": "1bb184af1",
+   "verified_commit": "9ed79e649",
    "current_status": "PARTIEL",
    "limite": "Le mécanisme N4 (nathan_owner seul) est prouvé ; la revue nomme maintenant une mesure à bornes larges (motif MESURE_INCERTAINE étendu, fait canonique de la charge) ; le test Core TS ↔ HTTP Python est présent mais non rejoué ici. Les seuils de revue sont déclarables dans le barème mais vides tant que le propriétaire ne les déclare pas ; la livraison au client passe par M1 (absente).",
    "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE (mécanisme). Les critères de validation obligatoire de la cible restent « non évaluables » sans seuils : rétrogradée PARTIEL."
