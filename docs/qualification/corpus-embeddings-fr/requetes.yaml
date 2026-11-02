@@ -1,0 +1,123 @@
+# Requêtes FICTIVES et jugements de pertinence écrits à la main AVANT toute mesure (version 1 des jugements).
+# Version 2 (2026-11-02) : après la première mesure, revue des jugements par mise en commun (« pooling ») : les passages
+# classés dans les 3 premiers par au moins 3 des 8 configurations vectorielles et non jugés ont été relus ; 13 passages
+# réellement utiles ont été ajoutés comme PARTIELS (gain 1, sans effet sur rappel ni MRR). Aucun pertinent ajouté, retiré
+# ni déplacé. Les résultats de la version 1 sont conservés dans docs/qualification/preuves-embeddings-fr/.
+# `pertinents` : passages qui répondent à la question (gain 2 pour le nDCG, comptés dans rappel@k et MRR).
+# `partiels`   : passages utiles mais qui ne répondent pas seuls (gain 1 pour le nDCG, ignorés du rappel et du MRR).
+# `negative`   : aucune bonne réponse dans le corpus (pertinents vide) ; mesure l'abstention, pas le rappel.
+schema: opsys.qualification.requetes-embeddings-fr/v1
+fictif: true
+requetes:
+  # --- paraphrases : le sens est le même, les mots changent ---------------------------------------------------------
+  - {id: Q001, type: paraphrase, texte: "Pourquoi la glace se forme au bord de mon toit et arrache ma gouttière ?", pertinents: [G003], partiels: [S016, S019]}
+  - {id: Q002, type: paraphrase, texte: "À quelle distance de la fondation faut-il rejeter l'eau d'une descente ?", pertinents: [G006], partiels: [G018, P021]}
+  - {id: Q003, type: paraphrase, texte: "Que faire si mes gouttières débordent quand il pleut fort ?", pertinents: [G028], partiels: [G022, G016, G007]}
+  - {id: Q004, type: paraphrase, texte: "Comment éviter que le revêtement de vinyle ondule après la pose ?", pertinents: [R010], partiels: [R001, R012, R011]}
+  - {id: Q005, type: paraphrase, texte: "Quel est le délai pour recevoir une couleur de revêtement non standard ?", pertinents: [R023, V002], partiels: [V006]}
+  - {id: Q006, type: paraphrase, texte: "Est-ce qu'on charge un extra quand on trouve du bois pourri en plein chantier ?", pertinents: [U007, R020], partiels: [F008, N003]}
+  - {id: Q007, type: paraphrase, texte: "Qu'est-ce qui se passe quand un client paie en retard ?", pertinents: [F003, F005], partiels: [F014, F016, F019]}
+  - {id: Q008, type: paraphrase, texte: "Un client se plaint que personne ne le rappelle, on fait quoi ?", pertinents: [P009], partiels: [P026, P003]}
+  - {id: Q009, type: paraphrase, texte: "Comment savoir si l'entretoit manque d'air ?", pertinents: [S014], partiels: [S004, S007, S001]}
+  - {id: Q010, type: paraphrase, texte: "Peut-on installer des lumières sous le débord de toit ?", pertinents: [S011], partiels: [V024, U022]}
+  - {id: Q011, type: paraphrase, texte: "Combien de temps faut-il pour poser des gouttières sur une maison moyenne ?", pertinents: [G034]}
+  - {id: Q012, type: paraphrase, texte: "Qu'est-ce que la garantie couvre sur la peinture des gouttières ?", pertinents: [G015, V022], partiels: [P012, U025]}
+  - {id: Q013, type: paraphrase, texte: "Quels sont les risques de poser du vinyle par grand froid ?", pertinents: [R013], partiels: [R012, N015]}
+  - {id: Q014, type: paraphrase, texte: "Que fait-on des vieilles gouttières qu'on enlève ?", pertinents: [G023, V009]}
+  - {id: Q015, type: paraphrase, texte: "Qui raccorde les câbles qui empêchent la glace de s'accumuler ?", pertinents: [G010, V016]}
+  - {id: Q016, type: paraphrase, texte: "Quelle somme garde-t-on en retenue sur un chantier commercial ?", pertinents: [F007]}
+  # --- vocabulaire québécois et synonymes ---------------------------------------------------------------------------
+  - {id: Q017, type: synonyme_qc, texte: "Comment réparer un coin de gouttière qui coule ?", pertinents: [G008], partiels: [P001]}
+  - {id: Q018, type: synonyme_qc, texte: "Les planches de rive sont pourries, comment on les remplace ?", pertinents: [S003], partiels: [S016, G032]}
+  - {id: Q019, type: synonyme_qc, texte: "C'est combien du pied pour une descente pluviale ?", pertinents: [G035]}
+  - {id: Q020, type: synonyme_qc, texte: "Quelle est la différence entre le clin de vinyle et le clin de composite ?", pertinents: [R002]}
+  - {id: Q021, type: synonyme_qc, texte: "À quoi servent les moulures en J et les coins aux angles du mur ?", pertinents: [R006], partiels: [S009]}
+  - {id: Q022, type: synonyme_qc, texte: "Un banc de neige contre le mur abîme-t-il le bas du revêtement ?", pertinents: [R034]}
+  - {id: Q023, type: synonyme_qc, texte: "À quelle heure arrive la nacelle pour la maison à deux étages ?", pertinents: [N019], partiels: [V005]}
+  - {id: Q024, type: synonyme_qc, texte: "Le dépôt à la signature, c'est combien en pourcentage ?", pertinents: [U004], partiels: [F012, F002]}
+  - {id: Q025, type: synonyme_qc, texte: "Il faut un grillage contre les suisses dans le soffite ?", pertinents: [S005], partiels: [N009, P017]}
+  - {id: Q026, type: synonyme_qc, texte: "Mon perron est tout éclaboussé et glacé devant la porte", pertinents: [G026], partiels: [G018, G019]}
+  - {id: Q027, type: synonyme_qc, texte: "Un bout de fascia est tombé sur le cabanon du client", pertinents: [P027]}
+  - {id: Q028, type: synonyme_qc, texte: "Comment on répare la pelouse défoncée par le camion ?", pertinents: [P004]}
+  - {id: Q029, type: synonyme_qc, texte: "Où brancher un baril de récupération d'eau de pluie ?", pertinents: [G020]}
+  - {id: Q030, type: synonyme_qc, texte: "Le bardeau de cèdre, ça demande de la teinture ?", pertinents: [R009], partiels: [U016]}
+  # --- fautes de frappe et d'orthographe ----------------------------------------------------------------------------
+  - {id: Q031, type: faute, texte: "ma goutiere coule dans le coin depuit l'instalation", pertinents: [P001], partiels: [G008]}
+  - {id: Q032, type: faute, texte: "soffit et fascias pouri sur le coin", pertinents: [S003], partiels: [N003]}
+  - {id: Q033, type: faute, texte: "delai pour un revetement en aciers", pertinents: [V006], partiels: [R023]}
+  - {id: Q034, type: faute, texte: "protege goutiere et aiguile de pain", pertinents: [G005]}
+  - {id: Q035, type: faute, texte: "facure 2026-1187 solde du", pertinents: [F001], partiels: [F030]}
+  - {id: Q036, type: faute, texte: "pouriture panneau de mure sous le declin", pertinents: [R020], partiels: [S003]}
+  - {id: Q037, type: faute, texte: "echaffaudage location 3 jours", pertinents: [V005, F027], partiels: [U028]}
+  - {id: Q038, type: faute, texte: "soumision gouttiere M. Gagnon St-Jerome", pertinents: [U001], partiels: [N001, N020, F001]}
+  - {id: Q039, type: faute, texte: "bareage de glasse sur le toi", pertinents: [G003], partiels: [S019, S016]}
+  - {id: Q040, type: faute, texte: "membrane pare-intemperie chevauchement", pertinents: [R005]}
+  - {id: Q041, type: faute, texte: "ventillation entretoi soffit", pertinents: [S004], partiels: [S001, S015, S014, S007]}
+  - {id: Q042, type: faute, texte: "note de credit coulleur declin", pertinents: [F004], partiels: [P002]}
+  # --- anglicismes ---------------------------------------------------------------------------------------------------
+  - {id: Q043, type: anglicisme, texte: "Vous faites des quotes gratuites pour du siding ?", pertinents: [U006], partiels: [U012]}
+  - {id: Q044, type: anglicisme, texte: "Le gutter guard marche avec les needles de pin ?", pertinents: [G005]}
+  - {id: Q045, type: anglicisme, texte: "Besoin d'un flashing au-dessus de la fenêtre", pertinents: [R016], partiels: [G031, N016]}
+  - {id: Q046, type: anglicisme, texte: "Le overhang du toit fait 24 pouces, comment on supporte le soffit ?", pertinents: [S010]}
+  - {id: Q047, type: anglicisme, texte: "Un estimé approximatif par téléphone, ça nous engage ?", pertinents: [U012], partiels: [P020]}
+  - {id: Q048, type: anglicisme, texte: "Le invoice du supplier d'aluminium est dû quand ?", pertinents: [F006], partiels: [V001]}
+  - {id: Q049, type: anglicisme, texte: "Quel est le lead time pour du vinyl de couleur custom ?", pertinents: [R023, V002]}
+  - {id: Q050, type: anglicisme, texte: "Le customer attend un callback depuis une semaine", pertinents: [P009], partiels: [P026]}
+  - {id: Q051, type: anglicisme, texte: "Les hidden hangers sont meilleurs que les clous ?", pertinents: [G021], partiels: [V029]}
+  - {id: Q052, type: anglicisme, texte: "Le drip edge manque, qu'est-ce que ça cause ?", pertinents: [G032], partiels: [G031, S003, S019]}
+  # --- abréviations et sigles ---------------------------------------------------------------------------------------
+  - {id: Q053, type: abreviation, texte: "soum. S-2026-0452 copro Jardins montant", pertinents: [U030]}
+  - {id: Q054, type: abreviation, texte: "fact. Beaulieu net 30, montant ?", pertinents: [F021], partiels: [U003]}
+  - {id: Q055, type: abreviation, texte: "acpte 30 % quand ?", pertinents: [U004], partiels: [F013]}
+  - {id: Q056, type: abreviation, texte: "pi lin. réel vs soum. Gagnon écart", pertinents: [N020], partiels: [U001]}
+  - {id: Q057, type: abreviation, texte: "psi max pour lavage du déclin", pertinents: [R019]}
+  - {id: Q058, type: abreviation, texte: "frais NSF chèque", pertinents: [F020], partiels: [F030]}
+  - {id: Q059, type: abreviation, texte: "TPS/TVQ sur la soumission ou la facture ?", pertinents: [U032, F010]}
+  - {id: Q060, type: abreviation, texte: "RBQ sur la soumission", pertinents: [U013], partiels: [V014]}
+  - {id: Q061, type: abreviation, texte: "FDS du scellant", pertinents: [V004], partiels: [V023]}
+  - {id: Q062, type: abreviation, texte: "déclaration CNESST poseur blessé", pertinents: [N025]}
+  - {id: Q063, type: abreviation, texte: "isolant rigide R-5 sous le déclin", pertinents: [R008], partiels: [V018]}
+  # --- nombres et unités --------------------------------------------------------------------------------------------
+  - {id: Q064, type: nombre_unite, texte: "pente d'une gouttière en millimètres par mètre", pertinents: [G004]}
+  - {id: Q065, type: nombre_unite, texte: "combien de pi² dans un carré de revêtement ?", pertinents: [R014]}
+  - {id: Q066, type: nombre_unite, texte: "pourcentage de perte à prévoir sur la commande de revêtement", pertinents: [R014]}
+  - {id: Q067, type: nombre_unite, texte: "jeu de dilatation du vinyle quand il fait en dessous de zéro", pertinents: [R012]}
+  - {id: Q068, type: nombre_unite, texte: "clous du soffite tous les combien de pouces ?", pertinents: [S025], partiels: [G021]}
+  - {id: Q069, type: nombre_unite, texte: "soumission revêtement de 1 850 pi²", pertinents: [U002]}
+  - {id: Q070, type: nombre_unite, texte: "solde de 2 415 $ à recevoir", pertinents: [F001], partiels: [F030]}
+  - {id: Q071, type: nombre_unite, texte: "virement de 3 450 $ sans mention de facture", pertinents: [F023], partiels: [U001]}
+  - {id: Q072, type: nombre_unite, texte: "fascia 1 po sur 6 po de 16 pieds à commander", pertinents: [V017], partiels: [S003]}
+  - {id: Q073, type: nombre_unite, texte: "en dessous de combien de degrés le vinyle devient cassant ?", pertinents: [R013], partiels: [N015]}
+  - {id: Q074, type: nombre_unite, texte: "tarif du kilomètre au-delà de 50 km", pertinents: [U024], partiels: [F018]}
+  - {id: Q075, type: nombre_unite, texte: "vent de plus de 40 km/h, on travaille ?", pertinents: [U019], partiels: [N010]}
+  - {id: Q076, type: nombre_unite, texte: "gouttière de 152 mm, quand est-ce requis ?", pertinents: [G007]}
+  # --- reformulations à faible recouvrement de mots avec le passage (écrites pour résister au lexical) ----------------
+  - {id: Q089, type: reformulation, texte: "Mes tuyaux de toit crachent l'eau trop près des murs de la cave", pertinents: [G006], partiels: [G018, P021]}
+  - {id: Q090, type: reformulation, texte: "Pourquoi les planches qui bordent le bas du toit moisissent-elles ?", pertinents: [S003, G032], partiels: [G017]}
+  - {id: Q091, type: reformulation, texte: "Des bestioles se sont installées sous le rebord du toit", pertinents: [S005], partiels: [N009, S030, P017]}
+  - {id: Q092, type: reformulation, texte: "Combien de temps avant que mon prix écrit perde sa valeur ?", pertinents: [U005], partiels: [U026]}
+  - {id: Q093, type: reformulation, texte: "Le client veut qu'on lui rende l'argent versé d'avance, c'est possible ?", pertinents: [F025, U027], partiels: [F012]}
+  - {id: Q094, type: reformulation, texte: "Quoi dire à quelqu'un qui critique notre travail sur internet ?", pertinents: [P019]}
+  - {id: Q095, type: reformulation, texte: "Les panneaux de façade se déforment quand il fait chaud", pertinents: [R010], partiels: [R011, R012]}
+  - {id: Q096, type: reformulation, texte: "Le patron doit-il approuver un geste commercial important ?", pertinents: [P030]}
+  - {id: Q097, type: reformulation, texte: "Y a-t-il un danger pour la santé quand on démolit le vieux parement d'une maison ancienne ?", pertinents: [R007]}
+  - {id: Q098, type: reformulation, texte: "Que faire si l'équipe sous-traitante n'a plus de preuve de couverture en cas de dommages ?", pertinents: [V013]}
+  - {id: Q099, type: reformulation, texte: "À quelle fréquence doit-on dégager les feuilles dans les rigoles du toit ?", pertinents: [G009], partiels: [G022]}
+  - {id: Q100, type: reformulation, texte: "On m'a promis plus que ce qui est écrit sur le papier", pertinents: [P020]}
+  - {id: Q101, type: reformulation, texte: "Le matériau coupé ou entamé peut-il retourner chez le marchand ?", pertinents: [F026, V008], partiels: [V011, F025]}
+  - {id: Q102, type: reformulation, texte: "Quel équipement protège les travailleurs en hauteur sur la structure temporaire ?", pertinents: [N005]}
+  - {id: Q103, type: reformulation, texte: "Les gens du quartier trouvent qu'on dérange", pertinents: [P023], partiels: [P005, N006]}
+  - {id: Q104, type: reformulation, texte: "Livraison de la mauvaise teinte de matériaux au chantier", pertinents: [N028], partiels: [P002, V021]}
+  # --- sans bonne réponse dans le corpus ------------------------------------------------------------------------------
+  - {id: Q077, type: negative, texte: "Quelle est la politique de télétravail de l'entreprise ?", pertinents: []}
+  - {id: Q078, type: negative, texte: "Combien coûte une toiture en bardeau d'asphalte neuve ?", pertinents: []}
+  - {id: Q079, type: negative, texte: "Garantie sur les portes et fenêtres posées l'an dernier", pertinents: []}
+  - {id: Q080, type: negative, texte: "Comment installer des panneaux solaires sur mon toit ?", pertinents: []}
+  - {id: Q081, type: negative, texte: "Quel est le taux d'intérêt hypothécaire actuel ?", pertinents: []}
+  - {id: Q082, type: negative, texte: "Recette de tarte au sucre", pertinents: []}
+  - {id: Q083, type: negative, texte: "Quel est le numéro de téléphone du fournisseur de bardeaux d'asphalte ?", pertinents: []}
+  - {id: Q084, type: negative, texte: "Combien de congés de maladie par année pour les poseurs ?", pertinents: []}
+  - {id: Q085, type: negative, texte: "Démarches pour un permis de construction municipal pour une véranda", pertinents: []}
+  - {id: Q086, type: negative, texte: "Prix d'une piscine creusée", pertinents: []}
+  - {id: Q087, type: negative, texte: "Comment fonctionne l'assurance collective des employés ?", pertinents: []}
+  - {id: Q088, type: negative, texte: "Réparation d'une fissure de fondation par injection d'époxy", pertinents: []}
