@@ -366,7 +366,7 @@ jobs:
           from pathlib import Path
           rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "constats-postgresql.xml")
           cas = list(rapport.iter("testcase"))
-          assert len(cas) == 727, "727 cas sont requis : rejeux du bus et des constats planifiés, courses en processus du bus, du planificateur, de la console et du magasin de développement M10, limites de taille, gardes justifiées"
+          assert len(cas) == 731, "731 cas sont requis : rejeux du bus et des constats planifiés, courses en processus du bus, du planificateur, de la console et du magasin de développement M10, limites de taille, gardes justifiées"
           assert all(c.find("failure") is None and c.find("error") is None for c in cas)
           ignores = [c for c in cas if c.find("skipped") is not None]
           assert not ignores, "PostgreSQL ne doit pas être ignoré sur le runner"
