@@ -277,7 +277,10 @@
       "departments/m08-analytics/tests/test_wallboards.py",
       "tests/test_console_wallboards.py",
       "tests/test_wallboard_js.py",
-      "departments/m08-analytics/tests/test_outils_analytiques.py"
+      "departments/m08-analytics/tests/test_outils_analytiques.py",
+      "departments/m08-analytics/tests/test_collecte.py",
+      "tests/test_etat_collecte_m8.py",
+      "tests/test_console_collecte.py"
      ],
      "docs": [
       "docs/architecture/M8-OLIVIER.md",

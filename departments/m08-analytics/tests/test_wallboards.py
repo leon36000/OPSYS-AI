@@ -57,6 +57,7 @@ def test_les_wallboards_livres_sont_valides_et_ne_nomment_que_le_catalogue():
         "acquisition",
         "ventes-clientele",
         "equipes-materiel",
+        "collecte",
     }
     connues = {e["metric_id"] for e in _CAT["mesures"]}
     for definition in definitions.values():

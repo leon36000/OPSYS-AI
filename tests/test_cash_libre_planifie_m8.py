@@ -128,6 +128,22 @@ def _sante_finance(monde) -> dict:
     return next(c for c in sante["composantes"] if c["id"] == "finance")
 
 
+def _etat_de_la_collecte(monde, metric_id: str = "m8_cash_libre_cad") -> dict:
+    """La ligne de `m8_lire_etat_collecte` (vue « mesures », tout) pour une mesure."""
+    par_nom = {o.nom: o for o in monde.bus.departements[pm.M8].charger_outils()}
+    depart = 0
+    while depart is not None:
+        reponse = executer_atomique(par_nom["m8_lire_etat_collecte"], {
+            "maintenant": monde.maintenant(), "vue": "mesures", "seulement_a_corriger": False, "depart": depart})
+        assert reponse["ok"] is True, reponse
+        page = reponse["resultat"]
+        for ligne in page["mesures"]:
+            if ligne["metric_id"] == metric_id:
+                return ligne
+        depart = page["prochain_depart"]
+    raise AssertionError(metric_id)
+
+
 def _donner_bornes(monkeypatch) -> None:
     """Le propriétaire déclare les bornes de l'indicateur « cash libre » (valeurs fictives d'essai)."""
     reel = m8_outils._configuration
@@ -533,12 +549,18 @@ def test_la_fraicheur_des_quatre_mesures_a_travers_deux_jours_de_passages_reguli
         monde.propager()
         local = (dt.datetime.fromtimestamp(monde.horloge(), dt.UTC) - dt.timedelta(hours=5)).strftime("%d %H:%M")
         etats.append((local, _quatre(monde)["m8_cash_libre_cad"][2]))
+        if local == "12 21:00":
+            collecte_du_soir = _etat_de_la_collecte(monde)
         monde.tour(3 * 3600)
     fraicheurs = dict(etats)
     assert fraicheurs["12 00:00"] == "a_jour" and fraicheurs["12 12:00"] == "a_jour"
     assert fraicheurs["12 18:00"] == "a_jour"
     assert fraicheurs["12 21:00"] == "perime"  # le constat du 12 novembre a plus de 24 h (début du jour UTC)
     assert fraicheurs["13 00:00"] == "a_jour"  # le constat du 13 est publié au premier passage du nouveau jour local
+    # `m8_lire_etat_collecte` (C2) NOMME ce cas : le constat passe sans erreur, le fait publié vieillit plus vite que la
+    # fenêtre, la mesure est périmée -> « source périmée », avec la voie de sortie (fenêtre du propriétaire)
+    assert collecte_du_soir["etat_collecte"] == "source_perimee" and collecte_du_soir["fraicheur"] == "perime"
+    assert "fraicheur_mesures_s" in collecte_du_soir["action"] and CASH in collecte_du_soir["constats"]
 
 
 def test_une_fenetre_de_48_h_declaree_par_le_proprietaire_garde_les_mesures_a_jour_toute_la_journee(monde, monkeypatch):

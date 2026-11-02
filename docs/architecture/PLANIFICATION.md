@@ -271,6 +271,10 @@ les autres constats : le tour est « erreur » avec le code typé (`REJ-PLAN-DEF
 code du refus de l'outil…), visible à la console Connecteurs (dernier statut, code, échecs sur 24 h) et au journal. La mesure
 devient périmée seulement après DEUX passages manqués (prouvé) puis redevient à jour dès que le constat repasse.
 
+**Savoir pourquoi une mesure est vide.** `m8_lire_etat_collecte` (chantier C2) et la page Collecte de la console disent, par mesure,
+si la cause est un constat inactif, en ombre, expiré ou en erreur, un bus qui n'a rien livré, un « non calculable » du département
+source ou le coupe-circuit, avec la liste de contrôle d'activation : voir `M8-ENTREPOT-SOURCES.md` §9 bis.
+
 **Ce qui est prouvé** : `tests/test_entrepot_m8_planifie.py` (19 cas de bout en bout : vrais outils, vrai bus et répartiteur,
 vrai moteur, wallboards de la vraie console, copilote, mémoire de M10, consolidation vue par M9), `tests/test_constats_planifies.py`
 (manifeste, grammaire, créneaux, changement d'heure, garde-fous), `departments/m08-analytics/tests/test_cadence_constats.py`.

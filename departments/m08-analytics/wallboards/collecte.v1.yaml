@@ -1,0 +1,22 @@
+# Wallboard « collecte » (chantier C2) : UN témoin par constat planifié que les départements déclarent (un constat = une mesure
+# représentative), pour voir d'un coup d'œil si la collecte tourne. Définition DÉCLARATIVE : aucune mesure n'est calculée ici,
+# aucun seuil n'est inventé. Une tuile vide ou périmée le dit en toutes lettres (c'est la règle de tous les wallboards) ; POURQUOI
+# elle l'est (constat inactif, en ombre, expiré, en erreur ; jamais reçue ; « non calculable » du département source ; planificateur
+# coupé) et quoi activer se lit à la page Collecte de la console ou par `m8_lire_etat_collecte`. Montants : admin seulement.
+schema: opsys.m8.wallboard/v1
+id: collecte
+version: 1
+titre: "Collecte"
+description: "Un témoin par constat planifié : le cash libre, les factures émises, la dépense publicitaire, les clics, la capacité, le pipeline, les ruptures et les plaintes. Le pourquoi est à la page Collecte."
+roles: [admin]
+rafraichissement: {intervalle_s: 60, flux_max: 60}
+rotation: {actif: false, intervalle_s: 20}
+tuiles:
+  - {id: cash-libre, mesure: m8_cash_libre_cad, titre: "Cash libre (constat M5)", page: 1}
+  - {id: factures-emises, mesure: m8_factures_emises, titre: "Factures émises (constat M5)", page: 1}
+  - {id: depense-comptabilisee, mesure: m8_depense_pub_comptabilisee_cad, titre: "Dépense publicitaire comptabilisée (constat M5)", page: 1}
+  - {id: clics-recherche, mesure: m8_clics_recherche, titre: "Clics de recherche (constat M7)", page: 1}
+  - {id: capacite, mesure: m8_capacite_heures_disponibles, titre: "Heures d'équipe disponibles (constat M4)", page: 2}
+  - {id: leads-ouverts, mesure: m8_pipeline_leads_ouverts, titre: "Leads ouverts (constat M2)", page: 2}
+  - {id: ruptures, mesure: m8_articles_en_rupture, titre: "Articles en rupture (constat M6)", page: 2}
+  - {id: plaintes, mesure: m8_plaintes_periode, titre: "Plaintes de la période (constat M1)", page: 2}

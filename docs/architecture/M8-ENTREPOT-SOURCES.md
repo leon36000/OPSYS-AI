@@ -321,6 +321,43 @@ un test l'a fermée, puis **30 sur 30 ont été rejouées tuées**. Rouge avant,
 preuve échouent à l'import (le module et le bloc de manifeste n'existent pas) ; sur le code livré avec les blocs
 `constats_planifies` retirés des six manifestes, 27 des 84 tests nouveaux échouent (aucun exécuteur, mesures non calculables).
 
+## 9 bis. Pourquoi une mesure est vide : l'état de la collecte (chantier C2)
+
+Une mesure « non calculable » ou « périmée » a plusieurs causes très différentes : un constat jamais activé, un constat en ombre
+(il ne publie rien), une activation de 90 jours échue, un constat en erreur, un bus qui n'a rien livré, un département source qui
+répond « non calculable, manque X » (une déclaration du propriétaire à fournir, pas un geste technique), un planificateur coupé.
+Le même mot « vide » les cachait toutes. `m8_lire_etat_collecte` (T0/N0, `collecte.py` pur + un port vers le planificateur) dit
+laquelle, par mesure, avec la phrase et l'action. (Le champ s'appelle `etat_collecte`, pas `cause` : la garde AST de M8, `verifier_aucune_cause_signalee`, interdit à M8 de signaler une cause d'affaires ; ici il s'agit de l'état du pipeline de collecte, jamais d'une explication du résultat de l'entreprise.)
+
+| État de collecte (`etat_collecte`, ensemble fermé) | Quand | Action rendue |
+|---|---|---|
+| `planificateur_coupe` | `OPSYS_PLANIFICATEUR_CONNECTEURS=0` | retirer le coupe-circuit |
+| `constat_inactif` / `constat_expire` | un constat déclaré nourrit la mesure et n'est pas actif (jamais activé / 90 jours échus) | activer (ou renouveler) en ombre, lire « aurait », passer en actif, à la page Connecteurs |
+| `constat_en_ombre` | le constat dit ce qu'il ferait et ne publie rien | passer à l'actif |
+| `constat_en_erreur` | le dernier passage a échoué (erreur, refus, plafond, attente de transport) | lire le code typé, corriger ; il repasse seul |
+| `jamais_recue` | constat actif et sain, mais aucun fait reçu pour la mesure | attendre un créneau, vérifier le bus (livraison à M8) |
+| `producteur_non_calculable` | reçue, mais le département source a répondu « non calculable » (le manque est dit) | fournir la déclaration demandée |
+| `source_perimee` | reçue, calculée, plus vieille que sa fenêtre malgré des passages réussis (ou sans constat) | vérifier la date du fait et la fenêtre (`fraicheur_mesures_s`) |
+| `sans_constat_planifie` | aucun constat déclaré ne nourrit la mesure (elle dépend d'un événement ou d'un geste humain) | vérifier le département source |
+| `fraicheur_inconnue` | l'instant du dernier fait est illisible | vérifier l'instant publié |
+
+Ordre des états : coupe-circuit, puis constat non actif, puis erreur de passage, puis le reste (une mesure à jour est `a_jour` quel que soit
+le mode de son constat). Les constats nourrissant une mesure viennent des MANIFESTES (`constats.declarees()`), jamais d'une liste
+recopiée ; l'état vient du planificateur lui-même (`etat.vue`) : M8 n'en garde aucune copie et n'active rien. Trois vues paginées
+sous la limite du socle : `resume` (défaut : comptes par cause, un état par constat), `mesures` (cause, phrase, action,
+constats), `liste_de_controle` (interrupteur général, puis pour chaque constat : activer en ombre, passer en actif, premier
+passage réussi ; « fait » se lit de l'état, il ne se déclare pas). Aucune valeur de mesure n'est rendue. Aucun droit d'appareil :
+l'identité d'un admin est revérifiée en base ; la console appelle l'outil sous le rôle `admin`.
+
+La vue : **page Collecte** de la console (`/collecte`, `/api/collecte`, `console/collecte_ui.py`, lecture seule, admin relu en base,
+sans formulaire ni script) et **wallboard `collecte`** (`wallboards/collecte.v1.yaml`, un témoin par constat planifié ; sa liste se
+déduit des manifestes dans un test). Prouvé : `departments/m08-analytics/tests/test_collecte.py` (pur, 29 cas),
+`tests/test_etat_collecte_m8.py` (vrai planificateur, bus et M8 : installation neuve, ombre, actif non livré, livré,
+panne puis reprise, activation échue, coupe-circuit, lecture seule, aucune valeur, accès, arguments hostiles, pagination),
+`tests/test_console_collecte.py` (accès, lecture seule, étapes, API, wallboard). Limites : SQLite seulement, horloge injectée ;
+la cause d'une mesure nourrie par plusieurs constats est celle du premier non sain ; la page ne propose aucun bouton (l'activation
+reste à la page Connecteurs) ; aucun parcours navigateur réel.
+
 ## 10. Commandes
 
 ```bash

@@ -233,6 +233,7 @@ def test_le_wallboard_est_lu_par_l_admin_authentifie_et_refuse_aux_autres(base):
         "acquisition",
         "ventes-clientele",
         "equipes-materiel",
+        "collecte",
     }
     with contexte.appele_par_appareil(IdentiteAppelante("admin.fictif", "admin")):
         etat = _appeler(outils, "m8_lire_wallboard", atomique=True, maintenant=MAINTENANT, wallboard_id="direction")
