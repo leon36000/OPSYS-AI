@@ -698,30 +698,37 @@ def cmd_passerelle(args: argparse.Namespace) -> int:
 
     import yaml
 
+    from .roles_modeles import acces, generation
+
     paliers = modeles.charger_paliers()
     if args.action == "config":
-        contenu = yaml.safe_dump(passerelle.config_litellm(paliers), allow_unicode=True, sort_keys=False)
-        Path(args.sortie).write_text(contenu, encoding="utf-8")
+        # Paliers historiques ET rôles de modèles (opsys-metier modeles …) : les rôles l'emportent sur un palier de
+        # même alias.
+        with etat.session() as cnx:
+            config = generation.config_depuis_roles(cnx, paliers)
+        Path(args.sortie).write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
         print(args.sortie)
         return 0
-    client = passerelle.ClientLiteLLM(args.url, os.environ.get("LITELLM_MASTER_KEY", ""))
-    if args.action == "synchroniser":
-        import datetime as dt
+    with acces.cle_maitre(etat.session) as cle:
+        client = passerelle.ClientLiteLLM(args.url, cle)
+        if args.action == "synchroniser":
+            import datetime as dt
 
-        fin = dt.date.today()
+            fin = dt.date.today()
+            with etat.session() as cnx:
+                lignes = passerelle.synchroniser_usage(client, cnx, charger_departements().values(),
+                                                       fin - dt.timedelta(days=args.jours), fin)
+            print(f"{lignes} lignes de consommation synchronisées depuis LiteLLM")
+            return 0
         with etat.session() as cnx:
-            lignes = passerelle.synchroniser_usage(client, cnx, charger_departements().values(),
-                                                   fin - dt.timedelta(days=args.jours), fin)
-        print(f"{lignes} lignes de consommation synchronisées depuis LiteLLM")
-        return 0
-    aliases = [passerelle.alias_palier(p) for p in paliers]
-    manquantes = []
-    for dep in charger_departements().values():
-        cle = os.environ.get(f"OPSYS_CLE_{dep.code}", "")
-        if not cle:
-            manquantes.append(dep.code)
-            continue
-        print(f"{dep.id}: {client.enregistrer_departement(dep, cle, aliases, args.budget_usd_mois)}")
+            aliases = generation.alias_pour_cles_departements(cnx, paliers)
+        manquantes = []
+        for dep in charger_departements().values():
+            cle_dep = os.environ.get(f"OPSYS_CLE_{dep.code}", "")
+            if not cle_dep:
+                manquantes.append(dep.code)
+                continue
+            print(f"{dep.id}: {client.enregistrer_departement(dep, cle_dep, aliases, args.budget_usd_mois)}")
     if manquantes:
         print(f"ERREUR : clés absentes de l'environnement pour {', '.join(manquantes)}", file=sys.stderr)
         return 1
@@ -737,6 +744,8 @@ def construire_parseur() -> argparse.ArgumentParser:
     memoire_developpement_cli.ajouter_commandes(sous)
     from .fournisseurs import cli as plateforme_cli  # fournisseurs … et secrets … (registre, coffre)
     plateforme_cli.ajouter_commandes(sous)
+    from .roles_modeles import cli as modeles_cli  # modeles … (rôles de modèles, passerelle LiteLLM intégrée)
+    modeles_cli.ajouter_commandes(sous)
     from .ingestion_onboarding import cli as onboarding_cli  # onboarding … (dépôt, tâches, brouillons)
     onboarding_cli.ajouter_commandes(sous)
     from .evaluation import cli as evaluation_cli  # evaluer … (gabarit d'évaluation des dix départements)

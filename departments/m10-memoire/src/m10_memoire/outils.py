@@ -74,6 +74,7 @@ from . import (
     faits_candidats,
     humain,
     liaison,
+    modeles_roles,
     paquets,
     recherche_affaire,
     registre,
@@ -1628,6 +1629,7 @@ def outils() -> tuple[Outil, ...]:
     """Conserve les déclarations historiques, ajoute les deux lecteurs T0 et les outils de connaissances."""
     return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
         *connaissances.outils_connaissances(),
+        *modeles_roles.outils_modeles(),
         *soi_graphe.outils_mnemo(),
         Outil(
             nom="m10_lire_faits_analytiques",

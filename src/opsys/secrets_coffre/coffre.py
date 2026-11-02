@@ -328,14 +328,19 @@ def _resoudre(cnx: Connection, *, usage: str, acteur: str, jeton: str | None, no
 @contextmanager
 def utiliser(*, usage: str, acteur: str, jeton: str | None = None, nom: str | None = None,
              cle: CleMaitresse | None = None, fabrique: FabriqueConnexion | None = None,
-             maintenant: float | None = None) -> Iterator[str]:
+             maintenant: float | None = None, dans_transaction: bool = False) -> Iterator[str]:
     """Résolution CÔTÉ SERVEUR au moment de l'appel : par jeton opaque (agents) ou par nom (code serveur).
 
     Ouvre sa propre transaction (interdit dans une transaction métier, pour que le journal d'un refus survive),
-    journalise l'accès, puis rend la valeur le temps du bloc `with`, masquée dans tous les journaux."""
+    journalise l'accès, puis rend la valeur le temps du bloc `with`, masquée dans tous les journaux.
+
+    `dans_transaction=True` est RÉSERVÉ aux adaptateurs de consommateurs qui n'ont d'autre contexte qu'une transaction
+    d'outil (embeddings de M10) : la résolution s'exécute alors dans un point de sauvegarde de la transaction courante.
+    Le journal d'accès (accepté ou refusé) y est écrit comme ailleurs, mais si la transaction EXTÉRIEURE est annulée,
+    l'entrée l'est aussi (c'est la raison de la garde par défaut)."""
     from ..stockage.moteur import connexion_courante, transaction
 
-    if connexion_courante() is not None:
+    if connexion_courante() is not None and not dans_transaction:
         raise CoffreErreur("COFFRE_TRANSACTION_METIER", "résolution interdite dans une transaction métier", 500)
     if (jeton is None) == (nom is None):
         raise CoffreErreur("COFFRE_RESOLUTION_INVALIDE", "jeton OU nom requis", 422)

@@ -154,6 +154,10 @@ def resoudre_embeddeur(cnx: Any, departement: str) -> PortEmbeddings:
     """Le port d'embeddings que le registre retient pour `departement`, vérifié contre sa configuration."""
     fournisseur = _resoudre(cnx, CAPACITE_EMBEDDINGS, departement)
     fabrique = _ADAPTATEURS_EMBEDDINGS.get(fournisseur.identifiant)
+    if fabrique is None:  # rôle `embeddings` de la passerelle de modèles (rien d'affecté : None, comportement d'avant)
+        from ..roles_modeles import adaptateurs
+
+        fabrique = adaptateurs.fabrique_embeddings(cnx, fournisseur)
     if fabrique is None:
         raise ErreurConnaissances(
             EMBEDDINGS_NON_RACCORDE,
@@ -173,6 +177,10 @@ def resoudre_embeddeur(cnx: Any, departement: str) -> PortEmbeddings:
 def resoudre_reranker(cnx: Any, departement: str) -> PortReranker:
     fournisseur = _resoudre(cnx, CAPACITE_RERANKER, departement)
     fabrique = _ADAPTATEURS_RERANKER.get(fournisseur.identifiant)
+    if fabrique is None:
+        from ..roles_modeles import adaptateurs
+
+        fabrique = adaptateurs.fabrique_reranker(cnx, fournisseur)
     if fabrique is None:
         raise ErreurConnaissances(
             EMBEDDINGS_NON_RACCORDE,

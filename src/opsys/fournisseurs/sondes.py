@@ -111,6 +111,9 @@ def sonde_locale(fournisseur: Fournisseur) -> ResultatSonde:
         nom = point.removeprefix("binaire:")
         trouve = shutil.which(nom) is not None
         return ResultatSonde("succes" if trouve else "echec", f"exécutable {nom} {'présent' if trouve else 'absent'}")
+    if point.startswith("passerelle:"):
+        return ResultatSonde("non_verifiable",
+                             "joint par la passerelle de modèles : tester depuis « Modèles et rôles »")
     if point.startswith("appareil:"):
         return ResultatSonde("non_verifiable", "rendu sur l'appareil de l'utilisateur : non vérifiable par le serveur")
     return ResultatSonde("echec", "point d'accès non configuré")

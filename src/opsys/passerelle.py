@@ -58,20 +58,37 @@ def modele_litellm(conf: Mapping[str, str]) -> dict[str, Any]:
     return params
 
 
-def config_litellm(paliers: Mapping[str, Mapping[str, str]], hote_cache: str = "valkey") -> dict[str, Any]:
-    """Configuration LiteLLM (proxy_config.yaml) générée depuis les paliers configurés."""
-    if not paliers:
-        raise ValueError("aucun palier configuré : renseigne au moins 'standard' dans le dashboard")
+def config_litellm(
+    paliers: Mapping[str, Mapping[str, str]], hote_cache: str = "valkey", *,
+    entrees: Iterable[Mapping[str, Any]] = (), fallbacks: Iterable[Mapping[str, list[str]]] = (),
+) -> dict[str, Any]:
+    """Configuration LiteLLM (proxy_config.yaml) générée depuis les paliers configurés ET les rôles de modèles.
+
+    `entrees` (rôles, voir `opsys.roles_modeles.generation`) l'emportent sur un palier de même alias : deux entrées
+    de même
+    `model_name` seraient équilibrées en charge par LiteLLM, jamais ce que veut le propriétaire. `fallbacks` ajoute les
+    replis natifs de LiteLLM (`litellm_settings.fallbacks`). Aucun secret : seulement des références `os.environ/…`."""
+    entrees = [dict(e) for e in entrees]
+    if not paliers and not entrees:
+        raise ValueError("aucun palier ni rôle configuré : renseigne au moins 'standard' dans le dashboard "
+                         "ou un rôle dans « Modèles et rôles »")
+    noms_roles = {e["model_name"] for e in entrees}
+    liste = [
+        {"model_name": alias_palier(nom), "litellm_params": modele_litellm(conf)}
+        for nom, conf in sorted(paliers.items(), key=lambda kv: PALIERS.index(kv[0]))
+        if alias_palier(nom) not in noms_roles
+    ] + entrees
+    reglages: dict[str, Any] = {
+        "drop_params": True,
+        "cache": True,
+        "cache_params": {"type": "redis", "host": hote_cache, "port": 6379},
+    }
+    repli = [dict(f) for f in fallbacks]
+    if repli:
+        reglages["fallbacks"] = repli
     return {
-        "model_list": [
-            {"model_name": alias_palier(nom), "litellm_params": modele_litellm(conf)}
-            for nom, conf in sorted(paliers.items(), key=lambda kv: PALIERS.index(kv[0]))
-        ],
-        "litellm_settings": {
-            "drop_params": True,
-            "cache": True,
-            "cache_params": {"type": "redis", "host": hote_cache, "port": 6379},
-        },
+        "model_list": liste,
+        "litellm_settings": reglages,
         "general_settings": {
             "master_key": "os.environ/LITELLM_MASTER_KEY",
             "database_url": "os.environ/DATABASE_URL",
