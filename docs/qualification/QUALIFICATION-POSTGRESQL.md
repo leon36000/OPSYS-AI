@@ -23,7 +23,14 @@
 > qui ont réellement émis du SQL PostgreSQL, preuve par point de contrôle au §16.4) ; export et sauvegarde du fichier SQLite et magasin de
 > développement M10 non portés ; charge, durabilité, pool externe et multi-client non prouvés »**. Ne jamais écrire « PostgreSQL complet ».
 
-Date : 1er novembre 2026 · Base de code : ligne architecte `1f031031e` + branche `claude/qualification-postgresql` (§1 à §15) puis ligne architecte `2cbdb4a4e` + branche `claude/portage-postgresql-gardes` (§16) · Banc :
+> **Mise à jour : vague 8 (§17, 2 novembre 2026).** Les constats planifiés, le planificateur durable, le bus (retrait de consentement
+> M4 → M1, créance levée M5 → M2, constats contradictoires M2/M5/M8) et l'entrepôt M8 phase 2, qui n'avaient tourné que sur SQLite, sont
+> rejoués sur PostgreSQL 17 réel et en vrais processus (731 cas permanents dans la CI). **Quatre défauts propres à PostgreSQL ont été trouvés et corrigés**
+> (un constat rangé deux fois, un code de refus trop long qui interrompait le tour, une mise à jour perdue entre deux admins, un identifiant trop long
+> qui bloquait l'entrepôt). Une garde « SQLite seulement » sur quatre est portée (jobs de consolidation M10) ; **3 gardes restent**, correctes par
+> construction et prouvées sur PostgreSQL réel. 31 mutations tuées. Charge, durabilité (`fsync` coupé), pool externe et multi-serveur restent **non prouvés** (§17.7).
+
+Date : 1er et 2 novembre 2026 · Base de code : ligne architecte `1f031031e` + branche `claude/qualification-postgresql` (§1 à §15) puis ligne architecte `2cbdb4a4e` + branche `claude/portage-postgresql-gardes` (§16), puis ligne architecte `e0424b040` + branche `claude/postgresql-vague7` (§17) · Banc :
 [`install/qualification/postgresql/`](../../install/qualification/postgresql/) · Preuves brutes :
 [`preuves-postgresql/`](preuves-postgresql/).
 
@@ -779,6 +786,8 @@ vise maintenant la première ligne de la condition. Aucune preuve n'a été fabr
 
 ### 16.5 Les 4 gardes qui subsistent (et pourquoi)
 
+> **Mise à jour (§17.4)** : la quatrième (`consolidation_developpement._sqlite_seulement`) est portée le 2 novembre 2026 ; les trois autres restent, avec leur preuve sur PostgreSQL réel.
+
 | Garde | Pourquoi elle reste |
 |---|---|
 | `cles_chiffrement._nettoyer_fichiers_courants` | réécrit les pages d'un FICHIER SQLite (`VACUUM`, WAL) : sans objet pour PostgreSQL (le nettoyage physique d'un serveur n'est pas une opération de l'application) |
@@ -879,3 +888,210 @@ Limite connue de la méthode : ces espions prouvent que le verrou est tenu au bo
 - **Mode redirigé** : `tests/test_classement_variance_appareil_atomique.py` (64 erreurs, fichiers temporaires absents) et `tests/test_moteur_recalcul_m4_e2.py` (41 échecs, `sqlite_master`/`PRAGMA` dans le test) restent rouges dans ce mode seulement ; les points de contrôle qu'ils visent sont prouvés par d'autres tests.
 - **Intégration continue** : l'étape `frontiere-postgresql` (1769 cas du portage) a été exécutée ici contre le même type de conteneur, pas sur GitHub.
 - Aucun appel réseau, aucun secret, aucune donnée réelle ; toutes les données sont fictives (`@example.test`).
+
+## 17. Vague 8 : constats planifiés, bus, entrepôt M8 et jobs M10 prouvés sur PostgreSQL 17 réel
+
+> **Ce que cette section dit.** Les services livrés aux vagues 6 et 7 (exécuteurs de constats planifiés, planificateur durable,
+> bus d'événements et consommateurs de la vague 7, entrepôt M8 phase 2) n'avaient été prouvés que sur SQLite. Ils ont été rejoués sur
+> un VRAI PostgreSQL 17 (conteneur jetable `pgvector/pgvector:pg17`, sans réseau), par des rejeux permanents ET en vrais processus.
+> Quatre défauts propres à PostgreSQL ont été trouvés et corrigés dans le code, chacun avec un test rouge avant, vert après. Une garde
+> « SQLite seulement » sur quatre a été portée ; les trois autres sont justifiées et prouvées. Branche `claude/postgresql-vague7`, base
+> `e0424b040`, tête alembic **0058 inchangée** (aucune migration, aucune table). Verdict inchangé : **PostgreSQL n'est pas encore une
+> cible prouvée en charge ni en durabilité** (§17.7).
+
+### 17.1 Avant / après, mesuré
+
+Les 93 fichiers de test qui touchent ces services (constats planifiés, planificateur, bus, consommateurs d'interconnexion, retrait de
+consentement, constats contradictoires, créance levée, entrepôt M8, wallboards, tests M8/M2/M4/M5/M10 des événements) ont été rejoués avec
+le banc (`banc.py suites`, un processus pytest par fichier), mode tel quel puis mode redirigé (`--redirige`).
+
+| | Avant (`e0424b040`) | Après |
+|---|---:|---:|
+| Tests de ces 93 fichiers (2338) qui émettent du SQL vers PostgreSQL, mode tel quel | **59** (2,5 %), tous dans `test_evenements`, `test_m9_planification_cron_fictive`, `test_planification_migration` ; **0** pour les constats planifiés, le retrait de consentement, les constats contradictoires, la créance levée et l'entrepôt M8 planifié | inchangé (c'est le mode « tel quel » : ces tests bâtissent leurs bases SQLite) |
+| Les mêmes 93 fichiers, mode redirigé (bases SQLite de test redirigées vers PostgreSQL) | 725 tests émettent du SQL PostgreSQL : 699 verts, 26 rouges, **tous liés à SQLite** (7 fichiers sur 93, §17.6) | rejoués en permanence à deux moteurs (`tests/test_postgresql_rejeu_*.py`), sans dépendre d'une exécution manuelle du banc |
+| Cas permanents rejoués sur PostgreSQL dans la CI (étape « vague 8 ») | 0 | **731 cas dans 41 fichiers**, aucun ignoré ; au banc (mode tel quel, `plugin_pg`) : 731 réussis, dont **698 ont émis du SQL vers PostgreSQL** (les 33 autres sont des tests purs d'un rejeu : grammaire du manifeste, calcul pur) |
+| Défauts propres à PostgreSQL trouvés dans ces services | — | **4** (corrigés, §17.2) + 1 défense en profondeur |
+| Gardes « SQLite seulement » (règle affinée du banc) | 4 | **3**, chacune avec ses tests sur PostgreSQL réel (§17.4) |
+| Points de contrôle portés (`gardes.py --portees`) | 93 | 94 : le nouveau (`consolidation_developpement._backend_qualifie`) est franchi par 34 tests PostgreSQL réussis dans le banc ; les 93 autres ne sont pas rejoués ici (preuve du §16.4, état du portage précédent) |
+| Mutations propres (une à la fois, dans un clone, témoin vert) | — | **31** : 31 tuées (1 survivante au premier passage, fermée par un test, §17.5) ; 8 répétitions de courses réelles : 8 tuées |
+
+Les 1613 tests des mêmes fichiers qui n'émettent aucun SQL (en mode redirigé) sont des tests purs (grammaire du manifeste, calcul de
+créneau, mesures M8 en mémoire) : ils n'ont rien à prouver sur un moteur.
+
+### 17.2 Défauts trouvés (et corrigés)
+
+| # | Défaut (PostgreSQL seulement) | Comment il a été trouvé | Correction | Test rouge → vert |
+|---|---|---|---|---|
+| **P1** | **Un constat rangé deux fois.** Les consommateurs sont écrits « lire le registre, puis ajouter si la clé de contenu est neuve » (M1 retrait de consentement, M2 créances / factures closes, M8 `faits_operations`). Sous SQLite, l'écrivain unique (`BEGIN IMMEDIATE`) les sérialise. Sous PostgreSQL (READ COMMITTED), deux événements de MÊME clé de contenu et d'`evenement_id` différents se croisent : le second lit le registre avant le commit du premier, puis `MaillonsDurables.append` recompte les rangs après ce commit et prend le suivant. Aucune contrainte ne le voit. | Course déterministe : la seconde livraison est lancée dans un fil depuis le crochet qui précède l'ajout de la première | `repartiteur._livrer_une_paire` prend un verrou consultatif de transaction **par consommateur** (`bus-consommateur-<id>`), avant la réclamation de la paire ; sans effet sous SQLite | `tests/test_postgresql_bus_course_consommateurs.py` : 6 cas rouges sur 8 (M1, M2 ×3, M8 ×2) sans le verrou, tous verts avec |
+| **P2** | **Un code de refus de plus de 64 caractères interrompait tout le tour du planificateur.** `planificateur_executeurs.dernier_code` est `VARCHAR(64)` ; le code rendu par un outil de département n'est pas borné. SQLite ne mesure pas ; PostgreSQL lève `StringDataRightTruncation` à la fin du passage, le tour s'arrête, les exécuteurs suivants ne passent pas, et rien ne change au tour suivant. | Test d'un exécuteur au code démesuré | `_fin_de_passage` tronque à 64 comme son jumeau du journal | `tests/test_postgresql_planification_limites.py` (4 cas, tous rouges avant : `DataError` sur PostgreSQL, troncature absente sur SQLite, qui est maintenant exigée aux deux) |
+| **P3** | **Deux admins qui fixent le mode d'un exécuteur au même instant.** À la première activation, les deux insèrent la ligne : le perdant reçoit une erreur d'intégrité brute. Ensuite, le `UPDATE … WHERE revision = ?` du perdant ne touche aucune ligne sans que rien n'échoue et le journal append-only raconte un changement de mode qui n'a pas eu lieu (4 admins simultanés : 4 « ok, révision 2 », une seule modification réelle). | Test à deux et quatre processus | `etat.appliquer` prend le verrou d'écriture de la console (comme tout écrivain humain) et refuse `REVISION_PERIMEE` si la ligne a changé sous lui | `tests/test_postgresql_planification_console.py` (6 cas) |
+| **P4** | **Un identifiant de plus de 256 caractères bloque l'entrepôt M8 à vie.** Le catalogue accepte un `devis_id` / `lead_id` / `wct_id` de longueur quelconque ; M8 le range au registre (append-only) ; `m8_construire_entrepot` l'écrit dans une colonne `VARCHAR(256)` : PostgreSQL refuse, **à chaque construction**, pour toujours. | Un `devis_id` de 300 caractères | Refus typé à la réception (`REJ-ENTREPOT-IDENTIFIANT-TROP-LONG`, réessais puis quarantaine visible, rien n'entre au registre). **Effet sur SQLite** : un identifiant de plus de 256 caractères y était accepté, il est maintenant refusé aussi (la colonne déclarait déjà 256). | `tests/test_postgresql_entrepot_m8_limites.py` (7 cas) |
+
+**Défense en profondeur** : `etat.appliquer` vérifie maintenant `rowcount` (P3), test déterministe de la mise à jour périmée sur les deux moteurs.
+
+**Ce qui a été cherché et NON trouvé** (vérifié) : un ordre de livraison dépendant de la collation (les `cree_le` ISO se comparent de la même façon
+en `en_US.utf8` et en binaire sur les formats que le code écrit), une borne d'entier (`prochain_passage`, `expire_le`, jetons de bail sont déjà
+`BIGINT`), un `rowcount` à −1 sur ces chemins, un fuseau de session (le créneau se calcule en Python sur `ZoneInfo`, aucune date n'est calculée par la
+base), un conflit de publication mal rendu (`publier` : enveloppe identique absorbée, enveloppe différente `ConflitPublication`, aussi à quatre processus),
+une réclamation de reçu double (clé primaire + point de sauvegarde), une construction concurrente de l'entrepôt (une gagne, les autres `inchange` ou
+`concurrent`), un interblocage entre le verrou de livraison et les autres verrous nommés (aucun chemin ne prend `bus-consommateur-*` après un autre
+verrou ; non audité hors des chemins éprouvés).
+
+### 17.3 Ce qui est prouvé sur PostgreSQL 17 réel, par test
+
+**(a) Constats planifiés et planificateur durable**
+- Rejeux à deux moteurs, sans modifier les tests d'origine : `test_postgresql_rejeu_constats_planifies` (57 : manifestes, grammaire, créneau, changement d'heure,
+  cadence dérivée du catalogue), `…_cablage_planificateur` (21), `…_planification_departements` (17), `…_planification_console` (7), `…_planification_transport` (21),
+  `…_m9_planification_cron_fictive` (8).
+- Vrais processus (`tests/test_postgresql_planification_constats.py`, 12 cas = 6 × 2 moteurs, dix départements réels, vrais outils, horloge injectée commune) :
+  `test_n_processus_se_disputent_le_tour_chaque_constat_passe_une_seule_fois` (créneau) ;
+  `test_la_reservation_du_creneau_perdue_les_n_processus_repassent_et_rien_n_est_publie_deux_fois` (idempotence, deuxième instance) ;
+  `test_un_bail_tenu_par_une_autre_instance_arrete_les_n_processus_sans_rien_publier` (bail) ;
+  `test_un_processus_tue_net_au_milieu_du_constat_m7_un_autre_reprend_sans_doublon` (redémarrage : SIGKILL entre les deux mois de M7, bail non libéré,
+  jeton de fencing plus grand à la reprise) ;
+  `test_n_processus_tour_et_livraison_en_meme_temps_donnent_des_mesures_exactes_sans_doublon`.
+
+**(b) Bus d'événements, consommateurs, constats contradictoires**
+- Rejeux : `…_consentement_suivi_retire` (33) et `…_scenario` (5) (M4 → M1 : brouillon neutralisé dans le sas d'envoi, ordre inversé, panne, reprise),
+  `…_creance_levee_paiement` (11) (M5 → M2), `…_constats_contradictoires` (20) (M2, M5, M8), `…_stop_retire_consentement_marketing` (8),
+  `…_evenements` (60), `…_evenements_retry_fraicheur` (7), `…_evenements_budget` (10), dix fichiers `…_interconnexion_*` (184 cas).
+- Courses : `test_postgresql_bus_course_consommateurs.py` (16 = 8 × 2) : deux livraisons de même clé de contenu qui se croisent, pour M1, M2 (relance,
+  contradiction, facture payée), M5 et M8 (identique et contradictoire) ; `test_postgresql_bus_processus.py` (8) : publication concurrente de la même
+  enveloppe (une ligne), de deux enveloppes différentes sous le même identifiant (un gagnant, des `ConflitPublication`), livraison concurrente d'un arriéré
+  de 24 événements par quatre processus (chaque clé rangée une fois, 36 reçus `traite`, aucune quarantaine), contradictions (une ligne d'audit par contenu).
+
+**(c) Entrepôt M8 phase 2**
+- Rejeux : `…_m8_entrepot` (26), `…_m8_entrepot_interdepartements` (20), `…_m8_evenements_*` (95 : cash libre, contenus, entonnoir, mesures de chantier, alerte
+  proposée) ; en vrais processus : N constructions simultanées de l'entrepôt (`test_n_processus_construisent_l_entrepot_en_meme_temps_une_seule_construction_gagne` :
+  une `construit`, les autres `inchange` ou `concurrent`, une seule ligne `m8_ent_constructions`, 56 mesures, valeurs exactes).
+
+**(d) Scénario de bout en bout multi-départements**
+- `test_postgresql_rejeu_entrepot_m8_planifie` (19) : le planificateur déclenche les sept VRAIS constats (M1, M2, M4, M5 ×2, M6, M7) sur des données semées par les
+  vrais outils, le vrai bus livre à M8, M8 calcule 16 mesures à la valeur exacte, la vraie console affiche les wallboards (HTTP), le copilote répond, M10 et M9 voient
+  le fait consolidé ; aucune donnée personnelle dans les charges ni le journal. Même scénario avec **quatre processus** simultanés
+  (`test_n_processus_tour_et_livraison_en_meme_temps…`) : mêmes mesures exactes, mêmes nombres d'événements publiés (`PREMIER_TOUR`).
+
+### 17.4 Les gardes « SQLite seulement » : 4 → 3
+
+| Garde | Décision | Preuve sur PostgreSQL réel |
+|---|---|---|
+| `consolidation_developpement._sqlite_seulement` → `_backend_qualifie` | **Portée.** Les jobs de consolidation du magasin de développement M10 (grant, bail, rapport, checkpoint) et le magasin lui-même écrivent sous un verrou de transaction nommé `m10-developpement` (`developpement._connexion`, `consolidation_developpement._verrouiller`) ; SQLite fichier et PostgreSQL sont admis, tout autre moteur et toute base SQLite volatile restent refusés | `tests/test_postgresql_memoire_developpement.py` (8) : quatre écrivains de prompts distincts (chaîne d'événements linéaire), même prompt (un événement, trois rejeux), deux textes pour la même version (un gagnant, des `ConflitIdempotence`), quatre exécuteurs du même job (jamais deux rapports pour un créneau, aucun bail vivant en double, chaîne valide) ; rejeu des 33 cas du fichier d'origine (`…_m10_consolidation_developpement`) |
+| `cles_chiffrement._nettoyer_fichiers_courants` | **Reste, correcte par construction.** Elle réécrit les pages d'un FICHIER SQLite (VACUUM, WAL). Sur PostgreSQL la clé est détruite logiquement (DELETE) et l'effacement est inscrit `non_qualifie` / `backend_non_qualifie` dès la demande : jamais « terminé », jamais « en attente » à perpétuité ; l'exécuteur `retention.effacements` n'a rien à reprendre. Le nettoyage physique d'un serveur (WAL archivé, répliques, sauvegardes) n'est pas une opération de l'application | `test_postgresql_gardes_justifiees.py` : 3 cas |
+| `exportation._base_sqlite` | **Reste.** L'export est un instantané du fichier SQLite de l'instance ; PostgreSQL se sauvegarde par `deploy/backup.sh` (`pg_dump`, éprouvé au §11). Refus typé, vers la bonne voie, sans fuite du mot de passe, sans rien créer (pas même le dossier de sortie) | 1 cas + `test_postgresql_sauvegarde_restauration` (la voie proposée) ; `deploy/backup.sh` lui-même (compose) n'est pas exécuté ici : seule la syntaxe est vérifiée |
+| `openclaw.configuration_cron_memoire_developpement` | **Reste.** La déclaration du cron place `OPSYS_BASE_URL` dans l'environnement d'une commande de la Gateway : sur PostgreSQL ce serait le mot de passe de la base en clair dans la configuration d'un autre produit (aucun coffre pour cette frontière). Le job existe sur PostgreSQL (gardes levée ci-dessus), mais son déclenchement planifié par la Gateway exige SQLite | 1 cas (le job est créé sur PostgreSQL, la déclaration refuse, ni l'URL ni le mot de passe ne sont dans l'erreur) |
+
+Preuve par exécution : `matrice.py --portage` sur le banc de cette vague (41 fichiers) + la sauvegarde `pg_dump`/`pg_restore` : **3 gardes restantes justifiées sur 3**, chacune par des tests RÉUSSIS qui ont émis du SQL PostgreSQL (3/3, 2/2, 1/1).
+
+`gardes.py` (`GARDES_RESTANTES`, `JUSTIFICATIONS_TESTEES`) : le compteur dit « 3 gardes, 3 correctes par construction et prouvées sur PostgreSQL réel, 0 sans justification
+testée » ; `test_banc_postgresql` exige qu'une garde restante ait au moins un test nommé qui existe, et que ce fichier soit dans l'étape PostgreSQL de la CI.
+
+### 17.5 Mutations (31 ; une à la fois dans un clone, témoin vert avant chaque série, restauration vérifiée par `git diff`)
+
+| # | Fichier | Mutation (ce qu'elle casse ; famille ciblée) | Premier test rouge |
+|---|---|---|---|
+| M01 | `repartiteur.py` | retirer le verrou de livraison par consommateur (verrous) | `tests/test_postgresql_bus_course_consommateurs.py::test_m2_deux_relances_de_meme_cle_qui_se_croisent_sont_rangees_une_seule_fois[postgresql]` |
+| M02 | `repartiteur.py` | verrou par événement au lieu de par consommateur (le croisement de deux événements n'est plus sérialisé) | `tests/test_postgresql_bus_course_consommateurs.py::test_m2_deux_relances_de_meme_cle_qui_se_croisent_sont_rangees_une_seule_fois[postgresql]` |
+| M03 | `repartiteur.py` | ne plus perdre la réclamation d'un réessai concurrent (rejeu/conflit) | `tests/test_evenements_retry_fraicheur.py::test_claim_ancien_ne_remplace_pas_metadata_changee_apres_select[echeance]` |
+| M04 | `repartiteur.py` | la quarantaine n'arrive jamais (rejeu) | `tests/test_evenements.py::test_consommateur_en_echec_reessais_espaces_puis_quarantaine` |
+| M05 | `planificateur.py` | le créneau perdu n'est plus détecté (créneaux) | `tests/test_postgresql_planification_constats.py::test_n_processus_tour_et_livraison_en_meme_temps_donnent_des_mesures_exactes_sans_doublon[postgresql]` |
+| M06 | `planificateur.py` | le créneau réservé reste échu (créneaux) | `tests/test_postgresql_planification_constats.py::test_n_processus_se_disputent_le_tour_chaque_constat_passe_une_seule_fois[sqlite]` |
+| M07 | `planificateur.py` | retirer la comparaison-échange du créneau (créneaux, idempotence) | `tests/test_postgresql_planification_constats.py::test_n_processus_se_disputent_le_tour_chaque_constat_passe_une_seule_fois[postgresql]` |
+| M08 | `planificateur.py` | retirer la troncature du code de fin de passage (taille) | `tests/test_postgresql_planification_limites.py::test_un_code_de_refus_demesure_est_tronque_et_le_tour_continue[sqlite-_Bavard]` |
+| M09 | `bail.py` | retirer le verrou de ligne du bail (verrous) | `tests/test_postgresql_concurrence_processus.py::test_n_executeurs_se_disputent_une_ressource_un_seul_obtient_le_bail_puis_la_reprise_est_unique[postgresql]` |
+| M10 | `bail.py` | le jeton de fencing ne croît plus (verrous, redémarrage) | `tests/test_postgresql_concurrence_processus.py::test_n_executeurs_se_disputent_une_ressource_un_seul_obtient_le_bail_puis_la_reprise_est_unique[sqlite]` |
+| M11 | `bail.py` | le renouvellement ne vérifie plus le jeton (verrous) | `tests/test_postgresql_planification_limites.py::test_le_meme_porteur_qui_reprend_un_bail_expire_invalide_son_ancien_jeton[sqlite]` |
+| M12 | `constats.py` | le créneau n'est plus un multiple de l'intervalle (créneaux, idempotence) | `tests/test_constats_planifies.py::test_le_creneau_est_un_multiple_de_l_intervalle_depuis_minuit_local` |
+| M13 | `constats.py` | « lundi » n'est plus un lundi (créneaux) | `tests/test_constats_planifies.py::test_evaluer_calcul[lundi-creneau12-2026-11-09]` |
+| M14 | `constats.py` | un niveau interdit n'arrête plus le constat (garde) | `tests/test_entrepot_m8_planifie.py::test_un_outil_de_niveau_n3_ou_plus_n_est_jamais_appele_par_un_constat` |
+| M15 | `constats.py` | un refus rendu par l'outil devient un succès (idempotence/refus) | `tests/test_entrepot_m8_planifie.py::test_un_refus_rendu_par_un_outil_est_une_erreur_visible_pas_un_succes` |
+| M16 | `constats.py` | la même contradiction est rangée à chaque rejeu (contradiction) | `tests/test_constats_contradictoires.py::test_m2_la_meme_contradiction_rejouee_n_ajoute_pas_de_seconde_ligne_d_audit` |
+| M17 | `constats.py` | inversion de la comparaison de contenu (contradiction) | `tests/test_constats_contradictoires.py::test_m2_relance_de_meme_cle_et_contenu_different_premier_garde_contradiction_rangee_et_dite` |
+| M18 | `constats.py` | l'empreinte ne dépend plus du contenu (contradiction) | `tests/test_constats_contradictoires.py::test_m2_relance_de_meme_cle_et_contenu_different_premier_garde_contradiction_rangee_et_dite` |
+| M19 | `faits_interconnexion.py` | une facture seulement envoyée lève la créance (levée de créance) | `tests/test_creance_levee_paiement.py::test_paiement_partiel_ne_leve_rien_la_relance_reste` |
+| M20 | `faits_interconnexion.py` | la facture payée ne lève plus la créance (levée de créance) | `tests/test_creance_levee_paiement.py::test_de_bout_en_bout_le_paiement_leve_la_relance_apres_le_cycle_comptable_de_m5` |
+| M21 | `outils.py` | M8 ne dit plus la contradiction (contradiction) | `tests/test_constats_contradictoires.py::test_m8_meme_cle_contenu_different_premier_garde_contradiction_rangee_et_dite[depense]` |
+| M22 | `outils.py` | M8 range le même constat à chaque rejeu (idempotence) | `tests/test_constats_contradictoires.py::test_m8_meme_cle_contenu_different_premier_garde_contradiction_rangee_et_dite[depense]` |
+| M23 | `entrepot_stockage.py` | borne de longueur décalée d'un cran (taille) | `tests/test_postgresql_entrepot_m8_limites.py::test_un_identifiant_de_la_longueur_exacte_de_la_colonne_passe_et_l_entrepot_le_porte[sqlite]` |
+| M24 | `entrepot_stockage.py` | plus aucun refus d'identifiant trop long (taille) | `tests/test_postgresql_entrepot_m8_limites.py::test_un_identifiant_demesure_est_refuse_a_la_reception_et_l_entrepot_se_construit[sqlite-devis_id]` |
+| M25 | `etat.py` | retirer le verrou d'écriture de la console (verrous) | `tests/test_postgresql_planification_console.py::test_deux_admins_qui_activent_la_premiere_fois_en_meme_temps_un_seul_cree_la_ligne_l_autre_la_modifie[postgresql]` |
+| M26 | `etat.py` | ne plus refuser une mise à jour perdue (rejeu/conflit) | `tests/test_postgresql_planification_console.py::test_une_mise_a_jour_perdue_est_refusee_et_jamais_racontee_au_journal[sqlite]` |
+| M27 | `developpement.py` | retirer le verrou du magasin de développement (verrous) | `tests/test_postgresql_memoire_developpement.py::test_n_ecrivains_de_prompts_distincts_la_chaine_d_evenements_reste_lineaire[postgresql]` |
+| M28 | `consolidation_developpement.py` | retirer le verrou du bail du job de consolidation (verrous) | `tests/test_postgresql_memoire_developpement.py::test_n_executeurs_du_meme_job_un_seul_rapport_et_pas_deux_baux_vivants[postgresql]` |
+| M29 | `consolidation_developpement.py` | réintroduire la garde SQLite seulement (portage) | `tests/test_postgresql_rejeu_m10_consolidation_developpement.py::test_grant_exige_humain_vivant_et_ne_sort_pas_la_capacite` |
+| M30 | `cles_chiffrement.py` | l'effacement sur PostgreSQL attend à perpétuité au lieu de dire non_qualifie (garde justifiée) | `tests/test_postgresql_gardes_justifiees.py::test_effacement_de_cle_sur_postgresql_detruit_logiquement_et_dit_non_qualifie` |
+| M31 | `bus.py` | un autre producteur sous le même identifiant n'est plus un conflit (rejeu/conflit) | `tests/test_evenements.py::test_conflit_enveloppe_annule_ecriture_metier_apres_reouverture[producteur]` |
+
+**31 mutations sur 31 tuées** (témoin vert avant chaque série ; après chaque mutation, le fichier est réécrit à l'identique et `git diff` du clone est vide : 31 restaurations
+vérifiées, 0 échec). Familles : verrous (M01, M02, M09, M10, M11, M25, M27, M28), rejeu et conflit (M03, M04, M26, M31), créneaux (M05, M06, M07, M12, M13), idempotence
+(M14, M15, M22), contradiction (M16, M17, M18, M21), levée de créance (M19, M20), taille (M08, M23, M24), portage et gardes (M29, M30).
+
+- **Une survivante au premier passage : M11** (le renouvellement d'un bail ne vérifie plus le jeton de fencing). Le porteur est aussi vérifié, ce qui masque le jeton tant
+  que le même porteur ne reprend pas lui-même un bail expiré. Fermée par `test_le_meme_porteur_qui_reprend_un_bail_expire_invalide_son_ancien_jeton` (deux moteurs), qui la tue.
+- **M26** (le `rowcount` de la mise à jour périmée) n'est atteignable par aucune course réelle une fois le verrou pris : seul un test déterministe (la ligne relue périmée) peut la tuer ;
+  il a été écrit avant la mutation, qui n'a donc pas été lancée contre une suite sans lui.
+- **Courses réelles répétées** : les mutations dont la mort dépend d'une course entre vrais processus (M05, M09, M27, M28) ont été rejouées deux fois de plus : 8 morts sur 8
+  (`mut_res_rep`), pas de mutation tuée une seule fois par chance. Une course qui ne se produit pas ne tue pas une mutation : ces tests-là sont des détecteurs, pas des preuves d'absence de course ;
+  la preuve d'absence repose sur le verrou et sur les courses déterministes (M01, M02).
+- **Témoin rouge sur la base** : les tests nouveaux, lancés contre le code de `e0424b040` (clone, dossiers `src` et `departments` remis à la base, tests gardés), donnent **49 rouges** :
+  6 courses du bus, 5 identifiants de l'entrepôt, 4 codes trop longs, 4 admins simultanés (dont la défense en profondeur), 4 magasin de développement M10, 1 déclaration du cron, 25 rejeux des jobs M10 ; ils
+  passent tous sur la tête de la branche.
+
+
+### 17.6 Les 7 fichiers rouges en mode redirigé (tous liés à SQLite, aucun défaut de PostgreSQL)
+
+`test_planification_migration` (requête `sqlite_master … LIKE '%'` écrite dans le test), `test_planification_processus` (3 : les processus fils reçoivent l'URL SQLite du
+test ; remplacé par `test_postgresql_planification_constats`), `test_planification_retention` (inventaire de tables `connaissances_fts*`), `test_lectures_bus_provenance` (idem, 2),
+`test_evenements_volume` (3 : `sqlite3.Connection.setlimit`), `departments/m08-analytics/tests/test_provenance_m5_appareil` (10 : inventaire `connaissances_fts*`),
+`departments/m02-revenue-crm/tests/test_constat_pipeline` (6 : la fixture `gros` copie un fichier SQLite préfabriqué).
+
+### 17.7 Ce qui n'est PAS prouvé
+
+- **Charge, latence, volume, durabilité** : le conteneur tourne en mémoire, `fsync` coupé ; rien de ce qui précède ne mesure un débit, un temps de livraison du bus, la
+  taille d'un arriéré réaliste ni la reprise après une vraie coupure de courant. Le verrou de livraison par consommateur sérialise toutes les livraisons d'un même département
+  (comme SQLite sérialise toutes les écritures) : c'est un plafond de débit de la livraison par département qu'aucune mesure ne chiffre.
+- **Pool externe (PgBouncer), plusieurs serveurs d'application, multi-client, réplique** : non testés. Les verrous de transaction (`pg_advisory_xact_lock`) sont compatibles avec le mode
+  transaction d'un pool, mais ce n'est pas vérifié ici.
+- **Boucle réelle du serveur** (`_boucle_planificateur`, un tour toutes les 15 s) : observée en tours injectés seulement, pas pendant des jours ; les changements d'heure ne sont
+  éprouvés que par le calcul du créneau, pas par une base qui traverse la nuit du changement d'heure.
+- **Une seule instance PostgreSQL 17.11** (`pgvector/pgvector:pg17`) ; ni 15, 16 ni 18 ; ni autre collation que `en_US.utf8`.
+- **Les constats M7/M5/… sur de vraies sources** (Search Console, Umami, relevés publicitaires) : aucun service externe n'est appelé ; les données sont fictives.
+- **Ordre des verrous** : le verrou `bus-consommateur-<id>` est le premier pris par une livraison et aucun chemin connu ne le prend après un autre ; un audit formel de tous
+  les chemins (console, outils, répartiteur) n'a pas été fait. Aucun interblocage n'a été observé dans les exécutions de ces suites.
+- **Déclenchement planifié du job M10 par la Gateway sur PostgreSQL** (garde conservée, §17.4) ; la CLI et la console des jobs fonctionnent sur PostgreSQL, pas leur cron.
+- **Suite complète du socle `tests/`** (code socle modifié : répartiteur, planificateur, console du planificateur) : lancée en fin de travail, un processus pytest par
+  fichier (`banc.py sqlite`, 661 fichiers, 8 travailleurs, sans xdist), tête `3ee30b77c` : 641 fichiers verts, 20 rouges ; 14 495 réussis, 94 échecs, 19 erreurs, 64 ignorés. Les 162
+  échecs et erreurs nommés se comparent à la liste `l5-norm` de l'architecte : 156 déjà connus (fusion PDF/AP/OCR, isolation absente) et **6 de plus**, dont 4 sont les
+  préexistants que le brief cite (`test_wait_garanti…` ×2, `test_commande_reutilise_geometrie_sans_spawn`, `test_commande_preserve_confinement…`) ; les 2 autres sont deux tests de COURSE
+  entre processus sensibles à la charge de la machine (charge moyenne > 30 pendant l'exécution) : `test_postgresql_portage_concurrence::test_relire_si_conflit_rejoue_la_perdante…[postgresql]`
+  (deux « écrit » au lieu d'un : l'arbitrage par la clé du rang n'opère que si les insertions se chevauchent, c'est la même fragilité que P1) et
+  `test_postgresql_rejeu_fusion::test_concurrence_meme_revision_un_seul_gagnant…`. Rejoués seuls : 3 fois sur 3 verts. Ni l'un ni l'autre n'exécute un fichier modifié par cette branche (ni répartiteur, ni planificateur, ni M8, ni M10 écrivains) ;
+  à surveiller en CI.
+- **Les 29 fichiers rouges du §16.6** n'ont pas été rejoués (hors périmètre) ; la suite complète `tests/` n'a pas été relancée sur PostgreSQL.
+- **Intégration continue** : la nouvelle étape de la CI (commande et script d'assertion extraits tels quels de `ci.yml`) a été rejouée ici contre un conteneur local de même image : 731 réussis en 19 min 40 s, machine chargée ; elle n'a pas tourné sur GitHub (le délai du job passe de 75 à 90 minutes par prudence, non mesuré sur un runner).
+
+**Formule exacte autorisée après la vague 8** : « socle, bases de connaissances et graphe M10, sas d'approbation, bail, créneaux, idempotence,
+consoles de saisie M1 à M7, services M4, cron opérateur, **constats planifiés et planificateur durable, bus d'événements et consommateurs de constats,
+entrepôt M8 phase 2, jobs de consolidation du magasin de développement M10** éprouvés sur PostgreSQL 17 réel (rejeux à deux moteurs et vrais processus) ;
+export du fichier SQLite, nettoyage physique des clés et cron M10 de la Gateway non portés (gardes justifiées) ; charge, durabilité, pool externe et
+multi-serveur non prouvés ». Ne jamais écrire « PostgreSQL complet ».
+
+### 17.8 Reproduire
+
+Preuves brutes de cette vague (rien n'est écrasé) : [`preuves-postgresql/vague8/`](preuves-postgresql/vague8/) : `mutations.json` (31, avec la restauration vérifiée), `mutations-repetees.json` (8),
+`mutations-specification.json` (l'ancien et le nouveau texte de chaque mutation), `rouge-sur-la-base.txt` (49 rouges sur le code de `e0424b040`), `banc-resume-41-fichiers.json`,
+`portage-et-gardes-justifiees.md`, `avant-apres-93-fichiers.json`, `gardes.txt`.
+
+```bash
+# rejeux et courses de la vague 8 : la liste exacte est celle de l'étape « vague 8 » de .github/workflows/ci.yml
+# (Docker requis ; sans Docker les tests sont IGNORÉS avec la raison exacte, jamais un faux vert)
+python -m pytest tests/test_postgresql_bus_course_consommateurs.py tests/test_postgresql_bus_processus.py \
+  tests/test_postgresql_planification_constats.py tests/test_postgresql_planification_console.py \
+  tests/test_postgresql_planification_limites.py tests/test_postgresql_entrepot_m8_limites.py \
+  tests/test_postgresql_memoire_developpement.py tests/test_postgresql_gardes_justifiees.py
+# banc : les 93 fichiers de la vague, tel quel puis redirigé ; preuve des gardes restantes
+python install/qualification/postgresql/banc.py demarrer
+python install/qualification/postgresql/banc.py suites --cibles <fichiers> [--redirige]
+python install/qualification/postgresql/matrice.py --portage <dossier> [<dossier> …]
+python install/qualification/postgresql/banc.py arreter
+python install/qualification/postgresql/gardes.py        # 3 gardes, 3 justifiées
+```

@@ -229,7 +229,7 @@ def test_jobs_refusent_backend_non_supporte_sans_creer_de_credential(client_jobs
     def backend_refuse():
         raise jobs.BackendConsolidationNonPrisEnCharge("backend detail privé")
 
-    monkeypatch.setattr(jobs, "_sqlite_seulement", backend_refuse)
+    monkeypatch.setattr(jobs, "_backend_qualifie", backend_refuse)
     response = _grant(client_jobs, job_id="backend-pg")
     assert response.status_code == 409
     assert "SQLite fichier" in response.json()["detail"]

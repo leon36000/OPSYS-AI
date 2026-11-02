@@ -61,6 +61,26 @@ def test_aucune_garde_sqlite_seulement_ne_s_ajoute_sans_etre_expliquee():
     assert "| Module | Gardes |" in gardes.markdown(gardes.inventaire())
 
 
+def test_chaque_garde_restante_a_une_justification_testee_qui_existe():
+    """Une garde qui reste n'est « correcte par construction » que si un test sur PostgreSQL réel le prouve : chaque
+    test
+    nommé existe, dans un fichier qui n'est pas exclu de la CI PostgreSQL."""
+    import ast
+
+    gardes = _charger("gardes")
+    racine = DOSSIER.parents[2]
+    assert set(gardes.JUSTIFICATIONS_TESTEES) == set(gardes.GARDES_RESTANTES)
+    ci = (racine / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    for garde, preuves in gardes.JUSTIFICATIONS_TESTEES.items():
+        assert preuves, garde
+        for preuve in preuves:
+            fichier, _, nom = preuve.partition("::")
+            fonctions = {n.name for n in ast.walk(ast.parse((racine / fichier).read_text(encoding="utf-8")))
+                         if isinstance(n, ast.FunctionDef)}
+            assert nom in fonctions, preuve
+            assert fichier in ci, f"{fichier} n'est pas dans l'étape PostgreSQL de la CI"
+
+
 def test_la_regle_de_la_qualification_initiale_compte_bien_moins_de_gardes_qu_au_depart():
     """91 gardes dans 63 fichiers au commit de départ (`6c6dba4e1`) ; la même règle ne doit jamais en retrouver plus."""
     gardes = _charger("gardes")
@@ -109,6 +129,23 @@ def test_la_matrice_additionne_sans_rien_inventer(tmp_path):
     assert (ligne["pg_passed"], ligne["pg_failed"], ligne["pg_touchent_pg"], ligne["pg_rapportes"]) == (2, 1, 2, 3)
     assert (ligne["sqlite_passed"], ligne["sqlite_skipped"]) == (3, 1)
     assert "| **Total** |" in matrice.markdown([ligne])
+
+
+def test_une_garde_restante_n_est_prouvee_que_par_des_tests_reussis_avec_du_sql_postgresql(tmp_path):
+    matrice = _charger("matrice")
+    dossier = tmp_path / "pg"
+    dossier.mkdir()
+    lignes = [
+        {"nodeid": "tests/t.py::test_x", "phase": "call", "issue": "passed", "ordres_pg": 3},
+        {"nodeid": "tests/t.py::test_y[postgresql]", "phase": "call", "issue": "passed", "ordres_pg": 0},  # sans SQL PG
+        {"nodeid": "tests/t.py::test_z", "phase": "call", "issue": "failed", "ordres_pg": 5},  # rouge
+    ]
+    (dossier / "t.jsonl").write_text("\n".join(json.dumps(x) for x in lignes), encoding="utf-8")
+    justifications = {"a.py::f": ("tests/t.py::test_x",), "b.py::g": ("tests/t.py::test_x", "tests/t.py::test_y"),
+                      "c.py::h": ("tests/t.py::test_z",)}
+    preuves = {p["garde"]: p["prouvee"] for p in matrice.preuves_justifications([dossier], justifications)}
+    assert preuves == {"a.py::f": True, "b.py::g": False, "c.py::h": False}
+    assert "NON PROUVÉE" in matrice.markdown_justifications(matrice.preuves_justifications([dossier], justifications))
 
 
 def test_le_plugiciel_est_inerte_sans_url_d_administration(monkeypatch):

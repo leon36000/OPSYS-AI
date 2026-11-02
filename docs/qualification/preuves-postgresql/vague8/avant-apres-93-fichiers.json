@@ -1,0 +1,7 @@
+{
+ "fichiers": 93, "tests": 2338,
+ "tel_quel": {"emettent_du_sql_postgresql": 59, "n_en_emettent_pas": 2279, "rouges": 0},
+ "redirige": {"emettent_du_sql_postgresql": 725, "verts": 699, "rouges_lies_a_sqlite": 26, "n_en_emettent_pas": 1613, "fichiers_verts": 86, "fichiers_rouges": 7},
+ "fichiers_rouges_redirige": ["tests/test_planification_migration.py", "tests/test_planification_processus.py", "tests/test_planification_retention.py", "tests/test_lectures_bus_provenance.py", "tests/test_evenements_volume.py", "departments/m08-analytics/tests/test_provenance_m5_appareil.py", "departments/m02-revenue-crm/tests/test_constat_pipeline.py"],
+ "apres": {"cas_permanents_ci": 731, "fichiers": 41, "banc_tel_quel_reussis": 731, "banc_avec_sql_postgresql": 698}
+}

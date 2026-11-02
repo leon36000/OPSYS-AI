@@ -55,9 +55,35 @@ _ORDRE_ECRITURE = (
     entrepot.TABLE_CONTENUS,
     entrepot.TABLE_HISTORIQUE,
 )
+# Les identifiants que les faits reçus du bus portent jusque dans une colonne `VARCHAR(n)` de l'entrepôt. SQLite ne
+# mesure pas ; PostgreSQL refuse (`value too long`), et une seule valeur trop longue, rangée au registre (append-only),
+# aurait fait échouer chaque construction à vie. La limite est donc posée À LA RÉCEPTION (`verifier_identifiants`), pas
+# à la construction : un identifiant que l'entrepôt ne peut pas porter n'entre jamais au registre.
+_COLONNES_IDENTIFIANTS = {
+    "lead_id": (M8_ENT_DIM_LEAD, M8_ENT_FAIT_DEVIS),
+    "devis_id": (M8_ENT_DIM_CHANTIER, M8_ENT_FAIT_DEVIS),
+    "wct_id": (M8_ENT_DIM_CHANTIER, M8_ENT_MART_CONTENUS),
+    "contenu_id": (M8_ENT_MART_CONTENUS,),
+    "utm_content": (M8_ENT_DIM_LEAD, M8_ENT_MART_CONTENUS),
+}
+LONGUEURS_IDENTIFIANTS = {
+    cle: min(table.c[cle].type.length for table in tables_) for cle, tables_ in _COLONNES_IDENTIFIANTS.items()
+}
 STATUT_CONSTRUIT = "construit"
 STATUT_INCHANGE = "inchange"
 STATUT_CONCURRENT = "concurrent"
+
+
+def verifier_identifiants(fait: dict[str, Any]) -> None:
+    """Refuse (`ValueError`, donc un refus déterministe que le bus réessaie puis met en quarantaine, visible) un fait
+    dont un identifiant dépasse la colonne de l'entrepôt qui le portera. Rien n'est tronqué : un identifiant tronqué
+    serait un autre identifiant."""
+    for cle, longueur in LONGUEURS_IDENTIFIANTS.items():
+        valeur = fait.get(cle)
+        if isinstance(valeur, str) and len(valeur) > longueur:
+            raise ValueError(
+                f"REJ-ENTREPOT-IDENTIFIANT-TROP-LONG : {cle} de {len(valeur)} caractères (au plus {longueur})"
+            )
 
 
 def tables() -> dict[str, Table]:
@@ -193,4 +219,5 @@ __all__ = [
     "lire_table",
     "reconstruire",
     "tables",
+    "verifier_identifiants",
 ]

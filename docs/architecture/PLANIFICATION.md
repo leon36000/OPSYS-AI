@@ -6,8 +6,11 @@ par défaut** : chaque tour est `inactif` tant qu'un admin ne l'a pas activé de
 ce qui ne l'est pas et pourquoi, comment c'est gouverné, et ce qui n'est PAS prouvé.
 
 **Mise à jour (2026-11-01, constats planifiés)** : les sept constats de la phase 2 de l'entrepôt de M8 sont maintenant
-déclenchés par ce même planificateur, déclarés par les manifestes des départements (§9). Même statut : prouvé sur SQLite,
-avec une horloge injectée et des données fictives, **inactif par défaut**, rien contre PostgreSQL ni un service externe.
+déclenchés par ce même planificateur, déclarés par les manifestes des départements (§9). Même statut : prouvé avec une horloge
+injectée et des données fictives, **inactif par défaut**, aucun service externe. **Mise à jour (2026-11-02, vague 8)** : ces
+exécuteurs, le créneau, le bail, l'idempotence, la deuxième instance et le redémarrage (SIGKILL) sont maintenant aussi
+éprouvés sur un VRAI PostgreSQL 17, en vrais processus (`docs/qualification/QUALIFICATION-POSTGRESQL.md` §17) ; la boucle
+réelle du serveur pendant des jours reste non observée.
 
 **Mise à jour (2026-11-02, routines planifiées de M1 et M10)** : sept routines de plus (digest quotidien et alertes internes de
 la réception, consolidation nocturne des affaires, audit « non-oubli » hebdomadaire, calcul des KPI de M1 et de M10) sont
@@ -274,8 +277,11 @@ vrai moteur, wallboards de la vraie console, copilote, mémoire de M10, consolid
 (manifeste, grammaire, créneaux, changement d'heure, garde-fous), `departments/m08-analytics/tests/test_cadence_constats.py`.
 
 **Ce qui n'est PAS prouvé, sans euphémisme.**
-- SQLite seulement : aucun de ces tests n'a tourné sur PostgreSQL (aucune migration ni table nouvelle, mais les exécuteurs et les
-  outils de constat n'y ont pas été exercés).
+- ~~SQLite seulement~~ **levé le 2 novembre 2026 (vague 8)** : les mêmes scénarios (`test_entrepot_m8_planifie`, `test_constats_planifies`,
+  `test_cablage_planificateur`) sont rejoués sur PostgreSQL 17 réel (`tests/test_postgresql_rejeu_*.py`) et le créneau, le bail,
+  la deuxième instance et la mort brutale le sont en vrais processus (`tests/test_postgresql_planification_constats.py`). Quatre
+  défauts propres à PostgreSQL ont été trouvés et corrigés (QUALIFICATION-POSTGRESQL §17.2), dont la console d'activation :
+  deux admins simultanés perdaient une mise à jour sans que rien n'échoue.
 - Horloge injectée : la boucle réelle du serveur (`_boucle_planificateur`, tour toutes les 15 s) n'a pas été observée sur plusieurs
   jours ; les jours de changement d'heure ne sont éprouvés que par le calcul du créneau.
 - La péremption d'une mesure de M7 (observation du signal) et des factures (jour d'émission) suit l'âge du FAIT sous-jacent, pas

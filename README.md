@@ -23,7 +23,8 @@ M9 Strategic Intelligence (Athéna), M10 Mémoire (Mnémo). Seule la messagerie 
   des usages ; couverture complète des budgets fournisseur à consolider.
 - **Mobile OPSYS** : application Expo à quatre profils, capture terrain et file hors ligne.
 - **Mémoire** : mémoire native des agents et connaissance gouvernée par M10 ; mémoire d'affaires
-  et du développement séparées par droits. Le socle utilise SQLite par défaut, PostgreSQL en option.
+  et du développement séparées par droits. Le socle utilise SQLite par défaut, PostgreSQL en option (éprouvé sur PostgreSQL 17 réel pour le socle, le bus, les constats
+  planifiés et l'entrepôt M8 ; charge, durabilité et pool externe non prouvés : `docs/qualification/QUALIFICATION-POSTGRESQL.md`).
 - **Humain dans la boucle** : les actions financières, fiscales, légales et sensibles nécessitent
   une approbation. Les contrôles de développement sont proportionnés, sans consensus de modèles.
 

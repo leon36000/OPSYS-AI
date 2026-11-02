@@ -1,0 +1,3 @@
+3 gardes dans 3 fichiers : 3 correctes par construction et prouvées sur PostgreSQL réel, 0 sans justification testée
+94 points de contrôle portés dans 62 fichiers
+8 gardes dans 7 fichiers (règle de la qualification initiale)

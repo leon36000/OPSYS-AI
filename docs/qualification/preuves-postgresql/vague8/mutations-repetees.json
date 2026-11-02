@@ -1,0 +1,90 @@
+{
+ "M05b": {
+  "id": "M05b",
+  "fichier": "src/opsys/connecteurs_planification/planificateur.py",
+  "pourquoi": "le créneau perdu n'est plus détecté (créneaux) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_planification_constats.py::test_n_processus_se_disputent_le_tour_chaque_constat_passe_une_seule_fois[postgresql]",
+  "derniere": "1 failed, 1 passed in 30.85s",
+  "duree_s": 32.3,
+  "restauration_git_diff_vide": true
+ },
+ "M05c": {
+  "id": "M05c",
+  "fichier": "src/opsys/connecteurs_planification/planificateur.py",
+  "pourquoi": "le créneau perdu n'est plus détecté (créneaux) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_planification_constats.py::test_n_processus_se_disputent_le_tour_chaque_constat_passe_une_seule_fois[postgresql]",
+  "derniere": "1 failed, 1 passed in 30.89s",
+  "duree_s": 31.8,
+  "restauration_git_diff_vide": true
+ },
+ "M09b": {
+  "id": "M09b",
+  "fichier": "src/opsys/connecteurs_planification/bail.py",
+  "pourquoi": "retirer le verrou de ligne du bail (verrous) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_concurrence_processus.py::test_n_executeurs_se_disputent_une_ressource_un_seul_obtient_le_bail_puis_la_reprise_est_unique[postgresql]",
+  "derniere": "1 failed, 1 passed, 18 deselected in 22.84s",
+  "duree_s": 24.2,
+  "restauration_git_diff_vide": true
+ },
+ "M09c": {
+  "id": "M09c",
+  "fichier": "src/opsys/connecteurs_planification/bail.py",
+  "pourquoi": "retirer le verrou de ligne du bail (verrous) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_concurrence_processus.py::test_n_executeurs_se_disputent_une_ressource_un_seul_obtient_le_bail_puis_la_reprise_est_unique[postgresql]",
+  "derniere": "1 failed, 1 passed, 18 deselected in 22.60s",
+  "duree_s": 23.9,
+  "restauration_git_diff_vide": true
+ },
+ "M27b": {
+  "id": "M27b",
+  "fichier": "departments/m10-memoire/src/m10_memoire/developpement.py",
+  "pourquoi": "retirer le verrou du magasin de développement (verrous) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_memoire_developpement.py::test_n_ecrivains_de_prompts_distincts_la_chaine_d_evenements_reste_lineaire[postgresql]",
+  "derniere": "1 failed, 1 passed in 12.32s",
+  "duree_s": 13.3,
+  "restauration_git_diff_vide": true
+ },
+ "M27c": {
+  "id": "M27c",
+  "fichier": "departments/m10-memoire/src/m10_memoire/developpement.py",
+  "pourquoi": "retirer le verrou du magasin de développement (verrous) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_memoire_developpement.py::test_n_ecrivains_de_prompts_distincts_la_chaine_d_evenements_reste_lineaire[postgresql]",
+  "derniere": "1 failed, 1 passed in 12.64s",
+  "duree_s": 13.6,
+  "restauration_git_diff_vide": true
+ },
+ "M28b": {
+  "id": "M28b",
+  "fichier": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+  "pourquoi": "retirer le verrou du bail du job de consolidation (verrous) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_memoire_developpement.py::test_n_executeurs_du_meme_job_un_seul_rapport_et_pas_deux_baux_vivants[postgresql]",
+  "derniere": "1 failed, 7 passed in 40.13s",
+  "duree_s": 40.7,
+  "restauration_git_diff_vide": true
+ },
+ "M28c": {
+  "id": "M28c",
+  "fichier": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+  "pourquoi": "retirer le verrou du bail du job de consolidation (verrous) (répétition)",
+  "temoin_vert": true,
+  "tuee": true,
+  "premier_echec": "FAILED tests/test_postgresql_memoire_developpement.py::test_n_executeurs_du_meme_job_un_seul_rapport_et_pas_deux_baux_vivants[postgresql]",
+  "derniere": "1 failed, 7 passed in 38.20s",
+  "duree_s": 38.7,
+  "restauration_git_diff_vide": true
+ }
+}

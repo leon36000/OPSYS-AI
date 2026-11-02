@@ -46,7 +46,8 @@ natifs par défaut; LiteLLM est réservé au mode de compatibilité explicite. L
 les variables d'environnement contenant les clés, et leurs valeurs secrètes ne sont pas écrites dans
 la configuration JSON. Le readiness bloque sur des clés requises absentes; des tests sans credentials
 ne prouvent pas les appels réels aux fournisseurs. Le mobile est une application Expo propre à OPSYS.
-Le socle métier utilise SQLite par défaut et PostgreSQL en option. M10 inclut la mémoire d'affaires
+Le socle métier utilise SQLite par défaut et PostgreSQL en option (qualification et limites :
+`qualification/QUALIFICATION-POSTGRESQL.md`, §16 et §17). M10 inclut la mémoire d'affaires
 et celle du développement, avec séparation des données et droits. Un index documentaire n'est pas
 une certification de production.
 

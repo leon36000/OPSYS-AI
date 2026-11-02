@@ -177,6 +177,32 @@ def preuves_portage(dossiers: list[Path], portees: list[dict]) -> list[dict]:
     return [{**p, "tests": len(franchis[p["id"]]), "exemples": franchis[p["id"]][:5]} for p in portees]
 
 
+def preuves_justifications(dossiers: list[Path], justifications: dict[str, tuple[str, ...]]) -> list[dict]:
+    """Par garde « SQLite seulement » qui RESTE : ses tests de justification, avec leur issue sur un VRAI PostgreSQL
+    (réussi ET au moins un ordre SQL émis vers PostgreSQL). Une garde sans test réussi est « non prouvée »."""
+    reussis: set[str] = set()
+    for dossier in dossiers:
+        for jsonl in dossier.glob("*.jsonl"):
+            for ligne in jsonl.read_text(encoding="utf-8").splitlines():
+                d = json.loads(ligne)
+                if d["phase"] == "call" and d["issue"] == "passed" and d.get("ordres_pg", 0) > 0:
+                    reussis.add(d["nodeid"])
+    sortie = []
+    for garde, tests in justifications.items():
+        detail = [{"test": t, "reussi_sur_pg": any(n == t or n.startswith(t + "[") for n in reussis)} for t in tests]
+        sortie.append({"garde": garde, "tests": detail, "prouvee": all(d["reussi_sur_pg"] for d in detail)})
+    return sortie
+
+
+def markdown_justifications(preuves: list[dict]) -> str:
+    texte = (f"\n{sum(p['prouvee'] for p in preuves)} gardes restantes justifiées et prouvées sur {len(preuves)}\n\n"
+             "| Garde qui reste | Tests de justification réussis sur PostgreSQL |\n|---|---|\n")
+    for p in preuves:
+        ok = sum(d["reussi_sur_pg"] for d in p["tests"])
+        texte += f"| `{p['garde']}` | {ok} / {len(p['tests'])}{'' if p['prouvee'] else ' **NON PROUVÉE**'} |\n"
+    return texte
+
+
 def markdown_portage(preuves: list[dict]) -> str:
     prouvees = [p for p in preuves if p["tests"]]
     texte = (f"{len(prouvees)} points de contrôle portés prouvés sur {len(preuves)} "
@@ -203,13 +229,16 @@ def main() -> int:
         import gardes
 
         preuves = preuves_portage(a.portage, gardes.portees())
-        texte = markdown_portage(preuves)
+        justifiees = preuves_justifications(a.portage, gardes.JUSTIFICATIONS_TESTEES)
+        texte = markdown_portage(preuves) + markdown_justifications(justifiees)
         if a.md:
             a.md.write_text(texte, encoding="utf-8")
         if a.json:
-            a.json.write_text(json.dumps(preuves, ensure_ascii=False, indent=1), encoding="utf-8")
+            a.json.write_text(json.dumps({"portees": preuves, "justifiees": justifiees}, ensure_ascii=False, indent=1),
+                              encoding="utf-8")
         print(texte.splitlines()[0])
-        return 0 if all(p["tests"] for p in preuves) else 1
+        print(markdown_justifications(justifiees).strip().splitlines()[0])
+        return 0 if all(p["tests"] for p in preuves) and all(j["prouvee"] for j in justifiees) else 1
     if a.pg is None or not a.sqlite:
         ap.error("DOSSIER_PG et au moins un DOSSIER_SQLITE sont requis (ou --portage)")
     lignes = matrice(a.pg, a.sqlite, a.redirige)

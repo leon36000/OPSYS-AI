@@ -31,6 +31,7 @@ from typing import Any
 from sqlalchemy import func, insert, select, update
 
 from .. import contexte, identite, stockage
+from ..stockage.concurrence import verrou_ecriture_console
 from ..stockage.schema import PLANIFICATEUR_APPROBATIONS as APPROBATIONS_T
 from ..stockage.schema import PLANIFICATEUR_EXECUTEURS as EXECUTEURS_T
 from ..stockage.schema import PLANIFICATEUR_JOURNAL as JOURNAL_T
@@ -243,6 +244,10 @@ def appliquer(cnx: Any, session: Any, executeur: Any, mode: Any, *, motif: Any,
     aperçu qui a changé depuis que l'admin l'a lu est refusé : on n'approuve que ce qu'on a vu) et la confirmation
     expresse est requise. La décision est consignée, liée à la révision créée ici."""
     _exiger_contexte(cnx, session)
+    # Geste d'un admin de la console : sous SQLite, `BEGIN IMMEDIATE` ne laisse qu'un écrivain ; sous PostgreSQL, deux
+    # admins liraient la MÊME révision (insertion en double à la première activation, mise à jour perdue ensuite). Le
+    # verrou d'écriture de la console rend à PostgreSQL cette sérialisation (sans effet sous SQLite).
+    verrou_ecriture_console(cnx)
     trouvee = definition(executeur) if type(executeur) is str else None
     if trouvee is None:
         raise RefusOperateur("EXECUTEUR_INCONNU", "exécuteur hors de la liste fermée")
@@ -278,9 +283,11 @@ def appliquer(cnx: Any, session: Any, executeur: Any, mode: Any, *, motif: Any,
         revision = 1
     else:
         revision = actuelle["revision"] + 1
-        cnx.execute(update(EXECUTEURS_T).where(EXECUTEURS_T.c.executeur == executeur,
-                                               EXECUTEURS_T.c.revision == actuelle["revision"]).values(
+        change = cnx.execute(update(EXECUTEURS_T).where(EXECUTEURS_T.c.executeur == executeur,
+                                                        EXECUTEURS_T.c.revision == actuelle["revision"]).values(
             revision=revision, **valeurs))
+        if change.rowcount != 1:  # jamais un changement de mode raconté au journal alors qu'il n'a pas eu lieu
+            raise RefusOperateur("REVISION_PERIMEE", "l'exécuteur a changé pendant le geste : relire puis recommencer")
     journal.journaliser(cnx, executeur, "mode", session.utilisateur, mode=mode, details={
         "ancien_mode": ancien, "revision": revision, "intervalle_s": intervalle_s,
         "expire_le": valeurs["expire_le"], "motif": motif[:64]})

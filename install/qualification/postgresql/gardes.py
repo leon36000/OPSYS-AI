@@ -33,16 +33,37 @@ RACINE = Path(__file__).resolve().parents[3]
 # Gardes qui restent, et pourquoi. Le test `test_banc_postgresql` exige que `inventaire()` soit INCLUS dans ce
 # dictionnaire : ajouter une garde « SQLite seulement » sans l'expliquer ici fait échouer la suite (les garde-fous se
 # resserrent, jamais l'inverse). Clé : « fichier::fonction ».
+#
+# Trois gardes subsistent (quatre au départ de la vague 8 : `consolidation_developpement._sqlite_seulement` a été PORTÉE,
+# verrou nommé `m10-developpement`, prouvée en vrais processus sur PostgreSQL 17). Ce ne sont pas des défauts de portage
+# mais des frontières correctes par construction ; chacune a sa preuve sur un vrai PostgreSQL
+# (`JUSTIFICATIONS_TESTEES`, vérifiée par `test_banc_postgresql`) : ce qui est dit à la place, et qu'aucun secret ne fuit.
 GARDES_RESTANTES: dict[str, str] = {
     "src/opsys/cles_chiffrement.py::_nettoyer_fichiers_courants": (
         "réécriture des pages d'un FICHIER SQLite (VACUUM, WAL) : sans objet pour PostgreSQL (le nettoyage physique "
-        "d'un serveur n'est pas une opération de l'application)"),
+        "d'un serveur n'est pas une opération de l'application) ; la clé y est détruite logiquement et l'effacement est "
+        "inscrit `non_qualifie`, jamais « terminé »"),
     "src/opsys/exportation.py::_base_sqlite": (
-        "exporte le fichier SQLite de l'instance ; PostgreSQL se sauvegarde par `deploy/backup.sh` (pg_dump)"),
+        "exporte le fichier SQLite de l'instance ; PostgreSQL se sauvegarde par `deploy/backup.sh` (pg_dump), éprouvé "
+        "sur PostgreSQL réel"),
     "src/opsys/openclaw.py::configuration_cron_memoire_developpement": (
-        "le cron M10 du magasin de développement exige un fichier SQLite sans identifiants (L9, hors périmètre)"),
-    "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py::_sqlite_seulement": (
-        "consolidation du magasin de développement M10 : fichier SQLite propre au module (L9, hors périmètre)"),
+        "la déclaration du cron place l'URL de la base dans l'environnement d'une commande de la Gateway : sur "
+        "PostgreSQL, ce serait un mot de passe en clair dans la configuration d'un autre produit (pas de coffre pour "
+        "cette frontière)"),
+}
+
+# Pour chaque garde restante : les tests, sur un VRAI PostgreSQL, qui prouvent qu'elle est correcte par construction.
+# `test_banc_postgresql` vérifie que chaque test nommé existe.
+JUSTIFICATIONS_TESTEES: dict[str, tuple[str, ...]] = {
+    "src/opsys/cles_chiffrement.py::_nettoyer_fichiers_courants": (
+        "tests/test_postgresql_gardes_justifiees.py::test_effacement_de_cle_sur_postgresql_detruit_logiquement_et_dit_non_qualifie",
+        "tests/test_postgresql_gardes_justifiees.py::test_le_nettoyage_de_fichiers_refuse_un_moteur_postgresql_sans_rien_toucher",
+        "tests/test_postgresql_gardes_justifiees.py::test_la_reprise_ne_boucle_pas_sur_postgresql_aucun_effacement_n_attend"),
+    "src/opsys/exportation.py::_base_sqlite": (
+        "tests/test_postgresql_gardes_justifiees.py::test_l_export_du_fichier_sqlite_est_refuse_sur_postgresql_avec_la_voie_pg_dump",
+        "tests/test_postgresql_sauvegarde_restauration.py::test_pg_dump_puis_pg_restore_redonnent_la_meme_base_gardes_et_recherche_comprises"),
+    "src/opsys/openclaw.py::configuration_cron_memoire_developpement": (
+        "tests/test_postgresql_gardes_justifiees.py::test_la_declaration_du_cron_m10_refuse_postgresql_sans_divulguer_l_url_ni_le_mot_de_passe",),
 }
 
 _FILTRE_NOM = re.compile(r"dialect|backend|dialecte|moteur|\.name\b")
@@ -264,8 +285,11 @@ def main() -> int:
     texte = markdown(gardes)
     if a.md:
         a.md.write_text(texte, encoding="utf-8")
+    justifiees = sum(1 for g in gardes if cle(g) in JUSTIFICATIONS_TESTEES)
     print(f"{len(gardes)} gardes dans {len({g['fichier'] for g in gardes})} fichiers"
-          + (" (règle de la qualification initiale)" if a.ancien else ""))
+          + (" (règle de la qualification initiale)" if a.ancien
+             else f" : {justifiees} correctes par construction et prouvées sur PostgreSQL réel, "
+                  f"{len(gardes) - justifiees} sans justification testée"))
     return 0
 
 

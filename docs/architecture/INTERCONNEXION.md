@@ -314,8 +314,11 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
     autres faits de M8 hors `faits_operations` ; M5 hors relevés de M7) gardent l'ancien comportement (rejeu silencieux). La
     contradiction est RANGÉE et dite dans l'état de lecture, jamais résolue ni signalée à un humain par une attente : personne n'est
     notifié, et le compteur ne se remet pas à zéro tant qu'aucun outil d'acquittement n'existe (aucun outil de plus n'a été ajouté).
-  - Tout est prouvé sur SQLite, bus et handlers réels ; **PostgreSQL n'a pas été exercé** pour ces consommateurs (aucune garde « SQLite
-    seulement » ajoutée, aucune migration : les registres sont des maillons génériques).
+  - Prouvé sur SQLite, bus et handlers réels, **puis sur PostgreSQL 17 réel (vague 8)** : rejeux à deux moteurs de ces consommateurs
+    et courses déterministes entre deux événements de même clé de contenu (`test_postgresql_bus_course_consommateurs.py`). Le défaut
+    trouvé (le même constat rangé deux fois quand deux événements d'identifiants différents se croisent) est fermé par un verrou de
+    livraison par consommateur dans le répartiteur (QUALIFICATION-POSTGRESQL §17.2). Aucune garde « SQLite seulement » ajoutée,
+    aucune migration.
 
 ## 8. Commandes
 

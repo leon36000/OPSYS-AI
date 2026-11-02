@@ -64,10 +64,15 @@ class Planif:
             return etat.ligne(cnx, executeur)
 
 
-def monter(tmp_path, monkeypatch, departements: tuple[str, ...] = (), **ports: Any) -> Planif:
-    url = f"sqlite:///{tmp_path / 'planif.db'}"
-    monkeypatch.setenv(stockage.ENV_URL, url)
-    stockage.migrer(url)
+def monter(tmp_path, monkeypatch, departements: tuple[str, ...] = (), *, url: str | None = None, **ports: Any
+           ) -> Planif:
+    """`url` : une base DÉJÀ migrée d'un des deux moteurs (fixture `url_base`) ; sans elle, un fichier SQLite neuf."""
+    if url is None:
+        url = f"sqlite:///{tmp_path / 'planif.db'}"
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+    else:
+        monkeypatch.setenv(stockage.ENV_URL, url)
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, ADMIN, "Nathan Propriétaire (fictif)", "mot-de-passe-nathan-1234",
                                 ["nathan_owner", "admin"])
