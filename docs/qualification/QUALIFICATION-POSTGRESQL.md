@@ -1059,7 +1059,7 @@ test ; remplacé par `test_postgresql_planification_constats`), `test_planificat
   les chemins (console, outils, répartiteur) n'a pas été fait. Aucun interblocage n'a été observé dans les exécutions de ces suites.
 - **Déclenchement planifié du job M10 par la Gateway sur PostgreSQL** (garde conservée, §17.4) ; la CLI et la console des jobs fonctionnent sur PostgreSQL, pas leur cron.
 - **Les 29 fichiers rouges du §16.6** n'ont pas été rejoués (hors périmètre) ; la suite complète `tests/` n'a pas été relancée sur PostgreSQL.
-- **Intégration continue** : la nouvelle étape de la CI n'a été exécutée ici que contre un conteneur local de même image, pas sur GitHub.
+- **Intégration continue** : la nouvelle étape de la CI (commande et script d'assertion extraits tels quels de `ci.yml`) a été rejouée ici contre un conteneur local de même image : 731 réussis en 19 min 40 s, machine chargée ; elle n'a pas tourné sur GitHub (le délai du job passe de 75 à 90 minutes par prudence, non mesuré sur un runner).
 
 **Formule exacte autorisée après la vague 8** : « socle, bases de connaissances et graphe M10, sas d'approbation, bail, créneaux, idempotence,
 consoles de saisie M1 à M7, services M4, cron opérateur, **constats planifiés et planificateur durable, bus d'événements et consommateurs de constats,
