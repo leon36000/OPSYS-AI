@@ -107,6 +107,9 @@ def test_le_catalogue_des_codes_est_ferme_et_documente():
         "REJ-PACK-TERMES-ABSENTS", "REJ-PACK-GENERIQUE-NON-VIDE", "REJ-PACK-BAREME-INVENTE",
         "REJ-PACK-EMPREINTE-ABSENTE", "REJ-PACK-EMPREINTE", "REJ-PACK-PROFIL-INVALIDE", "REJ-PACK-NON-INSTALLE",
         "REJ-PACK-JETON-INCONNU", "REJ-PACK-DEPARTEMENT-INCONNU",
+        # M1-A : propositions de profil (le pack propose, le propriétaire adopte)
+        "REJ-PACK-PROPOSITION-INVALIDE", "REJ-PACK-PROPOSITION-VALIDEE", "REJ-PACK-ADOPTION-ELEMENT-INCONNU",
+        "REJ-PACK-ADOPTION-PACK-INACTIF", "REJ-PACK-ADOPTION-ECRASE", "REJ-PACK-ADOPTION-SANS-SIGNATURE",
     )
     with pytest.raises(ValueError, match="hors catalogue"):
         RefusPack("REJ-PACK-INVENTE", "x")

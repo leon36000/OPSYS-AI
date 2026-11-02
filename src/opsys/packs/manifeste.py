@@ -25,6 +25,7 @@ from typing import Any
 
 import yaml
 
+from .. import taxonomie
 from .codes import RefusPack
 
 SCHEMA_PACK = "opsys.pack/v1"
@@ -55,7 +56,15 @@ _CONTROLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 _CLES_RACINE = {"schema", "id", "version", "nom", "langue", "description", "sectoriel", "fictif", "vocabulaire",
                 "appellations", "services", "glossaire", "gabarits", "baremes", "exemples", "blocs",
-                "termes_sectoriels"}
+                "termes_sectoriels", "propositions_profil"}
+# Seule clé facultative : un pack peut ne rien proposer au profil de réception (le pack générique n'en propose pas).
+_CLES_RACINE_FACULTATIVES = frozenset({"propositions_profil"})
+STATUT_PROPOSITION = "a_valider"
+# Éléments du profil d'entreprise qu'un pack peut proposer (liste fermée, dans l'ordre) : ce que M1 lit pour qualifier.
+ELEMENTS_PROPOSES = (
+    taxonomie.CLE_QUESTIONS_QUALIFICATION, taxonomie.CLE_SIGNAUX_PLAINTE, taxonomie.CLE_DESTINATAIRES_TRANSFERT,
+    taxonomie.CLE_FENETRE_CONVERSATION, taxonomie.CLE_POIDS_SCORE_LEAD,
+)
 
 
 @dataclass(frozen=True)
@@ -105,6 +114,15 @@ class BlocDepartement:
 
 
 @dataclass(frozen=True)
+class PropositionsProfil:
+    """Ce qu'un pack PROPOSE au profil d'entreprise (rien n'est actif). `elements` : élément -> valeur NORMALISÉE par le
+    validateur du profil (celle que `opsys.taxonomie` écrirait), donc adoptable telle quelle."""
+
+    source: str
+    elements: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
 class Pack:
     id: str
     version: str
@@ -123,6 +141,7 @@ class Pack:
     termes_sectoriels: tuple[str, ...]
     empreinte: str
     dossier: Path = field(compare=False)
+    propositions_profil: PropositionsProfil | None = None
 
     @property
     def generique(self) -> bool:
@@ -423,6 +442,107 @@ def _valider_termes(brut: Any) -> tuple[str, ...]:
     return tuple(termes)
 
 
+# ============================================================================================ propositions de profil
+ETIQUETTE_RECOMMANDATION = "recommandation, non validée"
+
+
+def _statut_a_valider(entree: Mapping[str, Any], chemin: str) -> None:
+    """Un pack ne livre jamais un élément « validé » : seule l'adoption d'une personne rend un élément actif."""
+    if entree.get("statut") != STATUT_PROPOSITION:
+        raise RefusPack("REJ-PACK-PROPOSITION-VALIDEE",
+                        f"`statut: {STATUT_PROPOSITION}` obligatoire (un pack propose, une personne adopte ; reçu "
+                        f"{entree.get('statut')!r})", f"{chemin}.statut")
+
+
+def _normaliser_profil(fn, valeur: Any, chemin: str) -> Any:
+    """Le validateur du PROFIL juge la proposition : une valeur qu'il refuserait ne sera jamais adoptable."""
+    try:
+        return fn(valeur)
+    except taxonomie.ProfilInvalide as exc:
+        raise RefusPack("REJ-PACK-PROPOSITION-INVALIDE", str(exc), chemin) from exc
+
+
+def _entree_propre(brut: Any, chemin: str, cles: set[str], requises: set[str]) -> Mapping[str, Any]:
+    entree = _objet(brut, chemin, cles | {"statut"}, requises=requises)
+    _statut_a_valider(entree, chemin)
+    return entree
+
+
+def _valider_questions_proposees(brut: Any, codes_services: set[str], base: str) -> Any:
+    if not isinstance(brut, Mapping) or not brut:
+        raise RefusPack("REJ-PACK-PROPOSITION-INVALIDE", "un objet {service: [questions]} non vide est attendu", base)
+    propres: dict[str, Any] = {}
+    for service, liste in brut.items():
+        chemin = f"{base}.{service}"
+        if service not in codes_services:
+            raise RefusPack("REJ-PACK-PROPOSITION-INVALIDE",
+                            f"service {service!r} absent des services du pack ({sorted(codes_services)})", chemin)
+        brutes = []
+        for i, q in enumerate(_liste(liste, chemin, maxi=50)):
+            entree = _entree_propre(q, f"{chemin}[{i}]", {"code", "question", "mots_cles", "photos"},
+                                    {"code", "question"})
+            brutes.append({cle: v for cle, v in entree.items() if cle != "statut"})
+        propres.update(_normaliser_profil(taxonomie.normaliser_questions_qualification, {service: brutes}, chemin))
+    return propres
+
+
+def _valider_signaux_proposes(brut: Any, base: str) -> Any:
+    if not isinstance(brut, Mapping):
+        raise RefusPack("REJ-PACK-PROPOSITION-INVALIDE", "un objet {catégorie: {termes}} est attendu", base)
+    bruts: dict[str, Any] = {}
+    for categorie, entree in brut.items():
+        o = _entree_propre(entree, f"{base}.{categorie}", {"termes"}, {"termes"})
+        bruts[categorie] = o["termes"]
+    return _normaliser_profil(taxonomie.normaliser_signaux_plainte, bruts, base)
+
+
+def _valider_destinataires_proposes(brut: Any, base: str) -> Any:
+    if not isinstance(brut, Mapping):
+        raise RefusPack("REJ-PACK-PROPOSITION-INVALIDE", "un objet {type: {role}} est attendu", base)
+    bruts: dict[str, Any] = {}
+    for type_transfert, entree in brut.items():
+        o = _entree_propre(entree, f"{base}.{type_transfert}", {"role"}, {"role"})
+        bruts[type_transfert] = o["role"]
+    return _normaliser_profil(taxonomie.normaliser_destinataires_transfert, bruts, base)
+
+
+def _valider_valeur_chiffree(brut: Any, base: str, cle_valeur: str, normaliser) -> Any:
+    """Fenêtre et poids : une valeur chiffrée n'est qu'une recommandation illustrative, dite telle et justifiée."""
+    o = _entree_propre(brut, base, {cle_valeur, "etiquette", "justification"},
+                       {cle_valeur, "etiquette", "justification"})
+    if o["etiquette"] != ETIQUETTE_RECOMMANDATION:
+        raise RefusPack("REJ-PACK-PROPOSITION-INVALIDE",
+                        f"étiquette attendue : {ETIQUETTE_RECOMMANDATION!r} (une valeur chiffrée n'est jamais "
+                        "présentée comme validée)", f"{base}.etiquette")
+    _texte(o["justification"], f"{base}.justification", maxi=600, multiligne=True)
+    return _normaliser_profil(normaliser, o[cle_valeur], base)
+
+
+def _valider_propositions(brut: Any, services: tuple[ServicePack, ...]) -> PropositionsProfil:
+    base = "propositions_profil"
+    o = _objet(brut, base, {"source", *ELEMENTS_PROPOSES}, requises={"source"})
+    source = _texte(o["source"], f"{base}.source", maxi=600, multiligne=True)
+    elements: dict[str, Any] = {}
+    for element in ELEMENTS_PROPOSES:
+        if element not in o:
+            continue
+        chemin = f"{base}.{element}"
+        if element == taxonomie.CLE_QUESTIONS_QUALIFICATION:
+            valeur = _valider_questions_proposees(o[element], {s.code for s in services}, chemin)
+        elif element == taxonomie.CLE_SIGNAUX_PLAINTE:
+            valeur = _valider_signaux_proposes(o[element], chemin)
+        elif element == taxonomie.CLE_DESTINATAIRES_TRANSFERT:
+            valeur = _valider_destinataires_proposes(o[element], chemin)
+        elif element == taxonomie.CLE_FENETRE_CONVERSATION:
+            valeur = _valider_valeur_chiffree(o[element], chemin, "valeur", taxonomie.normaliser_fenetre_conversation)
+        else:
+            valeur = _valider_valeur_chiffree(o[element], chemin, "valeurs", taxonomie.normaliser_poids_score_lead)
+        elements[element] = valeur
+    if not elements:
+        raise RefusPack("REJ-PACK-PROPOSITION-INVALIDE", "au moins un élément est proposé (ou retire la clé)", base)
+    return PropositionsProfil(source, elements)
+
+
 # ============================================================================================ chargement
 def charger_dossier(dossier: Path, *, id_attendu: str | None = None, verifier_empreinte: bool = True) -> Pack:
     """Charge et valide le pack du `dossier` ; l'identifiant du manifeste doit être le nom du dossier.
@@ -438,7 +558,7 @@ def charger_dossier(dossier: Path, *, id_attendu: str | None = None, verifier_em
         raise RefusPack("REJ-PACK-ILLISIBLE", "un objet YAML est attendu à la racine", NOM_MANIFESTE)
     if donnees.get("schema") != SCHEMA_PACK:
         raise RefusPack("REJ-PACK-SCHEMA", f"schema attendu : {SCHEMA_PACK!r}", "schema")
-    o = _objet(donnees, "", _CLES_RACINE)
+    o = _objet(donnees, "", _CLES_RACINE, requises=set(_CLES_RACINE - _CLES_RACINE_FACULTATIVES))
     identifiant = _texte(o["id"], "id", maxi=64)
     if not ID_PACK.fullmatch(identifiant) or identifiant != (id_attendu or dossier.name):
         raise RefusPack("REJ-PACK-ID-INVALIDE", f"l'identifiant {identifiant!r} doit être le nom du dossier "
@@ -477,10 +597,14 @@ def charger_dossier(dossier: Path, *, id_attendu: str | None = None, verifier_em
             if contenu:
                 raise RefusPack("REJ-PACK-GENERIQUE-NON-VIDE",
                                 f"un pack non sectoriel ne porte aucun contenu de secteur ({nom})", nom)
+        if "propositions_profil" in o:
+            raise RefusPack("REJ-PACK-GENERIQUE-NON-VIDE",
+                            "un pack non sectoriel ne propose aucun élément de profil", "propositions_profil")
     elif not termes:
         raise RefusPack("REJ-PACK-TERMES-ABSENTS", "un pack sectoriel liste ses termes : sans eux, la garde du cœur "
                         "n'a rien à garder", "termes_sectoriels")
 
+    propositions = _valider_propositions(o["propositions_profil"], services) if "propositions_profil" in o else None
     # Fichiers : seuls le manifeste, l'empreinte et les gabarits déclarés ; rien de plus (rien n'échappe à la revue).
     declares = {NOM_MANIFESTE, NOM_EMPREINTE, *(g.fichier for g in gabarits)}
     for chemin in _fichiers_du_pack(dossier):
@@ -493,5 +617,5 @@ def charger_dossier(dossier: Path, *, id_attendu: str | None = None, verifier_em
         description=_texte(o["description"], "description", maxi=600, multiligne=True), sectoriel=sectoriel,
         vocabulaire=vocabulaire, appellations=appellations, services=services, glossaire=glossaire,
         gabarits=gabarits, baremes=baremes, exemples=exemples, blocs=blocs, termes_sectoriels=termes,
-        empreinte=empreinte, dossier=dossier,
+        empreinte=empreinte, dossier=dossier, propositions_profil=propositions,
     )

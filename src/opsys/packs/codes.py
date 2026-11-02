@@ -30,6 +30,13 @@ CODES_PACK: tuple[str, ...] = (
     # -- rendu
     "REJ-PACK-JETON-INCONNU",        # `{{jeton}}` hors du vocabulaire du pack, ou mal formé
     "REJ-PACK-DEPARTEMENT-INCONNU",  # code de département hors M1–M10
+    # -- propositions de profil (le pack propose, le propriétaire adopte)
+    "REJ-PACK-PROPOSITION-INVALIDE",        # une proposition que le validateur du profil refuserait
+    "REJ-PACK-PROPOSITION-VALIDEE",         # un élément proposé dont le statut n'est pas `a_valider`
+    "REJ-PACK-ADOPTION-ELEMENT-INCONNU",    # élément hors de la liste fermée, ou que le pack ne propose pas
+    "REJ-PACK-ADOPTION-PACK-INACTIF",       # le pack n'est pas celui que le profil a choisi
+    "REJ-PACK-ADOPTION-ECRASE",             # le profil porte déjà une valeur différente : le propriétaire prime
+    "REJ-PACK-ADOPTION-SANS-SIGNATURE",     # adoption sans personne qui signe
 )
 _CODES = frozenset(CODES_PACK)
 

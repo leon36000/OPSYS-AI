@@ -64,6 +64,8 @@ approuvez), et aucune instance de production n'existe.
 | **Cash libre rafraîchi automatiquement** | **Livré sur SQLite avec horloge injectée, inactif par défaut** : le constat planifié `m5.constat.cash-libre` (variante N2 de l'outil N3 de l'admin) alimente le cash libre, le solde, les comptes à payer et les taxes à remettre de M8, donc la composante « finance » du score de santé (qui reste indéterminée tant que le propriétaire n'a pas déclaré les bornes). Un admin doit le passer en `ombre` puis `actif`. **Limite de fraîcheur** : M8 date le constat du début du jour UTC et la fenêtre est de 24 h, donc les quatre mesures sont périmées environ de 19 h à minuit (heure locale) tant que le propriétaire n'a pas déclaré une fenêtre de 48 h ; jamais éprouvé sur PostgreSQL ni plusieurs jours en production. | [M5-CASH-LIBRE-PLANIFIE](../../departments/m05-financecore/docs/M5-CASH-LIBRE-PLANIFIE.md) |
 | **Interconnexion : consentement de suivi, créance, constats contradictoires** | Trois défauts de la revue adverse sont fermés par des événements du catalogue (aucun droit de plus) et **prouvés sur le vrai bus, SQLite et le vrai sas d'envoi, avec le vrai producteur M4 pour le retrait** : le retrait du consentement de suivi (`m4.consentement_suivi_retire`) refuse et neutralise les brouillons de M1 qui ne sont pas partis ; une facture payée ou annulée lève la relance de créance de M2 (`m5.facture_emise_constatee` réutilisé) ; un constat rejoué avec la même clé mais un contenu différent est dit par M2, M5 et M8 (le premier état reste). **Limites** : le retrait vaut à la livraison de l'événement par le répartiteur, pas à l'instant de l'inscription chez M4 (fenêtre non mesurée) ; un message déjà réservé, envoyé ou incertain ne se rappelle pas ; la demande N3 déjà ouverte reste dans le sas (elle ne peut plus s'exécuter, la file de la direction le dit) ; aucun outil n'annule encore une facture client ; la contradiction est rangée et dite, jamais notifiée ni acquittée (M3, M4, M6, M9 gardent l'ancien rejeu silencieux) ; jamais exercé sur PostgreSQL ni sur un écran réel. | [INTERCONNEXION §2, §2 bis, §7](../architecture/INTERCONNEXION.md) |
 | **Réglages de direction (CFG-1)** | Les seuils de direction de M2 (trois délais, bandes de valeur) et les bornes du score de santé de M8 se décident depuis l'écran « Réglages de direction » (geste N3 du propriétaire, retour arrière, journal chaîné). **Prouvé sur le vrai sas, les vrais outils de M2 et de M8 et le client HTTP de test, sur SQLite et sur un PostgreSQL 17 éphémère (magasin, lecture, geste) ; jamais joué dans un vrai navigateur ni sur un téléphone** (aucun écran mobile). **Aucune valeur réelle n'existe** : tant que Nathan n'adopte rien, M2 reste inerte (« à configurer ») et le score de santé indéterminé, comme avant. Les trois délais proposés pour M2 sont les exemples du manifeste (« recommandation, non validée », jamais calibrés) ; M8 ne propose aucune borne. Pas de péremption des valeurs adoptées, pas de niveau N4, `ponderations_validees_par` non branché, M3/M4/M5 non branchés. | [REGLAGES-DIRECTION](../architecture/REGLAGES-DIRECTION.md) §6, §8 |
+| **Profil de réception du pack « rénovation extérieure » (M1-A)** | **Livré sur SQLite, tout `a_valider`, rien d'actif tant qu'une personne n'a pas adopté** : le pack propose les questions de qualification des quatre services, le vocabulaire des plaintes et des urgences, les destinataires de transfert (des rôles), la fenêtre de conversation (30 min) et les poids du score (30/50/20, recommandations illustratives) ; `opsys-metier pack adopter ÉLÉMENT --par NOM` les écrit un à un dans `entreprise.yaml`, signé au journal, sans jamais écraser une valeur du propriétaire. Prouvé avec le vrai bus et le vrai M2 sur des SMS fictifs. **Jamais mesuré sur de vrais messages** (corpus fictif de 26 plaintes et 15 demandes ordinaires, écrit par l'auteur du pack) ; l'adoption est un geste de ligne de commande, pas une approbation N3 de la console ; M1 ne pose les questions qu'avec une fenêtre adoptée ; la demande de photos reste fermée tant que la politique photos n'est pas validée ; le budget du client n'est pas proposé. Voir `docs/architecture/PACKS-SECTORIELS.md`. |
+| **Bac à sable vocal textuel (M1-D)** | **Politique de dialogue seulement, aucune voix** : des faux appels écrits d'avance exercent des règles (garde-fou en boucle, redemander sur faible confiance, repli sur deux échecs de suite, colère, danger, sujet légal ou financier, messagerie sans personne, transfert avec résumé) sur les vrais morceaux de M1 et la session voix du socle. Aucun audio, VAD, STT, TTS, ligne ou fournisseur ; latence et accent non mesurés ; le canal voix reste « prévu » ; M1.2 reste SIMULE et M1.19 passe d'ABSENT à SIMULE, jamais FAIT_PROUVE. Les seuils (confiance, échecs) sont à décider par Nathan (aucune valeur par défaut), les échecs comptés sont consécutifs (à confirmer), le lexique générique est une proposition, et sans vocabulaire de plaintes adopté ni colère ni danger ne sont reconnus (précondition de tout appel réel). Un seul appel opt-in à un vrai modèle a été fait : il n'a pas dérapé. Voir `docs/architecture/M1-BAC-A-SABLE-VOIX.md`. |
 
 ## 4. À valider par une avocate ou un avocat
 
@@ -88,6 +90,7 @@ suivi GPS, rétention) et ÉFVP avant tout transfert de renseignements personnel
 - **La cible du premier serveur** : sans elle, aucune qualification de VPS n'est possible.
 - Licence du dépôt ; décision sur `libsignal` ; lecture des licences de modèles marquées « à lire » avant toute activation.
 - Les décisions et portes ouvertes des matrices, ci-dessous.
+- **Le contenu du profil de réception de M1** (corriger puis adopter, un élément à la fois : `opsys-metier pack propositions`, `pack adopter`) et **les seuils du dialogue vocal** (confiance minimale d'une transcription, nombre d'échecs avant repli, échecs consécutifs ou cumulés), avant tout essai réel.
 - **Les valeurs des réglages de direction** (écran « Réglages de direction » de la console) : trois délais de M2 (dormance, devis périmé, fréquence des relances) et les bandes de valeur du score de lead ; six couples « pire / cible » du score de santé de M8. Une valeur proposée est une recommandation non validée ; sans votre geste, rien ne s'applique ([REGLAGES-DIRECTION](../architecture/REGLAGES-DIRECTION.md)).
 
 ## 7. Ce que disent les matrices
@@ -104,7 +107,7 @@ ci-dessous sont recopiés par un script et vérifiés par un test.
 
 | Code | Département | Exigences | Statuts (matrice) |
 |---|---|---:|---|
-| M1 | Front Office (Léa) | 20 | FAIT_PROUVE 0 · PARTIEL 18 · SIMULE 1 · ABSENT 1 |
+| M1 | Front Office (Léa) | 20 | FAIT_PROUVE 0 · PARTIEL 18 · SIMULE 2 · ABSENT 0 |
 | M2 | Revenue CRM (Victor) | 15 | FAIT_PROUVE 1 · PARTIEL 14 · SIMULE 0 · ABSENT 0 |
 | M3 | Estimation (Mathis) | 18 | FAIT_PROUVE 1 · PARTIEL 15 · SIMULE 2 · ABSENT 0 |
 | M4 | Field Ops (Gabriel) | 24 | FAIT_PROUVE 2 · PARTIEL 22 · SIMULE 0 · ABSENT 0 |
@@ -122,13 +125,13 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 | Exigence | Titre | Statut | Limite (première phrase) |
 |---|---|---|---|
 | M1.2 | Agent vocal de réception | SIMULE | Statut revérifié le 2026-11-01 sans changement : aucun runtime STT/TTS/SIP/VAD n'existe dans le dépôt ; avatars.CANAUX_REALISES = {messagerie} (la politique refuse tout canal vocal « disponible ») ; phases_voix.py ne fait que consommer des événements fournis … |
-| M1.19 | Bac à sable vocal | ABSENT | Aucun faux appel ni pipeline STT/TTS : seule la machine à états des phases (cf. M1.2) est testée. |
+| M1.19 | Bac à sable vocal | SIMULE | Bac à sable TEXTUEL seulement (SIMULE, jamais FAIT_PROUVE) : des faux appels écrits d'avance (tours de texte, confiance de transcription injectée, horloge simulée) exercent la POLITIQUE DE DIALOGUE (garde-fou en boucle, redemander sur faible confiance, repli … |
 | M3.3 | Pipeline de vision | SIMULE | Contrat du pipeline (photo avec provenance -> candidats avec incertitude, masque, version du modèle), port DetecteurVision, gouvernance (un candidat n'est jamais une mesure : seuil de confiance et tolérance déclarés, mesure de référence ou personne N3), harna… |
 | M3.5 | Détection et segmentation (Grounding DINO + SAM2) | SIMULE | Registre des modèles (capacité « vision » du registre de fournisseurs, migration 0049) : Grounding DINO et SAM 2 (pile visée), Florence-2 et OWLv2 (replis), YOLO écarté (AGPL), drapeaux de licence, statut honnête « contrat prêt, aucun modèle qualifié ». |
 
 ### Décisions que les matrices attendent de Nathan
 
-**M1 (16)**
+**M1 (18)**
 - Où publier le formulaire et son récepteur public (M1-canaux §13.7)
 - Identifiants des canaux réels
 - Validation de la politique d'enregistrement d'appels
@@ -145,6 +148,8 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - destinataires_transfert du profil d'entreprise
 - Garder les utm le temps de la visite (Loi 25)
 - Borne de longueur des utm
+- Seuil de confiance de transcription et nombre d'échecs avant repli (SeuilsDialogue : aucune valeur par défaut)
+- Lexique générique (sujets légal et financier, demande d'une personne, prix, date) et ordre de préséance
 
 **M2 (8)**
 - Définition du profil de propriété avec M3 (M3.2) : champs et énumérés initiaux déclarés par M2, à confirmer

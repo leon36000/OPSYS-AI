@@ -80,6 +80,7 @@ packs/<id>/
 | `baremes` | `{id, libelle, unite, statut, valeur, ou_fournir}` ; `a_fournir_par_entreprise` ⇒ `valeur: null` ; `exemple_fictif` ⇒ nombre, rendu « exemple fictif non contractuel » |
 | `exemples` | `{id, departement, demande, fictif: true}` |
 | `blocs` | `m01` à `m10` (les dix, explicitement) : `{ligne, inclure: [services, glossaire, baremes, appellations]}` |
+| `propositions_profil` | **facultatif** (le pack générique n'en porte pas) : ce que le pack PROPOSE au profil de réception de M1, tout `a_valider` — voir « Propositions de profil » plus bas |
 | `termes_sectoriels` | les termes que la garde interdit dans le cœur (sans accent ni casse, début de mot) ; non vide pour un pack sectoriel |
 
 ### Jetons et bloc sectoriel
@@ -115,13 +116,47 @@ avoir chargé le pack. **Point d'appui de l'onboarding** : `opsys.packs.enregist
 `opsys.ingestion_onboarding` appellera pour proposer, puis faire confirmer par un humain, le pack de l'entreprise. Elle n'est
 pas encore raccordée à l'ingestion : aujourd'hui, le choix est un geste humain explicite.
 
+## Propositions de profil (M1-A, 2026-11-02) : le pack propose, le propriétaire adopte
+
+Une PME ne peut pas qualifier une demande sans savoir quoi demander, quels mots signalent une plainte ou un danger, ni à qui
+transférer. Ces réponses vivent dans le profil d'entreprise (`entreprise.yaml` : `questions_qualification`, `signaux_plainte`,
+`destinataires_transfert`, `fenetre_conversation_minutes`, `poids_score_lead`, voir [TAXONOMIE](TAXONOMIE.md)), vide par défaut :
+M1 enregistre tout et ne qualifie rien. Le pack `renovation-exterieure-qc` porte maintenant une **première version complète
+de ces cinq éléments**, sous la clé facultative `propositions_profil` :
+
+- **Tout est `a_valider`.** Chaque question, chaque catégorie de termes, chaque destinataire, la fenêtre et les poids portent
+  `statut: a_valider` ; le chargeur refuse tout autre statut (`REJ-PACK-PROPOSITION-VALIDEE`) : un pack ne livre pas d'élément
+  validé. Les deux valeurs chiffrées (fenêtre de 30 minutes, poids 30/50/20) sont étiquetées « recommandation, non validée » :
+  ce sont les exemples déjà écrits dans la documentation et la fixture de M1, illustratifs, jamais calibrés sur l'entreprise.
+- **Le validateur du profil juge la proposition.** Le chargeur appelle les `normaliser_*` de `opsys.taxonomie` : une valeur que
+  le profil refuserait (terme trop court, rôle `client`, poids manquant, question sans mot-clé…) est refusée par le pack
+  (`REJ-PACK-PROPOSITION-INVALIDE`, avec le chemin), donc **une proposition chargée est adoptable telle quelle**. Les services
+  des questions sont ceux du pack. Les rôles sont des rôles (`seller`, `manager`, `nathan_owner`…) : ni personne ni coordonnée.
+- **Choisir un pack n'active rien.** Les départements ne lisent que `entreprise.yaml`. `opsys-metier pack propositions` dit,
+  par élément, `non_adoptee`, `adoptee` ou `differente` (le propriétaire a écrit autre chose). `opsys-metier pack adopter
+  ELEMENT --par NOM` écrit UN élément dans le profil par les `enregistrer_*` de la taxonomie, signé au journal d'audit
+  (`entreprise.adoption_proposition` : élément, pack, version, empreinte, comptes ; jamais les mots).
+- **Le propriétaire prime.** Une valeur différente déjà en place n'est jamais écrasée (`REJ-PACK-ADOPTION-ECRASE`) ; la même
+  valeur est une adoption déjà faite (rien d'écrit, rien de journalisé) ; une valeur illisible n'est pas lue comme absente ;
+  le pack doit être celui que le profil a choisi (`REJ-PACK-ADOPTION-PACK-INACTIF`), non altéré (empreinte).
+- **Ce que l'adoption ne fait pas.** Elle est un geste de ligne de commande (comme `pack choisir`), pas une approbation N3 de la
+  console ; elle ne valide pas la justesse des mots (jamais mesurés sur de vrais messages) ; elle ne déclare ni les services de
+  l'entreprise ni sa zone desservie (des décisions de l'entreprise) ; elle n'ouvre pas la demande de photos, qui reste fermée
+  tant que `POLITIQUE-photos-non-contractuelles.md` n'est pas `valide`. Le budget du client (« budget si accepté » du prompt de
+  Nathan) n'est PAS proposé : c'est à Nathan de décider s'il se demande.
+- Preuves : `tests/test_pack_propositions_profil.py` (chargeur, adoption, CLI) et
+  `tests/test_m1_pack_renovation_bout_en_bout.py` (une demande réelle de bout en bout avec le vrai bus et M2 : qualifiée avec le
+  pack adopté, rien reconnu sans lui).
+
 ## Refus (catalogue fermé)
 
 `REJ-PACK-INTROUVABLE`, `REJ-PACK-ID-INVALIDE`, `REJ-PACK-ILLISIBLE` (YAML illisible, clé en double, alias, trop gros),
 `REJ-PACK-FICHIER-INVALIDE` (fichier absent, hors du pack, lien symbolique, caché, non déclaré),
 `REJ-PACK-SCHEMA`, `REJ-PACK-CLE-INCONNUE`, `REJ-PACK-CHAMP-INVALIDE`, `REJ-PACK-DOUBLON`, `REJ-PACK-TERMES-ABSENTS`,
 `REJ-PACK-GENERIQUE-NON-VIDE`, `REJ-PACK-BAREME-INVENTE`, `REJ-PACK-EMPREINTE-ABSENTE`, `REJ-PACK-EMPREINTE`,
-`REJ-PACK-PROFIL-INVALIDE`, `REJ-PACK-NON-INSTALLE`, `REJ-PACK-JETON-INCONNU`, `REJ-PACK-DEPARTEMENT-INCONNU`. Le détail dit quoi
+`REJ-PACK-PROFIL-INVALIDE`, `REJ-PACK-NON-INSTALLE`, `REJ-PACK-JETON-INCONNU`, `REJ-PACK-DEPARTEMENT-INCONNU`, et pour les
+propositions de profil : `REJ-PACK-PROPOSITION-INVALIDE`, `REJ-PACK-PROPOSITION-VALIDEE`, `REJ-PACK-ADOPTION-ELEMENT-INCONNU`,
+`REJ-PACK-ADOPTION-PACK-INACTIF`, `REJ-PACK-ADOPTION-ECRASE`, `REJ-PACK-ADOPTION-SANS-SIGNATURE`. Le détail dit quoi
 corriger, `chemin` nomme le champ. Un code hors de cette liste est une faute de programmation.
 
 ## Commandes
@@ -132,6 +167,8 @@ opsys-metier pack valider [--pack ID]            # schéma fermé, fichiers, emp
 opsys-metier pack afficher ID --departement M3   # le bloc EXACT ajouté au prompt
 opsys-metier pack empreinte ID [--ecrire]        # empreinte du contenu ; --ecrire scelle après revue
 opsys-metier pack choisir ID --par NOM           # écrit `pack:` dans entreprise.yaml
+opsys-metier pack propositions [--pack ID]       # propositions de profil du pack choisi et état de chaque élément
+opsys-metier pack adopter ELEMENT --par NOM      # adopte UN élément proposé (signé, n'écrase jamais)
 opsys-metier verifier                            # valide aussi les packs et le pack du profil
 ```
 

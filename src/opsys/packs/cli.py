@@ -4,6 +4,9 @@
 - `valider [--pack ID]` : charge (donc valide strictement, empreinte comprise) un pack ou tous ;
 - `afficher ID --departement M3` : le bloc sectoriel EXACT que ce pack ajoute au prompt du département ;
 - `empreinte ID [--ecrire]` : l'empreinte du contenu actuel ; `--ecrire` la régénère APRÈS revue du changement ;
+- `propositions [--pack ID]` : ce que le pack choisi propose au profil de réception et l'état de chaque élément ;
+- `adopter ELEMENT --par NOM` : écrit UN élément proposé dans le profil (signé ; n'écrase jamais la valeur du
+  propriétaire) ;
 - `choisir ID --par NOM` : écrit `pack: ID` dans le profil d'entreprise (signé au journal d'audit). C'est le geste que
   l'onboarding propose et qu'un humain confirme : l'ingestion ne choisit jamais un pack à la place de l'entreprise.
 
@@ -17,7 +20,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import resolution
+from . import adoption, resolution
 from .codes import RefusPack
 from .manifeste import ID_PACK, NOM_EMPREINTE, calculer_empreinte, charger_dossier
 from .rendu import bloc_sectoriel
@@ -38,6 +41,12 @@ def ajouter_commandes(sous: argparse._SubParsersAction) -> None:
     ch = actions.add_parser("choisir", help="déclarer le pack de l'entreprise dans entreprise.yaml")
     ch.add_argument("id")
     ch.add_argument("--par", required=True, help="personne qui confirme le choix (journal d'audit)")
+    pr = actions.add_parser("propositions", help="propositions de profil du pack choisi et leur état (lecture seule)")
+    pr.add_argument("--pack", help="identifiant ; défaut : le pack du profil")
+    ad = actions.add_parser("adopter", help="adopter UN élément proposé par le pack choisi (signé, sans écraser)")
+    ad.add_argument("element", help="élément du profil : " + ", ".join(adoption.ELEMENTS))
+    ad.add_argument("--par", required=True, help="personne qui adopte (journal d'audit)")
+    ad.add_argument("--pack", help="identifiant ; doit être le pack du profil")
     p.set_defaults(fn=executer)
 
 
@@ -95,6 +104,18 @@ def executer(args: argparse.Namespace) -> int:
                 print(f"{empreinte}  ({dossier / NOM_EMPREINTE})")
             else:
                 print(calculer_empreinte(dossier))
+            return 0
+        if args.action == "propositions":
+            pack = resolution.charger_pack(args.pack or resolution.pack_declare() or resolution.PACK_PAR_DEFAUT)
+            print(json.dumps({
+                "pack": pack.id, "version": pack.version, "empreinte": pack.empreinte,
+                "source": pack.propositions_profil.source if pack.propositions_profil else None,
+                "elements": adoption.etat_des_propositions(args.pack),
+            }, ensure_ascii=False, indent=2))
+            return 0
+        if args.action == "adopter":
+            print(json.dumps(adoption.adopter_proposition(args.element, par=args.par, pack_id=args.pack),
+                             ensure_ascii=False, indent=2))
             return 0
         if args.action == "choisir":
             fichier = resolution.enregistrer_pack(args.id, par=args.par)
