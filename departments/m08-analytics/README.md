@@ -160,3 +160,14 @@ Le propriétaire peut déclarer, pour `m8_lire_vue_executive` et `m8_lire_mesure
 attend le dernier fait de la lecture (`department.yaml`, `configuration.fraicheur_lectures_s`, vide à la livraison). Déclarée,
 la lecture porte `fraicheur_attendue_s` et `version_definition_fraicheur` ; sinon rien n'est ajouté. M9 compare, M8 ne juge pas.
 Contrat : [`docs/FRAICHEUR-ATTENDUE-LECTURES.md`](docs/FRAICHEUR-ATTENDUE-LECTURES.md).
+
+## Réglages de direction : les bornes du score de santé se décident dans la console (CFG-1)
+
+Les six couples « pire / cible » de `configuration.sante.bornes` (cash libre, taux d'acceptation, devis sans réponse, écart de
+durée, signal de matériaux, délai lead → acceptation) sont déclarés par le manifeste (bloc `reglages:`, clés
+`m8.bornes_<mesure>`, `ordre` aligné sur le sens du catalogue — un test le vérifie) et se ADOPTENT depuis l'écran « Réglages de
+direction » de la console (geste N3 du propriétaire, retour arrière possible). `_configuration()` passe par la couche unique
+`opsys.reglages.lecture` : **valeur adoptée > valeur déjà écrite dans `department.yaml` > absence** (score `INDETERMINE` qui dit
+quoi configurer, comme avant). **Aucune borne n'est proposée** : l'analyse d'écart recommande de laisser tourner les mesures
+quatre à huit semaines avant de les fixer. Adopter les bornes ne valide pas les pondérations (`ponderations_validees_par` n'est
+pas encore un réglage). Voir `docs/architecture/REGLAGES-DIRECTION.md`.

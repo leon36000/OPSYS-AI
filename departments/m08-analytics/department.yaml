@@ -174,6 +174,81 @@ configuration:
   # « pire » et « cible » vont dans le sens du « mieux » du catalogue (plus_est_mieux : pire < cible). Sans bornes valides,
   # le score est INDÉTERMINÉ et dit lesquelles configurer.
   sante: {}
+# Réglages de direction (CFG-1, docs/architecture/REGLAGES-DIRECTION.md) : ce que la direction décide pour M8, DÉCLARÉ ici et
+# adopté depuis la console (« Réglages de direction », geste N3 du propriétaire, retour arrière possible). Précédence de
+# lecture, réglage par réglage : valeur ADOPTÉE > valeur de `configuration` ci-dessus > absence (score INDÉTERMINÉ, comme avant).
+# AUCUNE proposition de bornes, volontairement : la recommandation de l'analyse d'écart (ANALYSE-M8 §5 Q1) est de laisser tourner
+# les mesures quatre à huit semaines et de lire la distribution réelle avant de fixer « pire » et « cible » ; proposer des
+# chiffres à l'aveugle serait les inventer. Les bornes min et max ci-dessous sont des bornes de SAISIE (refuser une faute de
+# frappe), pas des seuils d'affaires. `ordre` suit le sens du « mieux » du catalogue (un test le vérifie) : croissant =
+# pire < cible (plus_est_mieux), decroissant = pire > cible (moins_est_mieux).
+reglages:
+  - cle: m8.bornes_cash_libre_cad
+    libelle: "Score de santé : bornes du cash libre"
+    chemin: configuration.sante.bornes.m8_cash_libre_cad
+    type: bornes_pire_cible
+    unite: CAD
+    min: "-1000000000"
+    max: "1000000000"
+    ordre: croissant
+    niveau: N3
+    debloque: >-
+      Composante « Finance » (25 points sur 100) du score de santé (m8_lire_sante_entreprise) : sans ces bornes, le score est INDÉTERMINÉ.
+  - cle: m8.bornes_taux_acceptation_pct
+    libelle: "Score de santé : bornes du taux d'acceptation des devis"
+    chemin: configuration.sante.bornes.m8_taux_acceptation_pct
+    type: bornes_pire_cible
+    unite: "%"
+    min: "0"
+    max: "100"
+    ordre: croissant
+    niveau: N3
+    debloque: >-
+      Composante « Ventes » (indicateur taux d'acceptation) du score de santé (m8_lire_sante_entreprise) : sans ces bornes, le score est INDÉTERMINÉ.
+  - cle: m8.bornes_devis_sans_reponse
+    libelle: "Score de santé : bornes du nombre de devis sans réponse"
+    chemin: configuration.sante.bornes.m8_devis_sans_reponse
+    type: bornes_pire_cible
+    unite: devis
+    min: "0"
+    max: "100000"
+    ordre: decroissant
+    niveau: N3
+    debloque: >-
+      Composante « Ventes » (indicateur devis sans réponse) du score de santé (m8_lire_sante_entreprise) : sans ces bornes, le score est INDÉTERMINÉ.
+  - cle: m8.bornes_ecart_duree_equipe_pct
+    libelle: "Score de santé : bornes de l'écart de durée de l'équipe"
+    chemin: configuration.sante.bornes.m8_ecart_duree_equipe_pct
+    type: bornes_pire_cible
+    unite: "%"
+    min: "-100"
+    max: "1000"
+    ordre: decroissant
+    niveau: N3
+    debloque: >-
+      Composante « Opérations » du score de santé (m8_lire_sante_entreprise) : sans ces bornes, le score est INDÉTERMINÉ.
+  - cle: m8.bornes_chantiers_signal_materiaux
+    libelle: "Score de santé : bornes des chantiers avec signal critique de matériaux"
+    chemin: configuration.sante.bornes.m8_chantiers_signal_materiaux
+    type: bornes_pire_cible
+    unite: chantiers
+    min: "0"
+    max: "100000"
+    ordre: decroissant
+    niveau: N3
+    debloque: >-
+      Composante « Qualité » du score de santé (m8_lire_sante_entreprise) : sans ces bornes, le score est INDÉTERMINÉ.
+  - cle: m8.bornes_delai_lead_acceptation_jours
+    libelle: "Score de santé : bornes du délai entre un lead et son acceptation"
+    chemin: configuration.sante.bornes.m8_delai_lead_acceptation_jours
+    type: bornes_pire_cible
+    unite: jours
+    min: "0"
+    max: "3650"
+    ordre: decroissant
+    niveau: N3
+    debloque: >-
+      Composante « Clientèle » (indicateur approché, proxy) du score de santé (m8_lire_sante_entreprise) : sans ces bornes, le score est INDÉTERMINÉ.
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).

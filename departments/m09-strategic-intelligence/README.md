@@ -363,3 +363,14 @@ qualification par un modèle réel reste **OUVERTE**.
   corpus existants gardent leurs empreintes ; rouges connus `mkt-A07` et `rep-V02` conservés.
 - **Tests** : `tests/test_charges_athena.py`, `test_tableau_direction.py`, `test_recommandation_gouvernee.py`, `test_boucle_decisions.py`,
   `test_evaluation_athena.py` (purs) ; `tests/test_m9_athena_raccord.py` et `tests/test_m9_boucle_decisions_integre.py` (vrais départements).
+
+## Réglages de direction : lire ce qui manque, adopter, revenir (CFG-1)
+
+M9 porte les trois outils des réglages de direction (le mécanisme vit dans le socle, `opsys.reglages`) :
+`m9_lire_reglages_manquants` (T0/N0, aucun droit d'appareil : ce qui est vide, ce que ça bloque, la proposition « recommandation,
+non validée » et sa source, en pages bornées), `m9_adopter_reglage` et `m9_revenir_sur_reglage` (T1/N3, aucun droit d'appareil non plus).
+Les deux écritures n'agissent que sur **approbation du propriétaire dans le sas** : l'outil relit l'approbateur (`nathan_owner`
+actif), le niveau de la demande et l'instant de la décision en base ; un appel direct, d'agent ou d'appareil est refusé
+(`REJ-HUMAIN-REQUIS`). Chaque geste écrit un maillon chaîné (qui, quand, ancienne et nouvelle valeur, raison, version) ; l'audit
+du socle ne garde que la clé, la version et l'empreinte. Les réglages sont déclarés par les départements consommateurs (M2 et M8
+aujourd'hui) ; la console les présente dans « Réglages de direction ». Voir `docs/architecture/REGLAGES-DIRECTION.md`.

@@ -29,6 +29,7 @@ from .canaux import CANAUX
 from .identite import ROLES, Role
 from .outils import Niveau, Outil
 from .politiques import valider_mode
+from .reglages import declaration as reglages_declaration
 
 SCHEMA = "opsys.departement/v1"
 PALIERS = ("local", "rapide", "standard", "fort")
@@ -141,6 +142,9 @@ class Departement:
     avatar: Avatar | None = None
     # Constats de routine déclarés par le département et déclenchés par le planificateur durable (jamais par le socle).
     constats_planifies: tuple[ConstatPlanifie, ...] = ()
+    # Réglages que la direction décide pour ce département (bloc `reglages:` ; `opsys.reglages`, REGLAGES-DIRECTION.md).
+    # Des déclarations, jamais des valeurs : la valeur en vigueur est adoptée (magasin chaîné) ou vient du fichier.
+    reglages: tuple[reglages_declaration.Reglage, ...] = ()
 
     @property
     def prefixe_outils(self) -> str:
@@ -473,6 +477,7 @@ def lire_manifeste(dossier: Path) -> Departement:
         canaux=canaux,
         avatar=normaliser_avatar(donnees["avatar"], ctx) if "avatar" in donnees else None,
         constats_planifies=_constats_planifies(donnees, ctx, code),
+        reglages=reglages_declaration.lire(donnees.get("reglages"), ctx, code, ident),
     )
 
 

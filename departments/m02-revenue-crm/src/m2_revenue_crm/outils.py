@@ -55,6 +55,7 @@ from opsys import approbations, contexte, evenements, idempotence, identite, jet
 from opsys.evenements import constats
 from opsys.evenements.repartiteur import instant_publication_livre
 from opsys.outils import Autonomie, Niveau, Outil
+from opsys.reglages import lecture as reglages_lecture
 from opsys.stockage import codec
 from opsys.stockage.concurrence import verrou_ecriture_console
 from opsys.stockage.maillons import verrouiller_m2_principal
@@ -788,13 +789,17 @@ def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
 
 
 def _bloc_configuration(cle: str) -> Any:
-    """Le bloc `configuration.<cle>` de `department.yaml`, relu à chaque appel (patron de M6 et de M8). Absent : `None`.
+    """Le bloc `configuration.<cle>` de `department.yaml`, relu à chaque appel (patron de M6 et de M8), avec
+    par-dessus les réglages ADOPTÉS par la direction (`opsys.reglages`). Absent : `None`.
     Une `configuration` illisible (ni vide ni dictionnaire) est rendue telle quelle, pour que la lecture du bloc dise
     « invalide » au lieu de deviner."""
     donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
     configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
     if configuration is None or isinstance(configuration, dict):
-        return configuration.get(cle) if isinstance(configuration, dict) else None
+        du_fichier = configuration.get(cle) if isinstance(configuration, dict) else None
+        # Réglages de direction (CFG-1) : une valeur ADOPTÉE par le propriétaire l'emporte sur celle du fichier ; rien
+        # d'adopté : `du_fichier` tel quel (même objet). Précédence : opsys/reglages/lecture.py.
+        return reglages_lecture.superposer(donnees, ("configuration", cle), du_fichier)
     return configuration
 
 
