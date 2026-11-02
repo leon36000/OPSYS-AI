@@ -193,7 +193,7 @@ def test_devis_accepte_a_paiement_total_de_bout_en_bout(monde, m5, tmp_path):
     # 2. plan à 3 jalons DÉCLARÉ par une personne (N3) ; la somme tombe au cent, les taxes viennent du moteur
     decision = _decider(
         monde,
-        "m5_declarer_plan_facturation",
+        "m5_etablir_plan_facturation",
         {"devis_id": "D-1", "jalons": JALONS, "chantier_id": "CH-FICTIF-1", "horodatage": EMISSION_1},
     )
     assert decision["statut"] == "executee"
@@ -406,7 +406,7 @@ def test_un_plan_dont_la_somme_ne_tombe_pas_juste_est_refuse_et_rien_n_est_factu
     ]
     refuse = _decider(
         monde,
-        "m5_declarer_plan_facturation",
+        "m5_etablir_plan_facturation",
         {"devis_id": "D-2", "jalons": faux, "chantier_id": "CH-2", "horodatage": EMISSION_1},
     )
     verdict = refuse["reponse"]["resultat"]["verdict"]
@@ -420,7 +420,7 @@ def test_un_plan_dont_la_somme_ne_tombe_pas_juste_est_refuse_et_rien_n_est_factu
     ]
     bon = _decider(
         monde,
-        "m5_declarer_plan_facturation",
+        "m5_etablir_plan_facturation",
         {"devis_id": "D-2", "jalons": tiers, "chantier_id": "CH-2", "horodatage": EMISSION_1},
     )
     jalons = bon["reponse"]["resultat"]["resultat"]["jalons"]
@@ -436,7 +436,7 @@ def test_donnees_declarees_absentes_bloquent_lisiblement_chaque_etape(monde, m5,
     sans_delai = [{k: v for k, v in j.items() if k != "delai_paiement_jours"} for j in JALONS]
     refus = _decider(
         monde,
-        "m5_declarer_plan_facturation",
+        "m5_etablir_plan_facturation",
         {"devis_id": "D-1", "jalons": sans_delai, "chantier_id": "CH-1", "horodatage": EMISSION_1},
     )
     verdict = refus["reponse"]["resultat"]["verdict"]
@@ -445,7 +445,7 @@ def test_donnees_declarees_absentes_bloquent_lisiblement_chaque_etape(monde, m5,
     avec_delai = [{**j, "delai_paiement_jours": 10} for j in JALONS]
     plan = _decider(
         monde,
-        "m5_declarer_plan_facturation",
+        "m5_etablir_plan_facturation",
         {"devis_id": "D-1", "jalons": avec_delai, "chantier_id": "CH-1", "horodatage": EMISSION_1},
     )
     plan_id = plan["reponse"]["resultat"]["resultat"]["plan_id"]

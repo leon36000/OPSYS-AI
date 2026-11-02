@@ -37,7 +37,7 @@ def _installation_departement() -> dict:
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="le job Linux de CI exécute ce bloc dans bash")
 @pytest.mark.parametrize("dossier", _ci()["jobs"]["departement"]["strategy"]["matrix"]["dossier"])
-def test_le_job_de_m3_installe_l_extra_soumission_et_lui_seul(tmp_path, dossier):
+def test_les_jobs_de_m3_et_m5_installent_l_extra_soumission_et_lui_seul(tmp_path, dossier):
     """Exécute la sélection réelle de la CI ; uv est enregistré sans installer de paquet."""
     etape = _installation_departement()
     assert etape["env"]["DOSSIER"] == "${{ matrix.dossier }}"
@@ -56,7 +56,7 @@ def test_le_job_de_m3_installe_l_extra_soumission_et_lui_seul(tmp_path, dossier)
     extras = ["dev"]
     if dossier == "m04-field-ops":
         extras.append("tournees")
-    if dossier == "m03-estimation":
+    if dossier in ("m03-estimation", "m05-financecore"):  # M5 : PDF de facture et d'état de compte (M5-FACT-2)
         extras.append("soumission")
     commande = ["sync", "--locked", "--group", "build"]
     for extra in extras:

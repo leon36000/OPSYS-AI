@@ -6,7 +6,7 @@ bouger aucun argent (`conformite.verifier_aucun_decaissement`, strict).
 
 Qui décide quoi.
 
-* Déclarer ou révoquer un PLAN (`m5_declarer_plan_facturation`, `m5_revoquer_plan_facturation`) engage l'entreprise
+* Déclarer ou révoquer un PLAN (`m5_etablir_plan_facturation`, `m5_revoquer_plan_facturation`) engage l'entreprise
   envers un client : N3, une PERSONNE identifiée par le socle (propriétaire ou finance), jamais un argument ni un agent
   seul. Les pourcentages ou montants sont ceux qu'elle déclare ; rien n'est inventé.
 * Préparer la facture d'un jalon (`m5_creer_facture_jalon`) est une écriture interne non finale (BROUILLON, N1) : le
@@ -142,13 +142,13 @@ def _copie(registre: Any) -> Any:
 
 
 # ================================================================================================ plan de facturation
-def declarer_plan_facturation(
+def etablir_plan_facturation(
     devis_id: str, jalons: list[dict[str, Any]], chantier_id: str | None, horodatage: str
 ) -> dict[str, Any]:
     ctx, refus = contexte_facturation()
     if refus is not None:
         return refuse(refus)
-    humain, refus = humain_requis("m5_declarer_plan_facturation", "déclarer un plan de facturation par jalons")
+    humain, refus = humain_requis("m5_etablir_plan_facturation", "déclarer un plan de facturation par jalons")
     if refus is not None:
         return refuse(refus)
     refus = _horodatage_refus(horodatage)
@@ -255,7 +255,7 @@ def creer_facture_jalon(devis_id: str, rang: int, horodatage: str) -> dict[str, 
             _verdict(
                 "REJ-PLAN-INTROUVABLE",
                 f"aucun plan de facturation actif pour {devis_id!r} : "
-                "le déclarer d'abord (m5_declarer_plan_facturation)",
+                "le déclarer d'abord (m5_etablir_plan_facturation)",
             )
         )
     travaux_termines = (
@@ -577,7 +577,7 @@ def outils_facturation() -> tuple[Outil, ...]:
     objet = {"type": "object", "additionalProperties": False}
     return (
         Outil(
-            nom="m5_declarer_plan_facturation",
+            nom="m5_etablir_plan_facturation",
             description=(
                 "DÉCLARE le plan de facturation par jalons d'un devis ACCEPTÉ (acompte à l'acceptation, jalons de "
                 "chantier, solde à la fin des travaux), avec les pourcentages OU les montants avant taxes que la "
@@ -620,7 +620,7 @@ def outils_facturation() -> tuple[Outil, ...]:
                 },
                 "required": ["devis_id", "jalons", "chantier_id", "horodatage"],
             },
-            fonction=declarer_plan_facturation,
+            fonction=etablir_plan_facturation,
             autonomie=Autonomie.T1,
             niveau=Niveau.N3,
         ),

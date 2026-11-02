@@ -62,7 +62,7 @@ JALONS = [
     {"libelle": "Solde à la fin des travaux", "declencheur": "fin_travaux", "pourcentage": "30"},
 ]
 OUTILS_NOUVEAUX = {
-    "m5_declarer_plan_facturation": (Autonomie.T1, Niveau.N3),
+    "m5_etablir_plan_facturation": (Autonomie.T1, Niveau.N3),
     "m5_revoquer_plan_facturation": (Autonomie.T1, Niveau.N3),
     "m5_creer_facture_jalon": (Autonomie.T1, Niveau.N1),
     "m5_lire_plan_facturation": (Autonomie.T0, None),
@@ -188,7 +188,7 @@ def resultat(decision):
 def declarer_plan(dep, jalons=None, devis_id="D-1", chantier_id="CH-1", horodatage=H, **kw):
     _, decision = decider(
         dep,
-        "m5_declarer_plan_facturation",
+        "m5_etablir_plan_facturation",
         {"devis_id": devis_id, "jalons": jalons or JALONS, "chantier_id": chantier_id, "horodatage": horodatage},
         **kw,
     )
@@ -257,7 +257,7 @@ def test_niveaux_autonomie_et_portee_des_outils_de_facturation(par_nom):
     assert par_nom["m5_enregistrer_paiement_facture"].niveau_effectif is Niveau.N5
     # déclarer ou révoquer un plan engage envers un client : jamais en dessous de N3 ; rien ne s'envoie ni ne se paie
     # ici
-    for nom in ("m5_declarer_plan_facturation", "m5_revoquer_plan_facturation"):
+    for nom in ("m5_etablir_plan_facturation", "m5_revoquer_plan_facturation"):
         assert par_nom[nom].niveau_effectif is Niveau.N3
 
 
@@ -293,10 +293,10 @@ def test_declarer_un_plan_passe_par_la_file_et_une_personne_l_ecrit_un_agent_seu
     recevoir_devis()
     arguments = {"devis_id": "D-1", "jalons": JALONS, "chantier_id": "CH-1", "horodatage": H}
     capacites = Capacites({DEPARTEMENT: dep}, stockage.transaction)
-    reponse = capacites.appeler("m5_declarer_plan_facturation", arguments)
+    reponse = capacites.appeler("m5_etablir_plan_facturation", arguments)
     assert reponse["statut"] == "en_attente_approbation" and registre("plans_facturation") == []
     # exécuté directement (hors file) : refusé, comme pour toute décision humaine requise
-    verdict = refus(appeler(par_nom, "m5_declarer_plan_facturation", arguments))
+    verdict = refus(appeler(par_nom, "m5_etablir_plan_facturation", arguments))
     assert verdict["code"] == "REJ-OPS-HUMAIN-REQUIS" and registre("plans_facturation") == []
     # un employé ne décide pas
     disponibles = outils_executables({DEPARTEMENT: dep}, stockage.transaction)
@@ -319,7 +319,7 @@ def test_refuser_la_demande_n_ecrit_aucun_plan(par_nom, declare, dep):
     recevoir_devis()
     _, decision = decider(
         dep,
-        "m5_declarer_plan_facturation",
+        "m5_etablir_plan_facturation",
         {"devis_id": "D-1", "jalons": JALONS, "chantier_id": "CH-1", "horodatage": H},
         approuver=False,
     )

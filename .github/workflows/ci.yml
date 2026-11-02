@@ -218,7 +218,7 @@ jobs:
         run: |
           extras=(--extra dev)
           if [[ "$DOSSIER" == m04-field-ops ]]; then extras+=(--extra tournees); fi
-          if [[ "$DOSSIER" == m03-estimation ]]; then extras+=(--extra soumission); fi
+          if [[ "$DOSSIER" == m03-estimation || "$DOSSIER" == m05-financecore ]]; then extras+=(--extra soumission); fi
           uv sync --locked --group build "${extras[@]}" --no-build-isolation --no-install-project
           uv sync --locked --group build "${extras[@]}" --no-build-isolation
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"

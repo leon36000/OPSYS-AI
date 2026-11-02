@@ -56,7 +56,7 @@ Rien ne s'invente, rien ne s'envoie, rien ne se paie sans une personne.
 
 | Outil | Autonomie / niveau | Geste |
 |---|---|---|
-| `m5_declarer_plan_facturation` | T1 / **N3 humain** | Déclare le plan d'un devis ACCEPTÉ (2 à 12 jalons : acompte(s) à l'acceptation, jalons de chantier, au plus un solde à la fin des travaux) ; pourcentages OU montants ; idempotent |
+| `m5_etablir_plan_facturation` | T1 / **N3 humain** | Déclare le plan d'un devis ACCEPTÉ (2 à 12 jalons : acompte(s) à l'acceptation, jalons de chantier, au plus un solde à la fin des travaux) ; pourcentages OU montants ; idempotent |
 | `m5_revoquer_plan_facturation` | T1 / **N3 humain** | Révoque un plan qui n'a donné AUCUNE facture (pas même un brouillon) ; motif obligatoire |
 | `m5_creer_facture_jalon` | T1 / N1 | Brouillon de la facture d'un jalon : montant du plan, taxes du moteur ; ordre des jalons, « fin des travaux » seulement après `m4.travaux_termines`, jamais plus que le prix du devis ; idempotent |
 | `m5_lire_plan_facturation` | T0 | Où en est le plan (facturé, solde, numéro, échéance, retard à `aujourd_hui`, écart d'arrondi des taxes) et la liste de ce que le propriétaire doit encore déclarer |

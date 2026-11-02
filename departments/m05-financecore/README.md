@@ -429,3 +429,27 @@ dit (`en_attente_d_une_personne.constats_contradictoires_m7_a_examiner`, absent 
 `constats_planifies` du `department.yaml` et lancés par le planificateur durable (exécuteurs `m5.constat.depense-publicitaire` et
 `m5.constat.factures-emises`, inactifs par défaut, cadence par défaut dérivée du catalogue de M8). Voir
 `docs/architecture/PLANIFICATION.md` §9.
+
+## Facturation par jalons, numérotation, échéance et PDF de facture (M5-FACT-1, M5-FACT-2)
+
+Un devis ACCEPTÉ peut maintenant être facturé en plusieurs fois. Une personne (propriétaire ou finance, N3) **déclare le plan** par
+`m5_etablir_plan_facturation` : 2 à 12 jalons (acompte à l'acceptation, jalons de chantier, solde à la fin des travaux), en
+**pourcentages** ou en **montants** avant taxes ; la somme tombe au cent (en pourcentages, le solde absorbe l'arrondi, écrit au
+plan), sinon le refus dit l'écart. Les taxes de chaque facture viennent du moteur fiscal existant (`taxes.py`, taux versionnés ;
+aucun taux n'est écrit dans ce code). `m5_creer_facture_jalon` prépare le BROUILLON d'un jalon (dans l'ordre ; le solde seulement
+après `m4.travaux_termines` ; jamais plus que le prix du devis) ; `m5_lire_plan_facturation` dit où en est le plan et ce qui reste à
+déclarer. Un devis facturé par jalons n'a **aucune facture globale** (ni manuelle ni automatique à la fin des travaux).
+
+**L'émission reste humaine** : `m5_envoyer_facture` (N4, plafond d'envoi automatique zéro, même en mode « autonome ») fixe, dans la même
+transaction que le statut, le **numéro** (suite sans trou ni doublon, registre `numerotation_factures`, `m5_verifier_numerotation_factures`)
+et l'**échéance** (jour d'émission + délai de paiement déclaré). « En retard » est une **vue calculée** à une date injectée
+(`m5_lire_comptes_a_recevoir`) ; `m5_preparer_relances_clients` suit l'échéance propre de la facture et alimente M2 par les événements
+existants (`m5.creance_relance_preparee`, `m5.facture_emise_constatee` : `PAYEE` ou `ANNULEE` lève, `ENVOYEE` non ; un paiement partiel
+n'est jamais `PAYEE`). Aucun nouvel événement.
+
+**PDF déterministe** : `m5_preparer_pdf_facture` (facture approuvée et numérotée, français ou bilingue) et `m5_preparer_etat_compte_client` rendent
+ce que le code a déjà calculé (aucun chiffre d'un modèle), avec les mentions de l'entreprise tirées de `configuration.facturation.entreprise`
+(raison sociale, adresse, numéros de TPS/TVQ ; absents, le refus dit quoi déclarer). ReportLab (extra `soumission`, déjà intégré pour M3), mêmes
+entrées, mêmes octets ; l'empreinte SHA-256 est scellée au registre `documents_facturation` et se rejoue. Le fichier est écrit sous
+`<OPSYS_HOME>/exports/factures/` : **rien n'est envoyé**. Architecture, configuration, preuves, mutations et limites :
+[M5-FACTURATION](../../docs/architecture/M5-FACTURATION.md). À valider auprès d'un comptable (CPA) / professionnel qualifié.

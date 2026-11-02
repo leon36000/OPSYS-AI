@@ -179,7 +179,7 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #         courriel: "facturation@example.test"     # facultatif
 #         telephone: "418 555-0100"                # facultatif
 #
-# Le plan de facturation lui-même (jalons, pourcentages ou montants) se déclare par m5_declarer_plan_facturation (N3 : une
+# Le plan de facturation lui-même (jalons, pourcentages ou montants) se déclare par m5_etablir_plan_facturation (N3 : une
 # personne l'approuve) ; il n'est jamais écrit ici. Le nom et l'adresse du CLIENT sont fournis à l'appel du PDF : M5 ne les garde pas.
 modeles:
   defaut: standard

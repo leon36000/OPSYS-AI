@@ -9,7 +9,7 @@ facturer ne fait bouger aucun argent.
 
 Ce que ce module décide, et ce qu'il laisse au propriétaire.
 
-* Le PLAN est DÉCLARÉ par une personne (N3, `m5_declarer_plan_facturation`) : jalons, déclencheurs, pourcentages OU
+* Le PLAN est DÉCLARÉ par une personne (N3, `m5_etablir_plan_facturation`) : jalons, déclencheurs, pourcentages OU
   montants. Rien n'est inventé : sans jalons, sans somme qui tombe juste ou sans délai de paiement déclaré, le refus dit
   QUOI déclarer. La somme des montants avant taxes des jalons égale le prix du devis au cent, exactement.
 * Le code CALCULE, jamais un modèle : en mode « pourcentage », chaque jalon sauf le dernier vaut

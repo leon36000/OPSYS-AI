@@ -103,7 +103,7 @@ SORTIES_OPERATIONS = frozenset({
 # plans, factures de jalon, PDF et états de compte, sous les deux mentions, prouvés par
 # `tests/test_facturation_jalons_outils.py`.
 SORTIES_FACTURATION = frozenset({
-    "m5_declarer_plan_facturation",  # plan déclaré par une personne (N3) : jalons calculés, somme au cent
+    "m5_etablir_plan_facturation",  # plan déclaré par une personne (N3) : jalons calculés, somme au cent
     "m5_creer_facture_jalon",  # BROUILLON de la facture d'un jalon : montant du plan, taxes du moteur fiscal
     "m5_lire_plan_facturation",  # où en est le plan : facturé, solde, retard, ce qui reste à déclarer
     "m5_preparer_pdf_facture",  # PDF de la facture approuvée : mise en page, aucun chiffre recalculé
