@@ -39,6 +39,14 @@ planifications:
       jours) que Nathan a fixé pour l'entreprise ; ne choisis et n'invente jamais ce délai
       toi-même, demande-le s'il n'est pas déjà connu. Ne transmets rien au client : ce contrôle
       publie seulement le fait m3.devis_sans_reponse vers M2.
+  - nom: apprentissage-durees
+    cron: "0 5 * * 1"
+    consigne: >-
+      Appelle m3_calculer_apprentissage_durees avec l'horodatage courant en UTC (format ...Z). Ne choisis, ne modifie
+      et n'invente jamais un seuil de la politique : si elle est absente, rapporte seulement ce qu'il faut déclarer
+      dans department.yaml. Ne demande ni n'exécute aucune approbation : une candidate qui exige une personne
+      (dérive, variation au-delà du palier) attend m3_approuver_calibration_duree. Résume en 5 lignes les cohortes
+      (décision, nombre de chantiers). Aucun prix, aucune soumission, aucun envoi.
 budget:
   tokens_jour: 300000
   tokens_mois: 4000000
@@ -85,6 +93,34 @@ configuration:
     p80_regression_maximale: "0.05"
     resolution_mesure_minutes: 1
     qualification_empirique: non_qualifiee_empiriquement
+  # Apprentissage des durées SUR SITE (apprentissage_durees.py, docs/architecture/APPRENTISSAGE.md) : le terrain corrige
+  # l'estimation de durée, jamais le déplacement ni le prix. VIDE à dessein, comme les seuils ci-dessus : aucune valeur
+  # n'est inventée, chacune est une décision de l'entreprise ; sans politique complète, rien n'est calculé ni appliqué
+  # (REJ-APPRENTISSAGE-POLITIQUE-ABSENTE dit quoi déclarer). Forme (version m3-apprentissage-durees/1) :
+  #   echantillon_minimum (entier 3 à 1000, chantiers distincts avant toute candidate), echantillon_minimum_equipe
+  #   (entier, chantiers comparables par équipe et type avant un indice), demi_vie_jours (entier 7 à 3650, poids d'âge),
+  #   aberrantes_k (texte décimal 2 à 10, écart à la médiane en échelles robustes), echelle_minimale_relative (texte
+  #   décimal), niveau_confiance (texte décimal 0.5 à 0.999), replications (entier 200 à 5000, bootstrap),
+  #   variation_minimale_pct (texte décimal : sous cet écart, rien ne change), variation_auto_max_pct (texte décimal :
+  #   palier au-delà duquel une personne approuve), facteur_min et facteur_max (textes décimaux, bornes ABSOLUES du
+  #   taux appris sur le taux du barème), derive_fenetre (entier, au moins echantillon_minimum), derive_seuil_pct
+  #   (texte décimal), complexites (liste de codes de difficulté de chantier, « inconnue » est réservé).
+  apprentissage_durees:
+    version: m3-apprentissage-durees/1
+    echantillon_minimum: null
+    echantillon_minimum_equipe: null
+    demi_vie_jours: null
+    aberrantes_k: null
+    echelle_minimale_relative: null
+    niveau_confiance: null
+    replications: null
+    variation_minimale_pct: null
+    variation_auto_max_pct: null
+    facteur_min: null
+    facteur_max: null
+    derive_fenetre: null
+    derive_seuil_pct: null
+    complexites: null
   # Seuils de la revue d'un devis avant son envoi (PLAN T4.7, DEFINITION-PRODUIT §7 M3.14 : « validation humaine
   # obligatoire si… »). VIDES à dessein : aucun seuil n'est inventé, chacun est une décision de Nathan. Un seuil
   # vide ou invalide rend son critère « seuil à configurer » dans la revue (revue_devis.py), jamais une valeur

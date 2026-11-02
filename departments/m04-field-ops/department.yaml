@@ -101,7 +101,8 @@ configuration:
   # M4.11 (adequation_equipe.py) : poids du score d'adéquation équipe/intervention. VIDES à dessein, comme les seuils de M3 :
   # les poids sont une décision de l'entreprise, que ni un agent ni un appelant ne se donnent ; sans eux, aucune équipe n'est
   # classée (REJ-ADEQUATION-PARAMETRES-ABSENTS). poids : capacite, charge, distance, qualite (textes décimaux >= 0, un au moins
-  # > 0) ; distance_reference_km : distance (entier) à laquelle le sous-score de distance tombe à zéro ; historique_minimum :
+  # > 0 ; `rapidite` est un cinquième critère FACULTATIF, absent tant que l'entreprise ne le déclare pas : durée habituelle de
+  # l'équipe pour ce type de travaux, apprise par M3, agrégat d'équipe) ; distance_reference_km : distance (entier) à laquelle le sous-score de distance tombe à zéro ; historique_minimum :
   # nombre de chantiers vérifiés avant que l'historique de qualité d'une équipe soit utilisé. Le score est celui d'une ÉQUIPE
   # pour une intervention : jamais une note de personne (SOUL.md).
   adequation:

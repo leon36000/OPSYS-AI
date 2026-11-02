@@ -202,6 +202,11 @@ donnée que si la source déclare σ.
 | `m3.besoins_materiaux` (existant) | M3 | M6 | oui (inchangé) : les quantités du matériel restent celles de l'estimation |
 
 > Mise à jour de l'interconnexion (2026-11-01, [INTERCONNEXION.md](INTERCONNEXION.md)) : les consommateurs ci-dessus existent maintenant, prouvés sur le vrai bus ; M3 reprend aussi le profil de propriété CONFIRMÉ de M2 (`m2.client_associe` + `m2.profil_propriete_confirme`) dans son contexte de site, et M4 le dit à la préparation (bloc `contexte_propriete`, hors verdict). L'ancien texte ci-dessous décrit l'état de la tranche d'origine.
+- **Rapidité apprise (critère facultatif, vague 8).** Cinquième critère `rapidite`, absent tant que `configuration.adequation.poids`
+  n'en déclare pas un > 0 : durée habituelle de l'ÉQUIPE pour CE type de travaux relative à celle de l'entreprise à difficulté
+  comparable, avec nombre de chantiers et intervalle, lue chez M3 (`m3_lire_performance_equipes`, agrégat par couple équipe
+  pseudonymisée / type, jamais par personne). Les équipes sans historique suffisant ou de moins de deux membres sont « non
+  évaluables » (nommées à part, jamais zéro). Voir [APPRENTISSAGE.md](APPRENTISSAGE.md) §6.
 
 M1 / M2 / M8 / M10 sont d'autres lignes de travail : leurs consommateurs ne sont pas touchés ici (aucun import entre
 départements, aucun droit élargi). Les schémas JSON sont dans `src/opsys/evenements/catalogue/`.
@@ -214,7 +219,7 @@ départements, aucun droit élargi). Les schémas JSON sont dans `src/opsys/even
 | `configuration.adequation` (`poids`, `distance_reference_km`, `historique_minimum`) | M4 | ordonner les équipes | `REJ-ADEQUATION-PARAMETRES-ABSENTS` |
 | `configuration.eta_client` (incertitude, largeur minimale, granularité, validité du consentement, conservation, plafond de messages) | M4 | estimer et préparer une fenêtre | `REJ-ETA-PARAMETRES-ABSENTS` |
 
-## Outils (19 nouveaux, aucun droit d'appareil)
+## Outils (19 nouveaux, aucun droit d'appareil ; l'apprentissage des durées en ajoute 7 : APPRENTISSAGE.md §5)
 
 M3 : `m3_construire_contexte_site` (T1/N2), `m3_lire_contexte_site` (T0), `m3_executer_pipeline_vision` (T1/N2),
 `m3_lire_candidats_vision` (T0), `m3_valider_candidat_par_reference` (T1/N2), `m3_valider_candidat_par_humain` (T1/N3),

@@ -466,18 +466,24 @@
    "proofs": [
     {
      "tests": [
-      "departments/m03-estimation/tests/test_estime_vs_reel.py",
-      "departments/m03-estimation/tests/test_estime_vs_reel_repartiteur.py",
+      "departments/m03-estimation/tests/test_apprentissage_bout_en_bout.py",
+      "departments/m03-estimation/tests/test_apprentissage_durees.py",
+      "departments/m03-estimation/tests/test_apprentissage_estimation.py",
+      "departments/m03-estimation/tests/test_apprentissage_journal.py",
       "departments/m03-estimation/tests/test_calibration_cohortes.py",
-      "departments/m03-estimation/tests/test_calibration_promotion.py"
+      "departments/m03-estimation/tests/test_calibration_promotion.py",
+      "departments/m03-estimation/tests/test_estime_vs_reel.py",
+      "departments/m03-estimation/tests/test_estime_vs_reel_repartiteur.py"
      ],
-     "docs": [],
+     "docs": [
+      "docs/architecture/APPRENTISSAGE.md"
+     ],
      "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Aucune calibration activée ; dépend du coût réel (M5) partiel."
+   "limite": "Aucune calibration activée ; dépend du coût réel (M5) partiel. Vague 8 : boucle fermée d'apprentissage des durées sur site par type de travaux (apprentissage_durees.py, apprentissage_journal.py, outils_apprentissage_durees.py) : estimateur robuste (médiane pondérée par l'âge, intervalle bootstrap, aberrantes exclues, dérive), gouvernance par politique déclarée (vide à la livraison : rien ne s'applique tant que Nathan ne l'a pas déclarée), application automatique au brouillon d'estimation hors mode ombre, approbation N3 au-delà des bornes ou en cas de dérive, retour arrière, estimation adaptée avec trace durable. Prouvé de bout en bout sur SQLite avec les vrais outils M3/M4 et des données FICTIVES. PAS prouvé : aucune donnée réelle, seuils non décidés, PostgreSQL non éprouvé pour ce journal, app mobile non rejouée, la durée n'alimente pas le prix dans M3 (seule la durée change)."
   },
   {
    "id": "M3.16",

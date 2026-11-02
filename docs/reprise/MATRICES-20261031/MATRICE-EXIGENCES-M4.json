@@ -334,9 +334,11 @@
     {
      "tests": [
       "departments/m04-field-ops/tests/test_adequation_equipe.py",
+      "departments/m04-field-ops/tests/test_adequation_rapidite.py",
       "departments/m04-field-ops/tests/test_outils_adequation_eta.py"
      ],
      "docs": [
+      "docs/architecture/APPRENTISSAGE.md",
       "docs/architecture/M3-M4-MATHIS-GABRIEL.md"
      ],
      "niveau": "S"
@@ -344,7 +346,7 @@
    ],
    "verified_commit": "93c508201",
    "current_status": "PARTIEL",
-   "limite": "Indice d'adéquation d'ÉQUIPE pour une intervention, transparent (par critère : valeur, sous-indice, poids effectif), déterministe (Fraction), filtres compétence et capacité de la semaine type (capacite_equipe), distance, charge, qualité agrégée d'équipe ; refus des attributs personnels protégés (test paramétré) ; invariance à l'ordre et aux noms ; calibration sur cas fictifs ; brouillon d'affectation N2 et approbation N3 d'un engagement client ; garde R-020 de M4 intacte. PAS prouvé : poids vides dans department.yaml (aucune équipe n'est ordonnée tant qu'ils ne sont pas déclarés) ; aucune donnée d'historique réelle ; la calibration ne prouve que la mécanique ; l'assignation effective reste m4_appliquer_cedule ; le critère « fatigue » n'est pas modélisé (aucune donnée de santé ; la charge d'équipe en tient lieu)."
+   "limite": "Indice d'adéquation d'ÉQUIPE pour une intervention, transparent (par critère : valeur, sous-indice, poids effectif), déterministe (Fraction), filtres compétence et capacité de la semaine type (capacite_equipe), distance, charge, qualité agrégée d'équipe ; refus des attributs personnels protégés (test paramétré) ; invariance à l'ordre et aux noms ; calibration sur cas fictifs ; brouillon d'affectation N2 et approbation N3 d'un engagement client ; garde R-020 de M4 intacte. PAS prouvé : poids vides dans department.yaml (aucune équipe n'est ordonnée tant qu'ils ne sont pas déclarés) ; aucune donnée d'historique réelle ; la calibration ne prouve que la mécanique ; l'assignation effective reste m4_appliquer_cedule ; le critère « fatigue » n'est pas modélisé (aucune donnée de santé ; la charge d'équipe en tient lieu). Vague 8 : critère facultatif « rapidité » appris par M3 par couple (équipe pseudonymisée, type de travaux), normalisé par la difficulté déclarée, avec intervalle ; équipe sans historique « non évaluable » nommée à part ; aucun poids déclaré par défaut. PAS prouvé : aucune donnée d'historique réelle ; la lecture réelle M4 vers M3 n'est prouvée qu'en deux moitiés (voir APPRENTISSAGE.md §11)."
   },
   {
    "id": "M4.12",

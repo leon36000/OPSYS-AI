@@ -49,6 +49,7 @@ from . import (
     adequation_equipe,
     admissibilite,
     calendrier_civil,
+    calibration_projection,
     capacite_equipe,
     distances,
     encodage,
@@ -180,6 +181,41 @@ def _historique_par_equipe(reg: Any) -> dict[str, dict[str, int]]:
     return histo
 
 
+_CLES_RAPIDITE = ("chantiers", "indice_median", "borne_basse", "borne_haute")
+
+
+def _rapidite_par_equipe(service: str, equipes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Indice de rapidité appris par M3 pour chaque équipe du profil, pour CE type de travaux (agrégat par couple
+    équipe/type, jamais une note de personne). Lu par l'outil de M3, sous l'identité de M4 ; toute indisponibilité
+    (M3 absent, politique non déclarée, aucun instantané) rend un dictionnaire vide : le critère n'a alors pas de
+    donnée et l'indice le dit, il n'invente rien. Seules les lignes ÉVALUABLES sont reprises."""
+    try:
+        from opsys.capacites import Capacites
+        from opsys.departements import charger_departements
+
+        departements = charger_departements()
+        cibles = {nom: departements[nom] for nom in ("m03-estimation", _DEPARTEMENT)}
+        reponse = Capacites(
+            cibles, stockage.transaction, appelant=_DEPARTEMENT, limite_sortie=200_000, memoire=False,
+        ).appeler("m3_lire_performance_equipes", {"type_service": service})
+    except (ImportError, KeyError, ValueError, TypeError):
+        return {}
+    resultat = reponse.get("resultat") if isinstance(reponse, dict) and reponse.get("ok") else None
+    lignes = resultat.get("equipes") if isinstance(resultat, dict) else None
+    if not isinstance(lignes, list):
+        return {}
+    par_ref = {
+        ligne["equipe_ref"]: ligne for ligne in lignes
+        if isinstance(ligne, dict) and ligne.get("evaluable") is True and ligne.get("type_service") == service
+    }
+    sortie = {}
+    for equipe in equipes:
+        ligne = par_ref.get(calibration_projection.equipe_ref(equipe["id"]))
+        if ligne is not None:
+            sortie[equipe["id"]] = {cle: ligne[cle] for cle in _CLES_RAPIDITE}
+    return sortie
+
+
 def construire(
     *,
     registre_courant: Callable[[], Any],
@@ -223,6 +259,10 @@ def construire(
         )
         position, _ = lire_position(reg, intervention["lead_id"])  # la localisation se confirme par lead (chantier)
         histo = _historique_par_equipe(reg)
+        rapidites = (
+            _rapidite_par_equipe(service, profil["liste"]) if parametres["poids"].get(adequation_equipe.RAPIDITE, 0) > 0
+            else {}
+        )
         equipes = []
         for e in profil["liste"]:
             fiche: dict[str, Any] = {
@@ -242,6 +282,8 @@ def construire(
                 )
             if e["id"] in histo:
                 fiche["historique"] = histo[e["id"]]
+            if e["id"] in rapidites:
+                fiche["rapidite"] = rapidites[e["id"]]
             equipes.append(fiche)
         ordre, verdict = adequation_equipe.ordonner(
             {

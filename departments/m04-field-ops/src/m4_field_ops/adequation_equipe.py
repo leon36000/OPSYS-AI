@@ -19,6 +19,12 @@ LES ÉLÉMENTS.
     ``qualite``   part des chantiers terminés sans écart ouvert, SI l'historique est assez long ET l'équipe compte au
       moins deux
                   membres déclarés (jamais le dossier d'une personne seule).
+  ``rapidite`` (optionnel, poids déclaré > 0) : durée habituelle de l'ÉQUIPE pour CE type de travaux, relative à celle
+                  de l'entreprise à difficulté comparable (indice médian < 1 = plus rapide), avec son intervalle
+                  d'incertitude et son nombre de chantiers, fournis par M3 pour le COUPLE (équipe, type). Sous-indice
+                  ``1 / (1 + indice)``. Une équipe sans historique suffisant, ou de moins de deux membres déclarés, est
+                  « non évaluable » : le critère est alors écarté pour toutes (jamais zéro pour l'une). Aucune note de
+                  personne ni sanction : l'humain affecte toujours.
 * POIDS déclarés par l'entreprise (``configuration.adequation``), jamais devinés. Un critère n'est ACTIF que si la
   donnée existe pour TOUTES les équipes comparées : sinon il est écarté pour toutes (et le dit), pour qu'aucune équipe
   ne soit avantagée ou pénalisée par une donnée manquante. L'indice = somme des poids actifs x sous-indices / somme
@@ -55,6 +61,7 @@ from . import encodage, verdicts
 
 __all__ = [
     "CRITERES",
+    "RAPIDITE",
     "VERSION",
     "calibrer_poids",
     "ordonner",
@@ -63,6 +70,10 @@ __all__ = [
 
 VERSION = "m4.adequation/1"
 CRITERES = ("capacite", "charge", "distance", "qualite")
+# Critère OPTIONNEL appris du terrain (M3 : ``apprentissage_durees.performance_equipes``) : n'existe dans l'ordre que si
+# l'entreprise lui déclare un poids > 0. Hors de ``CRITERES`` pour que la calibration des poids sur cas fictifs
+# (``calibrer_poids``) reste celle des quatre critères de départ.
+RAPIDITE = "rapidite"
 MISE_EN_GARDE = (
     "Proposition d'affectation pour CETTE intervention : elle ne note aucune personne et n'entraîne aucune sanction. "
     "L'humain affecte ; un engagement envers le client exige une approbation."
@@ -71,7 +82,10 @@ _CODE = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
 _IDENTIFIANT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@-]{0,79}$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DECIMAL = re.compile(r"^\d{1,6}(\.\d{1,6})?$")
-_JEU_EQUIPE = frozenset({"equipe_id", "competences", "membres_declares", "distance_m", "capacite", "historique"})
+_JEU_EQUIPE = frozenset(
+    {"equipe_id", "competences", "membres_declares", "distance_m", "capacite", "historique", "rapidite"}
+)
+_DECIMAL_COURT = re.compile(r"^\d{1,3}(\.\d{1,6})?$")
 _JEU_INTERVENTION = frozenset({"intervention_id", "service", "date", "duree_min", "competences_requises"})
 _QUANTUM = Decimal("0.0001")
 # Attributs personnels protégés (Charte des droits et libertés de la personne, art. 10, et santé) et marqueurs de
@@ -164,7 +178,7 @@ def lire_parametres(brut: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | 
     DÉCLARÉS."""
     detail = (
         "déclarer configuration.adequation : poids (capacite, charge, distance, qualite : textes décimaux >= 0, "
-        "au moins un > 0), distance_reference_km (entier > 0) et historique_minimum (entier > 0)"
+        "au moins un > 0 ; rapidite facultatif), distance_reference_km (entier > 0) et historique_minimum (entier > 0)"
     )
     if not isinstance(brut, Mapping):
         return None, _refus("REJ-ADEQUATION-PARAMETRES-ABSENTS", f"paramètres absents : {detail}")
@@ -174,7 +188,7 @@ def lire_parametres(brut: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | 
     distance_ref, minimum = brut.get("distance_reference_km"), brut.get("historique_minimum")
     if (
         not isinstance(poids, Mapping)
-        or set(poids) - set(CRITERES)
+        or set(poids) - set(CRITERES) - {RAPIDITE}
         or not poids
         or type(distance_ref) is not int
         or not 0 < distance_ref <= 2000
@@ -183,8 +197,10 @@ def lire_parametres(brut: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | 
     ):
         return None, _refus("REJ-ADEQUATION-PARAMETRES-ABSENTS", f"paramètres absents ou invalides : {detail}")
     normalises = {}
-    for critere in CRITERES:
+    for critere in (*CRITERES, RAPIDITE):
         texte = poids.get(critere, "0")
+        if critere == RAPIDITE and texte is None:
+            texte = "0"  # critère facultatif : non déclaré (null) = poids nul
         if not isinstance(texte, str) or not _DECIMAL.fullmatch(texte):
             return None, _refus("REJ-ADEQUATION-PARAMETRES-ABSENTS", f"poids.{critere} : texte décimal >= 0 attendu")
         normalises[critere] = Fraction(texte)
@@ -267,6 +283,19 @@ def _valider_entrees(entrees: Any) -> dict[str, Any] | None:
                 "REJ-ADEQUATION-ENTREE-INVALIDE",
                 "historique : terminees et avec_ecart entiers, avec_ecart <= terminees",
             )
+        r = e.get("rapidite")
+        if r is not None and (
+            not isinstance(r, Mapping)
+            or set(r) != {"chantiers", "indice_median", "borne_basse", "borne_haute"}
+            or not _entier(r["chantiers"], 1, 10**6)
+            or any(not isinstance(r[k], str) or not _DECIMAL_COURT.fullmatch(r[k]) or Fraction(r[k]) <= 0
+                   for k in ("indice_median", "borne_basse", "borne_haute"))
+            or not Fraction(r["borne_basse"]) <= Fraction(r["indice_median"]) <= Fraction(r["borne_haute"])
+        ):
+            return _refus(
+                "REJ-ADEQUATION-ENTREE-INVALIDE",
+                "rapidite : chantiers entier, indice_median/borne_basse/borne_haute textes décimaux > 0 ordonnés",
+            )
     return None
 
 
@@ -308,6 +337,15 @@ def _sous_indices(
         sortie["qualite"] = (
             1 - Fraction(h["avec_ecart"], h["terminees"]),
             f"{h['avec_ecart']} écart(s) sur {h['terminees']} chantiers terminés",
+        )
+    r = equipe.get("rapidite")
+    if r is None or equipe["membres_declares"] < 2:
+        sortie[RAPIDITE] = (None, "non évaluable (historique de durée insuffisant ou équipe de moins de deux membres)")
+    else:
+        sortie[RAPIDITE] = (
+            1 / (1 + Fraction(r["indice_median"])),
+            f"{r['chantiers']} chantier(s) de ce type à {r['indice_median']} de la durée habituelle de l'entreprise "
+            f"(intervalle {r['borne_basse']} à {r['borne_haute']})",
         )
     return sortie
 
@@ -367,9 +405,29 @@ def ordonner(entrees: Any, parametres: Mapping[str, Any]) -> tuple[dict[str, Any
         )
         base["empreinte"] = encodage.empreinte(VERSION, base)
         return base, None
+    consideres = (*CRITERES, RAPIDITE) if parametres["poids"].get(RAPIDITE, 0) > 0 else CRITERES
+    if RAPIDITE in consideres:
+        # Une équipe sans historique de durée suffisant pour CE type est « non évaluable » sur ce critère : elle n'est
+        # ni notée zéro ni classée avec les autres, elle est nommée à part pour que l'humain l'affecte en connaissance
+        # de cause (une équipe neuve doit pouvoir se faire un historique). Le critère n'exclut personne s'il reste
+        # moins de deux équipes évaluables : il est alors écarté pour toutes.
+        evaluables = [e for e in candidates if _sous_indices(e, intervention["duree_min"], parametres)[RAPIDITE][0]
+                      is not None]
+        if len(evaluables) >= 2 and len(evaluables) < len(candidates):
+            ids = {e["equipe_id"] for e in evaluables}
+            non_evaluables.extend(
+                {
+                    "equipe_id": e["equipe_id"],
+                    "motifs": ["rapidite_non_evaluable"],
+                    "detail": "historique de durée insuffisant pour ce type de travaux (ou équipe de moins de deux "
+                    "membres déclarés) : non évaluable sur la rapidité, non classée ici, jamais notée zéro",
+                }
+                for e in candidates if e["equipe_id"] not in ids
+            )
+            candidates = evaluables
     notes = {e["equipe_id"]: _sous_indices(e, intervention["duree_min"], parametres) for e in candidates}
     actifs, ecartes = [], []
-    for critere in CRITERES:
+    for critere in consideres:
         poids = parametres["poids"][critere]
         manquent = sorted(eid for eid, s in notes.items() if s[critere][0] is None)
         if poids == 0:
@@ -391,7 +449,7 @@ def ordonner(entrees: Any, parametres: Mapping[str, Any]) -> tuple[dict[str, Any
     for equipe in candidates:
         eid = equipe["equipe_id"]
         details, indice = [], Fraction(0)
-        for critere in CRITERES:
+        for critere in consideres:
             sous, brut = notes[eid][critere]
             if critere in actifs:
                 effectif = parametres["poids"][critere] / total_poids
@@ -451,11 +509,24 @@ def ordonner(entrees: Any, parametres: Mapping[str, Any]) -> tuple[dict[str, Any
             "criteres_actifs": actifs,
             "criteres_ecartes": ecartes,
             "departage": "ex aequo départagés par l'identifiant d'équipe (ordre lexicographique, sans signification)",
-            "poids_declares": {c: _texte(parametres["poids"][c]) for c in CRITERES},
+            "poids_declares": {c: _texte(parametres["poids"][c]) for c in consideres},
         }
     )
+    if RAPIDITE in actifs:
+        base["rapidite_concluante"] = _rapidite_concluante(candidates)
     base["empreinte"] = encodage.empreinte(VERSION, base)
     return base, None
+
+
+def _rapidite_concluante(candidates: list[Mapping[str, Any]]) -> bool:
+    """Vrai si l'équipe la plus rapide se distingue des autres : son intervalle haut reste sous l'intervalle bas de
+    TOUTES les autres. Sinon l'écart de rapidité entre équipes n'est pas concluant et l'ordre qui en découle est un
+    départage faible, à lire comme tel (l'humain affecte)."""
+    ordonnees = sorted(candidates, key=lambda e: Fraction(e["rapidite"]["indice_median"]))
+    if len(ordonnees) < 2:
+        return False
+    meilleure = Fraction(ordonnees[0]["rapidite"]["borne_haute"])
+    return all(meilleure < Fraction(e["rapidite"]["borne_basse"]) for e in ordonnees[1:])
 
 
 def _grille(pas: int, n: int):

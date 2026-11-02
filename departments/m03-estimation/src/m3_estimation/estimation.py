@@ -157,6 +157,7 @@ from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation, l
 from typing import Any
 
 from . import (
+    apprentissage_durees,
     besoins_materiaux,
     blocage_prix,
     contrats,
@@ -260,6 +261,39 @@ def _duree_estimee_minutes_texte(
     return str(quantite_decimale * taux_decimal), taux_decimal, None
 
 
+def _evaluer_apprentissage(
+    active: dict[str, Any] | None, ombre: dict[str, Any] | None, type_travaux: str, bareme: dict[str, Any],
+    quantite: Any, taux_baseline: Decimal | None,
+) -> tuple[dict[str, Any], Decimal | None]:
+    """``(bloc visible, taux à appliquer ou None)``. La version ACTIVE ne s'applique que si son barème de référence est
+    celui de la demande (``apprentissage_durees.controler_application``) ; la candidate OMBRE n'est jamais appliquée :
+    elle montre la durée qu'on aurait obtenue. Le bloc dit toujours que le déplacement n'est pas compris."""
+    version = active if active is not None else ombre
+    bloc: dict[str, Any] = {
+        "statut": "aucune", "temps_sur_site_baseline_minutes": None,
+        "deplacement": {"inclus": False, "note": "calculé à part (distances de M4), jamais dans le temps appris"},
+    }
+    if version is None or taux_baseline is None or not isinstance(bareme, dict):
+        return bloc, None
+    raison = apprentissage_durees.controler_application(
+        version, type_service=type_travaux, unite_quantite=bareme.get("unite"), taux_baseline=taux_baseline,
+    )
+    quantite_decimale = Decimal(str(quantite))
+    bloc.update({
+        "version_id": version["version_id"], "n_chantiers": version["n_chantiers"],
+        "intervalle": version["intervalle"], "facteur": version["facteur"],
+        "taux_baseline": version["taux_baseline"], "taux_applique": version["taux_applique"],
+        "mode_activation": version.get("mode_activation"),
+        "temps_sur_site_baseline_minutes": format(quantite_decimale * taux_baseline, "f"),
+    })
+    if raison is not None:
+        return {**bloc, "statut": "non_appliquee", "raison": raison}, None
+    taux = Decimal(version["taux_applique"])
+    if active is None:
+        return {**bloc, "statut": "ombre", "temps_sur_site_ombre_minutes": format(quantite_decimale * taux, "f")}, None
+    return {**bloc, "statut": "applique"}, taux
+
+
 def _prix_recommande_depuis_intervalle(
     intervalle_confiance: dict[str, Any], taux_marge: str | None
 ) -> tuple[dict[str, float] | None, dict | None]:
@@ -301,6 +335,8 @@ def orchestrer_estimation(
     taux_scenarios_configures: dict[str, Any] | None = None,
     seuils_revue: Any = None,
     calibration_candidate: dict[str, Any] | None = None,
+    apprentissage_duree: dict[str, Any] | None = None,
+    apprentissage_ombre: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compose la chaîne complète d'estimation M3 — voir la docstring du module pour l'ordre et
     les décisions de conception. Chaque étape qui échoue rend un verdict NOMMÉ qui dit quoi
@@ -351,6 +387,8 @@ def orchestrer_estimation(
     alerte_plancher = False
     duree_estimee_minutes: str | None = None
     taux_duree_minutes_par_unite: Decimal | None = None
+    bloc_apprentissage: dict[str, Any] | None = None
+    taux_applique_appris: Decimal | None = None
     prix_recommande: dict[str, float] | None = None
     elements_manquants_prix: list[str] = []
     signal_relance_m2: dict[str, Any] | None = None
@@ -403,6 +441,8 @@ def orchestrer_estimation(
         )
         if verdict is not None:
             return {"etape": "duree_main_doeuvre", "accepte": False, "verdict": verdict}
+        if apprentissage_duree is not None and calibration_candidate is not None:
+            return {"etape": "calibration_active", "accepte": False, "raisons": ["calibrations_exclusives"]}
         taux_duree_source = taux_duree_minutes_par_unite
         if calibration_candidate is not None:
             try:
@@ -432,6 +472,15 @@ def orchestrer_estimation(
             except (ArithmeticError, KeyError, TypeError, ValueError):
                 return {"etape": "calibration_active", "accepte": False,
                         "raisons": ["calibration_active_invalide"]}
+
+        if apprentissage_duree is not None or apprentissage_ombre is not None:
+            bloc_apprentissage, taux_applique_appris = _evaluer_apprentissage(
+                apprentissage_duree, apprentissage_ombre, type_travaux, bareme, quantite, taux_duree_source,
+            )
+            if taux_applique_appris is not None:
+                taux_duree_minutes_par_unite = taux_applique_appris
+                duree_estimee_minutes = format(Decimal(str(quantite)) * taux_applique_appris, "f")
+                bloc_apprentissage["temps_sur_site_minutes"] = duree_estimee_minutes
 
         prix_recommande, verdict = _prix_recommande_depuis_intervalle(intervalle_confiance, taux_marge)
         if verdict is not None:
@@ -513,12 +562,27 @@ def orchestrer_estimation(
             quantite=quantite,
             taux_minutes_par_unite=taux_duree_minutes_par_unite,
             duree_estimee_minutes=duree_estimee_minutes,
-            taux_minutes_par_unite_source=taux_duree_source if calibration_candidate is not None else None,
-            calibration_version_id=calibration_candidate.get("candidate_id") if calibration_candidate else None,
+            taux_minutes_par_unite_source=(
+                taux_duree_source if calibration_candidate is not None or taux_applique_appris is not None else None
+            ),
+            calibration_version_id=(
+                calibration_candidate.get("candidate_id") if calibration_candidate
+                else bloc_apprentissage["version_id"] if taux_applique_appris is not None and bloc_apprentissage
+                else None
+            ),
         )
         if verdict is not None:
             return {"etape": "trace_calibration_temps", "accepte": False, "verdict": verdict}
         charge["trace_calibration_temps"] = trace_temps
+        if taux_applique_appris is not None and bloc_apprentissage is not None:
+            # Trace durable « calibration vN, n chantiers, intervalle » : une estimation sans apprentissage appliqué
+            # garde exactement la même charge (donc le même hash) qu'avant.
+            charge["apprentissage_duree"] = {
+                cle: bloc_apprentissage[cle] for cle in (
+                    "version_id", "n_chantiers", "intervalle", "facteur", "taux_baseline", "taux_applique",
+                    "mode_activation",
+                )
+            }
     if besoins_calcules is not None:
         charge["besoins_materiaux"] = besoins_calcules
 
@@ -544,6 +608,9 @@ def orchestrer_estimation(
         "niveau_confiance_hierarchie": niveau_hierarchie,
         "motifs_confiance": motifs,
         "duree_estimee_minutes": duree_estimee_minutes,
+        # Apprentissage des durées (apprentissage_durees.py) : ce qui a corrigé, ou aurait corrigé en mode ombre, le
+        # temps sur site ; jamais le déplacement, qui reste calculé à part. None sans version ni ombre.
+        "apprentissage_duree": bloc_apprentissage,
         # SOUL.md : « quand le prix est bloqué, tu expliques simplement au client ce qui manque »
         # — liste EXPLICITE (jamais seulement la phrase composée de raison_blocage) sur la voie
         # bloquée (reprise directe de qualite_photos.qualifier_photos, jamais recalculée ici) ;
