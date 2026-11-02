@@ -35,6 +35,10 @@ def upgrade():
         END $$""")
         op.execute("CREATE TRIGGER modeles_historique_immuable BEFORE UPDATE OR DELETE ON modeles_historique "
                    "FOR EACH ROW EXECUTE FUNCTION modeles_historique_immuable()")
+        # `TRUNCATE` ne réveille jamais un déclencheur de ligne : même garde d'instruction que 0057, qui pose la
+        # fonction.
+        op.execute("CREATE TRIGGER modeles_historique_sans_truncate BEFORE TRUNCATE ON modeles_historique "
+                   "FOR EACH STATEMENT EXECUTE FUNCTION opsys_truncate_interdit()")
         return
     for action in ("UPDATE", "DELETE"):
         op.execute(f"CREATE TRIGGER modeles_historique_no_{action.lower()} BEFORE {action} ON modeles_historique "
@@ -47,6 +51,7 @@ def downgrade():
         if cnx.execute(sa.text(f"SELECT 1 FROM {table.name} LIMIT 1")).first() is not None:
             raise RuntimeError(f"rétrogradation refusée : {table.name} contient des données (aucune suppression)")
     if cnx.dialect.name == "postgresql":
+        op.execute("DROP TRIGGER IF EXISTS modeles_historique_sans_truncate ON modeles_historique")
         op.execute("DROP TRIGGER IF EXISTS modeles_historique_immuable ON modeles_historique")
         op.execute("DROP FUNCTION IF EXISTS modeles_historique_immuable()")
     else:
