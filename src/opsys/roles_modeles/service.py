@@ -353,7 +353,7 @@ def _construire_ligne(
     def garder(cle: str, valide: Any) -> Any:
         return valide(p[cle]) if cle in p else base.get(cle)
 
-    return {
+    ligne = {
         "fournisseur_id": fournisseur.identifiant,
         "modele_appel": modele,
         "replis": replis,
@@ -371,6 +371,28 @@ def _construire_ligne(
         ),
         "cout_source": (str(p["cout_source"])[:200] if p.get("cout_source") else None),
     }
+    if ligne["cout_entree_par_million"] is None and ligne["cout_sortie_par_million"] is None:
+        _couts_du_catalogue(cnx, ligne)
+    return ligne
+
+
+def _couts_du_catalogue(cnx: Connection, ligne: dict[str, Any]) -> None:
+    """Coût DÉCLARÉ lu du catalogue de la passerelle (dernière découverte), s'il existe : jamais estimé.
+    Un coût absent ou rapporté à 0 reste « non déclaré »."""
+    fournisseur = registre.definition(cnx, ligne["fournisseur_id"])
+    if fournisseur is None or fournisseur.point_acces != "passerelle:litellm":
+        return
+    decouverte, _ = lire_reglage(cnx, "catalogue")
+    for entree in (decouverte or {}).get("entrees", []):
+        if (
+            entree["nom"] == ligne["modele_appel"]
+            and entree["cout_entree_par_million"]
+            and entree["cout_sortie_par_million"]
+        ):
+            ligne["cout_entree_par_million"] = entree["cout_entree_par_million"]
+            ligne["cout_sortie_par_million"] = entree["cout_sortie_par_million"]
+            ligne["cout_source"] = f"catalogue de la passerelle (découvert le {decouverte['decouvert_le'][:10]})"
+            return
 
 
 # -- écriture de l'historique ------------------------------------------------------------------------------------

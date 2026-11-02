@@ -91,10 +91,11 @@ Le script (voir `deploy/install.sh`, section par section) :
 3. crée un utilisateur dédié `opsys-deploy` (groupe `docker`) ;
 4. génère les secrets manquants dans `.env` (`chmod 600`) ;
 5. configure `ufw` (deny in / allow 22, 80, 443) et `fail2ban` ;
-6. construit les images locales `opsys` et `opsys-core:local`, puis démarre le mode natif :
-   `opsys` (SQLite, migrations, configuration et readiness) → `openclaw-gateway` → `caddy` ;
-   PostgreSQL (`database`) et la compatibilité LiteLLM (`litellm`, qui inclut PostgreSQL et Valkey)
-   s'activent explicitement ;
+6. construit les images locales `opsys` et `opsys-core:local`, puis démarre le profil par défaut : LiteLLM
+   (`litellm`, qui inclut PostgreSQL et Valkey) puis `opsys` (migrations, configuration et readiness) →
+   `openclaw-gateway` → `caddy`. Le mode natif (`OPSYS_MODE_FOURNISSEUR=natif`, SQLite sans passerelle), PostgreSQL seul
+   (`database`) et le LiteLLM existant du client (`OPSYS_PASSERELLE_EXTERNE=1`) se choisissent explicitement
+   ([PASSERELLE-DE-MODELES](../architecture/PASSERELLE-DE-MODELES.md)) ;
 7. affiche les URL et les prochaines étapes.
 
 La durée dépend du téléchargement des images tierces et de la construction locale du Core et du moteur.
@@ -145,8 +146,8 @@ compatibilité sont choisis explicitement.
    d'anciens fichiers ne suffit pas : readiness compare le catalogue et la mémoire générés à
    la configuration courante. Ce contrôle valide les paramètres et fichiers, sans appel modèle.
 
-L'initialisation génère la configuration native d'OpenClaw. Pour une instance qui a choisi
-explicitement LiteLLM, définissez `OPSYS_MODE_FOURNISSEUR=litellm` et
+L'initialisation génère la configuration d'OpenClaw (LiteLLM par défaut sur ce chemin serveur). Pour une instance qui
+a choisi le mode natif ou un LiteLLM existant, voir `OPSYS_MODE_FOURNISSEUR` et `OPSYS_PASSERELLE_EXTERNE` ; sinon, définissez `OPSYS_MODE_FOURNISSEUR=litellm` et
 `OPSYS_PASSERELLE_URL=http://litellm:4000/v1` dans `deploy/.env`, puis activez le profil :
 
 ```bash

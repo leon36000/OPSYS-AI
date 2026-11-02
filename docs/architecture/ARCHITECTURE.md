@@ -27,8 +27,8 @@ Le dépôt contient une installation autonome, le core `opsys`, le moteur métie
 à quatre profils. Le générateur `src/opsys/openclaw.py::generer` configure les fournisseurs natifs
 par défaut. Les champs `api_key_env` et les noms de clés conventionnels sont des références à des
 variables d'environnement; la valeur du secret n'est pas écrite dans le JSON. Une clé requise
-manquante bloque le readiness. LiteLLM et `OPSYS_CLE_Mn` restent pris en charge en compatibilité
-explicite avec une URL de passerelle. Les tests sans credentials ne valident pas d'appels à un
+manquante bloque le readiness. Sur le chemin serveur, LiteLLM (`OPSYS_CLE_Mn`, rôles de modèles) est la
+passerelle par défaut ([PASSERELLE-DE-MODELES](PASSERELLE-DE-MODELES.md)). Les tests sans credentials ne valident pas d'appels à un
 fournisseur réel; la présence des scripts d'installation et de déploiement ne certifie pas un parcours
 de production.
 
@@ -135,7 +135,7 @@ La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engin
 | **Capacités (MCP)** | Outils des départements et outils communs (`opsys_*`). `/mcp/<id>` fixe l'exécuteur départemental. La voie privée `/mcp/contexte/<agentId>` fixe séparément l'origine de lecture M10, utilise `OPSYS_CONTEXT_MCP_JETON` et n'expose que le paquet d'affaire au moteur de contexte; le namespace est refusé aux outils LLM | `src/opsys/serveur_mcp.py`, `capacites.py`, `contexte.py`, `openclaw.py` |
 | **Départements M1–M10** | Code métier déterministe, manifeste, SOUL, skills, tests | `departments/mNN-*/` |
 | **Configuration du Core** | Un agent par département, fournisseur de modèles dédié, serveur MCP dédié (`opsys_mN`) et refus des serveurs des autres départements (`tools.deny`), `$include` | `src/opsys/openclaw.py` |
-| **Modèles** | Fournisseurs natifs du core par défaut, cloud/local; références de clés par variables d'environnement; LiteLLM optionnel en compatibilité explicite. Les appels réels exigent des clés et un fournisseur joignable | `src/opsys/openclaw.py`, `modeles.py`, `src/opsys/passerelle.py` |
+| **Modèles** | Fournisseurs natifs du core par défaut, cloud/local; références de clés par variables d'environnement; LiteLLM (passerelle par défaut du déploiement serveur, rôles de modèles et politique d'économie). Les appels réels exigent des clés et un fournisseur joignable | `src/opsys/openclaw.py`, `modeles.py`, `src/opsys/passerelle.py` |
 | **Mémoire** | A : native des agents ; B : connaissance gouvernée par M10. Base métier SQLite par défaut, PostgreSQL optionnel ; RAG actuel pgvector, cible légère ADR-0010 à qualifier. Domaines métier/développement séparés | `docs/memory/RAG-PREMIUM.md`, `src/opsys/memoire/` |
 | **Taxonomie métier** | Une seule liste des services de l'entreprise (catalogue de référence + profil `$OPSYS_HOME/entreprise.yaml`), lue par M1, M2 et M3 ; fail-closed sans profil ; contrat `LeadQualifie` v2 | `src/opsys/taxonomie.py`, `docs/architecture/TAXONOMIE.md` |
 | **Garde-fou de texte** | Un catalogue de familles de règles nommées (prix, date, engagement, aveu, avis légal, adresse, coordonnées, nom de client, garantie…) que chaque département choisit : réponse à un client (M1), texte public (M7). Le refus nomme la règle ; fail-closed ; module pur | `src/opsys/garde_fou_texte/`, `docs/architecture/DEPARTEMENTS.md` |

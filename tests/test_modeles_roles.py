@@ -720,3 +720,23 @@ def test_les_roles_a_capacite_unique_alimentent_la_selection_du_registre(pret):
     _appliquer(pret, service.OP_ROLE_RETIRER, {"role": "embeddings"})
     with pret() as cnx, pytest.raises(registre.RegistreErreur):
         registre.resoudre(cnx, "embeddings")
+
+
+# -- coût déclaré lu du catalogue de la passerelle ----------------------------------------------------
+def test_cout_declare_lu_du_catalogue_jamais_estime(pret, faux):
+    from opsys.roles_modeles import decouverte
+
+    affecter(pret, "llm_fort", ALIAS["llm_fort"])  # avant toute découverte : non déclaré
+    assert _vue(pret, "llm_fort")["cout"]["entree_par_million"] is None
+    decouverte.decouvrir(pret, acteur=PROPRIETAIRE)
+    affecter(pret, "llm_rapide", ALIAS["llm_rapide"])
+    cout = _vue(pret, "llm_rapide")["cout"]
+    assert (cout["entree_par_million"], cout["sortie_par_million"]) == ("1", "5")
+    assert cout["source"].startswith("catalogue de la passerelle (découvert le ")
+    affecter(pret, "embeddings", ALIAS["embeddings"])  # le catalogue rapporte 0 : « non déclaré », pas « gratuit »
+    cout = _vue(pret, "embeddings")["cout"]
+    assert cout["entree_par_million"] is None and cout["source"] is None
+    affecter(pret, "llm_fort", ALIAS["llm_fort"], cout_entree_par_million="9", cout_sortie_par_million="9",
+             cout_source="contrat du client")  # une valeur donnée par le propriétaire l'emporte
+    assert _vue(pret, "llm_fort")["cout"] == {"entree_par_million": "9", "sortie_par_million": "9",
+                                              "source": "contrat du client", "devise": "USD"}
