@@ -426,3 +426,50 @@ def test_aucun_chemin_de_la_declaration_ne_refuse_plus_pour_un_cout_introuvable(
 
     resultat = _accepte(reponse)
     assert "REJ-COUT-UNITAIRE-INTROUVABLE" not in json.dumps(resultat)
+
+
+# =========================================================================================
+# 6. Abus : registre de prix corrompu, origine incohérente
+# =========================================================================================
+def test_une_entree_du_livre_corrompue_a_la_main_n_est_jamais_un_cout(m6):
+    """`m6_enregistrer_prix` refuse un prix nul ou négatif ; si une entrée illisible se retrouvait quand même au registre
+    (écriture directe), elle ne devient pas un coût de sortie : zéro, négatif, non fini, texte, devise étrangère."""
+    _publier_wct()
+    corrompues = [
+        {"materiau_id": MAT, "fournisseur_id": "f-neg", "prix_unitaire": -3.0, "devise": "CAD",
+         "date_effet": "2026-10-01", "unite": UNITE},
+        {"materiau_id": MAT, "fournisseur_id": "f-zero", "prix_unitaire": 0, "devise": "CAD",
+         "date_effet": "2026-10-01", "unite": UNITE},
+        {"materiau_id": MAT, "fournisseur_id": "f-texte", "prix_unitaire": "9.99", "devise": "CAD",
+         "date_effet": "2026-10-01", "unite": UNITE},
+        {"materiau_id": MAT, "fournisseur_id": "f-usd", "prix_unitaire": 9.99, "devise": "USD",
+         "date_effet": "2026-10-01", "unite": UNITE},
+        {"materiau_id": MAT, "fournisseur_id": "f-date", "prix_unitaire": 9.99, "devise": "CAD",
+         "date_effet": "bientôt", "unite": UNITE},
+    ]
+    with stockage.transaction():
+        for entree in corrompues:
+            stockage.maillons("m06-material-control", "livre_prix").append(entree)
+
+    _accepte(_declarer(m6, [_ligne()]))
+
+    m = _consommation()
+    assert m["cout_unitaire"] is None and m["origine_cout"]["source"] == "INCONNU"
+
+
+def test_le_registre_refuse_une_origine_incoherente_avec_le_cout():
+    """INCONNU <=> pas de coût : un coût avec l'origine « inconnu », ou une origine connue sans coût, est refusé."""
+    registre = registre_module.Registre()
+    base = {"type_mouvement": "CONSOMMATION", "chantier_id": "C", "materiau_id": "M", "quantite": -1.0}
+
+    _, code = registre.ajouter({**base, "cout_unitaire": 5.0, "origine_cout": {"source": "INCONNU"}})
+    assert code == "REJ-MOUVEMENT-ORIGINE-COUT-INVALIDE"
+    _, code = registre.ajouter({**base, "cout_unitaire": None, "origine_cout": {"source": "LIVRE_PRIX"}})
+    assert code == "REJ-MOUVEMENT-ORIGINE-COUT-INVALIDE"
+    _, code = registre.ajouter({**base, "cout_unitaire": 5.0, "origine_cout": {"source": "VALIDE"}})
+    assert code == "REJ-MOUVEMENT-ORIGINE-COUT-INVALIDE"
+    _, code = registre.ajouter_lot([{**base, "cout_unitaire": 5.0, "origine_cout": "RECEPTION_CHANTIER"}])
+    assert code == "REJ-MOUVEMENT-ORIGINE-COUT-INVALIDE"
+    assert registre.taille() == 0
+    maillon, code = registre.ajouter({**base, "cout_unitaire": None, "origine_cout": {"source": "INCONNU"}})
+    assert code is None and maillon["origine_cout"] == {"source": "INCONNU"}
