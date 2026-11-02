@@ -957,7 +957,10 @@ _SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
     "etat_financier": None,
     # Moteur de calcul : le Monte-Carlo ouvre le registre des mouvements pour le solde de la prévision existante,
     # comme `prevoir_tresorerie` ; ses aides sont en STRICT.
-    "outils": ("etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre", "simuler_tresorerie_monte_carlo"),
+    "outils": (
+        "etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre", "constater_cash_libre_planifie",
+        "simuler_tresorerie_monte_carlo",
+    ),
 }
 # Tout ce qui écrit ou nomme le registre des mouvements : sa fonction d'écriture, son adaptateur et son nom durable
 # (« principal »), les types de mouvement et la clé qui les porte.

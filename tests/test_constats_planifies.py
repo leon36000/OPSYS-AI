@@ -32,6 +32,9 @@ ATTENDUS = {
     "m4.constat.capacite-equipe": ("m4_constater_capacite_equipe", ("m8_capacite_heures_disponibles",
                                                                     "m8_capacite_heures_planifiees",
                                                                     "m8_charge_planifiee_pct")),
+    "m5.constat.cash-libre": ("m5_constater_cash_libre_planifie",
+                              ("m8_cash_libre_cad", "m8_solde_tresorerie_cad", "m8_comptes_a_payer_cad",
+                               "m8_taxes_a_remettre_cad")),
     "m5.constat.depense-publicitaire": ("m5_constater_depense_publicitaire",
                                         ("m8_depense_pub_comptabilisee_cad", "m8_ecart_depense_pub_comptabilisee_cad")),
     "m5.constat.factures-emises": ("m5_constater_factures_emises", ("m8_factures_emises", "m8_facturation_emise_cad")),
@@ -44,7 +47,7 @@ ATTENDUS = {
 
 
 # -- les manifestes livrés -------------------------------------------------------------------------------------------
-def test_les_huit_constats_de_la_phase_2_sont_declares_par_les_manifestes_des_departements():
+def test_les_neuf_constats_sont_declares_par_les_manifestes_des_departements():
     deps = charger_departements(RACINE / "departments")
     declares = {d.nom: d for d in constats.declarations(deps)}
     assert set(declares) == set(ATTENDUS)

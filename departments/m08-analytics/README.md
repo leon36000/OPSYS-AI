@@ -42,8 +42,13 @@ filtrés par rôle, conformité statique et digest quotidien.
   plus bas ; « manque » tant que M5 n'a rien constaté). GATE NATHAN : les seuils de l'entonnoir
   (`configuration.seuils_entonnoir`, vide) et la période à mesurer (aujourd'hui, tous les faits reçus).
 
+- `src/m8_analytics/collecte.py` (chantier C2) — POURQUOI une mesure est vide ou périmée, et quoi activer : module pur (cause parmi un
+  ensemble fermé, phrase, action, liste de contrôle d'activation des constats planifiés) ; `m8_lire_etat_collecte` (T0/N0, aucun droit
+  d'appareil) lit les mesures et l'état du planificateur lui-même, sans rien écrire ni rendre de valeur. Vue : page Collecte de la
+  console, wallboard `collecte`. Voir `docs/architecture/M8-ENTREPOT-SOURCES.md` §9 bis.
 - `src/m8_analytics/cash_libre.py` (PLAN T4.19-b) — le cash libre que M5 a constaté, repris tel quel. M5 publie
-  `m5.cash_libre_constate` quand l'admin le lui fait constater (`m5_constater_cash_libre`) ; M8 le consomme, range chaque
+  `m5.cash_libre_constate` quand l'admin le lui fait constater (`m5_constater_cash_libre`, N3) ou, une fois activé par un admin, par le
+  constat planifié `m5.constat.cash-libre` (variante N2 `m5_constater_cash_libre_planifie`, inactif par défaut) ; M8 le consomme, range chaque
   constat au registre `faits_cash_libre` (idempotent : un fait par identifiant d'événement, la charge telle que M5 l'a
   publiée ; le résumé du reçu ne porte aucun montant) et `m8_lire_vue_executive` montre le DERNIER, celui de plus grand
   `sequence` quel que soit l'ordre de livraison du bus. La vue en reprend l'essentiel, valeur pour valeur : statut,

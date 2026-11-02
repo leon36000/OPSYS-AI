@@ -38,6 +38,7 @@ __all__ = [
     "TYPE_EVENEMENT_CASH_LIBRE",
     "charge_evenement",
     "construire_trace",
+    "entete",
     "identifiant",
     "lire_jour",
     "resume",
@@ -171,4 +172,21 @@ def resume(charge: Mapping[str, Any]) -> dict[str, Any]:
         "lecture": charge["lecture"],
         "manque": [dict(m) for m in charge["manque"]],
         "reserves": list(charge["reserves"]),
+    }
+
+
+def entete(constat: Mapping[str, Any]) -> dict[str, Any]:
+    """Ce que la réponse de la variante PLANIFIÉE (`m5_constater_cash_libre_planifie`) dit d'un constat : l'en-tête et
+    le statut, avec les CODES de ce qui manque, et RIEN d'autre. Une liste blanche : aucun montant (ni cash libre, ni
+    solde, ni composante), aucune lecture en phrase, aucune réserve ne revient à l'appelant ; les montants ne
+    voyagent que par l'événement du bus, que M8 montre selon le rôle de celui qui lit. C'est ce qui sépare cette
+    variante (niveau N2, planificateur seulement) de `m5_constater_cash_libre` (N3), dont la réponse porte les montants
+    à la personne ou à l'agent qui les a demandés."""
+    return {
+        "evenement_id": constat["evenement_id"],
+        "sequence": constat["sequence"],
+        "date_reference": constat["date_reference"],
+        "version_donnees": constat["version_donnees"],
+        "statut": constat["statut"],
+        "manque": [{"composante": m["composante"], "code": m["code"]} for m in constat["manque"]],
     }

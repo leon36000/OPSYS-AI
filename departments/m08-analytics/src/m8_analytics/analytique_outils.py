@@ -7,7 +7,8 @@ Adaptateur mince, comme ``outils.py`` : chaque outil appelle un module PUR (``en
 Niveaux (ADR-0009 §4, DEFINITION-PRODUIT §5) :
 
 * LECTURE (N0) : ``m8_lire_mesures``, ``m8_lire_wallboard``, ``m8_lire_sante_entreprise``, ``m8_lire_entrepot``,
-  ``m8_repondre_question``, ``m8_contextualiser_mesure``, ``m8_lire_pont_bi`` ;
+  ``m8_repondre_question``, ``m8_contextualiser_mesure``, ``m8_lire_pont_bi``, ``m8_lire_etat_collecte`` (pourquoi une
+  mesure est vide) ;
 * TÂCHE INTERNE AUTOMATIQUE (N2, écriture dérivée ou append-only, réversible) : ``m8_construire_entrepot`` (couche
   dérivée, reconstructible), ``m8_enregistrer_sante_entreprise`` (historique append-only),
   ``m8_publier_faits_consolides`` (événement interne vers M10) ;
@@ -31,6 +32,7 @@ from opsys.outils import Autonomie, Niveau, Outil
 
 from . import (
     catalogue_mesures,
+    collecte,
     copilote,
     entonnoir,
     entrepot_stockage,
@@ -106,6 +108,7 @@ def construire(
     publications_cible: Any,
     budget_sortie: int,
     recherche_connaissances: Callable[[str, str], dict[str, Any]] | None = None,
+    etat_planificateur: Callable[[float], dict[str, Any]] | None = None,
 ) -> tuple[Outil, ...]:
     """Les outils de la couche analytique. Tout ce qui touche au socle (registres, configuration, identité, recherche
     dans la
@@ -457,6 +460,67 @@ def construire(
         reponse = recherche_connaissances(memoire.requete_pour(entree), DEPARTEMENT)
         return memoire.contextualiser(entree, mesure, reponse)
 
+    # -- État de la collecte : pourquoi une mesure est vide -----------------------------------------------------------
+    def lire_etat_collecte(
+        maintenant: str,
+        fraicheur_max_s: int | None = None,
+        vue: str = "resume",
+        seulement_a_corriger: bool = True,
+        depart: int = 0,
+    ) -> dict[str, Any]:
+        """Pourquoi une mesure est vide ou périmée, et quoi activer (chantier C2 de l'analyse M8). LECTURE seule : les
+        mesures viennent de la lecture ordinaire (même fraîcheur que partout), l'état des constats planifiés du
+        planificateur lui-même (``etat_planificateur``, injecté : on ne copie ni ne corrige sa vérité). Aucune valeur de
+        mesure n'est reprise. Comme la synthèse de direction : l'identité d'un admin est revérifiée en base ; aucun
+        droit d'appareil n'est ajouté."""
+        exiger_admin_appareil()
+        if vue not in ("resume", "mesures", "liste_de_controle"):
+            raise ValueError("REJ-COLLECTE-VUE-INCONNUE : vue = resume, mesures ou liste_de_controle")
+        if type(seulement_a_corriger) is not bool:
+            raise ValueError("REJ-COLLECTE-FILTRE-INVALIDE : seulement_a_corriger est un booléen")
+        if etat_planificateur is None:
+            raise ValueError("REJ-COLLECTE-PLANIFICATEUR-INDISPONIBLE : l'état du planificateur n'est pas raccordé")
+        lu = lecture(maintenant, fraicheur_max_s)
+        etat = etat_planificateur(fraicheur_mesures.lire_maintenant(maintenant).timestamp())
+        diagnostic = collecte.diagnostiquer(
+            lu["mesures"], etat["constats"], planificateur_autorise=etat["autorise"]
+        )
+        extra = avertissements_fraicheur(lu["configuration_fraicheur"])
+        base = {
+            "maintenant": maintenant,
+            "vue": vue,
+            "planificateur_autorise": diagnostic["planificateur_autorise"],
+            "n_mesures": diagnostic["n_mesures"],
+            **extra,
+        }
+        if vue == "resume":
+            return {
+                **base,
+                "lecture": diagnostic["lecture"],
+                "resume": diagnostic["resume"],
+                "constats": [
+                    {k: c[k] for k in ("executeur", "etat", "dernier_statut", "dernier_code", "mesures_a_jour",
+                                       "mesures_total")}
+                    for c in diagnostic["constats"]
+                ],
+                "prochain_depart": None,
+                "suite": "vue = mesures (état de collecte et action par mesure) ou liste_de_controle "
+                "(gestes d'activation).",
+            }
+        if vue == "mesures":
+            lignes = [
+                m for m in diagnostic["mesures"]
+                if not seulement_a_corriger or m["etat_collecte"] != collecte.ETAT_A_JOUR
+            ]
+        else:
+            lignes = [e for e in diagnostic["liste_de_controle"] if not seulement_a_corriger or not e["fait"]]
+        cle = "mesures" if vue == "mesures" else "etapes"
+
+        def construire_page(page: list[dict[str, Any]], prochain: int | None) -> dict[str, Any]:
+            return {**base, "n_lignes": len(lignes), cle: page, "prochain_depart": prochain}
+
+        return mesures_chantier.page_bornee(lignes, depart, budget_sortie, construire_page)
+
     # -- Pont BI (métadonnées seulement) ----------------------------------------------------------------------------
     @ferme_aux_appareils
     def lire_pont_bi(limite_journal: int = 20) -> dict[str, Any]:
@@ -681,6 +745,34 @@ def construire(
                 ["metric_id", "maintenant"],
             ),
             fonction=contextualiser_mesure,
+            **lecture_seule,
+        ),
+        Outil(
+            nom="m8_lire_etat_collecte",
+            description=(
+                "POURQUOI une mesure est vide ou périmée, et quoi faire : pour chaque mesure du catalogue un état "
+                "de collecte parmi un ensemble fermé (constat planifié inactif, en ombre, expiré ou en erreur ; "
+                "jamais reçue ; le département source dit « non calculable » ; périmée malgré les passages ; sans "
+                "constat planifié ; planificateur coupé), la phrase qui la dit et l'action à faire, plus la liste de "
+                "contrôle "
+                "d'activation des constats. Lit les mesures (même fraîcheur que partout) et l'état du planificateur "
+                "sans rien écrire ni déclencher. Aucune valeur de mesure n'est rendue. vue = resume (défaut), mesures "
+                "ou liste_de_controle."
+            ),
+            parametres=_schema(
+                {
+                    "maintenant": _MAINTENANT,
+                    "fraicheur_max_s": _FRAICHEUR_MAX,
+                    "vue": {"type": "string", "enum": ["resume", "mesures", "liste_de_controle"]},
+                    "seulement_a_corriger": {
+                        "type": "boolean",
+                        "description": "Vrai (défaut) : seulement les mesures non à jour / les gestes non faits.",
+                    },
+                    "depart": _DEPART,
+                },
+                ["maintenant"],
+            ),
+            fonction=lire_etat_collecte,
             **lecture_seule,
         ),
         Outil(

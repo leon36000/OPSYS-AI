@@ -65,6 +65,7 @@ from . import (
     cablage_ui,
     calendrier_marketing_ui,
     cfo_ui,
+    collecte_ui,
     connaissances_ui,
     connecteurs_ui,
     courriel_ui,
@@ -511,6 +512,11 @@ def creer_application(
     # Wallboards de M8 (wallboards_ui) : tableaux de bord en direct, lecture seule, flux SSE borné, administration
     # seulement.
     app.include_router(wallboards_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+    ))
+    # Collecte (collecte_ui) : pourquoi une mesure de M8 est vide ou périmée et quoi activer ; lecture seule,
+    # administration seulement.
+    app.include_router(collecte_ui.creer_router(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
     ))
     # Ingestion d'onboarding (onboarding_ui) : suivi des lots en lecture, administration seulement.

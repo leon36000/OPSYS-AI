@@ -63,6 +63,7 @@ SANS_VALEUR = ("m8_valeur_ponderee_pipeline_cad",)
 PREMIER_TOUR = {
     "m1.plaintes_constatees": 1, "m2.pipeline_constate": 1, "m2.filet_anti_perte_constate": 1,
     "m4.capacite_equipe_constatee": 1,
+    "m5.cash_libre_constate": 1,  # sans mouvement ni déclaration : « non calculable », publié tel quel (jamais un zéro)
     "m5.depense_publicitaire_constatee": 1, "m5.facture_emise_constatee": 2, "m6.disponibilite_constatee": 1,
     "m7.performance_signaux_constatee": 4,
 }
@@ -169,6 +170,10 @@ def test_du_planificateur_aux_outils_reels_au_bus_aux_mesures_au_wallboard_au_co
                       "m8_plaintes_periode"):
         assert mesures[metric_id]["fraicheur"] == "a_jour", metric_id
     assert mesures["m8_valeur_ponderee_pipeline_cad"]["statut"] == "non_calculable"  # aucune valeur déclarée : dit
+    # le cash libre de ce monde n'a ni mouvement ni déclaration : M5 le constate « non calculable » et M8 le dit
+    # (la preuve avec un trésorier fictif complet est `test_cash_libre_planifie_m8.py`)
+    for metric_id in ("m8_cash_libre_cad", "m8_solde_tresorerie_cad"):
+        assert mesures[metric_id]["statut"] == "non_calculable" and mesures[metric_id]["valeur"] is None, metric_id
 
     # -- recoupement avec la PROPRE lecture de chaque département (une autre voie que le constat) ----------------------
     _recouper_avec_les_departements(monde)
@@ -361,6 +366,7 @@ def test_les_cadences_par_defaut_viennent_du_catalogue_et_la_capacite_passe_chaq
     assert {n: vue[n]["intervalle_s"] for n in pm.CONSTATS} == {
         "m1.constat.plaintes": INTERVALLE, "m2.constat.pipeline": INTERVALLE, "m2.constat.filet": INTERVALLE,
         "m4.constat.capacite-equipe": JOUR,  # fenêtre hebdomadaire (cadence 7 j du catalogue) : borné à un jour
+        "m5.constat.cash-libre": INTERVALLE,  # fenêtre de 24 h des quatre mesures du cash libre, deux passages
         "m5.constat.depense-publicitaire": INTERVALLE, "m5.constat.factures-emises": INTERVALLE,
         "m6.constat.disponibilite": INTERVALLE, "m7.constat.performance-signaux": INTERVALLE}
 

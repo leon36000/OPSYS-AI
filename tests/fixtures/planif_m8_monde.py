@@ -40,6 +40,7 @@ CONSTATS = {
     "m2.constat.filet": "m2.filet_anti_perte_constate",
     "m2.constat.pipeline": "m2.pipeline_constate",
     "m4.constat.capacite-equipe": "m4.capacite_equipe_constatee",
+    "m5.constat.cash-libre": "m5.cash_libre_constate",
     "m5.constat.depense-publicitaire": "m5.depense_publicitaire_constatee",
     "m5.constat.factures-emises": "m5.facture_emise_constatee",
     "m6.constat.disponibilite": "m6.disponibilite_constatee",
@@ -159,6 +160,9 @@ def monter(tmp_path: Any, monkeypatch: Any, declarer_services: Any, *, url: str 
                              ("vendeur.un", ["seller"]), ("marc.fictif", ["employee"])):
             identite.creer_personne(cnx, ident, ident, "mot-de-passe-fictif-12345", roles)
     declarer_services()
+    from m5_financecore import outils as m5_outils
+
+    m5_outils.utiliser_stockage_durable()  # un test voisin a pu laisser le registre des mouvements en mémoire
     horloge = pq.Horloge(DEBUT.timestamp())
     planificateur.reinitialiser_arret()
     plan = pq.Planif(horloge, Ports(horloge=horloge), bus.departements)
@@ -323,6 +327,30 @@ def semer_m4(monde: Monde) -> None:
     aide._resultat(aide._appliquer(par_nom, plan))
     aide._resultat(aide._appeler(par_nom, "m4_confirmer_dates_cedule",
                                  {"plan_id": plan, "calendrier": {"0": LUNDI}, "revision_attendue": 0}, aide.ADMIN))
+
+
+def semer_m5_tresorerie(monde: Monde, tmp_path: Any, monkeypatch: Any) -> dict[str, str]:
+    """Le TRÉSORIER fictif de M5 : un solde (mouvements), des factures clients ouvertes (TPS/TVQ à remettre), des
+    factures fournisseurs à payer (réceptions de M6 et factures saisies), une provision, et ce que le propriétaire
+    déclare (cycle fiscal, paies, DAS, dettes). C'est le cas de référence de `test_constat_cash_libre_outils.py`
+    (calculé à la main), semé par ses PROPRES aides : les registres sont ceux de la production, rien n'est publié à la
+    main. Rend les valeurs attendues (texte décimal) : solde 37654.33, taxes 1981.69, comptes à payer 459.91, cash
+    libre 27861.98."""
+    import yaml
+    from m5_financecore import outils as m5_outils
+    from m5_financecore import taux_fiscaux
+
+    aide = _charger("planif_aide_m5", RACINE / "departments/m05-financecore/tests/test_constat_cash_libre_outils.py")
+    manifeste = tmp_path / "department-m5-fictif.yaml"
+    manifeste.write_text(yaml.safe_dump({"configuration": aide.CONFIGURATION_COMPLETE}, allow_unicode=True),
+                         encoding="utf-8")
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    taux, erreurs = taux_fiscaux.charger_taux_fiscaux(m5_outils._CHEMIN_TAUX_FISCAUX)
+    assert erreurs == []
+    aide._peupler_mouvements()
+    aide._peupler_factures_clients(taux)
+    aide._peupler_a_payer(taux)
+    return {"cash_libre": "27861.98", "solde": "37654.33", "comptes_a_payer": "459.91", "taxes_a_remettre": "1981.69"}
 
 
 def semer_tout(monde: Monde, corpus_plaintes: dict[str, Any]) -> None:

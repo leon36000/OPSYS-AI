@@ -37,7 +37,9 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
   # PLAN T4.19-b : le cash libre constaté (m5.cash_libre_constate) atteint M8, qui l'affiche dans la vue exécutive. Les
   # montants tels que le calcul de M5 les rend, chaque composante avec sa source et sa fraîcheur, ou « non calculable,
   # manque X » avec des codes ; jamais un texte saisi par le propriétaire ni une donnée de client. Il part quand l'admin
-  # fait constater le cash libre (m5_constater_cash_libre, T1), pas à chaque lecture de m5_etat_tresorerie.
+  # fait constater le cash libre (m5_constater_cash_libre, N3) ou, une fois le constat « cash-libre » activé par un admin
+  # (constats_planifies, plus bas), à chaque passage du planificateur (m5_constater_cash_libre_planifie, N2) ; jamais à
+  # chaque lecture de m5_etat_tresorerie.
   # Opérations comptables (docs/architecture/M5-SOPHIE.md, catalogue src/opsys/evenements/catalogue/) : m5.creance_relance_preparee
   # (brouillon de relance, pour M2 ; rien n'est envoyé), m5.mesures_comptables_constatees (nombres et montants comptés par le
   # code, pour M8), m5.rapprochement_po_constate (facture fournisseur contre la commande réceptionnée, pour M6),
@@ -213,6 +215,18 @@ constats_planifies:
     description: Factures clients émises (envoyées par une personne), sans client ni chantier.
     appels:
       - horodatage: {calcul: instant}
+  # Le cash libre : la variante PLANIFIÉE du constat à la demande de l'admin (m5_constater_cash_libre reste N3 et son droit
+  # d'appareil intact). Même constat, même événement, même règle « un constat par jour et par version des données » ; la
+  # réponse ne porte aucun montant. Les quatre mesures sont celles que M8 tire de m5.cash_libre_constate (catalogue de M8) :
+  # leur fenêtre de fraîcheur commande la cadence, rien n'est recopié ici. Inactif par défaut comme tout constat.
+  - nom: cash-libre
+    outil: m5_constater_cash_libre_planifie
+    mesures: [m8_cash_libre_cad, m8_solde_tresorerie_cad, m8_comptes_a_payer_cad, m8_taxes_a_remettre_cad]
+    description: >-
+      Cash libre réel du jour (solde moins les obligations connues ou déclarées), ou « non calculable, manque X » : jamais un
+      zéro. Aucun paiement, aucune écriture comptable.
+    appels:
+      - aujourd_hui: {calcul: jour}
 budget:
   tokens_jour: 200000
   tokens_mois: 3000000

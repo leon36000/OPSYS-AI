@@ -40,6 +40,7 @@ ONGLETS = (
     ("plateforme/fournisseurs", "Plateforme"),
     ("observabilite", "Observabilité"),
     ("wallboards", "Wallboards"),
+    ("collecte", "Collecte"),
 )
 SECTIONS_PLATEFORME = (
     ("fournisseurs", "Fournisseurs"),

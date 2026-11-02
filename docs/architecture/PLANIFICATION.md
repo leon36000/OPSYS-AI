@@ -218,6 +218,17 @@ consigne) ont été écartées : elles passent par un modèle (jetons, non-déte
 qu'un constat n'a rien à interpréter. Le planificateur durable apporte ce qu'il faut : mode `inactif` par défaut, bail,
 réservation de créneau, journal, arrêt propre, coupe-circuit, console.
 
+**Le cash libre (chantier C1, huitième constat).** `m5_constater_cash_libre`, l'outil que l'admin lance de son téléphone, est
+N3 et porte un droit d'appareil : il ne peut être ni appelé par le planificateur (`REJ-PLAN-NIVEAU-INTERDIT`) ni déclaré ici (le
+contrôle de cohérence exige T1, N0 à N2, aucun droit d'appareil). Son niveau a été examiné et conservé ; le constat planifié appelle
+la variante `m5_constater_cash_libre_planifie` (N2, planificateur seulement, réponse sans montant, même écriture et même registre
+de constats que l'outil N3, donc jamais deux constats pour le même jour et les mêmes données). Raisons, mutations et limites :
+[M5-CASH-LIBRE-PLANIFIE](../../departments/m05-financecore/docs/M5-CASH-LIBRE-PLANIFIE.md). Le jour de référence est le jour LOCAL du
+créneau (`aujourd_hui: {calcul: jour}`). Limite de fraîcheur propre au cash libre : M8 date un constat de M5 du début du jour de
+référence en UTC et la fenêtre est de 24 h ; le constat change de jour à minuit local (UTC-5 en novembre), de sorte que les quatre
+mesures sont périmées de 19 h à minuit locales même quand tous les passages réussissent. Une fenêtre de 48 h déclarée par le
+propriétaire (`configuration.fraicheur_mesures_s` de M8) et un intervalle d'un jour supprime l'intervalle (prouvé).
+
 **Où est la déclaration.** Dans le manifeste du département PRODUCTEUR, bloc `constats_planifies` (schéma fermé, validé à la
 lecture et par `opsys-metier verifier`). Le socle ne contient aucun horaire ni nom de département : `constats.py` lit les
 manifestes, en tire un exécuteur `<mN>.constat.<nom>` par déclaration (famille « constats », niveau N2) et le journal, la
@@ -227,6 +238,7 @@ console et l'activation les traitent comme les autres tours.
 |---|---|---|---|---|
 | `m5.constat.depense-publicitaire` | `m5_constater_depense_publicitaire` | dépense comptabilisée, écart avec les relevés | 1 : du début du mois à aujourd'hui | 12 h |
 | `m5.constat.factures-emises` | `m5_constater_factures_emises` | factures émises, facturation avant taxes | 1 | 12 h |
+| `m5.constat.cash-libre` | `m5_constater_cash_libre_planifie` | cash libre, solde de trésorerie, comptes à payer, taxes à remettre | 1 : le jour local | 12 h |
 | `m7.constat.performance-signaux` | `m7_constater_performance_signaux` | clics, impressions, visites du site | 2 : mois précédent, mois en cours | 12 h |
 | `m4.constat.capacite-equipe` | `m4_constater_capacite_equipe` | heures disponibles, heures planifiées, charge | 1 : semaine ISO en cours | 24 h (borné) |
 | `m2.constat.pipeline` | `m2_constater_pipeline` | leads ouverts, taux de conversion, valeur pondérée | 1 | 12 h |
@@ -280,6 +292,10 @@ fait UN passage au redémarrage, pas dix (prouvé).
 les autres constats : le tour est « erreur » avec le code typé (`REJ-PLAN-DEFAUT-EXECUTEUR`, `REJ-PLAN-DEPARTEMENT-ABSENT`, le
 code du refus de l'outil…), visible à la console Connecteurs (dernier statut, code, échecs sur 24 h) et au journal. La mesure
 devient périmée seulement après DEUX passages manqués (prouvé) puis redevient à jour dès que le constat repasse.
+
+**Savoir pourquoi une mesure est vide.** `m8_lire_etat_collecte` (chantier C2) et la page Collecte de la console disent, par mesure,
+si la cause est un constat inactif, en ombre, expiré ou en erreur, un bus qui n'a rien livré, un « non calculable » du département
+source ou le coupe-circuit, avec la liste de contrôle d'activation : voir `M8-ENTREPOT-SOURCES.md` §9 bis.
 
 **Ce qui est prouvé** : `tests/test_filet_anti_perte_planifie.py` (le filet de M2), `tests/test_entrepot_m8_planifie.py` (19 cas de bout en bout : vrais outils, vrai bus et répartiteur,
 vrai moteur, wallboards de la vraie console, copilote, mémoire de M10, consolidation vue par M9), `tests/test_constats_planifies.py`

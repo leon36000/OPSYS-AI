@@ -73,6 +73,8 @@ LECTURES = {
     "m2_reconcilier_memoire_contact_client": "m02-revenue-crm",
     # M8.8 : wallboards en direct (lecture admin, évaluée par le code de M8 avec la fraîcheur des mesures)
     "m8_lire_wallboard": "m08-analytics",
+    # C2 : pourquoi une mesure est vide (lecture admin ; l'état du planificateur est lu au planificateur lui-même)
+    "m8_lire_etat_collecte": "m08-analytics",
     "m3_lister_devis_lead_admin": "m03-estimation",
     "m3_lire_devis": "m03-estimation",
 }
@@ -93,7 +95,7 @@ _LECTURES_ADMIN_M2 = frozenset({
 })
 _LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
 _LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine", "m4_lire_calendrier_plan"})
-_LECTURES_ADMIN_M8 = frozenset({"m8_lire_wallboard"})
+_LECTURES_ADMIN_M8 = frozenset({"m8_lire_wallboard", "m8_lire_etat_collecte"})
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4 | _LECTURES_ADMIN_M8
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
 _COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule", "m4_signaler_report",

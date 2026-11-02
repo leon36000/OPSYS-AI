@@ -293,6 +293,33 @@ def _exiger_admin_pour_appareil() -> None:
         )
 
 
+def _etat_planificateur(instant: float) -> dict[str, Any]:
+    """L'état des constats planifiés que les manifestes DÉCLARENT, lu au planificateur lui-même (lecture seule, dans la
+    transaction de l'outil) : mode effectif, activation échue, dernier passage, dernier code, échecs récents, ainsi que
+    l'interrupteur général. C'est le port de `m8_lire_etat_collecte` : M8 ne garde aucune copie de cet état et ne
+    déclenche, n'active ni ne corrige rien. `instant` vient de l'appelant (M8 n'a pas d'horloge)."""
+    from opsys.connecteurs_planification import constats as constats_planifies
+    from opsys.connecteurs_planification import etat as etat_planif
+
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        raise ValueError("REJ-COLLECTE-HORS-TRANSACTION : l'état du planificateur ne se lit que dans un appel d'outil")
+    vue = {v["executeur"]: v for v in etat_planif.vue(cnx, instant)}
+    constats_lus = []
+    for declaration, _definition in constats_planifies.declarees():
+        ligne = vue.get(declaration.nom)
+        if ligne is None:
+            continue
+        constats_lus.append({
+            "executeur": declaration.nom, "departement": declaration.departement, "outil": declaration.constat.outil,
+            "mesures": list(declaration.constat.mesures), "mode": ligne["mode"], "mode_demande": ligne["mode_demande"],
+            "expire": ligne["expire"], "intervalle_s": ligne["intervalle_s"],
+            "dernier_passage": ligne["dernier_passage"], "dernier_statut": ligne["dernier_statut"],
+            "dernier_code": ligne["dernier_code"], "echecs_24h": ligne["echecs_24h"],
+        })
+    return {"autorise": etat_planif.planificateur_autorise(), "constats": constats_lus}
+
+
 def _lire_attentes_m6() -> tuple[list[dict[str, Any]] | None, str | None]:
     """Ce que M6 met à la file du propriétaire (`attentes()`, PLAN T1.5-d) : `(attentes, None)`, ou `(None, raison)`
     quand M6 ne peut pas être lu. C'est le mécanisme du socle (`approbations.attentes_departements`, celui de M9), pas
@@ -1203,6 +1230,7 @@ def outils(
         lire_registres=lire_registres, configuration=_configuration, exiger_admin_appareil=_exiger_admin_pour_appareil,
         historique_sante_cible=historique_sante_cible, publications_cible=publications_cible,
         budget_sortie=BUDGET_SORTIE, recherche_connaissances=recherche_connaissances,
+        etat_planificateur=_etat_planificateur,
     )
 
     outils_existants = (

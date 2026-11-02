@@ -66,7 +66,7 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
     # T4.19-b : le constat aussi (`constater_cash_libre`), qui confie son écriture à une fonction en strict
     # moteur de calcul : le Monte-Carlo lit le solde par la prévision existante, comme `prevoir_tresorerie`
     assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre",
-                                      "simuler_tresorerie_monte_carlo"}
+                                      "constater_cash_libre_planifie", "simuler_tresorerie_monte_carlo"}
     assert lecture["soldes"] is None and lecture["etat_financier"] is None
 
 

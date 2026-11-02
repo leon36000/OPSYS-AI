@@ -137,6 +137,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_decision_capital",  # comparaison préparatoire de scénarios d'acquisition
     "m5_preparer_dossier_decision_cfo",  # dossier stratégique composé à partir des vues canoniques M5
     "m5_constater_cash_libre",  # le cash libre constaté et publié au bus (T4.19-b) : le même calcul, sous hypothèses
+    "m5_constater_cash_libre_planifie",  # sa variante planifiée : même constat, réponse sans montant, mention gardée
     "m5_lire_rentabilite_chantier",  # coût réel et marge : une lecture de rentabilité
     "m5_lister_comptes_a_payer",  # « à payer attendu » et rapprochement PROPOSÉ
     "m5_saisir_facture_fournisseur",  # rend le rapprochement PROPOSÉ du PO
