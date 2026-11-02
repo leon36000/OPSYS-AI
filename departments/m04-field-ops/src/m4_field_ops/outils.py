@@ -1130,6 +1130,20 @@ def outils(
             return {"observations": [], "refus": [{"motif": "appelant_non_authentifie"}]}
         return calibration_projection.lire_projections(wct_ids)
 
+    def lire_equipes_faits_m3(wct_ids: list[str]) -> dict[str, Any]:
+        """Équipe pseudonymisée de chaque WCT, réservée à M3 (apprentissage agrégé par équipe et type de travaux)."""
+        origine = contexte.departement_origine_appelante()
+        if origine != "m03-estimation":
+            return {"equipes": [], "refus": [{"motif": "departement_appelant_non_autorise"}]}
+        profil, _ = _lecteur_equipes()()
+        declarees = (
+            {e["id"]: len(e.get("membres", ())) for e in profil["liste"]}
+            if isinstance(profil, dict) and isinstance(profil.get("liste"), list) else {}
+        )
+        if not declarees:
+            return {"equipes": [], "refus": [{"motif": "profil_equipes_absent"}]}
+        return calibration_projection.lire_equipes(wct_ids, registre_courant(), declarees)
+
     def notifier_client_completion(intervention_id: str) -> dict[str, Any]:
         """Prépare le brouillon de message client (T2) : jamais GPS/technicien/lead_id en clair."""
         wct = None
@@ -2412,6 +2426,24 @@ def outils(
             },
             fonction=lire_faits_calibration_m3, autonomie=Autonomie.T0,
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_equipes_faits_m3",
+            description=(
+                "Projection interne, en lecture seule, de l'ÉQUIPE (pseudonyme stable) qui a réalisé chacun des WCT "
+                "demandés, pour l'apprentissage agrégé de M3 par équipe et par type de travaux. Réservée à M3. "
+                "Ne rend jamais un identifiant de personne, un nom ni une équipe de moins de deux membres déclarés : "
+                "ces cas rendent un motif et aucune équipe. Aucune note de personne."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"wct_ids": {
+                    "type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "minItems": 1, "maxItems": 200, "uniqueItems": True,
+                }},
+                "required": ["wct_ids"], "additionalProperties": False,
+            },
+            fonction=lire_equipes_faits_m3, autonomie=Autonomie.T0,
         ),
         Outil(
             nom="m4_notifier_client_completion",

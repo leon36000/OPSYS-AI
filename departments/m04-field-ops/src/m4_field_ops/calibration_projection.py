@@ -6,6 +6,7 @@ acceptée. La durée est recalculée depuis les pointages, jamais déduite du WC
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from typing import Any
 
@@ -125,3 +126,56 @@ def lire_projections(wct_ids: Any, registre_cible: Any = None) -> dict[str, Any]
             "unite_duree": "minute",
         })
     return {"observations": observations, "refus": refus}
+
+
+_MEMBRES_MINIMUM = 2
+
+
+def equipe_ref(equipe_id: str) -> str:
+    """Pseudonyme STABLE d'une équipe (``eq-`` + 16 hexadécimaux) : ce que M3 conserve et ce que M4 recalcule pour
+    relire l'agrégat. Un identifiant d'équipe n'est jamais écrit dans les journaux de l'apprentissage."""
+    return "eq-" + hashlib.sha256(f"m4.equipe.ref/v1\x1f{equipe_id}".encode()).hexdigest()[:16]
+
+
+def lire_equipes(wct_ids: Any, registre_cible: Any, equipes_declarees: dict[str, int]) -> dict[str, Any]:
+    """Équipe de chacun des WCT demandés, sous forme de pseudonyme, pour l'apprentissage agrégé de M3.
+
+    ``equipes_declarees`` : ``{id d'équipe du profil de l'entreprise: nombre de membres déclarés}``. L'équipe d'un WCT
+    est le dernier technicien/équipe ASSIGNÉ à son intervention (``etats.technicien_assigne``). Elle n'est rendue que
+    si c'est une équipe du profil comptant au moins deux membres déclarés : un identifiant de personne, une équipe d'une
+    seule personne ou une assignation inconnue rendent ``equipe_ref: None`` et le motif - M4 ne livre jamais le dossier
+    d'une personne seule (Loi 25, R-020). Aucun nom, aucun identifiant de membre ne sort."""
+    if (
+        not isinstance(wct_ids, list) or not 1 <= len(wct_ids) <= _MAX_IDS
+        or any(not isinstance(item, str) or not item or len(item) > 128 for item in wct_ids)
+        or len(set(wct_ids)) != len(wct_ids)
+    ):
+        return {"equipes": [], "refus": [{"motif": "identites_wct_invalides_ou_hors_bornes"}]}
+    try:
+        if registre_cible.taille() > _MAX_MAILLONS:
+            return {"equipes": [], "refus": [{"motif": "registre_m4_hors_borne", "limite": _MAX_MAILLONS}]}
+        if not registre_cible.valider_chaine():
+            return {"equipes": [], "refus": [{"motif": "chaine_m4_non_valide"}]}
+        maillons = registre_cible.lire()
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        return {"equipes": [], "refus": [{"motif": "chaine_m4_non_valide"}]}
+    intervention_par_wct: dict[str, str] = {}
+    for maillon in maillons:
+        wct = maillon.get(outbox.CLE_WCT)
+        if isinstance(wct, dict) and isinstance(wct.get("wct_id"), str) and isinstance(wct.get("intervention_id"), str):
+            intervention_par_wct[wct["wct_id"]] = wct["intervention_id"]
+    sortie = []
+    for wct_id in wct_ids:
+        intervention = intervention_par_wct.get(wct_id)
+        if intervention is None:
+            sortie.append({"wct_id": wct_id, "equipe_ref": None, "motif": "wct_absent"})
+            continue
+        assignee = etats.technicien_assigne(registre_cible, intervention)
+        membres = equipes_declarees.get(assignee) if isinstance(assignee, str) else None
+        if membres is None:
+            sortie.append({"wct_id": wct_id, "equipe_ref": None, "motif": "assignation_non_equipe_declaree"})
+        elif membres < _MEMBRES_MINIMUM:
+            sortie.append({"wct_id": wct_id, "equipe_ref": None, "motif": "equipe_de_moins_de_deux_membres"})
+        else:
+            sortie.append({"wct_id": wct_id, "equipe_ref": equipe_ref(assignee), "motif": None})
+    return {"equipes": sortie, "refus": []}

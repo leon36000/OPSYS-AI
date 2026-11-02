@@ -896,3 +896,62 @@ def test_une_approbation_ne_sert_qu_a_ses_arguments_exacts_consentement_et_affec
 
 def adaptateur_outil(nom):
     return next(o for o in outils() if o.nom == nom).fonction
+
+
+# =================================================================================== rapidité apprise (M3)
+POIDS_RAPIDITE = {
+    "poids": {"capacite": "1", "charge": "0", "distance": "0", "qualite": "0", "rapidite": "3"},
+    "distance_reference_km": 100,
+    "historique_minimum": 5,
+}
+
+
+def test_la_rapidite_apprise_par_m3_ordonne_les_equipes_par_l_outil_sans_rien_ecrire(par_nom, monde, monkeypatch):
+    monkeypatch.setattr(adaptateur, "_parametres_adequation", lambda: copy.deepcopy(POIDS_RAPIDITE))
+    vus = []
+
+    def rapidites(service, equipes):
+        vus.append((service, [e["id"] for e in equipes]))
+        return {
+            "eq-a": {"chantiers": 9, "indice_median": "1.20", "borne_basse": "1.1", "borne_haute": "1.3"},
+            "eq-b": {"chantiers": 8, "indice_median": "0.80", "borne_basse": "0.7", "borne_haute": "0.9"},
+        }
+
+    monkeypatch.setattr(adaptateur, "_rapidite_par_equipe", rapidites)
+    avant = aide._etat()
+    ordre = aide._resultat(
+        _appeler(par_nom, "m4_proposer_adequation_equipes", {"intervention_id": _iid(monde), "date_cible": LUNDI})
+    )
+    assert aide._etat() == avant and vus and vus[0][1] == ["eq-a", "eq-b"]
+    assert [x["equipe_id"] for x in ordre["ordre"]] == ["eq-b", "eq-a"]
+    assert "rapidite" in ordre["criteres_actifs"] and ordre["rapidite_concluante"] is True
+    assert "9 chantier(s) de ce type" in ordre["ordre"][1]["explication"]
+    assert ordre["decision"] == "humain" and "ne note aucune personne" in ordre["mise_en_garde"]
+
+
+def test_sans_poids_de_rapidite_m3_n_est_meme_pas_interroge(par_nom, monde, monkeypatch):
+    def interdit(service, equipes):
+        raise AssertionError("M3 ne doit pas être lu quand la rapidité n'a pas de poids")
+
+    monkeypatch.setattr(adaptateur, "_rapidite_par_equipe", interdit)
+    ordre = aide._resultat(
+        _appeler(par_nom, "m4_proposer_adequation_equipes", {"intervention_id": _iid(monde), "date_cible": LUNDI})
+    )
+    assert "rapidite" not in ordre["criteres_actifs"] and "rapidite_concluante" not in ordre
+
+
+def test_m3_indisponible_ou_vide_la_rapidite_est_ecartee_avec_sa_raison_pas_inventee(par_nom, monde, monkeypatch):
+    monkeypatch.setattr(adaptateur, "_parametres_adequation", lambda: copy.deepcopy(POIDS_RAPIDITE))
+    monkeypatch.setattr(adaptateur, "_rapidite_par_equipe", lambda service, equipes: {})
+    ordre = aide._resultat(
+        _appeler(par_nom, "m4_proposer_adequation_equipes", {"intervention_id": _iid(monde), "date_cible": LUNDI})
+    )
+    assert ordre["criteres_actifs"] == ["capacite"]
+    assert any(e["critere"] == "rapidite" and "donnée manquante" in e["raison"] for e in ordre["criteres_ecartes"])
+    assert {x["equipe_id"] for x in ordre["ordre"]} == {"eq-a", "eq-b"}
+
+
+def test_le_nouvel_outil_de_m4_est_ferme_aux_appareils_et_reserve_a_m3():
+    par = {o.nom: o for o in outils()}
+    outil = par["m4_lire_equipes_faits_m3"]
+    assert outil.roles_appareil == frozenset() and outil.autonomie is Autonomie.T0

@@ -85,6 +85,25 @@
         "principal"
       ],
       "raison": "Contexte matériaux d'un appareil : M6 relit l'intervention et le WCT de M4 (copie SQL validée par la chaîne et les invariants de M4), lecture seule, pour l'employé assigné. Déclarée dans `dependances`."
+    },
+    {
+      "lecteur": "m03-estimation",
+      "source": "m04-field-ops",
+      "voie": "port:capacites_m3_vers_m4",
+      "outils": [
+        "m4_lire_faits_calibration_m3",
+        "m4_lire_equipes_faits_m3"
+      ],
+      "raison": "Apprentissage des durées (APPRENTISSAGE.md) : M3 relit les WCT certifiés de M4 (durée sur site hors pauses et déplacement) et l'équipe pseudonymisée de chacun ; lectures T0 réservées à M3, qui ne livrent ni nom, ni membre, ni équipe de moins de deux membres."
+    },
+    {
+      "lecteur": "m04-field-ops",
+      "source": "m03-estimation",
+      "voie": "port:capacites_m4_vers_m3",
+      "outils": [
+        "m3_lire_performance_equipes"
+      ],
+      "raison": "Indice d'adéquation M4.11, critère facultatif « rapidité » : M4 relit l'instantané des indices par couple (équipe pseudonymisée, type de travaux) appris par M3 ; lecture T0 réservée à M4 et M3, agrégat d'équipe, jamais une note de personne."
     }
   ]
 }

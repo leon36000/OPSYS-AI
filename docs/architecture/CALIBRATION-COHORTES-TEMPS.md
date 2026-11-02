@@ -92,3 +92,9 @@ d'origine ni une chaîne inviolable. Les états sont `refuse`, `insuffisant` ou
 
 Sources : [module](../../departments/m03-estimation/src/m3_estimation/calibration_cohortes.py)
 et [tests fictifs](../../departments/m03-estimation/tests/test_calibration_cohortes.py).
+
+## Suite : apprentissage des durées par type de travaux
+
+Cette couche pure reste le chemin « preuve statistique stricte » (portée exacte, train/holdout, activation N4). Le chemin
+d'usage courant, par type de travaux et sous règle déclarée, est décrit dans [APPRENTISSAGE.md](APPRENTISSAGE.md) ; les deux ne
+s'appliquent jamais ensemble à une même demande.

@@ -128,3 +128,25 @@ politique vide dans `department.yaml`), harnais IoU sur jeu synthétique fictif,
 ports géospatiaux et aire d'un polygone avec reçu. `m3_estimer_projet` accepte `contexte_site_empreinte`.
 **Aucun modèle de vision, aucune source géospatiale réelle** : « contrat prêt, aucun modèle qualifié ». Détails, preuves et limites :
 [`docs/architecture/M3-M4-MATHIS-GABRIEL.md`](../../docs/architecture/M3-M4-MATHIS-GABRIEL.md).
+
+## Apprentissage des durées sur site (vague 8)
+
+Le terrain corrige l'estimation de **durée** (jamais le déplacement, jamais le prix) : `apprentissage_durees.py` (pur : estimateur
+robuste par type de travaux, intervalle, poids d'âge, aberrantes, dérive, indice de rapidité par équipe normalisé par la
+difficulté), `apprentissage_journal.py` (journal append-only chaîné : candidates, mises en vigueur, retraits, complexité, instantané
+des équipes) et `outils_apprentissage_durees.py` (adaptateur : observations certifiées par la jointure existante, mode du
+département, approbations). Six outils fermés aux appareils : `m3_lire_apprentissage_durees` (T0), `m3_calculer_apprentissage_durees`
+(N2, planifié chaque lundi), `m3_approuver_calibration_duree` et `m3_annuler_calibration_duree` (N3, **décision humaine exigée**),
+`m3_declarer_complexite_chantier` (N3), `m3_lire_performance_equipes` (T0, M4 et M3 seulement).
+
+- **Rien ne s'applique sans politique** : `configuration.apprentissage_durees` est VIDE à dessein ; sans elle les outils refusent et
+  disent quoi déclarer. En mode `ombre`, la candidate est calculée et montrée (`apprentissage_duree.statut: ombre`), jamais
+  appliquée automatiquement. Hors ombre, un petit ajustement dans les bornes s'applique au brouillon d'estimation seulement ;
+  dérive ou variation au-delà du palier : une personne approuve ; hors bornes absolues : refus ; retour arrière en une opération.
+- **Trace** : la réponse de `m3_estimer_projet` porte `apprentissage_duree` (version, nombre de chantiers, intervalle, facteur,
+  durée de base contre durée apprise, `deplacement.inclus: false`) et le registre une trace de temps de schéma 3 ; sans version,
+  charge et hash inchangés. Prix, intervalle de coût et scénarios ne changent pas.
+- **Équipes** : agrégat par couple (équipe pseudonymisée, type), jamais par personne ; critère facultatif `rapidite` de l'indice
+  d'adéquation M4. Détail, décisions d'architecte, patron réutilisable et limites : [APPRENTISSAGE.md](../../docs/architecture/APPRENTISSAGE.md).
+- **Preuve** : `test_apprentissage_bout_en_bout.py` (vrais outils M3 et M4, données fictives), `test_apprentissage_durees.py`,
+  `test_apprentissage_journal.py`, `test_apprentissage_estimation.py`.

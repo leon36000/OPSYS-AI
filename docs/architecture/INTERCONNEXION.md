@@ -117,6 +117,8 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | M5 | M6 | `registre` | `livre_prix` |
 | M4 | M6 | `registre` | `contrats_variance_m6.REGISTRE`, `contrats_variance_m6.REGISTRE_REFUS` |
 | M6 | M4 | `registre` | `principal` |
+| M3 | M4 | `port:capacites_m3_vers_m4` | `m4_lire_faits_calibration_m3`, `m4_lire_equipes_faits_m3` |
+| M4 | M3 | `port:capacites_m4_vers_m3` | `m3_lire_performance_equipes` |
 
 Lectures sans entrée dans `dependances` (volontairement non élargi) : m01-front-office lit m04-field-ops; m02-revenue-crm lit m10-memoire; m05-financecore lit m07-marketing; m09-strategic-intelligence lit m01-front-office; m09-strategic-intelligence lit m02-revenue-crm; m09-strategic-intelligence lit m03-estimation; m09-strategic-intelligence lit m04-field-ops; m09-strategic-intelligence lit m05-financecore; m09-strategic-intelligence lit m06-material-control; m09-strategic-intelligence lit m07-marketing.
 

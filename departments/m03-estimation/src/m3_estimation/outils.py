@@ -44,6 +44,7 @@ from . import (
     hierarchie_echelle,
     modeles_soumission,
     monte_carlo,
+    outils_apprentissage_durees,
     outils_site_vision,
     plancher,
     politique_photos,
@@ -477,11 +478,26 @@ def estimer_projet(
         if erreur_calibration is not None:
             return {"etape": "calibration_active", "accepte": False,
                     "raisons": [erreur_calibration], "candidate_active": False}
+        apprentissage_actif, apprentissage_ombre, raison_apprentissage = (
+            (None, None, "calibration_exacte_active") if calibration_candidate is not None
+            else _apprentissage_pour_demande(contrat, bareme, quantite)
+        )
         resultat = _rejouer_sur_ecriture_concurrente(lambda: estimation.orchestrer_estimation(
             contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
             registre_production(), graine, taux_marge,
             taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(), calibration_candidate,
+            apprentissage_actif, apprentissage_ombre,
         ))
+        if (
+            raison_apprentissage is not None and resultat.get("accepte") is True
+            and resultat.get("apprentissage_duree") is None and resultat.get("duree_estimee_minutes") is not None
+        ):
+            # Aucune version n'a pu s'appliquer (journal altéré, calibration exacte en vigueur) : l'estimation reste
+            # celle du barème, et le bloc dit pourquoi au lieu de se taire.
+            resultat = {**resultat, "apprentissage_duree": {
+                "statut": "non_appliquee", "raison": raison_apprentissage,
+                "deplacement": {"inclus": False, "note": "calculé à part (distances de M4)"},
+            }}
         if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
             _publier_besoins_materiaux(resultat["besoins_materiaux"])
         if resultat.get("accepte") is True and contexte_resume is not None:
@@ -1083,6 +1099,25 @@ def _calibration_active_pour_demande(
         return None, "journal_calibration_invalide"
 
 
+def _apprentissage_pour_demande(
+    contrat: dict[str, Any], bareme: dict[str, Any], quantite: float,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
+    """Version d'apprentissage des durées applicable à cette demande (et candidate à montrer en mode ombre) : voir
+    ``outils_apprentissage_durees.version_pour_demande``. Jamais une exception : sans barème de durée, rien."""
+    if not isinstance(contrat, dict) or not isinstance(bareme, dict):
+        return None, None, None
+    service = contrat.get("service", contrat.get("type_travaux"))
+    if not isinstance(service, str):
+        return None, None, None
+    try:
+        baseline, taux, verdict = estimation._duree_estimee_minutes_texte(quantite, bareme, service)
+    except (AttributeError, TypeError, ValueError):
+        return None, None, None
+    if verdict is not None or baseline is None or taux is None:
+        return None, None, None
+    return outils_apprentissage_durees.version_pour_demande(service, bareme.get("unite"), taux)
+
+
 # ---------------------------------------------------------------------------------------------
 # Consommateurs d'événements (ADR-0009 §3, PLAN T1.2-d) : seul cet adaptateur connaît `opsys` ;
 # `estime_vs_reel.py` (module pur) fait le rapprochement et l'enregistrement déterministes. Le
@@ -1513,6 +1548,16 @@ def evaluer_calibration_cohortes(
         return {"statut": "refuse", "raisons": ["role_appareil_non_autorise"], "candidate_active": False}
     if origine != "m03-estimation" and appareil is None:
         return {"statut": "refuse", "raisons": ["departement_appelant_non_autorise"], "candidate_active": False}
+    return rapport_cohortes_interne(
+        coupure_utc, _inclure_observations=_inclure_observations, _train_only=_train_only,
+    )
+
+
+def rapport_cohortes_interne(
+    coupure_utc: str, *, _inclure_observations: bool = False, _train_only: bool = False,
+) -> dict[str, Any]:
+    """Le rapport de cohortes SANS la garde d'identité de l'outil : réservé aux appelants serveur qui ont fait la leur
+    (l'apprentissage des durées, ``outils_apprentissage_durees``). Mêmes sources, mêmes jointures, mêmes refus."""
     try:
         from opsys.capacites import Capacites
         from opsys.departements import charger_departements
@@ -2578,6 +2623,7 @@ def outils() -> tuple[Outil, ...]:
         *_outils_modeles(),
         *_outils_devis_modele(),
         *_outils_prefill(),
+        *outils_apprentissage_durees.construire(rapport_cohortes=rapport_cohortes_interne),
         *outils_site_vision.outils_site_vision(),
     )
 
