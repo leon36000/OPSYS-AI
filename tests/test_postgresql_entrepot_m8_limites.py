@@ -23,7 +23,7 @@ from opsys.stockage.schema import EVENEMENTS_RECUS
 
 FICTIF = True
 M3, M8 = "m03-estimation", "m08-analytics"
-LIMITE = entrepot_stockage.LONGUEURS_IDENTIFIANTS["devis_id"]
+LIMITE = 256  # la largeur des colonnes `VARCHAR(256)` de `m8_ent_*` (migration 0046)
 
 
 @pytest.fixture
