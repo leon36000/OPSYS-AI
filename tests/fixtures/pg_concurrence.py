@@ -178,10 +178,10 @@ def ecrire_materiau_console(cle: str, revision_attendue: int, nom: str, attendre
     return ("accepte",) if resultat["accepte"] else ("refus", resultat["raison"])
 
 
-# -- 6 bis. N processus de console corrigent la MÊME fiche FOURNISSEUR M6 depuis la même source ---------------------------
+# -- 6 bis. N processus de console corrigent la MÊME fiche FOURNISSEUR M6 depuis la même source ------------------------
 def corriger_fournisseur_console(cle: str, source_attendue: str, nom: str, attendre) -> tuple:
-    """Écrivain HUMAIN d'une fiche fournisseur : lecture de la fiche puis ajout d'un maillon, sans clé unique qui protège
-    la lecture (c'est le verrou d'écriture de console qui évite la mise à jour perdue)."""
+    """Écrivain HUMAIN d'une fiche fournisseur : lecture de la fiche puis ajout d'un maillon, sans clé unique qui
+    protège la lecture (c'est le verrou d'écriture de console qui évite la mise à jour perdue)."""
     from opsys import stockage
     from opsys.console import metier
     from opsys.console.securite import Session

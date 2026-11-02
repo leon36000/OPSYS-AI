@@ -31,7 +31,7 @@ Deux éditeurs partant de la même révision ne s’écrasent pas. La réémissi
 
 Admin SQL actif et session console valide requis. Auteur et horodatage sont dérivés du serveur. Pages privées sans cache, chaînes échappées, formulaires stricts. Aucun changement de droits d’appareil : les nouveaux outils restent fermés au MCP/agent jusqu’à qualification de leur portée. Pas de notification ni de mémoire M10 automatique. Les audits contiennent références et révision, sans reproduire les notes privées.
 
-L’écriture SQLite utilise le verrou transactionnel existant et annule le changement si le journal d’audit échoue. PostgreSQL reste fermé en écriture ; la console masque les formulaires non qualifiés de notes et de couleurs. La vérification de cette fermeture d’interface ne constitue pas un E2E PostgreSQL.
+L’écriture SQLite utilise le verrou transactionnel existant et annule le changement si le journal d’audit échoue. Depuis le portage PostgreSQL (1er novembre 2026, [QUALIFICATION-POSTGRESQL §16](../../qualification/QUALIFICATION-POSTGRESQL.md)), l’écriture tourne aussi sur PostgreSQL 17 : verrou d’écriture de console puis rejeu après conflit, avec un test à deux moteurs ; la console ne masque plus les formulaires de notes et de couleurs sur un moteur qualifié (SQLite ou PostgreSQL), et refuse toujours tout autre moteur.
 
 Aucun gate Nathan nouveau pour ce repère réversible. Les validations opérationnelles, financières et RH restent celles des départements concernés. Aucune couleur ne vaut approbation humaine d’une action sensible.
 

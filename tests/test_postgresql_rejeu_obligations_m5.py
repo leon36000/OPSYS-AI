@@ -1,5 +1,6 @@
 """Rejeu PostgreSQL : obligations M5 préparées par un administrateur d'appareil (validation au départ), dont les deux
-appels simultanés qui visent le même plafond (défaut L11 : le perdant recevait `EcritureConcurrente` au lieu du refus)."""
+appels simultanés qui visent le même plafond (défaut L11 : le perdant recevait `EcritureConcurrente` au lieu du
+refus)."""
 
 from pg_rejeu import installer, module
 
@@ -16,11 +17,12 @@ def test_deux_validations_qui_se_croisent_au_point_d_ecriture_le_perdant_recoit_
     deux l'aient atteint. Sans le verrou d'écriture de console, les deux lisent le même état puis écrivent le même rang
     (clé en double). Avec lui, le second attend la fin du premier et rend le refus de plafond que rend SQLite (le point
     de rencontre n'est alors atteint que par un appel : la barrière expire et ne bloque personne)."""
+    import contextlib
+    import importlib
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier, BrokenBarrierError, get_ident
 
     from opsys import contexte
-    import importlib
 
     maillons = importlib.import_module("opsys.stockage.maillons")
 
@@ -35,10 +37,8 @@ def test_deux_validations_qui_se_croisent_au_point_d_ecriture_le_perdant_recoit_
     def croise(self, *args, **kwargs):
         if self.registre == "obligations_preparees" and get_ident() not in passes:
             passes.add(get_ident())
-            try:
+            with contextlib.suppress(BrokenBarrierError):
                 barriere.wait(timeout=2)
-            except BrokenBarrierError:
-                pass
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(maillons.MaillonsDurables, "append", croise)

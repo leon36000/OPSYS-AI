@@ -62,7 +62,7 @@ Les 36 autres cas avaient rencontré quatre démarrages PostgreSQL terminés ave
 
 ## Limites restantes
 
-- **SQLite uniquement** : opérations de droit et tickets refusées hors SQLite; concurrence PostgreSQL non qualifiée.
+- **SQLite et PostgreSQL 17** (portage du 1er novembre 2026, [QUALIFICATION-POSTGRESQL §16](../../qualification/QUALIFICATION-POSTGRESQL.md)) : opérations de droit et tickets refusées sur tout autre moteur ; la révision du profil est un `BIGINT` sur PostgreSQL (migration 0058) ; les tests des grants sont rejoués sur les deux moteurs ; la concurrence n’est pas mesurée en charge.
 - Instance entière, sans isolation SaaS démontrée. Un clone de la base conserve son UUID. Restaurer une sauvegarde ancienne peut ressusciter un ticket encore valide : le test de restauration ne prouve pas l’absence de rejeu entre copies/sauvegardes.
 - Le bearer métier partagé est réservé au Core/opérateur. Un détenteur peut fabriquer des métadonnées humaines, qui ne sont pas des attestations cryptographiques. Le chemin agent inspecté ne lui distribue pas cette clé; la frontière OS/Docker réelle reste à démontrer (C01 partiel).
 - La révision lie le droit au profil stocké; elle n’atteste pas le modèle/fournisseur réel d’un client ayant altéré sa configuration.

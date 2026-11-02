@@ -2,7 +2,8 @@
 isolé.
 
 Le banc rejoue aussi la sonde `test_probe_preparation` dans trois de ses cas d'historique (`QA_CASE`) : ils appellent
-`service_history_m4.lire_historique` (console admin) et la révocation d'une lecture, que le cas par défaut n'atteint pas.
+`service_history_m4.lire_historique` (console admin) et la révocation d'une lecture, que le cas par défaut n'atteint
+pas.
 """
 
 import pytest

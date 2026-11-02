@@ -14,7 +14,16 @@
 > d'approbation, bail, créneaux, idempotence et envoi unique éprouvés sur PostgreSQL 17 réel (par les tests qui ont réellement
 > émis du SQL PostgreSQL, §3) ; consoles de saisie et services à verrou SQLite non portés »**.
 
-Date : 1er novembre 2026 · Base de code : ligne architecte `1f031031e` + branche `claude/qualification-postgresql` · Banc :
+> **Mise à jour : portage des gardes (§16).** Les §1 à §15 décrivent l'état au commit `6c6dba4e1` (91 gardes). La branche
+> `claude/portage-postgresql-gardes` a porté les consoles de saisie M1 à M7, les services M4, le cron opérateur, les grants CFO, la liaison de
+> cibles et les documents d'affaire : la même règle de recensement trouve maintenant @@ANCIEN@@ occurrences, **4 gardes réelles** subsistent
+> (fichier SQLite par construction), les fichiers rouges de la suite telle quelle passent de **145 à 29** (16 préexistants, 3 gardes légitimes,
+> 10 tests liés à SQLite). Formule exacte autorisée après le portage : **« socle, bases de connaissances M10, graphe M10, sas d'approbation,
+> bail, créneaux, idempotence, envoi unique, consoles de saisie M1 à M7, services M4, cron opérateur éprouvés sur PostgreSQL 17 réel (par des tests
+> qui ont réellement émis du SQL PostgreSQL, preuve par point de contrôle au §16.4) ; export et sauvegarde du fichier SQLite et magasin de
+> développement M10 non portés ; charge, durabilité, pool externe et multi-client non prouvés »**. Ne jamais écrire « PostgreSQL complet ».
+
+Date : 1er novembre 2026 · Base de code : ligne architecte `1f031031e` + branche `claude/qualification-postgresql` (§1 à §15) puis ligne architecte `2cbdb4a4e` + branche `claude/portage-postgresql-gardes` (§16) · Banc :
 [`install/qualification/postgresql/`](../../install/qualification/postgresql/) · Preuves brutes :
 [`preuves-postgresql/`](preuves-postgresql/).
 
@@ -31,7 +40,7 @@ Date : 1er novembre 2026 · Base de code : ligne architecte `1f031031e` + branch
 | Nouveau | adaptateur de recherche lexicale PostgreSQL (`tsvector`/GIN), migration 0056, 7 fichiers de tests (89 cas PostgreSQL réels ajoutés au job CI `frontiere-postgresql`, et 6 cas du banc qui n'ont pas besoin de Docker), banc rejouable |
 | Tests existants rendus portables | 9 fichiers (recensement de tables, `?`, `PRAGMA`, transactions avortées, `rowid`) |
 | Mutations | 24 mutations des correctifs et des gardes : 23 tuées, 1 équivalente, aucune survivante (§13) |
-| Non porté | 91 gardes, dont les consoles de saisie M4/M6/M7, le cron opérateur, la liaison de cibles, les grants CFO, le moteur de recalcul M4, l'export SQLite (§6)  ; des défauts latents derrière elles (§5) |
+| Non porté (au départ ; porté depuis, voir §16) | 91 gardes, dont les consoles de saisie M4/M6/M7, le cron opérateur, la liaison de cibles, les grants CFO, le moteur de recalcul M4, l'export SQLite (§6)  ; des défauts latents derrière elles (§5) |
 
 ## 2. Le banc
 
@@ -345,6 +354,8 @@ fuseau est `America/Toronto`, lue par le moteur d'OPSYS (UTC) puis par une conne
 
 ## 5. Défauts LATENTS derrière les gardes (trouvés, NON corrigés)
 
+> **Mise à jour (§16.3).** L1 à L8 et L10 sont corrigés ou portés ; L6 et L7 étaient mal énoncés ci-dessous (corrections au §16.3). Le tableau garde son texte d'origine.
+
 Ils sont atteignables seulement si une garde est levée. Ils ne sont pas corrigés ici : corriger du code qu'aucun chemin PostgreSQL
 n'exécute serait un correctif sans test d'intégration possible. Ils sont listés pour que la levée d'une garde les traite d'abord.
 
@@ -366,6 +377,8 @@ qui l'abrite est levée ; **aucun n'est corrigé ici**.
 
 
 ## 6. Gardes « SQLite seulement » : ce qui n'est pas porté
+
+> **État au commit de départ.** Après le portage il reste 4 gardes réelles (§16.5) ; le recensement ci-dessous est conservé pour la comparaison avant/après.
 
 91 gardes dans 63 fichiers refusent PostgreSQL de façon **typée** (`INSTANCE-NON-QUALIFIEE`,
 `CRON-SQLITE-REQUIS`, `BACKEND_NON_SQLITE`, `STOCKAGE_NON_QUALIFIE`, `REJ-…-NON-QUALIFIEE`, `HTTP 503`…). C'est la conception
@@ -642,8 +655,7 @@ Chaque mutation est appliquée SEULE au code d'un clone du dépôt, la cible de 
 
 ## 14. Ce qui n'est PAS prouvé
 
-- **La plupart des consoles de saisie, le cron opérateur, la liaison de cibles, les grants CFO, le recalcul certifié M4, l'export
-  de la base** : refusés sur PostgreSQL (§6). Ce qui a été observé en levant les gardes dans une copie jetable (§6.1) est un indice,
+- **L'export de la base, la sauvegarde du fichier SQLite et le magasin de développement M10** : refusés sur PostgreSQL (§16.5). (Les consoles de saisie, le cron opérateur, la liaison de cibles, les grants CFO et le recalcul certifié M4, refusés au départ, sont portés : §16.) Ce qui a été observé en levant les gardes dans une copie jetable (§6.1) est un indice,
   pas une qualification.
 - **Charge, latence, volume** : aucune mesure (quelques lignes par test). L'index GIN n'a pas été éprouvé à 100 000 fragments.
 - **Durabilité** : `fsync=off` ; aucune coupure de courant, aucun `kill -9` du serveur, aucune réplication.
@@ -663,7 +675,7 @@ Chaque mutation est appliquée SEULE au code d'un clone du dépôt, la cible de 
 
 ## 15. Avant l'offre hébergée : ordre de travail proposé
 
-1. Lever les gardes une par une, en commençant par celles dont la levée expérimentale est verte (§6.1), avec pour chaque module :
+1. *(Fait, §16 : 4 gardes restantes.)* Lever les gardes une par une, en commençant par celles dont la levée expérimentale est verte (§6.1), avec pour chaque module :
    verrou de ligne ou contrainte unique à la place de `BEGIN IMMEDIATE`, traduction de `EcritureConcurrente` en verdict typé,
    `length(cast(… AS BLOB))` → `octet_length`, suppression de `typeof()`.
 2. Faire tourner la suite ordinaire sur PostgreSQL, **avec `--redirige`**, à chaque intégration (le banc existe ; une exécution complète

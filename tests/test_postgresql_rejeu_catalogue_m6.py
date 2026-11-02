@@ -18,6 +18,7 @@ def test_deux_correcteurs_dont_le_second_ecrit_apres_le_commit_du_premier_une_se
     lisent la même source, puis le second est retardé jusqu'après le commit du premier : sans verrou d'écriture de
     console, il ajoute son maillon au rang suivant et les deux corrections sont acceptées. Avec le verrou, le second
     n'arrive pas à l'ajout (la source a changé : `SOURCE-MODIFIEE`)."""
+    import contextlib
     import importlib
     import time
     from concurrent.futures import ThreadPoolExecutor
@@ -34,10 +35,8 @@ def test_deux_correcteurs_dont_le_second_ecrit_apres_le_commit_du_premier_une_se
             with verrou:
                 rang_d_arrivee = len(arrivees)
                 arrivees.append(rang_d_arrivee)
-            try:
+            with contextlib.suppress(BrokenBarrierError):
                 rencontre.wait(timeout=2)  # les deux ont lu la même source avant que personne n'écrive
-            except BrokenBarrierError:
-                pass
             if rang_d_arrivee == 1:
                 time.sleep(1.5)  # le premier a validé quand le second écrit
         return original(self, *args, **kwargs)
