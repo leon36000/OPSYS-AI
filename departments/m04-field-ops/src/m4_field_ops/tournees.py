@@ -1540,7 +1540,8 @@ def resoudre(entree, moteur="auto"):
     visites: [{chantier, arrivee_min, debut_min, fin_min}]}], "non_cedulees": [{chantier, code, raison,
     action}], "totaux", "meta": {solveur, version_solveur, graine, iterations, empreinte_entree,
     empreinte_sortie, mode_distance, mode_bride, empreinte_matrice}}`` : entiers, chaînes, booléens et
-    ``None`` seulement, triée (équipe, jour, heure ; chantier), donc mêmes octets pour la même entrée.
+    ``None`` seulement, triée (équipe, jour, heure ; chantier), donc mêmes octets pour la même entrée. La visite d'un
+    chantier de plusieurs visites porte en plus ``visite`` (rang à partir de 1) et ``visites_total``.
     Le plan a déjà passé ``verifier_plan`` ; sinon un verdict ``REJ-TOURNEES-PLAN-INVALIDE`` est rendu.
     """
     if moteur not in MOTEURS:

@@ -364,6 +364,18 @@ def test_les_invariants_refusent_des_reserves_hors_d_une_premiere_completion_en_
     assert outbox.verifier_invariants_outbox(_forger(reg, greffer))[0] is False
 
 
+def test_les_invariants_refusent_des_reserves_acceptees_pour_une_fin_de_chantier_sans_reserve():
+    reg, ident = _monde()
+    outbox.completer_intervention(ident, b.H_COMPLETION, reg, ecart_detecte=False, verification_en_attente=True,
+                                  preuves_completion=_preuves(), signature_requise=False)
+    outbox.resoudre_revue_completion(ident, "verifiee", "2025-06-02T12:00:00+00:00", reg, motif="Vu.")
+    assert outbox.verifier_invariants_outbox(reg) == (True, "")
+
+    def greffer(maillons):
+        maillons[-1]["reserves_acceptees"] = [PHOTO_EN_ECHEC]
+    assert outbox.verifier_invariants_outbox(_forger(reg, greffer))[0] is False
+
+
 def test_archive_valide_n_accepte_une_preuve_incomplete_qu_avec_sa_reserve():
     archive, verdict = preuves.preparer_archive(_preuves(checklist_complete=False), False, (LISTE_CONTROLE_INCOMPLETE,))
     assert verdict is None
@@ -492,6 +504,25 @@ def test_la_revue_humaine_publie_le_wct_gardé_et_dit_que_le_cout_est_provisoire
     assert [identifiant for identifiant, _ in publies] == [resultat["wct_id"]]
     assert publies[0][1]["intervention_id"] == ident and set(outbox.CHAMPS_WCT) <= set(publies[0][1])
     assert "reserves_completion" not in publies[0][1] and "reserves" not in publies[0][1]
+
+
+def test_une_correction_laisse_la_cascade_en_attente_et_ne_publie_rien(base_durable):
+    par_nom = {o.nom: o for o in outils()}
+    dep = _dep()
+    ident = fichiers._mener_a_sur_site(par_nom, "L-RESERVES-CORRECTION")
+    _completer_outil(par_nom, ident, _preuves(photos_apres=[]), False, [PHOTOS_APRES_MANQUANTES])
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "gerant", "Une Gérante", "mot-de-passe-gerante-1234", ["manager"])
+        demande = approbations.creer_demande(
+            cnx, "m04-field-ops", "m4_resoudre_revue_completion",
+            {"intervention_id": ident, "decision": "correction", "horodatage": "2025-06-02T12:00:00+00:00",
+             "motif": "Reprendre les photos."}, niveau=Niveau.N4)
+        decision = approbations.decider(cnx, demande, True, "gerant", par_nom, {"m04-field-ops": dep})
+    resultat = decision["reponse"]["resultat"]["resultat"]
+    assert resultat["statut"] == "completed_pending_review" and "cascade" not in resultat
+    assert _evenements_wct() == []
+    statut = executer_atomique(par_nom["m4_statut_intervention"], {"intervention_id": ident})
+    assert statut["resultat"]["statut"] == "completed_pending_review"
 
 
 def test_une_revue_qui_ne_nomme_pas_les_reserves_n_execute_rien_et_ne_publie_rien(base_durable):

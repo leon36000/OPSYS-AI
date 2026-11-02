@@ -643,3 +643,19 @@ def test_memes_octets_dans_des_interpreteurs_aux_graines_de_hachage_differentes(
         )
         empreintes.add(resultat.stdout.strip())
     assert empreintes == {attendu.hexdigest()}
+
+
+# ---------------------------------------------------------------------------
+# 8. Le diagnostic lui-même garde « tout ou rien » (indépendamment du validateur de groupe)
+# ---------------------------------------------------------------------------
+def test_le_diagnostic_traite_une_seule_visite_placee_comme_un_chantier_non_cedule():
+    entree = _entree([_equipe("eq-a")], [_multi("ch-01", [300, 300]), _simple("ch-02", 60)])
+    probleme, verdict = tournees._preparer(entree)
+    assert verdict is None
+    unites = probleme["groupes"]["ch-01"]["unites"]
+    k = probleme["admissibles"][unites[0]][0]
+    lignes = tournees._diagnostiquer(probleme, {k: [unites[0], "ch-02"]})
+    assert [ligne["chantier"] for ligne in lignes] == ["ch-01"], lignes
+    k0, k1 = probleme["admissibles"][unites[0]][0], probleme["admissibles"][unites[1]][1]
+    complet = tournees._diagnostiquer(probleme, {k0: [unites[0]], k1: [unites[1]]})
+    assert [ligne["chantier"] for ligne in complet] == ["ch-02"]

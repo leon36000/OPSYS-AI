@@ -185,6 +185,13 @@ sans code ici : un champ « difficulté du chantier » (échelle déclarée de l
 complétion, qui appellerait `m3_declarer_complexite_chantier` (aujourd'hui sans droit d'appareil, donc déclaré par la console ou
 un agent après approbation). Jest ne tourne pas ici : rien du côté mobile n'a été rejoué.
 
+## 10 bis. La durée apprise arrive à la cédule de M4 (P4-01)
+
+M4 planifie avec la durée sur site de l'estimation M3 du devis accepté, correction apprise comprise (`m3.devis_accepte` :
+`duree_estimee_minutes` et `duree_origine`), et ne recalcule rien. Voir [M3-M4](M3-M4-MATHIS-GABRIEL.md) et le README de M4.
+Preuve : `tests/test_m4_duree_multijours_bout_en_bout.py` (M3 supervisé → devis → deux journées d'une équipe). Le déplacement reste
+calculé par M4. En `ombre`, aucune version n'est appliquée automatiquement : la durée du barème est celle que M4 reçoit.
+
 ## 11. Preuves et limites
 
 Preuves exécutées (données fictives, SQLite, vrais outils M3/M4) : `departments/m03-estimation/tests/test_apprentissage_bout_en_bout.py`

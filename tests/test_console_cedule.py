@@ -225,3 +225,38 @@ def test_la_grille_refuse_une_visite_illisible_ou_dupliquee(planning_multijours)
     ):
         with pytest.raises(ValueError):
             rendre(mauvaises)
+
+
+def _plan_multijours():
+    with terrain.stockage.transaction():
+        return [m for m in terrain._maillons() if m["type_entree"] == "cedule_appliquee"][0]["plan_id"]
+
+
+def test_la_page_des_dates_d_un_plan_a_plusieurs_visites_est_lisible_et_data_chaque_jour(
+    client_crm, planning_multijours, session,
+):
+    """Avant P4-02 : une seconde visite de la même intervention rendait la page illisible (503). Maintenant : la mémoire
+    d'affaire n'a qu'une liaison par intervention, la page montre les deux visites et les deux jours à dater."""
+    import re
+
+    iid = planning_multijours
+    plan = _plan_multijours()
+    base._connecter(client_crm, "admin.fictif")
+    avant = base._instantane_base(session)
+    page = client_crm.get("/crm/cedule/plan/" + plan)
+    assert page.status_code == 200, page.text
+    assert 'name="date_0"' in page.text and 'name="date_1"' in page.text
+    assert 'value="2030-06-03"' in page.text and 'value="2030-06-04"' in page.text
+    assert page.text.count(iid) >= 1 and "1 visites · 1 affaires" in page.text
+    assert base._instantane_base(session) == avant
+    preuve = re.search(r'name="empreinte_memoire_attendue" value="([0-9a-f]{64})"', page.text)
+    champs = {"csrf": client_crm.get("/api/session").json()["csrf"], "revision_attendue": "1",
+              "mutation_id": "dates-multijours-fictives", "date_0": "2030-06-10", "date_1": "2030-06-11",
+              **({"empreinte_memoire_attendue": preuve[1]} if preuve else {})}
+    reponse = client_crm.post("/crm/cedule/plan/" + plan, data=champs, follow_redirects=False)
+    assert reponse.status_code == 303, reponse.text
+    with session():
+        dates = [m for m in terrain._maillons() if m["type_entree"] == "cedule_datee"]
+    assert dates[-1]["revision"] == 2 and dates[-1]["calendrier"] == {"0": "2030-06-10", "1": "2030-06-11"}
+    semaine = client_crm.get("/crm/cedule?debut_semaine=2030-06-10")
+    assert semaine.text.count(f'data-intervention="{iid}"') == 2

@@ -221,6 +221,32 @@ départements, aucun droit élargi). Les schémas JSON sont dans `src/opsys/even
 | `configuration.adequation` (`poids`, `distance_reference_km`, `historique_minimum`) | M4 | ordonner les équipes | `REJ-ADEQUATION-PARAMETRES-ABSENTS` |
 | `configuration.eta_client` (incertitude, largeur minimale, granularité, validité du consentement, conservation, plafond de messages) | M4 | estimer et préparer une fenêtre | `REJ-ETA-PARAMETRES-ABSENTS` |
 
+## Durée d'un chantier, chantiers de plusieurs jours, fin de chantier avec réserves (vague 12)
+
+Document détaillé : [README de M4](../../departments/m04-field-ops/README.md), sections « Durée d'un chantier et chantiers de
+plusieurs jours (P4-01, P4-02) » et « Terminer avec réserves (P4-07) ».
+
+- **M3 → M4, la durée.** `m3.devis_accepte` porte `duree_estimee_minutes` (durée SUR SITE, `semantique_temps` exacte) et
+  maintenant `duree_origine` (`bareme` ou `calibration` : une version de calibration apprise ou exacte est-elle APPLIQUÉE à
+  l'estimation d'origine ? lue sur la trace de temps que M3 a déjà écrite, rien n'est recalculé). M4 retient ce bloc à
+  l'inscription (`duree_m3`), planifie avec cette durée (minutes entières, arrondies vers le haut), la dit corrigée par une
+  version apprise le cas échéant, et la compare au service du profil (`ecart_profil_min`). Sans estimation : repli explicite
+  sur la durée du service, dit ; sans rien : « durée à déclarer ». Le déplacement reste calculé à part par M4 (matrice).
+  Preuve (`tests/test_m4_duree_multijours_bout_en_bout.py`, vrais outils M3 puis M4, M3 en mode **supervisé**) : six chantiers
+  vérifiés (~16 h sur site pour 28 pi_lin, barème 14 h) → version apprise appliquée automatiquement → devis accepté de ~16 h
+  → deux journées de la même équipe. En mode `ombre` de M3, rien n'est appliqué automatiquement (APPRENTISSAGE.md §5) : le
+  devis garde alors la durée du barème, et M4 le dit (`origine_m3: bareme`).
+- **Plusieurs jours.** Règles déclarées par l'entreprise (`equipes.cedule.multijours`), visites d'une même équipe sur des jours
+  distincts et croissants (consécutifs au sens des jours d'activité si demandé), repli exact seulement. Une absence d'ÉQUIPE
+  (pas de quart ce jour-là) est respectée ; l'absence individuelle d'un membre n'entre pas dans la cédule (une déclaration
+  d'équipe n'est pas une présence).
+- **Réserves.** Une preuve incomplète n'est plus refusée : `completed_pending_review` avec réserves nommées, aucune publication
+  vers M6/M5/M2/M7/M8/M10 ni M3 avant la revue humaine N4, qui publie le WCT gardé ; coût réel dit provisoire si une réserve
+  touche le matériel.
+- **Ce qui n'est pas prouvé.** PyVRP (absent de la machine) ne résout pas ces chantiers ; aucune donnée réelle ; le client mobile
+  n'a ni case « réserves » ni lecture de la journée (lot P4-03) ; PostgreSQL non rejoué ; M5 ne reçoit pas le motif « provisoire » ;
+  les volets matériel et météo de la préparation sont simulés dans le scénario de bout en bout (leurs preuves sont ailleurs).
+
 ## Outils (19 nouveaux, aucun droit d'appareil ; l'apprentissage des durées en ajoute 7 : APPRENTISSAGE.md §5)
 
 M3 : `m3_construire_contexte_site` (T1/N2), `m3_lire_contexte_site` (T0), `m3_executer_pipeline_vision` (T1/N2),

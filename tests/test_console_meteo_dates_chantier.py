@@ -330,3 +330,24 @@ def test_revocation_entre_lecture_civile_et_formulaire(client_crm, dates, sessio
 
     monkeypatch.setattr(metier, 'executer', retirer_apres_lecture)
     assert client_crm.get(d._url(dates)).status_code == 403
+
+
+# -- P4-02 : le contrôle météo des dates juge chaque visite d'un chantier de plusieurs journées -----------------------
+planning_multijours = d.base.planning_multijours
+
+
+def test_meteo_des_dates_d_un_plan_a_plusieurs_visites_juge_chaque_jour(client_crm, planning_multijours, session):
+    meteo.enregistrer_meteo(_profil())
+    iid = planning_multijours
+    plan = d.base._plan_multijours()
+    base.base._connecter(client_crm, 'admin.fictif')
+    avant = base.base._instantane_base(session)
+    page = client_crm.get('/crm/cedule/plan/' + plan)
+    assert page.status_code == 200, page.text
+    f = Formulaire()
+    f.feed(page.text)
+    assert set(f.champs) == {'csrf', 'empreinte_attendue'}, page.text
+    reponse = client_crm.post('/crm/cedule/plan/' + plan + '/meteo', data=f.champs)
+    assert reponse.status_code == 200, reponse.text
+    assert '2030-06-03' in reponse.text and '2030-06-04' in reponse.text and iid in reponse.text
+    assert base.base._instantane_base(session) == avant

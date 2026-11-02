@@ -105,7 +105,10 @@ suivante) l'appellent. `cedule.py` reste le repli « sans coordonnées ».
   `competences`, `depot`, `quarts` : `jour`, `debut_min`, `fin_min`), `chantiers` (`id`, `duree_min`,
   `fenetre` : `jours`, `debut_min`, `fin_min` ; `competences_requises`, `urgence` de 0 à 3, `creneau_fige` :
   `null` ou `equipe`, `jour`, `debut_min`), `matrice` (celle de `distances.obtenir_matrice`, revérifiée) et
-  `parametres` (`graine`, `iterations`, `cout_non_cedule_m`).
+  `parametres` (`graine`, `iterations`, `cout_non_cedule_m`). Un chantier peut porter, en plus (P4-02), `visites` (durées
+  des journées, de 2 à 10, de somme `duree_min`) et `continuite` (`{equipe: "unique", jours_consecutifs: bool}`, sans
+  défaut) : voir la section « Durée d'un chantier et chantiers de plusieurs jours ». La sortie porte alors `visite` et
+  `visites_total` sur ses visites.
 - **Modèle** : un véhicule est un couple (équipe, jour). La fenêtre du client dit les jours permis et
   l'intervalle où le chantier doit être ENTIÈREMENT réalisé. Une équipe ne reçoit un chantier que si elle a
   TOUTES ses compétences. Le trajet est le plafond en minutes des secondes de la matrice (marge comprise).
@@ -147,8 +150,8 @@ premier appel, import compris, puis 0,08 s) ; une compétence rare n'est jamais 
 
 Les verdicts `REJ-TOURNEES-*` sont inscrits au catalogue de `verdicts.py` (T4.1-d). `empreinte_entree(entree)`
 rend l'empreinte que le plan porte, sans relancer le solveur (l'application d'un plan s'en sert). Limites connues :
-les chantiers de plusieurs jours, la météo, les capacités de véhicule et l'ETA client restent hors périmètre (R15
-§4) ; PyVRP n'a été exécuté qu'en Python 3.11 sur x86_64 (l'égalité entre plateformes n'est pas vérifiée) ; le DP
+la météo (dans le solveur), les capacités de véhicule et l'ETA client restent hors périmètre (R15
+§4) ; les chantiers de plusieurs jours sont traités depuis P4-02 (section suivante), au repli exact seulement ; PyVRP n'a été exécuté qu'en Python 3.11 sur x86_64 (l'égalité entre plateformes n'est pas vérifiée) ; le DP
 est exponentiel : pire cas mesuré à 12 chantiers de 30 à 45 min sur 8 véhicules, environ 2 s ; au-delà de 12
 chantiers, PyVRP est requis. La CI (`ci.yml`, job `departement`) installe l'extra `tournees` pour M4, et l'image
 (`deploy/Dockerfile`) aussi.
@@ -218,6 +221,78 @@ reste ») ; aucun sidecar de routage : distances approximatives (« mode bridé 
 le dépôt est gardé en clair au maillon du plan (c'est un lieu de l'entreprise : ne pas y mettre un domicile) ; une
 adresse modifiée après la confirmation des coordonnées n'est pas vue par la cédule (M4 ne connaît pas l'adresse,
 seulement la version de la confirmation) ; un plan proposé n'expire pas, seul un changement d'état l'invalide.
+
+## Durée d'un chantier et chantiers de plusieurs jours (P4-01, P4-02) — vague 12
+
+**D'où vient la durée.** Avant, M4 ignorait `duree_estimee_minutes` du devis accepté et appliquait la durée par service du
+profil. Maintenant (`duree_chantier.py`, pur) : (1) la durée SUR SITE de l'estimation M3 du devis, retenue une fois pour
+toutes à l'inscription de l'intervention (`duree_m3` au maillon `intervention_inscrite`, jamais recalculée) ; M3 la publie
+dans `m3.devis_accepte` (`duree_estimee_minutes`, `semantique_temps` = `duree_ecoulee_intervention`, déplacement et pauses
+exclus) avec sa provenance (`duree_origine` : `bareme`, ou `calibration` si une version apprise ou exacte est APPLIQUÉE à
+l'estimation : c'est alors déjà la durée corrigée, M4 la reprend et le dit, sans rien recalculer) ; (2) à défaut, REPLI
+explicite sur la durée du service (profil, ou argument `durees_par_service`), dit avec sa raison dans `durees` ; (3) à
+défaut de l'une comme de l'autre, « durée à déclarer » : un verdict qui dit quoi déclarer, jamais une durée inventée. Une
+durée dont M3 ne déclare pas la sémantique exacte n'est jamais utilisée (`ecartee`, dite). Une durée décimale devient des
+minutes entières par arrondi vers le HAUT. Le déplacement n'y est jamais : la matrice de distances le compte à part.
+
+`m4_proposer_cedule` rend `durees` par intervention : `minutes`, `source` (`estimation_m3`, `profil_service`,
+`surcharge_service`), `repli` et `raison_repli`, `origine_m3` et `calibration_version_id` (la durée est-elle corrigée par
+une version apprise ?), `ecart_profil_min` (durée de M3 moins durée du service), `visites`. Le volet « équipe » de
+`m4_verifier_preparation` juge l'admissibilité sur la durée réelle (la plus longue visite) et nomme ce qui manque.
+
+**Plusieurs jours.** Règles de l'entreprise, déclarées (jamais supposées) : `equipes.cedule.multijours` =
+`{visite_max_minutes, jours_consecutifs}` (profil), ou l'argument `multijours` (surcharge). Un chantier plus long que
+`visite_max_minutes` se découpe en `ceil(durée / visite_max_minutes)` visites presque égales dont la somme est exactement
+sa durée ; chaque visite est une journée de travail. Le solveur (`tournees.py`) les place sur des jours DISTINCTS et
+croissants dans l'ordre des visites, toutes confiées à la MÊME équipe (règle dure : l'assignation d'une intervention et
+sa date civile sont par intervention, pas par visite), chacune dans la fenêtre du client, le quart et les trajets d'un
+chantier d'une journée ; le chantier est cédulé en entier ou pas du tout. « Consécutifs » se mesure sur les jours
+d'activité (ceux où au moins une équipe a un quart) : un week-end ou un férié sans quart ne casse pas la suite. Une
+absence d'équipe un jour = pas de quart ce jour-là. Raisons de non-cédule : `continuite_impossible` (aucune équipe
+compétente n'a assez de journées distinctes, ou consécutives), `duree_trop_longue` pour une visite, etc. ; chantier
+d'une journée : octets inchangés.
+
+**Seul le repli exact les résout** (programmation dynamique, au plus 12 visites ou chantiers au total ; énumération des
+placements de journées, plafonnée à 20 000 combinaisons) : PyVRP n'a pas ce modèle ici et l'exiger est un refus nommé
+(`REJ-TOURNEES-MULTIJOURS-MOTEUR`). Au-delà de 12, `REJ-TOURNEES-DP-TROP-GRAND`. PyVRP n'est pas installé sur la machine
+des preuves : les 20 tests sautés de `test_tournees.py` le restent, et la preuve d'optimalité de ce lot est une
+énumération exhaustive indépendante (`test_tournees_multijours.py`), pas PyVRP.
+
+`m4_appliquer_cedule` assigne UNE fois l'intervention (équipe de la première visite), la fait passer UNE fois à
+`planifiee`, et dit `visites: n` ; `verifier_plan` revérifie tout. Les dates civiles restent une décision humaine
+(`m4_confirmer_dates_cedule`, jour par jour) : **aucune date n'est promise au client**, aucun message n'est préparé.
+Calendrier, vue du mois, page de la semaine, journal du jour, grille de la console, page des dates d'un plan (mémoire
+d'affaire : une liaison par intervention) et contrôle météo des dates rendent une ligne par visite (`visite`,
+`visites_total`). Limites : une note ou une couleur ne se pose pas sur une visite d'un chantier de plusieurs jours (ancre
+de créneau unique, refus nommé `ANCRE-MULTI-VISITES`, et ces lignes n'ont ni badge ni lien de note dans la grille) ; les
+visites de travail prévues (CRM-01, `m4_prevoir_visite_console`) partent de la même ancre et ne sont pas étendues
+(non rejouées par un test dédié) ; `m4_lire_meteo_intervention` ne juge que la première visite (la météo d'un plan juge
+chaque visite) ; le flux console « appliquer depuis l'affaire » exige UNE visite par plan (lu dans le code, non rejoué) ;
+un créneau déjà confirmé au client n'est pas pris en charge pour un tel chantier ; **« même
+équipe si possible » est une règle dure** (l'assouplir exige l'assignation par visite) ; l'absence INDIVIDUELLE d'un
+membre n'entre pas dans la cédule (D4 : une déclaration d'équipe n'est pas une présence), seule l'absence de l'équipe
+(pas de quart) compte.
+
+## Terminer avec réserves (P4-07) — vague 12
+
+DEFINITION-PRODUIT §6 : « s'il manque quelque chose [...] `completed_pending_review` ». `m4_completer_intervention`
+REFUSAIT pourtant toute preuve incomplète. Maintenant, `reserves` (codes fermés, `reserves_completion.py`) NOMME ce qui
+manque : `liste_controle_incomplete`, `photos_apres_manquantes`, `photo_en_echec`, `signature_impossible`,
+`materiel_ecarte_non_documente`, chacun dans UNE catégorie (`liste_controle`, `preuve_photo`, `signature`, `materiel`).
+Une réserve n'assouplit que le manque qu'elle nomme, et seulement s'il existe ; un manque sans réserve reste refusé
+(mêmes codes qu'avant) ; une réserve sans manque est refusée ; toute réserve exige des notes ; une référence de photo ou de
+signature qui ne désigne aucun fichier déposé reste refusée (preuve fausse). La fin de chantier est écrite
+`completed_pending_review` avec un bloc `reserves_completion` (dans l'empreinte du maillon ; le WCT garde ses 13 clés, les
+réserves n'y figurent pas). **Rien n'est publié** à M6, M5, M2, M7, M8, M10, M3 avant la revue : aucune facture, pas même un
+brouillon ; M6 n'ouvre pas le formulaire de matériaux. Aucune vérification automatique (le signal M6 sans écart compris) ne
+confirme une fin avec réserves. La revue humaine N4 (`m4_resoudre_revue_completion`, décision `verifiee`) doit nommer
+EXACTEMENT les réserves acceptées (`reserves_acceptees`, sinon `REJ-RESERVES-NON-ACCEPTEES`) ; c'est elle qui publie le WCT
+gardé (même identifiant), donc déclenche la cascade, et qui dit « coût réel provisoire » quand une réserve touche le matériel.
+`correction` nomme un problème et laisse la cascade en attente. La file du propriétaire montre les réserves par catégorie.
+Limites : M5 ne reçoit pas la réserve (le coût « provisoire » est dit par M4, pas par M5) ; la revue par l'écran mobile de
+l'admin (`m4_resoudre_revue_completion_sources`) exige des sources M6 qui n'existent pas avant la publication : la revue
+d'une fin avec réserves se fait par `m4_resoudre_revue_completion` ; l'écran mobile `complete` n'a pas de case « réserves »
+(le client mobile n'a pas été modifié ni rejoué) ; chaque réserve est un motif de revue, jamais une approbation.
 
 ## Une soumission acceptée fait naître une intervention à planifier (PLAN T4.10-b)
 

@@ -27,6 +27,11 @@ journée dès que les chantiers ont des coordonnées confirmées.
      planifier, seulement pour les interventions d'un lead v1 (gelé : le profil est par service). N'envoie rien si le
      lot n'en contient aucune. Ne range jamais un service sous ces tables, ni l'inverse.
    - `equipes`, `durees_par_service`, `competences_par_service`, `parametres` : seulement pour surcharger le profil.
+   - La durée d'un chantier vient de l'estimation M3 du devis (durée sur site, correction apprise dite dans `durees`),
+     sinon de la durée du service du profil (`repli: true` avec sa raison : DIS-LE à l'admin), sinon « durée à déclarer » :
+     ne l'invente jamais. Un chantier plus long qu'une visite (`equipes.cedule.multijours`, ou l'argument `multijours`)
+     est découpé en visites de la même équipe sur des jours distincts : cite `durees` et les `visite`/`visites_total` du
+     plan ; ne promets aucune date au client. Sans règles déclarées, dis lesquelles déclarer.
 3. Appelle `m4_proposer_cedule`. L'urgence n'est pas un argument : elle est lue au registre
    (`urgence_declaree` vrai vaut 1, faux vaut 0, règle citée dans `regle_urgence`).
    - `REJ-CHAMP-MANQUANT` → le détail liste TOUT ce qu'il faut fournir et où le déclarer : redemande-le en une fois.

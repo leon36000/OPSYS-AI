@@ -204,9 +204,12 @@ def lire_plan(reg, plan_id):
             raisons.append("equipe_reassignee")
         bloquants.update(raisons)
         if len(visites) < 200:
-            visites.append({"intervention_id": iid, "equipe_id": route["equipe"], "jour": jour,
-                            "debut_min": visite["debut_min"], "fin_min": visite["fin_min"],
-                            "statut": info["statut"] if info else None, "bloquants": raisons})
+            ligne = {"intervention_id": iid, "equipe_id": route["equipe"], "jour": jour,
+                     "debut_min": visite["debut_min"], "fin_min": visite["fin_min"],
+                     "statut": info["statut"] if info else None, "bloquants": raisons}
+            if "visite" in visite:  # chantier de plusieurs journées (P4-02) : rang et total de la visite
+                ligne["visite"], ligne["visites_total"] = visite["visite"], visite["visites_total"]
+            visites.append(ligne)
     jours_affiches = sorted(jours)[:31]
     return {"plan_id": plan_id, "fuseau": FUSEAU, "revision": source["revision"] if source else 0,
             "calendrier": {str(j): source["calendrier"][str(j)] for j in jours_affiches

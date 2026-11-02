@@ -431,6 +431,27 @@ def test_les_deux_visites_se_datent_jour_par_jour_par_une_personne(instance, par
     assert sorted(ligne["debut"][:10] for ligne in lignes) == sorted(calendrier.values())
 
 
+def test_appliquer_juge_l_admissibilite_de_l_equipe_sur_la_visite_et_non_sur_la_duree_du_service(
+    instance, par_nom, futurs_ok, capsys,
+):
+    """Une proposition faite avec d'autres équipes (surcharge) ne contourne pas le profil : l'équipe qui reçoit
+    l'intervention doit avoir un quart assez long pour la plus longue VISITE (480 min), pas seulement pour la durée du
+    service (180 min). eq-b n'a que des quarts de 400 min au profil."""
+    profil = _profil()
+    profil["liste"][1]["quarts"] = [{"jour": jour, "debut_min": 480, "fin_min": 880} for jour in (0, 1, 2, 3)]
+    _declarer(instance, profil, capsys)
+    iids = _naitre({TOIT: DEVIS_16H})
+    _confirmer_positions(par_nom, (TOIT,))
+    equipe_b = copy.deepcopy(profil["liste"][1])
+    equipe_b["quarts"] = [{"jour": jour, "debut_min": 360, "fin_min": 1080} for jour in (0, 1, 2, 3)]
+    proposition = _ok(_proposer(par_nom, equipes=[{
+        "id": "eq-b", "competences": [], "depot": equipe_b["depot"], "quarts": equipe_b["quarts"]}]))
+    assert {v[0] for v in _visites_de(proposition["plan"], iids[TOIT])} == {"eq-b"}
+    refus = _refus(_appliquer(par_nom, proposition["plan_id"]))
+    assert refus["code"] == "REJ-TOURNEES-PLAN-INVALIDE" and "n'est pas admissible" in refus["detail"]
+    assert _statut(iids[TOIT]) == "a_planifier" and _du_type("cedule_appliquee") == []
+
+
 def test_les_lectures_du_calendrier_montrent_chaque_visite_d_un_chantier_de_plusieurs_jours(
     instance, par_nom, futurs_ok, capsys,
 ):

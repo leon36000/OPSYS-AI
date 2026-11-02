@@ -49,15 +49,19 @@ def lire(cnx, deps, session, plan_id, decalage=0, source_attendue=None):
         for m in sources_m10['evenements']:
             if m.get('type_evenement') == etapes.TYPE_DEVIS_ACCEPTE:
                 faits_devis.setdefault(m.get('devis_id'), []).append(m)
-        liaisons, contextes, vus = [], {}, set()
+        liaisons, contextes, vus, a_visites = [], {}, set(), set()
         horodatage = datetime.now(UTC).isoformat()
         for v in vue['visites']:
             iid = v['intervention_id']
+            if iid in vus and v.get('visite') is not None and iid in a_visites:
+                continue  # chantier de plusieurs journées (P4-02) : la liaison de l'intervention est déjà rangée
             candidates, etat = inscriptions.get(iid, []), etats_plan.get(iid, [])
             if (iid in vus or len(candidates) != 1 or len(etat) != 1
                     or candidates[0].get('lead_id') != etat[0].get('lead_id')):
                 raise lecture.Refus('SOURCE-INCOHERENTE')
             vus.add(iid)
+            if v.get('visite') is not None:
+                a_visites.add(iid)
             inscription = candidates[0]
             cle, travaux = etats.travaux_de(inscription)
             if (etat[0].get(cle) != travaux
