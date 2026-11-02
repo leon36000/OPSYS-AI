@@ -1,0 +1,3058 @@
+{
+ "schema": "opsys.qualification.mesure-embeddings-fr/v1",
+ "etiquette": "essai-embeddings",
+ "execute_le": "2026-11-02T09:27:32+00:00",
+ "corpus": {
+  "fictif": true,
+  "empreinte_sha256": "7f27ab077c99e52b1e33e75790c9302ea1b35dc0aeb306f839632f5d1dc4cd79",
+  "passages": 255,
+  "requetes": 104,
+  "requetes_avec_reponse": 92,
+  "requetes_sans_reponse": 12,
+  "types": {
+   "paraphrase": 16,
+   "reformulation": 16,
+   "synonyme_qc": 14,
+   "faute": 12,
+   "anglicisme": 10,
+   "abreviation": 11,
+   "nombre_unite": 13,
+   "negative": 12
+  }
+ },
+ "parametres": {
+  "rrf_k": 60,
+  "profondeur": 50,
+  "graine_ic": 20261102,
+  "repetitions_ic": 2000,
+  "couverture_lexicale": 0.25,
+  "taille_lot": 64,
+  "sonde_latence": 40
+ },
+ "configurations": {
+  "e5-large": {
+   "modele_passerelle": "opsys-embed-e5-multilingue",
+   "description": "multilingual-e5-large, texte brut (appel OpenAI standard)",
+   "prefixe_requete": "",
+   "prefixe_document": "",
+   "input_type": false,
+   "vecteur": {
+    "dimension": 1024,
+    "octets_float32": 4096,
+    "mo_pour_100000_passages": 390.6
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8587,
+      "ic95": [
+       0.7915,
+       0.9218
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7609,
+      "ic95": [
+       0.6793,
+       0.8424
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8804,
+      "ic95": [
+       0.8152,
+       0.9402
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9293,
+      "ic95": [
+       0.8804,
+       0.9728
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8264,
+      "ic95": [
+       0.7726,
+       0.8778
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.705,
+      "ic95": [
+       0.619,
+       0.7927
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6087,
+      "ic95": [
+       0.5109,
+       0.7065
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.75,
+      "ic95": [
+       0.663,
+       0.837
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.7935,
+      "ic95": [
+       0.712,
+       0.8696
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.6881,
+      "ic95": [
+       0.613,
+       0.7601
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.932,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 1.0,
+      "rappel@5": 1.0
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.77,
+      "rappel@5": 0.75
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.962,
+      "rappel@5": 1.0
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.859,
+      "rappel@5": 0.844
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.673,
+      "rappel@5": 0.719
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.893,
+      "rappel@5": 0.929
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.1537,
+     "ic95": [
+      0.0896,
+      0.2192
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8183,
+      "ic95": [
+       0.7473,
+       0.886
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7065,
+      "ic95": [
+       0.6141,
+       0.7989
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8641,
+      "ic95": [
+       0.7935,
+       0.9293
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9348,
+      "ic95": [
+       0.8859,
+       0.9783
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8151,
+      "ic95": [
+       0.7607,
+       0.8664
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.65,
+      "ic95": [
+       0.5666,
+       0.7337
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.5217,
+      "ic95": [
+       0.4239,
+       0.6196
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.7554,
+      "ic95": [
+       0.6685,
+       0.837
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.837,
+      "ic95": [
+       0.7609,
+       0.9022
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.6799,
+      "ic95": [
+       0.609,
+       0.7509
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 1.0,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.95,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.644,
+      "rappel@5": 0.667
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.885,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.84,
+      "rappel@5": 0.906
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.617,
+      "rappel@5": 0.656
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.875,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.1684,
+     "ic95": [
+      0.0951,
+      0.2389
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "abstention": {
+    "auc": 0.9484,
+    "seuil_a_90pc_rappel": 0.8346,
+    "faux_acceptes_a_90pc_rappel": 0.25,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.8664,
+    "tete_mediane_sans": 0.8243
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0,
+    "sans_reponse_au_dessus_du_seuil": 1.0
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 1.138,
+     "p95_s": 4.867,
+     "max_s": 7.8
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0221
+    }
+   },
+   "cout": {
+    "jetons_documents": 12892,
+    "jetons_requetes": 3437,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.000163,
+    "jetons_par_passage": 50.6,
+    "usd_par_million_de_jetons": 0.01,
+    "usd_pour_100000_passages_de_meme_taille": 0.05
+   },
+   "contexte_maximal_jetons": 512
+  },
+  "e5-large-prefixes": {
+   "modele_passerelle": "opsys-embed-e5-multilingue",
+   "description": "multilingual-e5-large avec les préfixes « query: » / « passage: » de sa fiche",
+   "prefixe_requete": "query: ",
+   "prefixe_document": "passage: ",
+   "input_type": false,
+   "vecteur": {
+    "dimension": 1024,
+    "octets_float32": 4096,
+    "mo_pour_100000_passages": 390.6
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8589,
+      "ic95": [
+       0.7933,
+       0.9188
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7554,
+      "ic95": [
+       0.6685,
+       0.837
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8913,
+      "ic95": [
+       0.8315,
+       0.9457
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9511,
+      "ic95": [
+       0.9076,
+       0.9891
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8358,
+      "ic95": [
+       0.7872,
+       0.8811
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.6824,
+      "ic95": [
+       0.5987,
+       0.764
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.5598,
+      "ic95": [
+       0.462,
+       0.6576
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.7935,
+      "ic95": [
+       0.7065,
+       0.8696
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.8696,
+      "ic95": [
+       0.7989,
+       0.9348
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7017,
+      "ic95": [
+       0.6369,
+       0.7649
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 1.0,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 1.0,
+      "rappel@5": 1.0
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.722,
+      "rappel@5": 0.833
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.923,
+      "rappel@5": 1.0
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.885,
+      "rappel@5": 0.844
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.637,
+      "rappel@5": 0.719
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.929,
+      "rappel@5": 0.929
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.1765,
+     "ic95": [
+      0.1131,
+      0.2431
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8125,
+      "ic95": [
+       0.7437,
+       0.8777
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6848,
+      "ic95": [
+       0.5924,
+       0.7772
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8804,
+      "ic95": [
+       0.8152,
+       0.9402
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9348,
+      "ic95": [
+       0.8804,
+       0.9783
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8207,
+      "ic95": [
+       0.7677,
+       0.87
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.6762,
+      "ic95": [
+       0.5964,
+       0.7577
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.538,
+      "ic95": [
+       0.4402,
+       0.6359
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8043,
+      "ic95": [
+       0.7283,
+       0.8804
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.8696,
+      "ic95": [
+       0.7989,
+       0.9348
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7036,
+      "ic95": [
+       0.6383,
+       0.7689
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.95,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.642,
+      "rappel@5": 0.75
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.846,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.865,
+      "rappel@5": 0.938
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.617,
+      "rappel@5": 0.656
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.881,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.1363,
+     "ic95": [
+      0.0685,
+      0.2029
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "abstention": {
+    "auc": 0.9103,
+    "seuil_a_90pc_rappel": 0.833,
+    "faux_acceptes_a_90pc_rappel": 0.4167,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.8652,
+    "tete_mediane_sans": 0.8299
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0,
+    "sans_reponse_au_dessus_du_seuil": 1.0
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 1.102,
+     "p95_s": 1.376,
+     "max_s": 2.382
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0218
+    }
+   },
+   "cout": {
+    "jetons_documents": 13402,
+    "jetons_requetes": 4061,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.000175,
+    "jetons_par_passage": 52.6,
+    "usd_par_million_de_jetons": 0.01,
+    "usd_pour_100000_passages_de_meme_taille": 0.05
+   },
+   "contexte_maximal_jetons": 512
+  },
+  "gemini-2": {
+   "modele_passerelle": "opsys-embed-gemini-2",
+   "description": "Gemini Embedding 2, appel OpenAI standard",
+   "prefixe_requete": "",
+   "prefixe_document": "",
+   "input_type": false,
+   "vecteur": {
+    "dimension": 3072,
+    "octets_float32": 12288,
+    "mo_pour_100000_passages": 1171.9
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8958,
+      "ic95": [
+       0.845,
+       0.9451
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7935,
+      "ic95": [
+       0.7174,
+       0.8696
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9565,
+      "ic95": [
+       0.913,
+       0.9891
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9783,
+      "ic95": [
+       0.9511,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8865,
+      "ic95": [
+       0.8477,
+       0.9206
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8806,
+      "ic95": [
+       0.8274,
+       0.9321
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7609,
+      "ic95": [
+       0.6793,
+       0.8424
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9348,
+      "ic95": [
+       0.8804,
+       0.9783
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9837,
+      "ic95": [
+       0.9565,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8737,
+      "ic95": [
+       0.8349,
+       0.9109
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.882,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.875,
+      "rappel@5": 1.0
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.762,
+      "rappel@5": 0.833
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.923,
+      "rappel@5": 1.0
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.969,
+      "rappel@5": 0.938
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.883,
+      "rappel@5": 0.938
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.943,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0153,
+     "ic95": [
+      -0.0148,
+      0.0486
+     ],
+     "n": 92,
+     "distinguable": false
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8578,
+      "ic95": [
+       0.7976,
+       0.9139
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.75,
+      "ic95": [
+       0.663,
+       0.8315
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.913,
+      "ic95": [
+       0.8533,
+       0.9674
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9783,
+      "ic95": [
+       0.9457,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8684,
+      "ic95": [
+       0.8274,
+       0.9056
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7564,
+      "ic95": [
+       0.6827,
+       0.8263
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6141,
+      "ic95": [
+       0.5163,
+       0.712
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8424,
+      "ic95": [
+       0.7663,
+       0.913
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9293,
+      "ic95": [
+       0.8696,
+       0.9783
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8051,
+      "ic95": [
+       0.748,
+       0.8595
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.909,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.95,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.729,
+      "rappel@5": 0.833
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.854,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.938,
+      "rappel@5": 0.969
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.66,
+      "rappel@5": 0.75
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 1.0,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.1014,
+     "ic95": [
+      0.0427,
+      0.1643
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "abstention": {
+    "auc": 0.9312,
+    "seuil_a_90pc_rappel": 0.6664,
+    "faux_acceptes_a_90pc_rappel": 0.0833,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.7625,
+    "tete_mediane_sans": 0.598
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0,
+    "sans_reponse_au_dessus_du_seuil": 1.0
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 0.444,
+     "p95_s": 0.55,
+     "max_s": 1.29
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0323
+    }
+   },
+   "cout": {
+    "jetons_documents": 11712,
+    "jetons_requetes": 2818,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.002906,
+    "jetons_par_passage": 45.9,
+    "usd_par_million_de_jetons": 0.2,
+    "usd_pour_100000_passages_de_meme_taille": 0.92
+   },
+   "contexte_maximal_jetons": 8192
+  },
+  "gemini-2-type": {
+   "modele_passerelle": "opsys-embed-gemini-2",
+   "description": "Gemini Embedding 2 avec input_type query/document",
+   "prefixe_requete": "",
+   "prefixe_document": "",
+   "input_type": true,
+   "vecteur": {
+    "dimension": 3072,
+    "octets_float32": 12288,
+    "mo_pour_100000_passages": 1171.9
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.9373,
+      "ic95": [
+       0.8989,
+       0.9728
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.837,
+      "ic95": [
+       0.7716,
+       0.8969
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9946,
+      "ic95": [
+       0.9837,
+       1.0
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 1.0,
+      "ic95": [
+       1.0,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.9274,
+      "ic95": [
+       0.9002,
+       0.9507
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8825,
+      "ic95": [
+       0.8299,
+       0.9307
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7446,
+      "ic95": [
+       0.6576,
+       0.8261
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9837,
+      "ic95": [
+       0.9565,
+       1.0
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 1.0,
+      "ic95": [
+       1.0,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8888,
+      "ic95": [
+       0.8533,
+       0.9202
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.933,
+      "rappel@5": 1.0
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.85,
+      "rappel@5": 1.0
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.923,
+      "rappel@5": 1.0
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 1.0,
+      "rappel@5": 1.0
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.919,
+      "rappel@5": 0.969
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.964,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0548,
+     "ic95": [
+      0.0258,
+      0.0883
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8437,
+      "ic95": [
+       0.781,
+       0.9022
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7174,
+      "ic95": [
+       0.625,
+       0.8043
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9293,
+      "ic95": [
+       0.875,
+       0.9783
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9565,
+      "ic95": [
+       0.913,
+       0.9891
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8695,
+      "ic95": [
+       0.8257,
+       0.9081
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7844,
+      "ic95": [
+       0.7137,
+       0.8525
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6467,
+      "ic95": [
+       0.5489,
+       0.7391
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8859,
+      "ic95": [
+       0.8152,
+       0.9457
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9457,
+      "ic95": [
+       0.8913,
+       0.9891
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8196,
+      "ic95": [
+       0.7661,
+       0.87
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.933,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.725,
+      "rappel@5": 0.833
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.846,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.906,
+      "rappel@5": 1.0
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.661,
+      "rappel@5": 0.812
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.929,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0593,
+     "ic95": [
+      0.0045,
+      0.1185
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "abstention": {
+    "auc": 0.9746,
+    "seuil_a_90pc_rappel": 0.6445,
+    "faux_acceptes_a_90pc_rappel": 0.0,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.7026,
+    "tete_mediane_sans": 0.5781
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0,
+    "sans_reponse_au_dessus_du_seuil": 1.0
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 0.47,
+     "p95_s": 0.553,
+     "max_s": 0.694
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0312
+    }
+   },
+   "cout": {
+    "jetons_documents": 12211,
+    "jetons_requetes": 4258,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.003294,
+    "jetons_par_passage": 47.9,
+    "usd_par_million_de_jetons": 0.2,
+    "usd_pour_100000_passages_de_meme_taille": 0.96
+   },
+   "contexte_maximal_jetons": 8192
+  },
+  "voyage-4": {
+   "modele_passerelle": "opsys-embed-voyage-4",
+   "description": "Voyage 4, appel OpenAI standard",
+   "prefixe_requete": "",
+   "prefixe_document": "",
+   "input_type": false,
+   "vecteur": {
+    "dimension": 1024,
+    "octets_float32": 4096,
+    "mo_pour_100000_passages": 390.6
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.882,
+      "ic95": [
+       0.8277,
+       0.9318
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7554,
+      "ic95": [
+       0.6739,
+       0.8315
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9457,
+      "ic95": [
+       0.9022,
+       0.9837
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 1.0,
+      "ic95": [
+       1.0,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8791,
+      "ic95": [
+       0.8391,
+       0.9143
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8239,
+      "ic95": [
+       0.7558,
+       0.8803
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6739,
+      "ic95": [
+       0.5761,
+       0.7554
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.913,
+      "ic95": [
+       0.8587,
+       0.962
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9837,
+      "ic95": [
+       0.9565,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8202,
+      "ic95": [
+       0.7701,
+       0.8634
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 1.0,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.925,
+      "rappel@5": 1.0
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.748,
+      "rappel@5": 0.917
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.819,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.938,
+      "rappel@5": 0.906
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.906,
+      "rappel@5": 0.969
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.841,
+      "rappel@5": 0.929
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0582,
+     "ic95": [
+      0.0224,
+      0.101
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8232,
+      "ic95": [
+       0.7559,
+       0.8859
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6957,
+      "ic95": [
+       0.6033,
+       0.788
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.913,
+      "ic95": [
+       0.8533,
+       0.962
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9674,
+      "ic95": [
+       0.9239,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.844,
+      "ic95": [
+       0.7953,
+       0.8884
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7773,
+      "ic95": [
+       0.6982,
+       0.8487
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6467,
+      "ic95": [
+       0.5489,
+       0.7391
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8696,
+      "ic95": [
+       0.7989,
+       0.9293
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9402,
+      "ic95": [
+       0.8859,
+       0.9837
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7918,
+      "ic95": [
+       0.7364,
+       0.8446
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.95,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.699,
+      "rappel@5": 0.75
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.803,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.865,
+      "rappel@5": 0.969
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.681,
+      "rappel@5": 0.812
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.869,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0459,
+     "ic95": [
+      -0.0092,
+      0.1045
+     ],
+     "n": 92,
+     "distinguable": false
+    }
+   },
+   "abstention": {
+    "auc": 0.8859,
+    "seuil_a_90pc_rappel": 0.5167,
+    "faux_acceptes_a_90pc_rappel": 0.3333,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.6499,
+    "tete_mediane_sans": 0.465
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0,
+    "sans_reponse_au_dessus_du_seuil": 0.9167
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 0.166,
+     "p95_s": 0.206,
+     "max_s": 0.246
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0108
+    }
+   },
+   "cout": {
+    "jetons_documents": 13577,
+    "jetons_requetes": 3177,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.001005,
+    "jetons_par_passage": 53.2,
+    "usd_par_million_de_jetons": 0.06,
+    "usd_pour_100000_passages_de_meme_taille": 0.32
+   },
+   "contexte_maximal_jetons": 32000
+  },
+  "voyage-4-type": {
+   "modele_passerelle": "opsys-embed-voyage-4",
+   "description": "Voyage 4 avec input_type query/document",
+   "prefixe_requete": "",
+   "prefixe_document": "",
+   "input_type": true,
+   "vecteur": {
+    "dimension": 1024,
+    "octets_float32": 4096,
+    "mo_pour_100000_passages": 390.6
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8773,
+      "ic95": [
+       0.823,
+       0.9282
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7391,
+      "ic95": [
+       0.6522,
+       0.8152
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9565,
+      "ic95": [
+       0.913,
+       0.9891
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 1.0,
+      "ic95": [
+       1.0,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8798,
+      "ic95": [
+       0.8411,
+       0.913
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8362,
+      "ic95": [
+       0.775,
+       0.8935
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6848,
+      "ic95": [
+       0.587,
+       0.7717
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9565,
+      "ic95": [
+       0.913,
+       0.9891
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9783,
+      "ic95": [
+       0.9457,
+       1.0
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8419,
+      "ic95": [
+       0.7963,
+       0.8842
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.925,
+      "rappel@5": 1.0
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.7,
+      "rappel@5": 0.833
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.846,
+      "rappel@5": 1.0
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.938,
+      "rappel@5": 0.938
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.88,
+      "rappel@5": 1.0
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.891,
+      "rappel@5": 0.929
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0411,
+     "ic95": [
+      0.0027,
+      0.0815
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8301,
+      "ic95": [
+       0.7639,
+       0.8935
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7065,
+      "ic95": [
+       0.6141,
+       0.7989
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9022,
+      "ic95": [
+       0.8423,
+       0.9565
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9565,
+      "ic95": [
+       0.9022,
+       0.9891
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8507,
+      "ic95": [
+       0.8022,
+       0.8959
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7702,
+      "ic95": [
+       0.6953,
+       0.8431
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6413,
+      "ic95": [
+       0.5489,
+       0.7391
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.875,
+      "ic95": [
+       0.8043,
+       0.9402
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9348,
+      "ic95": [
+       0.8804,
+       0.9783
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7978,
+      "ic95": [
+       0.74,
+       0.8526
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.95,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.686,
+      "rappel@5": 0.667
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.808,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.865,
+      "rappel@5": 0.969
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.685,
+      "rappel@5": 0.812
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.917,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0599,
+     "ic95": [
+      0.0085,
+      0.1153
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "abstention": {
+    "auc": 0.8687,
+    "seuil_a_90pc_rappel": 0.4631,
+    "faux_acceptes_a_90pc_rappel": 0.4167,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.6035,
+    "tete_mediane_sans": 0.4255
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0,
+    "sans_reponse_au_dessus_du_seuil": 0.9167
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 0.167,
+     "p95_s": 0.186,
+     "max_s": 0.234
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0111
+    }
+   },
+   "cout": {
+    "jetons_documents": 13273,
+    "jetons_requetes": 2952,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.000974,
+    "jetons_par_passage": 52.1,
+    "usd_par_million_de_jetons": 0.06,
+    "usd_pour_100000_passages_de_meme_taille": 0.31
+   },
+   "contexte_maximal_jetons": 32000
+  },
+  "voyage-4-lite": {
+   "modele_passerelle": "opsys-embed-voyage-4-lite",
+   "description": "Voyage 4 lite, appel OpenAI standard",
+   "prefixe_requete": "",
+   "prefixe_document": "",
+   "input_type": false,
+   "vecteur": {
+    "dimension": 1024,
+    "octets_float32": 4096,
+    "mo_pour_100000_passages": 390.6
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8417,
+      "ic95": [
+       0.7778,
+       0.9016
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7174,
+      "ic95": [
+       0.6303,
+       0.7989
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8967,
+      "ic95": [
+       0.837,
+       0.9511
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.962,
+      "ic95": [
+       0.9185,
+       0.9946
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8286,
+      "ic95": [
+       0.7753,
+       0.8755
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7353,
+      "ic95": [
+       0.6569,
+       0.8081
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6087,
+      "ic95": [
+       0.5054,
+       0.7011
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.837,
+      "ic95": [
+       0.7554,
+       0.9076
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.913,
+      "ic95": [
+       0.8587,
+       0.962
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7284,
+      "ic95": [
+       0.6632,
+       0.7885
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.91,
+      "rappel@5": 0.9
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.72,
+      "rappel@5": 0.75
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.808,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.865,
+      "rappel@5": 0.844
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.797,
+      "rappel@5": 0.938
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.865,
+      "rappel@5": 0.929
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.1064,
+     "ic95": [
+      0.0477,
+      0.1701
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8095,
+      "ic95": [
+       0.7384,
+       0.8736
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6848,
+      "ic95": [
+       0.5924,
+       0.7772
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8804,
+      "ic95": [
+       0.8152,
+       0.9402
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9293,
+      "ic95": [
+       0.8696,
+       0.9783
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8142,
+      "ic95": [
+       0.757,
+       0.8661
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7275,
+      "ic95": [
+       0.6472,
+       0.8061
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6141,
+      "ic95": [
+       0.5162,
+       0.712
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8043,
+      "ic95": [
+       0.7228,
+       0.8804
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.8804,
+      "ic95": [
+       0.8098,
+       0.9402
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7341,
+      "ic95": [
+       0.666,
+       0.7983
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.9,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.667,
+      "rappel@5": 0.667
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.785,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.896,
+      "rappel@5": 0.906
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.632,
+      "rappel@5": 0.75
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.881,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.082,
+     "ic95": [
+      0.0149,
+      0.1485
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "abstention": {
+    "auc": 0.8351,
+    "seuil_a_90pc_rappel": 0.5158,
+    "faux_acceptes_a_90pc_rappel": 0.5,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.6225,
+    "tete_mediane_sans": 0.4896
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0,
+    "sans_reponse_au_dessus_du_seuil": 1.0
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 0.159,
+     "p95_s": 0.264,
+     "max_s": 1.18
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0073
+    }
+   },
+   "cout": {
+    "jetons_documents": 13577,
+    "jetons_requetes": 3177,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.000335,
+    "jetons_par_passage": 53.2,
+    "usd_par_million_de_jetons": 0.02,
+    "usd_pour_100000_passages_de_meme_taille": 0.11
+   },
+   "contexte_maximal_jetons": 32000
+  },
+  "voyage-4-lite-type": {
+   "modele_passerelle": "opsys-embed-voyage-4-lite",
+   "description": "Voyage 4 lite avec input_type query/document",
+   "prefixe_requete": "",
+   "prefixe_document": "",
+   "input_type": true,
+   "vecteur": {
+    "dimension": 1024,
+    "octets_float32": 4096,
+    "mo_pour_100000_passages": 390.6
+   },
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8499,
+      "ic95": [
+       0.7884,
+       0.9071
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.7228,
+      "ic95": [
+       0.6304,
+       0.8043
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.9239,
+      "ic95": [
+       0.875,
+       0.9674
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9511,
+      "ic95": [
+       0.9076,
+       0.9891
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8363,
+      "ic95": [
+       0.7826,
+       0.883
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7455,
+      "ic95": [
+       0.6729,
+       0.8152
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6087,
+      "ic95": [
+       0.5054,
+       0.7065
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8696,
+      "ic95": [
+       0.8043,
+       0.9293
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.913,
+      "ic95": [
+       0.8533,
+       0.9674
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7575,
+      "ic95": [
+       0.6973,
+       0.8119
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.909,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.9,
+      "rappel@5": 0.9
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.767,
+      "rappel@5": 0.833
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.862,
+      "rappel@5": 1.0
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.844,
+      "rappel@5": 0.875
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.815,
+      "rappel@5": 0.875
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.875,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.1044,
+     "ic95": [
+      0.0435,
+      0.1741
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.8163,
+      "ic95": [
+       0.746,
+       0.8797
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.6957,
+      "ic95": [
+       0.6033,
+       0.7826
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8913,
+      "ic95": [
+       0.8261,
+       0.9457
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.9185,
+      "ic95": [
+       0.8587,
+       0.9674
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.8189,
+      "ic95": [
+       0.7607,
+       0.8712
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.7306,
+      "ic95": [
+       0.6471,
+       0.8111
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.625,
+      "ic95": [
+       0.5272,
+       0.7228
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.8152,
+      "ic95": [
+       0.7337,
+       0.8913
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.8696,
+      "ic95": [
+       0.7935,
+       0.9348
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.7452,
+      "ic95": [
+       0.6786,
+       0.8093
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.955,
+      "rappel@5": 1.0
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.9,
+      "rappel@5": 0.95
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.667,
+      "rappel@5": 0.667
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.795,
+      "rappel@5": 0.923
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.896,
+      "rappel@5": 0.906
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.662,
+      "rappel@5": 0.812
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.881,
+      "rappel@5": 1.0
+     }
+    },
+    "robustesse_mrr": {
+     "ecart": 0.0857,
+     "ic95": [
+      0.0211,
+      0.1542
+     ],
+     "n": 92,
+     "distinguable": true
+    }
+   },
+   "abstention": {
+    "auc": 0.7871,
+    "seuil_a_90pc_rappel": 0.4404,
+    "faux_acceptes_a_90pc_rappel": 0.6667,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.5529,
+    "tete_mediane_sans": 0.4617
+   },
+   "seuil_produit": {
+    "seuil": 0.3,
+    "pertinents_sous_le_seuil": 0.0096,
+    "sans_reponse_au_dessus_du_seuil": 0.9167
+   },
+   "latence": {
+    "requete_isolee": {
+     "n": 40,
+     "p50_s": 0.157,
+     "p95_s": 0.176,
+     "max_s": 0.404
+    },
+    "documents_par_lot": {
+     "appels": 4,
+     "textes": 255,
+     "secondes_par_texte": 0.0075
+    }
+   },
+   "cout": {
+    "jetons_documents": 13273,
+    "jetons_requetes": 2952,
+    "jetons_inconnus": false,
+    "usd_mesure": 0.000324,
+    "jetons_par_passage": 52.1,
+    "usd_par_million_de_jetons": 0.02,
+    "usd_pour_100000_passages_de_meme_taille": 0.1
+   },
+   "contexte_maximal_jetons": 32000
+  }
+ },
+ "systemes_locaux": {
+  "bm25_fts5": {
+   "description": "BM25 de SQLite FTS5 du dépôt (opsys.connaissances.lexical), couverture >= 0,25",
+   "propre": {
+    "n": 92,
+    "mrr@10": {
+     "moyenne": 0.6544,
+     "ic95": [
+      0.5644,
+      0.738
+     ]
+    },
+    "rappel@1": {
+     "moyenne": 0.5326,
+     "ic95": [
+      0.4239,
+      0.625
+     ]
+    },
+    "rappel@5": {
+     "moyenne": 0.7283,
+     "ic95": [
+      0.6359,
+      0.8152
+     ]
+    },
+    "rappel@10": {
+     "moyenne": 0.7609,
+     "ic95": [
+      0.6739,
+      0.8478
+     ]
+    },
+    "ndcg@10": {
+     "moyenne": 0.6547,
+     "ic95": [
+      0.5764,
+      0.729
+     ]
+    }
+   },
+   "perturbe": {
+    "n": 92,
+    "mrr@10": {
+     "moyenne": 0.4719,
+     "ic95": [
+      0.3808,
+      0.5654
+     ]
+    },
+    "rappel@1": {
+     "moyenne": 0.3641,
+     "ic95": [
+      0.2663,
+      0.462
+     ]
+    },
+    "rappel@5": {
+     "moyenne": 0.538,
+     "ic95": [
+      0.4402,
+      0.6359
+     ]
+    },
+    "rappel@10": {
+     "moyenne": 0.5707,
+     "ic95": [
+      0.4727,
+      0.6685
+     ]
+    },
+    "ndcg@10": {
+     "moyenne": 0.481,
+     "ic95": [
+      0.396,
+      0.5639
+     ]
+    }
+   },
+   "par_type": {
+    "abreviation": {
+     "n": 11,
+     "mrr@10": 0.939,
+     "rappel@5": 1.0
+    },
+    "anglicisme": {
+     "n": 10,
+     "mrr@10": 0.564,
+     "rappel@5": 0.55
+    },
+    "faute": {
+     "n": 12,
+     "mrr@10": 0.569,
+     "rappel@5": 0.667
+    },
+    "nombre_unite": {
+     "n": 13,
+     "mrr@10": 0.808,
+     "rappel@5": 0.923
+    },
+    "paraphrase": {
+     "n": 16,
+     "mrr@10": 0.764,
+     "rappel@5": 0.875
+    },
+    "reformulation": {
+     "n": 16,
+     "mrr@10": 0.135,
+     "rappel@5": 0.156
+    },
+    "synonyme_qc": {
+     "n": 14,
+     "mrr@10": 0.893,
+     "rappel@5": 1.0
+    }
+   },
+   "abstention": {
+    "auc": 0.784,
+    "seuil_a_90pc_rappel": 2.2881,
+    "faux_acceptes_a_90pc_rappel": 0.75,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 7.9851,
+    "tete_mediane_sans": 4.8408
+   },
+   "robustesse_mrr": {
+    "ecart": 0.1825,
+    "ic95": [
+     0.1032,
+     0.2607
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "double_hachage": {
+   "description": "Double déterministe du dépôt (hachage de termes et de trigrammes, 256 dim.) : un PLANCHER, pas un modèle d'embeddings",
+   "vecteurs": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.5834,
+      "ic95": [
+       0.4974,
+       0.6711
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.4457,
+      "ic95": [
+       0.3478,
+       0.5489
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.7065,
+      "ic95": [
+       0.6141,
+       0.7989
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.7772,
+      "ic95": [
+       0.6902,
+       0.8587
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.6061,
+      "ic95": [
+       0.5353,
+       0.6768
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.4479,
+      "ic95": [
+       0.3657,
+       0.5364
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.3098,
+      "ic95": [
+       0.2228,
+       0.4022
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.587,
+      "ic95": [
+       0.4891,
+       0.6848
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.663,
+      "ic95": [
+       0.5707,
+       0.7556
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.4872,
+      "ic95": [
+       0.4132,
+       0.5627
+      ]
+     }
+    },
+    "par_type": {
+     "abreviation": {
+      "n": 11,
+      "mrr@10": 0.742,
+      "rappel@5": 0.864
+     },
+     "anglicisme": {
+      "n": 10,
+      "mrr@10": 0.617,
+      "rappel@5": 0.8
+     },
+     "faute": {
+      "n": 12,
+      "mrr@10": 0.635,
+      "rappel@5": 0.667
+     },
+     "nombre_unite": {
+      "n": 13,
+      "mrr@10": 0.756,
+      "rappel@5": 0.846
+     },
+     "paraphrase": {
+      "n": 16,
+      "mrr@10": 0.611,
+      "rappel@5": 0.75
+     },
+     "reformulation": {
+      "n": 16,
+      "mrr@10": 0.17,
+      "rappel@5": 0.281
+     },
+     "synonyme_qc": {
+      "n": 14,
+      "mrr@10": 0.67,
+      "rappel@5": 0.857
+     }
+    }
+   },
+   "hybride": {
+    "propre": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.6668,
+      "ic95": [
+       0.5815,
+       0.7521
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.538,
+      "ic95": [
+       0.4402,
+       0.6359
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.7609,
+      "ic95": [
+       0.6739,
+       0.8478
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.8261,
+      "ic95": [
+       0.7446,
+       0.9022
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.6879,
+      "ic95": [
+       0.6169,
+       0.7582
+      ]
+     }
+    },
+    "perturbe": {
+     "n": 92,
+     "mrr@10": {
+      "moyenne": 0.5258,
+      "ic95": [
+       0.4355,
+       0.6172
+      ]
+     },
+     "rappel@1": {
+      "moyenne": 0.4076,
+      "ic95": [
+       0.3098,
+       0.5054
+      ]
+     },
+     "rappel@5": {
+      "moyenne": 0.6087,
+      "ic95": [
+       0.5109,
+       0.712
+      ]
+     },
+     "rappel@10": {
+      "moyenne": 0.6957,
+      "ic95": [
+       0.5978,
+       0.788
+      ]
+     },
+     "ndcg@10": {
+      "moyenne": 0.556,
+      "ic95": [
+       0.4743,
+       0.6332
+      ]
+     }
+    }
+   },
+   "abstention": {
+    "auc": 0.8143,
+    "seuil_a_90pc_rappel": 0.2789,
+    "faux_acceptes_a_90pc_rappel": 0.5833,
+    "n_avec": 92,
+    "n_sans": 12,
+    "tete_mediane_avec": 0.4042,
+    "tete_mediane_sans": 0.2874
+   }
+  }
+ },
+ "comparaisons": {
+  "e5-large": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.2043,
+    "ic95": [
+     0.1182,
+     0.2951
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.164,
+    "ic95": [
+     0.1008,
+     0.2346
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.0403,
+    "ic95": [
+     -0.0982,
+     0.0158
+    ],
+    "n": 92,
+    "distinguable": false
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.1603,
+    "ic95": [
+     0.1022,
+     0.2255
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "e5-large-prefixes": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.2045,
+    "ic95": [
+     0.1181,
+     0.2933
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.1581,
+    "ic95": [
+     0.0928,
+     0.2313
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.0465,
+    "ic95": [
+     -0.0993,
+     0.0025
+    ],
+    "n": 92,
+    "distinguable": false
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.1659,
+    "ic95": [
+     0.1068,
+     0.2333
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "gemini-2": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.2415,
+    "ic95": [
+     0.1402,
+     0.3503
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.2034,
+    "ic95": [
+     0.1332,
+     0.2837
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.038,
+    "ic95": [
+     -0.1004,
+     0.0248
+    ],
+    "n": 92,
+    "distinguable": false
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.2137,
+    "ic95": [
+     0.1532,
+     0.2814
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "gemini-2-type": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.2829,
+    "ic95": [
+     0.1975,
+     0.3804
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.1893,
+    "ic95": [
+     0.1255,
+     0.2643
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.0937,
+    "ic95": [
+     -0.1534,
+     -0.0383
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.2148,
+    "ic95": [
+     0.1539,
+     0.2813
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "voyage-4": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.2277,
+    "ic95": [
+     0.1399,
+     0.3225
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.1688,
+    "ic95": [
+     0.1039,
+     0.2431
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.0589,
+    "ic95": [
+     -0.1066,
+     -0.0136
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.1892,
+    "ic95": [
+     0.1301,
+     0.2579
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "voyage-4-type": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.2229,
+    "ic95": [
+     0.1365,
+     0.3135
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.1757,
+    "ic95": [
+     0.1098,
+     0.2497
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.0472,
+    "ic95": [
+     -0.0947,
+     -0.0011
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.1959,
+    "ic95": [
+     0.1355,
+     0.2636
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "voyage-4-lite": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.1873,
+    "ic95": [
+     0.0999,
+     0.2797
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.1552,
+    "ic95": [
+     0.0877,
+     0.232
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.0322,
+    "ic95": [
+     -0.079,
+     0.0123
+    ],
+    "n": 92,
+    "distinguable": false
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.1595,
+    "ic95": [
+     0.0995,
+     0.2281
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  },
+  "voyage-4-lite-type": {
+   "vecteurs_contre_bm25_mrr": {
+    "ecart": 0.1955,
+    "ic95": [
+     0.1057,
+     0.2884
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_bm25_mrr": {
+    "ecart": 0.1619,
+    "ic95": [
+     0.0948,
+     0.2396
+    ],
+    "n": 92,
+    "distinguable": true
+   },
+   "hybride_contre_vecteurs_mrr": {
+    "ecart": -0.0336,
+    "ic95": [
+     -0.082,
+     0.013
+    ],
+    "n": 92,
+    "distinguable": false
+   },
+   "hybride_contre_bm25_ndcg": {
+    "ecart": 0.1642,
+    "ic95": [
+     0.1034,
+     0.232
+    ],
+    "n": 92,
+    "distinguable": true
+   }
+  }
+ },
+ "depense_passerelle_observee_usd": 0.0
+}

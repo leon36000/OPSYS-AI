@@ -1,0 +1,18 @@
+{
+  "schema": "opsys.qualification.tarifs-embeddings-fr/v1",
+  "source": "OpenRouter, listes publiques GET https://openrouter.ai/api/v1/embeddings/models et /api/v1/models, lues le 2026-11-02 ; la passerelle LiteLLM de test déclare 0 pour tous les modèles (model/info), elle ne tarife donc rien elle-même. À relire avant toute décision : un tarif change.",
+  "devise": "USD",
+  "usd_par_jeton": {
+    "opsys-embed-e5-multilingue": {"entree": "0.00000001", "sortie": "0", "modele_amont": "intfloat/multilingual-e5-large"},
+    "opsys-embed-gemini-2": {"entree": "0.0000002", "sortie": "0", "modele_amont": "google/gemini-embedding-2"},
+    "opsys-embed-voyage-4": {"entree": "0.00000006", "sortie": "0", "modele_amont": "voyageai/voyage-4"},
+    "opsys-embed-voyage-4-lite": {"entree": "0.00000002", "sortie": "0", "modele_amont": "voyageai/voyage-4-lite"},
+    "opsys-haiku-5-5": {"entree": "0.0000001", "sortie": "0.0000005", "modele_amont": "anthropic/claude-haiku-5.5"}
+  },
+  "contexte_maximal_amont": {
+    "opsys-embed-e5-multilingue": 512,
+    "opsys-embed-gemini-2": 8192,
+    "opsys-embed-voyage-4": 32000,
+    "opsys-embed-voyage-4-lite": 32000
+  }
+}
