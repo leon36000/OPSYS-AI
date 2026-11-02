@@ -278,8 +278,6 @@ def construire_plan(
                         "REJ-PLAN-ENTREE-INVALIDE", f"jalon {index + 1} : montant_avant_taxes en texte décimal au cent"
                     )
                 montants.append(montant)
-            if any(m < _CENT for m in montants):
-                return None, _verdict("REJ-PLAN-JALON-NUL", "chaque jalon vaut au moins 0.01 $")
             somme = sum(montants, Decimal("0"))
             if somme != total:
                 return None, _verdict(

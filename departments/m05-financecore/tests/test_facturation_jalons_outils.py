@@ -800,6 +800,24 @@ def test_deux_emissions_simultanees_recoivent_deux_numeros_distincts_sans_trou(p
     assert utile(appeler(par_nom, "m5_verifier_numerotation_factures", {}))["ok"] is True
 
 
+def test_les_ecritures_de_l_emission_portent_la_precondition_de_rang(par_nom, declare, dep, monkeypatch):
+    """Le numéro et le statut s'écrivent avec la précondition de rang : deux écrivains qui ont lu le même état ne se
+    superposent jamais (la clé primaire du registre porte la même garde, ceci prouve qu'on s'en sert aussi)."""
+    plan_id = monde_a_trois_jalons(dep, par_nom)
+    original = MaillonsDurables.append
+    appels = []
+
+    def espion(self, maillon, *, rang_attendu=None):
+        if (self.departement, self.registre) in ((DEPARTEMENT, "numerotation_factures"), (DEPARTEMENT, "factures")):
+            appels.append((self.registre, rang_attendu, len(self)))
+        return original(self, maillon, rang_attendu=rang_attendu)
+
+    monkeypatch.setattr(MaillonsDurables, "append", espion)
+    assert emettre(dep, facture_id(plan_id, 1))["statut"] == "executee"
+    assert appels and all(rang is not None and rang == taille for _, rang, taille in appels), appels
+    assert {registre_ for registre_, _, _ in appels} == {"numerotation_factures", "factures"}
+
+
 def test_une_ecriture_concurrente_pendant_l_emission_clot_la_demande_sans_consommer_de_numero(
     par_nom, declare, dep, monkeypatch
 ):
@@ -1006,6 +1024,33 @@ def test_un_scelle_qui_ne_correspond_plus_au_rendu_est_un_conflit_jamais_reecrit
         registre("documents_facturation")[0]["empreinte_pdf"] == "0" * 64
         and len(registre("documents_facturation")) == 1
     )
+
+
+def test_un_fichier_du_meme_nom_aux_autres_octets_n_est_jamais_ecrase(par_nom, declare, dep, brique):
+    plan_id = monde_a_trois_jalons(dep, par_nom, emettre_jalons=(1,))
+    fid = facture_id(plan_id, 1)
+    premier = utile(pdf_facture(par_nom, fid))
+    chemin = _fichier(premier)
+    original = chemin.read_bytes()
+    chemin.write_bytes(b"%PDF-altere")
+    stockage.liberer()
+    verdict = refus(pdf_facture(par_nom, fid))
+    assert verdict["code"] == "REJ-PDF-FICHIER-CONFLIT" and chemin.read_bytes() == b"%PDF-altere"
+    assert len(registre("documents_facturation")) == 1
+    chemin.write_bytes(original)
+    assert utile(pdf_facture(par_nom, fid))["scelle"]["statut"] == "deja"
+
+
+def test_le_dossier_d_export_doit_etre_un_dossier_ordinaire_jamais_un_lien(par_nom, declare, dep, brique, tmp_path):
+    plan_id = monde_a_trois_jalons(dep, par_nom, emettre_jalons=(1,))
+    exports = stockage.dossier_opsys() / "exports"
+    exports.mkdir(parents=True, exist_ok=True)
+    cible = tmp_path / "ailleurs"
+    cible.mkdir()
+    (exports / "factures").symlink_to(cible, target_is_directory=True)
+    verdict = refus(pdf_facture(par_nom, facture_id(plan_id, 1)))
+    assert verdict["code"] == "REJ-PDF-EXPORT-IMPOSSIBLE" and list(cible.iterdir()) == []
+    assert registre("documents_facturation") == []
 
 
 def test_le_pdf_exige_une_facture_approuvee_et_les_donnees_declarees(par_nom, declare, dep, brique):
