@@ -28,6 +28,7 @@ pour les cas où seule une étape est nécessaire (ex. un pointage isolé).
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -64,6 +65,7 @@ from . import (
     calendrier_civil,
     calibration_projection,
     capacite_equipe,
+    capacite_hypothese,
     cedule,
     cedule_tournees,
     composition_durable,
@@ -1581,6 +1583,78 @@ def outils(
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": charge}
 
+    def projeter_capacite_hypotheses(
+        debut_semaine: str, hypotheses: dict[str, Any], horodatage_reference: str | None = None,
+        portee: str = capacite_equipe.PORTEE_SEMAINE_TYPE,
+    ) -> dict[str, Any]:
+        """Lecture seule (contrat m4.projection_capacite) : la capacité de la semaine sous des hypothèses DÉCLARÉES
+        (absences, jours bloqués, hausse de la demande), calculée par M4 sur la base de `m4_lire_capacite_equipe`,
+        avec un
+        reçu rejouable. Rien n'est écrit ; non calculable = aucun chiffre, manque nommé (voir capacite_hypothese.py)."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        profil, verdict_profil = _lecteur_equipes()()
+        empreinte = equipes_entreprise.empreinte_equipes(profil) if profil is not None else None
+        try:
+            charge = capacite_equipe.calculer(
+                registre_courant(), profil, verdict_profil, empreinte, debut_semaine, horodatage_reference, portee)
+            entete = {"contrat": capacite_hypothese.CONTRAT, "version": capacite_hypothese.VERSION,
+                      "semaine_debut": charge["semaine_debut"], "portee": charge["portee"],
+                      "unite": capacite_hypothese.UNITE, "lu_a": charge["lu_a"]}
+            if not charge["calculable"]:
+                return {"accepte": True, "resultat": {
+                    **entete, "calculable": False, "manque": [capacite_hypothese.MANQUE_BASE, *charge["manque"]],
+                    "equipes": [], "recu": None}}
+            retenues = capacite_hypothese.valider_hypotheses(
+                hypotheses, portee=charge["portee"], semaine_debut=charge["semaine_debut"],
+                equipes={ligne["equipe_id"] for ligne in charge["equipes"]})
+            pertes = None
+            if retenues.get("jours_bloques"):
+                # Un jour bloqué est un congé de TOUTES les équipes ce jour-là : M4 recalcule la semaine type.
+                bloque = copy.deepcopy(profil)
+                bloque["conges"] = [*bloque.get("conges", ()), *(
+                    {"du": jour, "au": jour, "equipes": sorted(ligne["equipe_id"] for ligne in charge["equipes"]),
+                     "motif": "autre"} for jour in retenues["jours_bloques"])]
+                recalcul = capacite_equipe.calculer(
+                    registre_courant(), bloque, verdict_profil, empreinte, debut_semaine, horodatage_reference, portee)
+                if not recalcul["calculable"]:
+                    return _refus(verdicts.construire_verdict(
+                        "REJ-CONTRAT-INVALIDE", detail="les jours bloqués rendent la semaine non calculable"))
+                disponibles = {ligne["equipe_id"]: ligne["minutes_disponibles"] for ligne in recalcul["equipes"]}
+                pertes = {ligne["equipe_id"]: ligne["minutes_disponibles"] - disponibles[ligne["equipe_id"]]
+                          for ligne in charge["equipes"]}
+            recu = capacite_hypothese.construire_recu(
+                capacite_hypothese.base_depuis_charge(charge, pertes), retenues,
+                {"profil_empreinte": charge["sources"]["profil_empreinte"],
+                 "registre_tete": charge["sources"]["registre_tete"], "lu_a": charge["lu_a"]})
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        resultat = recu["resultat"]
+        return {"accepte": True, "resultat": {
+            **entete, "calculable": resultat["calculable"], "manque": resultat["manque"],
+            "equipes": resultat["equipes"], "equipes_en_surcharge": resultat.get("equipes_en_surcharge", []),
+            "recu": recu}}
+
+    def verifier_recu_projection_capacite(recu: dict[str, Any]) -> dict[str, Any]:
+        """Refait la projection à partir des seules entrées du reçu : l'empreinte et le résultat se retrouvent-ils ?"""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        try:
+            return {"accepte": True, "resultat": capacite_hypothese.verifier_recu(recu)}
+        except ValueError as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+
     def constater_capacite_equipe(debut_semaine: str, portee: str, horodatage: str) -> dict[str, Any]:
         """D2 (docs/architecture/M8-ENTREPOT-SOURCES.md) : calcule la capacité d'une semaine comme la lecture T0 et
         PUBLIE ses
@@ -2919,6 +2993,44 @@ def outils(
                 "portee": {"type": "string", "enum": list(capacite_equipe.PORTEES)}},
                 "required": ["debut_semaine"], "additionalProperties": False},
             fonction=lire_capacite_equipe, autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m4_projeter_capacite_hypotheses",
+            description=("Lecture seule (contrat m4.projection_capacite v1) : la capacité d'une semaine ISO sous des "
+                         "hypothèses DÉCLARÉES par une personne — absences (équipe, personnes, jours ; converties en "
+                         "heures d'équipe seulement par duree_jour_personne_minutes et effectif_planifie "
+                         "DÉCLARÉS), jours civils bloqués (semaine_type) et hausse en % des heures planifiées. "
+                         "Calculée par M4 sur la base de m4_lire_capacite_equipe : heures disponibles et planifiées "
+                         "projetées, solde, surcharge, avec "
+                         "un REÇU rejouable (empreinte SHA-256). Un manque (base non calculable, effectif ou durée non "
+                         "déclarés) rend la projection non calculable : aucun chiffre, jamais zéro."),
+            parametres={"type": "object", "properties": {
+                "debut_semaine": {"type": "string", "maxLength": 10},
+                "hypotheses": {"type": "object", "properties": {
+                    "absences": {"type": "array", "maxItems": capacite_hypothese.MAX_ABSENCES, "items": {
+                        "type": "object", "properties": {
+                            "equipe_id": {"type": "string", "maxLength": 64},
+                            "personnes": {"type": "integer", "minimum": 1,
+                                          "maximum": capacite_hypothese.PERSONNES_MAX},
+                            "jours": {"type": "integer", "minimum": 1,
+                                      "maximum": capacite_hypothese.JOURS_ABSENCE_MAX}},
+                        "required": ["equipe_id", "personnes", "jours"], "additionalProperties": False}},
+                    "jours_bloques": {"type": "array", "maxItems": 7, "items": {"type": "string", "maxLength": 10}},
+                    "hausse_demande_pct": {"type": "string", "maxLength": 8}},
+                    "additionalProperties": False, "minProperties": 1},
+                "horodatage_reference": {"type": "string", "maxLength": 64},
+                "portee": {"type": "string", "enum": list(capacite_equipe.PORTEES)}},
+                "required": ["debut_semaine", "hypotheses"], "additionalProperties": False},
+            fonction=projeter_capacite_hypotheses, autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m4_verifier_recu_projection_capacite",
+            description=("Vérifie un reçu de m4_projeter_capacite_hypotheses : refait le calcul à partir des seules "
+                         "entrées du reçu (base, hypothèses) et dit si l'empreinte et le résultat sont identiques. "
+                         "Calcul pur, aucun registre lu ni écrit."),
+            parametres={"type": "object", "properties": {"recu": {"type": "object"}}, "required": ["recu"],
+                        "additionalProperties": False},
+            fonction=verifier_recu_projection_capacite, autonomie=Autonomie.T0,
         ),
         Outil(
             nom="m4_constater_capacite_equipe",

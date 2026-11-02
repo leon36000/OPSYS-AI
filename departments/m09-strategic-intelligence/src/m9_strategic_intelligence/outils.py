@@ -87,6 +87,7 @@ from . import (
     outils_cadrage_decision,
     outils_conseil,
     outils_direction,
+    outils_escalade,
     outils_experiences,
     outils_graphe,
     outils_memoire,
@@ -99,6 +100,7 @@ from . import (
     outils_radars,
     outils_reaudit_conseil,
     outils_reglages,
+    outils_scenarios_chiffres,
     outils_semantique,
     outils_tendances,
     outils_tissu,
@@ -356,6 +358,7 @@ def outils(
     veille_cible: Any = None,
     plans_cible: Any = None,
     experiences_cible: Any = None,
+    avis_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -1351,12 +1354,16 @@ def outils(
         *outils_playbooks.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_veille.construire_outils(budget_sortie=BUDGET_SORTIE, veille_cible=veille_cible),
         *outils_radars.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_escalade.construire_outils(
+            budget_sortie=BUDGET_SORTIE, avis_cible=avis_cible, plans_cible=plans_cible, captures_cible=captures_cible
+        ),
         *outils_previsions.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_semantique.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_metriques_executives.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_cadrage_decision.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_tendances.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_questions_scenario.construire_outils(budget_sortie=BUDGET_SORTIE),
+        *outils_scenarios_chiffres.construire_outils(budget_sortie=BUDGET_SORTIE, lecteur=lecteur_producteurs_m9),
         *outils_reaudit_conseil.construire_outils(
             budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
         ),

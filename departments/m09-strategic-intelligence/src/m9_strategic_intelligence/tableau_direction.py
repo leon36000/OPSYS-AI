@@ -552,9 +552,9 @@ def _capacite(lecture: _Lecture) -> dict:
 
 
 # ----------------------------------------------------------------------------------------------------- chantiers
-def _chantiers(captures: Sequence[Mapping], maintenant: str) -> dict:
+def _chantiers(captures: Sequence[Mapping], maintenant: str, seuils_radar: Mapping | None = None) -> dict:
     titre = TITRES["chantiers"]
-    radar = rk.evaluer(captures, connaissance=maintenant)
+    radar = rk.evaluer(captures, connaissance=maintenant, **(seuils_radar or {}))
     presents = [r for r in radar["risques"] if r["statut"] != "LEVE"]
     lignes = [
         _ligne(
@@ -632,7 +632,7 @@ def _alertes(alertes: Sequence[Mapping] | None) -> dict:
 # ----------------------------------------------------------------------------------------------------- composer
 def composer(
     captures: Sequence[Mapping], *, maintenant: str, alertes_m8: Sequence[Mapping] | None = None,
-    perime_apres_jours: int | None = None,
+    perime_apres_jours: int | None = None, seuils_radar: Mapping | None = None,
 ) -> dict:  # fmt: skip
     """Le tableau de direction à ``maintenant``, tel que M9 le connaissait à cet instant (une capture reçue plus tard
     n'y figure pas)."""
@@ -648,7 +648,7 @@ def composer(
         "echeances": _echeances(lectures["m5.calendrier_obligations"]),
         "sources_fiscales": _sources_fiscales(lectures["m5.statut_revue_fiscale"]),
         "capacite": _capacite(lectures["m4.capacite_equipe"]),
-        "chantiers": _chantiers(connues, maintenant),
+        "chantiers": _chantiers(connues, maintenant, seuils_radar),
         "alertes_m8": _alertes(alertes_m8),
     }
     for section in sections.values():

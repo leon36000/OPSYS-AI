@@ -372,5 +372,24 @@ non validée » et sa source, en pages bornées), `m9_adopter_reglage` et `m9_re
 Les deux écritures n'agissent que sur **approbation du propriétaire dans le sas** : l'outil relit l'approbateur (`nathan_owner`
 actif), le niveau de la demande et l'instant de la décision en base ; un appel direct, d'agent ou d'appareil est refusé
 (`REJ-HUMAIN-REQUIS`). Chaque geste écrit un maillon chaîné (qui, quand, ancienne et nouvelle valeur, raison, version) ; l'audit
-du socle ne garde que la clé, la version et l'empreinte. Les réglages sont déclarés par les départements consommateurs (M2 et M8
-aujourd'hui) ; la console les présente dans « Réglages de direction ». Voir `docs/architecture/REGLAGES-DIRECTION.md`.
+du socle ne garde que la clé, la version et l'empreinte. Les réglages sont déclarés par les départements consommateurs (M2, M8 et, pour les seuils de son radar de risques, M9) ; la console les présente dans « Réglages de direction ». Voir `docs/architecture/REGLAGES-DIRECTION.md`.
+
+## Radar de risques complété et scénarios chiffrés (M9-C1, M9-C2 ; 2026-11-02)
+
+Détail, tableau des règles, preuves et limites : [`docs/architecture/M9-RADAR-SCENARIOS.md`](../../docs/architecture/M9-RADAR-SCENARIOS.md).
+Statut inchangé : **PARTIEL** (prouvé sur données fictives, aucun modèle réel, qualité du conseil non établie).
+
+- **Radar** (`risques.py`) : 21 règles sur des lectures DÉJÀ captées (plaintes M1, capacité M4, dépense M7, intervalle de leads M2, filet
+  SLA M2, cash libre M5/M8, écart d'estimation M3, retard prolongé M4, données périmées…). Chaque risque dit sa raison, la mesure du
+  propriétaire, le seuil déclaré, la source et ses preuves. **Les seuils sont déclarés par la direction** (neuf réglages `m9.*` au manifeste,
+  lus par `reglages_radar.py` : adopté > fichier > absence) ; **sans seuil, la règle n'est pas évaluée et dit quoi déclarer, jamais « aucun
+  risque »**. `CRITIQUE` : multiple déclaré du seuil, ou cash libre négatif. `m9_radar_risques` pagine risques puis règles non évaluées.
+- **Escalade interne** (`m9_escalader_risques_critiques`, T1/N2, admin) : un risque critique et actif crée un avis (`avis_risques`), une
+  tâche (plan M9 pour la direction) et une trace de mémoire (`m9.fait_strategique`, genre `risque`, rangée par M10) ; **jamais un message
+  externe, jamais une approbation, rien de planifié**. `m9_lire_avis_risques` (T0) relit les avis.
+- **Scénarios chiffrés** (`m9_chiffrer_scenario`, T0/N0, admin, `m9_lister_scenarios_chiffres`) : M9 appelle le moteur du **propriétaire**
+  (Monte-Carlo de M5, comparaison achat / crédit-bail de M5, projection de capacité de M4, intervalle de M2), recopie son chiffre, son reçu
+  et sa vérification, et ne calcule rien ; un moteur absent ou en erreur donne « non chiffré, manque X », jamais zéro. Port :
+  `opsys.lecteurs_m9.CALCULS_AUTORISES`. M4 expose pour cela `m4_projeter_capacite_hypotheses` et `m4_verifier_recu_projection_capacite`.
+- **Tests** : `test_risques_regles.py`, `test_reglages_radar.py`, `test_escalade_risques.py`, `test_scenarios_chiffres.py` (purs) ;
+  `tests/test_m9_radar_scenarios_e2e.py` et `tests/test_m9_scenarios_chiffres_integre.py` (vrais M1, M2, M4, M5, M7, M8, M10).

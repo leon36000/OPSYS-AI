@@ -14,6 +14,9 @@ champ de
 * CONFIDENTIALITÉ. L'entrée est ``FINANCIAL`` (décisions d'affaires de la direction) : elle ne sort dans aucun paquet de
   contexte, pour aucun agent (``confidentialite.py``) ; elle se lit dans M10, avec son outil et son rôle ;
 * IDEMPOTENCE. Un fait par ``evenement_id`` : une relivraison ne crée aucun second maillon ;
+* UN RISQUE CRITIQUE (genre ``risque``, statut ``signale_par_le_radar``) est l'escalade INTERNE du radar de M9 : un
+texte
+  assemblé de codes et de valeurs de propriétaires, sans leçon, sans attendus, sans signataire, sans cause ;
 * UNE LEÇON N'EST PAS UNE CAUSE : un événement ``lecon`` au statut ``proposee_non_validee`` est mémorisé comme tel et ne
 devient
   jamais « validée » ailleurs que par un événement de la direction.
@@ -45,15 +48,16 @@ _DECISION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:\-]{0,127}$")
 _LECON_ID = re.compile(r"^lecon-[0-9a-f]{24}$")
 _DECIMAL = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
 _INSTANT = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+\-Zz]{6,32}$")
-_GENRES = frozenset({"decision", "resultat_observe", "lecon"})
+_GENRES = frozenset({"decision", "resultat_observe", "lecon", "risque"})
 _STATUTS = frozenset(
     {"declaree_par_la_direction", "observe_par_mesure", "proposee_non_validee", "validee_par_la_direction",
-     "rejetee_par_la_direction"}
+     "rejetee_par_la_direction", "signale_par_le_radar"}
 )  # fmt: skip
 _GENRE_STATUT = {
     "decision": {"declaree_par_la_direction"},
     "resultat_observe": {"observe_par_mesure"},
     "lecon": {"proposee_non_validee", "validee_par_la_direction", "rejetee_par_la_direction"},
+    "risque": {"signale_par_le_radar"},
 }
 _SENS = frozenset({"hausse", "baisse", "stable"})
 _CONCORDANCES = frozenset({"CONCORDE", "NE_CONCORDE_PAS", "NON_MESURABLE", "MIXTE"})
@@ -153,6 +157,11 @@ def extraire(charge: Mapping[str, Any]) -> dict[str, Any]:
         raise ChampRefuse(REJ_STRATEGIQUE_CHAMP_INVALIDE, "resultat_observe : observations et concordance requises")
     if genre == "lecon" and (charge["lecon_id"] is None or charge["texte"] is None):
         raise ChampRefuse(REJ_STRATEGIQUE_CHAMP_INVALIDE, "lecon : identifiant et texte requis")
+    if genre == "risque" and (
+        charge["texte"] is None or charge["lecon_id"] is not None or attendus or observations
+        or charge["concordance"] is not None or charge["decide_role"] is not None
+    ):
+        raise ChampRefuse(REJ_STRATEGIQUE_CHAMP_INVALIDE, "risque : texte seul (ni leçon, ni attendus, ni signataire)")
     return {
         "evenement_id": _texte(charge["evenement_id"], "evenement_id", _IDENTIFIANT_EVENEMENT),
         "genre": genre,

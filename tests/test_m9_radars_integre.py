@@ -65,7 +65,8 @@ def test_radars_sur_le_monde_reel_materiau_en_rupture(tmp_path, monkeypatch):
         assert materiaux["origine_etablie"] is False and materiaux["preuves"][0].startswith("m6.disponibilite#")
         # M5 sans seuil d'alerte déclaré : la trésorerie n'est PAS dite saine, elle est inconnue
         cash = [r for r in res["risques"] if r["domaine"] == "cash"]
-        assert [r["regle"] for r in cash] == ["cash_non_evaluable"] and cash[0]["gravite"] == "INCONNU"
+        assert sorted(r["regle"] for r in cash) == ["cash_libre_non_calculable", "cash_non_evaluable"]
+        assert {r["gravite"] for r in cash} == {"INCONNU"}, "ni la prévision ni le cash libre ne sont dits sains"
         absentes = {n["regle"] for n in res["regles_non_evaluees"]}
         assert "capacite_incident_ouvert" not in absentes and "capacite_report_en_cours" not in absentes
         # l'écart de marge M8 est négatif ou non : la règle est évaluée sur les vraies mesures, jamais supposée

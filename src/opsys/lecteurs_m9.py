@@ -41,7 +41,13 @@ PORT = "lecteur_producteurs_m9"
 LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
     "m01-front-office": frozenset({"m1_produire_digest", "m1_lire_plaintes_structurees"}),
     "m02-revenue-crm": frozenset(
-        {"m2_lister_leads", "m2_lister_relances", "m2_analyser_pipeline", "m2_prevoir_pipeline"}
+        {
+            "m2_lister_leads",
+            "m2_lister_relances",
+            "m2_analyser_pipeline",
+            "m2_prevoir_pipeline",
+            "m2_scanner_sla",
+        }
     ),
     "m03-estimation": frozenset({"m3_lire_ecarts_estime_reel"}),
     "m04-field-ops": frozenset(
@@ -76,6 +82,23 @@ LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
     "m10-memoire": frozenset({"m10_paquet_contexte_affaire", "m10_statut_decision", "m10_lire_faits_analytiques"}),
 }
 
+# Calculs PARAMÉTRÉS des propriétaires (M9-C2 : scénarios chiffrés). Ce ne sont pas des lectures de leur état : ce
+# sont des
+# moteurs déterministes T0/N0 qui rendent un chiffre et un REÇU rejouable à partir d'hypothèses DÉCLARÉES par une
+# personne
+# (loi de retard, jours d'absence, niveau de leads…). M9 n'y met jamais la matière d'un producteur : seules les
+# hypothèses
+# d'un scénario passent, le propriétaire lit lui-même son état (registre des mouvements, cédule, profil). Même port,
+# même
+# identité admin relue en base, même exigence T0/N0 ; la liste est fermée.
+CALCULS_AUTORISES: Mapping[str, frozenset[str]] = {
+    "m02-revenue-crm": frozenset({"m2_rejouer_recu_commercial"}),
+    "m04-field-ops": frozenset({"m4_projeter_capacite_hypotheses", "m4_verifier_recu_projection_capacite"}),
+    "m05-financecore": frozenset(
+        {"m5_simuler_tresorerie_monte_carlo", "m5_comparer_credit_bail_achat", "m5_verifier_recu_calcul"}
+    ),
+}
+
 
 def _refus(erreur: str, details: str) -> dict[str, Any]:
     return {"ok": False, "erreur": erreur, "details": details}
@@ -88,7 +111,7 @@ def construire_lecteur(
     """Lecteur `(departement, outil, arguments) -> réponse du dispatcher` ; refus structurés, sans exception."""
     from .capacites import Capacites  # import tardif : capacites construit ce lecteur
 
-    producteurs = {dep for dep in LECTURES_AUTORISEES if dep in departements}
+    producteurs = {dep for dep in (*LECTURES_AUTORISEES, *CALCULS_AUTORISES) if dep in departements}
     lecteur = (
         Capacites(
             departements,
@@ -105,7 +128,9 @@ def construire_lecteur(
     def lire(departement: str, outil: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
         if lecteur is None or departement not in producteurs:
             return _refus("producteur_indisponible", "le département producteur n'est pas installé")
-        if outil not in LECTURES_AUTORISEES.get(departement, frozenset()):
+        if outil not in LECTURES_AUTORISEES.get(departement, frozenset()) | CALCULS_AUTORISES.get(
+            departement, frozenset()
+        ):
             return _refus("lecture_non_autorisee", "lecture absente de la liste blanche des producteurs de M9")
         appelante = contexte_appel.identite_appelante()
         if (

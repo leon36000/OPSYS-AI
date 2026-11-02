@@ -111,6 +111,52 @@ def test_les_observations_et_les_lecons_ont_leur_propre_forme():
     assert strategique.extraire(non_mesurable)["observations"][0]["sens_observe"] is None
 
 
+def _charge_risque(numero=7, **surcharges):
+    base = _charge(numero, decision_id="avis-" + "d" * 24, statut="signale_par_le_radar",
+                   texte="Risque critique (cash) : le cash libre constaté par M5 est négatif. Aucune cause établie.",
+                   attendus=[], decide_role=None)
+    base["genre"] = "risque"
+    base.update(surcharges)
+    return base
+
+
+def test_un_risque_critique_du_radar_de_m9_est_memorise_sans_lecon_sans_attendus_sans_signataire():
+    cible = registre.Registre()
+    resultat, verdict = strategique.memoriser(_charge_risque(), cible)
+    assert verdict is None and resultat["maillon"]["genre"] == "risque"
+    assert resultat["maillon"]["statut"] == "signale_par_le_radar"
+    assert resultat["maillon"]["confidentialite"] == "FINANCIAL"
+    rejoue, _ = strategique.memoriser(_charge_risque(), cible)
+    assert rejoue["deja_memorise"] is True and len(cible.lire()) == 1
+    page = strategique.lister(cible, 8, 0)
+    assert page["faits"][0]["genre"] == "risque" and page["faits"][0]["fiabilite_du_texte"] == "donnee_non_fiable"
+
+
+@pytest.mark.parametrize(
+    ("surcharge", "champ"),
+    [
+        ({"texte": None}, "risque : texte seul (ni leçon, ni attendus, ni signataire)"),
+        ({"lecon_id": "lecon-" + "a" * 24}, "risque : texte seul (ni leçon, ni attendus, ni signataire)"),
+        ({"attendus": [{"metric_id": "m8_taux_acceptation_pct", "sens": "hausse"}]},
+         "risque : texte seul (ni leçon, ni attendus, ni signataire)"),
+        ({"decide_role": "nathan_owner"}, "risque : texte seul (ni leçon, ni attendus, ni signataire)"),
+        ({"concordance": "CONCORDE"}, "risque : texte seul (ni leçon, ni attendus, ni signataire)"),
+        ({"statut": "declaree_par_la_direction"}, "genre/statut"),
+        ({"statut": "validee_par_la_direction"}, "genre/statut"),
+    ],
+)
+def test_un_risque_hors_de_sa_forme_est_refuse(surcharge, champ):
+    with pytest.raises(strategique.ChampRefuse) as exc:
+        strategique.extraire(_charge_risque(**surcharge))
+    assert exc.value.detail == champ
+
+
+def test_un_statut_de_risque_sur_un_autre_genre_est_refuse():
+    with pytest.raises(strategique.ChampRefuse) as exc:
+        strategique.extraire(_charge(statut="signale_par_le_radar"))
+    assert exc.value.detail == "genre/statut"
+
+
 def test_le_refus_ne_recopie_jamais_la_valeur_fautive():
     valeur = "jean.tremblay@example.test"
     charge = _charge()

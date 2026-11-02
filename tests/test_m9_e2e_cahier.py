@@ -826,15 +826,19 @@ def test_parcours_6_risque_de_reputation(tmp_path, monkeypatch, nettoyage):
     # Ce que M1 expose RÉELLEMENT : un TEXTE agrégé ; la plainte ouverte n'y est qu'une phrase, aucun champ structuré.
     assert isinstance(texte, str) and "plaintes : 1" in texte and "450-555-0177" not in texte
     assert B.valeurs(page, "resultat.plaintes") == [] and B.valeurs(page, "resultat.transferts") == []
-    # Donc AUCUNE règle de réputation : M9 ne lit pas une phrase pour en tirer un risque, il le nomme absent.
-    assert "reputation" not in {r.domaine for r in risques.REGLES}
+    # Donc AUCUN risque tiré d'une phrase : les règles de plaintes et de réputation lisent le contrat STRUCTURÉ de M1
+    # (`m1.plaintes_structurees`), jamais le digest ; ici il n'est pas capturé, M9 le nomme absent.
+    lectures_plaintes = {r.lecture_id for r in risques.REGLES if r.domaine in ("plaintes", "reputation")}
+    assert lectures_plaintes == {"m1.plaintes_structurees"}
     assert "m1.digest" not in {r.lecture_id for r in risques.REGLES}
     radar = ok(appel(cap, "m9_radar_risques", {"connaissance": REF}))
     assert radar["risques"] == [], "aucun risque inventé à partir du digest"
-    assert {n["raison"] for n in radar["regles_non_evaluees"]} == {"ABSENTE"}
+    assert {n["raison"] for n in radar["regles_non_evaluees"]} <= {"ABSENTE", "SEUIL_NON_DECLARE"}
+    assert {n["regle"] for n in radar["regles_non_evaluees"] if n["raison"] == "ABSENTE"} >= {
+        "plaintes_afflux", "plaintes_sensibles_ouvertes"}
     assert indicateurs(cap)["customer_satisfaction"]["statut_definition"] == "A_DEFINIR_PAR_LE_PROPRIETAIRE"
     risque_plaintes = playbook(cap, "risque_plaintes")
-    assert risque_plaintes["plan"]["declenchement"]["statut"] == "A_DECLARER"
+    assert risque_plaintes["plan"]["declenchement"]["statut"] == "INCONNU", "règles de plaintes non évaluées"
     declare = playbook(cap, "risque_plaintes", declare_par_la_personne=True)
     assert declare["plan"]["declenchement"]["declare_par_la_personne"] is True
     assert sensibles(declare["plan"]) == {

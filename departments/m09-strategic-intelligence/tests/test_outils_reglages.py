@@ -300,18 +300,33 @@ def _lire(deps, **args):
         return _outils(deps)["m9_lire_reglages_manquants"].fonction(**args)
 
 
-def test_lire_a_la_livraison_dit_dix_manquants_avec_ce_que_ca_bloque_et_la_proposition(deps):
-    page = _lire(deps)
-    assert page["accepte"] is True and page["total"] == 10 and page["manquants"] == 10
+def _tout_lire(deps, **args):
+    """Toutes les pages de la lecture (la borne de sortie en fait plusieurs depuis les neuf réglages du radar de M9)."""
+    pages, depart = [], 0
+    while depart is not None:
+        pages.append(_lire(deps, depart=depart, **args))
+        depart = pages[-1]["prochain_depart"]
+    return pages
+
+
+def test_lire_a_la_livraison_dit_dix_neuf_manquants_avec_ce_que_ca_bloque_et_la_proposition(deps):
+    pages = _tout_lire(deps)
+    page = pages[0]
+    assert page["accepte"] is True and page["total"] == 19 and page["manquants"] == 19
     assert page["chaine"]["valide"] is True and "recommandation, non validée" in page["mention"]
-    lignes = page["reglages"]
-    assert len(lignes) == 10 and page["prochain_depart"] is None
+    lignes = [ligne for p in pages for ligne in p["reglages"]]
+    assert len(lignes) == 19 and pages[-1]["prochain_depart"] is None
+    assert {r["cle"] for r in lignes if r["departement"] == "m09-strategic-intelligence"} == {
+        "m9.plaintes_seuil_nombre", "m9.capacite_utilisation_seuil_pct", "m9.depense_marketing_plafond_cad",
+        "m9.leads_plancher_par_semaine", "m9.estimation_ecart_relatif_max", "m9.retard_chantier_jours",
+        "m9.donnees_perimees_jours", "m9.cash_libre_plancher_cad", "m9.multiple_seuil_critique"}
+    assert all(r["proposition"] is None for r in lignes if r["departement"] == "m09-strategic-intelligence")
     relances = next(r for r in lignes if r["cle"] == CLE)
     assert relances["statut"] == "vide" and relances["valeur"] is None
     assert relances["proposition"] == {"valeur": "7", "etiquette": "recommandation, non validée",
                                        "source": relances["proposition"]["source"]}
     assert "REJ-RELANCES-A-CONFIGURER" in relances["debloque"]
-    assert len(json.dumps(page, ensure_ascii=False)) < 6000
+    assert all(len(json.dumps(p, ensure_ascii=False)) < 6000 for p in pages)
     for ligne in lignes:
         assert set(ligne) == {"cle", "departement", "libelle", "statut", "valeur", "unite", "debloque", "proposition",
                               "version"}
@@ -323,7 +338,7 @@ def test_lire_filtre_par_departement_pagine_et_refuse_un_depart_invalide(deps):
     premiere = _lire(deps, depart=0)
     assert premiere["depart"] == 0
     with pytest.raises(ValueError, match="REJ-REGLAGE-DEPART"):
-        _lire(deps, depart=11)
+        _lire(deps, depart=20)
     with pytest.raises(ValueError, match="REJ-REGLAGE-DEPART"):
         _lire(deps, depart=-1)
 
@@ -331,10 +346,10 @@ def test_lire_filtre_par_departement_pagine_et_refuse_un_depart_invalide(deps):
 def test_lire_apres_adoption_ne_liste_plus_le_reglage_comme_manquant_sauf_si_demande(deps):
     with stockage.transaction() as cnx:
         aide.resultat(aide.adopter(cnx, deps, CLE, 7))
-    manquants = _lire(deps)
-    assert manquants["manquants"] == 9 and CLE not in {r["cle"] for r in manquants["reglages"]}
-    tous = _lire(deps, seulement_manquants=False)
-    adopte = next(r for r in tous["reglages"] if r["cle"] == CLE)
+    manquants = _tout_lire(deps)
+    assert manquants[0]["manquants"] == 18 and CLE not in {r["cle"] for p in manquants for r in p["reglages"]}
+    tous = _tout_lire(deps, seulement_manquants=False)
+    adopte = next(r for p in tous for r in p["reglages"] if r["cle"] == CLE)
     assert (adopte["statut"], adopte["valeur"], adopte["version"]) == ("adopte", "7", 1)
 
 

@@ -222,7 +222,7 @@ def test_une_base_sans_le_registre_ne_sert_rien_et_ne_casse_pas_la_transaction(t
 def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_bloque(deps):
     with stockage.transaction():
         etat = lecture.etat_des_reglages(deps)
-    assert etat["total"] == 10 and etat["manquants"] == 10 and etat["chaine"]["valide"] is True
+    assert etat["total"] == 19 and etat["manquants"] == 19 and etat["chaine"]["valide"] is True
     par_cle = {r["cle"]: r for r in etat["reglages"]}
     relances = par_cle["m2.jours_entre_relances"]
     assert relances["statut"] == "vide" and relances["manque"] is True and relances["valeur"] is None

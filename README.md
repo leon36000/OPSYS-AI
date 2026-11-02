@@ -55,7 +55,7 @@ catalogue de fournisseurs : un chiffre périmé fait échouer le test.
 | Chiffre | Valeur |
 |---|---|
 | Départements | 10 |
-| Outils | 655 |
+| Outils | 661 |
 | Outils ouverts aux appareils | 254 |
 | Avatars | 10 |
 | Packs sectoriels | 2 |

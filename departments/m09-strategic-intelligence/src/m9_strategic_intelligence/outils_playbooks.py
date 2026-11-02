@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from opsys import stockage
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import capture_strategique as cs
-from . import playbooks, risques
+from . import playbooks, reglages_radar, risques
 from .outils_tissu import DEPARTEMENT, borner, exiger_admin_strict
 
 REGISTRE_CAPTURES = "captures_strategiques"
@@ -45,10 +46,12 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
         if type(depart) is not int or not 0 <= depart <= len(fiches):
             raise ValueError("REJ-PLAYBOOK-DEPART : départ entre 0 et le nombre de playbooks requis ; reprendre à 0")
         entete = {"accepte": True, "version": playbooks.VERSION, "total": len(fiches)}
-        marge = budget_sortie - len(cs.canonique(entete)) - 200
+        # Même mesure que ``borner`` (séparateurs lisibles) : une mesure compacte laisserait passer une page trop
+        # grosse.
+        marge = budget_sortie - len(json.dumps(entete, ensure_ascii=False)) - 300
         page: list[dict] = []
         for fiche in fiches[depart:]:
-            if len(cs.canonique(page + [fiche])) > marge:
+            if len(json.dumps(page + [fiche], ensure_ascii=False)) > marge:
                 break
             page.append(fiche)
         if fiches[depart:] and not page:
@@ -73,7 +76,9 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
     ) -> dict[str, Any]:
         exiger_admin_strict()
         chaine = captures()
-        radar = risques.evaluer(chaine, connaissance=connaissance, perime_apres_jours=perime_apres_jours)
+        radar = risques.evaluer(
+            chaine, connaissance=connaissance, perime_apres_jours=perime_apres_jours, **reglages_radar.lire()
+        )
         plan = playbooks.instancier(
             playbook_id,
             radar,

@@ -1,8 +1,9 @@
 # Réglages de direction (CFG-1) : décider les seuils depuis la console, sans éditer un fichier
 
 Statut (2026-11-02) : **livré et prouvé sur SQLite, avec des données fictives, sur les vrais outils de M2 et de M8, le vrai sas
-N3 et la vraie console (client HTTP de test).** Branchés : **M2** (trois délais, les bandes de valeur du score) et **M8** (les
-six couples « pire / cible » du score de santé). Les autres départements (M3 barème, M4, M5…) se branchent de la même façon
+N3 et la vraie console (client HTTP de test).** Branchés : **M2** (trois délais, les bandes de valeur du score), **M8** (les
+six couples « pire / cible » du score de santé) et, depuis M9-C1, **M9** (neuf seuils de son radar de risques, sans proposition : voir
+[M9-RADAR-SCENARIOS](M9-RADAR-SCENARIOS.md)). Les autres départements (M3 barème, M4, M5…) se branchent de la même façon
 (§7) ; rien n'y est fait. Aucune valeur réelle, aucun envoi : ce chantier ne fait que ranger des décisions de direction.
 
 ## 1. Le problème

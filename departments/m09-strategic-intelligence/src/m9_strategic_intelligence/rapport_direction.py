@@ -194,6 +194,7 @@ def sections(
     actions: Sequence[Mapping] = (),
     experiences: Sequence[Mapping] = (),
     periode: Mapping,
+    seuils_radar: Mapping | None = None,
 ) -> dict:
     """Les vingt sections de la période, à sa fin : ``{"ids": [...], "sections": {id: section}}``."""
     fin = cs.instant(periode["fin"])
@@ -204,7 +205,7 @@ def sections(
     jour_suivant_fin = dt.date.fromisoformat(periode["fin_local"])
     visibles = cs.connues_a(captures, fin_iso)
     sessions_vues = [e for e in sessions if (cs.instant(e["recu_a"]) or fin) <= fin]
-    radar = rk.evaluer(visibles, connaissance=fin_iso)
+    radar = rk.evaluer(visibles, connaissance=fin_iso, **(seuils_radar or {}))
     couverture = cs.evaluer_couverture(
         visibles,
         reference=fin_iso,

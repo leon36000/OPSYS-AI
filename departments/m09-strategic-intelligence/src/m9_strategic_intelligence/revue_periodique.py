@@ -157,6 +157,7 @@ def composer(
     plans: Sequence[Mapping] = (),
     actions: Sequence[Mapping] = (),
     experiences: Sequence[Mapping] = (),
+    seuils_radar: Mapping | None = None,
 ) -> dict:
     """Revue de la période contenant ``ancre``, telle que M9 la connaît à ``connaissance`` (réception ≤).
 
@@ -261,7 +262,13 @@ def composer(
         ],
         "decisions": decisions,
         "sections_direction": rapport_direction.sections(
-            captures=captures, sessions=sessions, plans=plans, actions=actions, experiences=experiences, periode=periode
+            captures=captures,
+            sessions=sessions,
+            plans=plans,
+            actions=actions,
+            experiences=experiences,
+            periode=periode,
+            seuils_radar=seuils_radar,
         ),
         "tete_captures": visibles[-1]["hash_maillon"] if visibles else cs.HASH_INITIAL,
         "limites": list(_LIMITES),

@@ -24,7 +24,7 @@ from opsys.outils import Autonomie, Niveau, Outil
 from . import capture_strategique as cs
 from . import catalogue_producteurs as cat
 from . import experiences as exp_module
-from . import orchestrateur, revue_periodique, sessions_conseil
+from . import orchestrateur, reglages_radar, revue_periodique, sessions_conseil
 from . import plans as plans_module
 from . import risques as rk
 from .outils_tissu import DEPARTEMENT, MAX_PAGE_OCTETS, borner, exiger_admin_strict
@@ -138,6 +138,7 @@ def construire_outils(
             experiences=registre_verifie(
                 experiences_cible, REGISTRE_EXPERIENCES, exp_module.valider_chaine, "REJ-EXPERIENCE-CHAINE-INVALIDE"
             ),
+            seuils_radar=reglages_radar.lire(),
         )
 
     def apercu_revue(
@@ -266,8 +267,9 @@ def construire_outils(
             if (instant := cs.instant(str(a.get("horodatage_reference", "")))) is not None
             and 0 <= (limite - instant).total_seconds() <= (fenetre + 1) * 86400  # type: ignore[operator]
         ]
-        radar = rk.evaluer(chaine, connaissance=reference)
-        veille = rk.delta(chaine, connaissance=reference)
+        seuils_radar = reglages_radar.lire()
+        radar = rk.evaluer(chaine, connaissance=reference, **seuils_radar)
+        veille = rk.delta(chaine, connaissance=reference, **seuils_radar)
         maintenant = cs.instant(reference)
         nouvelles = sum(
             1
@@ -282,6 +284,7 @@ def construire_outils(
                 "actifs": sum(1 for r in presents if r["statut"] == "ACTIF"),
                 "a_reconfirmer": sum(1 for r in presents if r["statut"] == "A_RECONFIRMER"),
                 "leves": sum(1 for r in radar["risques"] if r["statut"] == "LEVE"),
+                "critiques": sum(1 for r in presents if r["statut"] == "ACTIF" and r["gravite"] == "CRITIQUE"),
                 "regles_non_evaluees": len(radar["regles_non_evaluees"]),
                 "premiers": [
                     {k: r[k] for k in ("regle", "sujet", "gravite", "statut")} for r in presents[:MAX_ITEMS_SALLE]
