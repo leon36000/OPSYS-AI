@@ -31,6 +31,7 @@ from sqlalchemy.exc import IntegrityError
 from ..departements import Departement
 from ..service_capability import _livraison
 from ..stockage import codec, transaction
+from ..stockage.concurrence import verrou_consultatif
 from ..stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 from . import attente_wct
 from .schemas import types_connus
@@ -200,6 +201,12 @@ def _livrer_une_paire(
             garde = (par_connexion, cnx, actives, paire)
             par_connexion[cnx] = actives
             actives.add(paire)
+            # Les consommateurs sont écrits « lire le registre, puis ajouter si la clé de contenu est neuve » : sous
+            # SQLite, l'écrivain unique (`BEGIN IMMEDIATE`) les sérialise ; sous PostgreSQL (READ COMMITTED), deux
+            # événements de MÊME clé de contenu et d'identifiants différents se croisent entre la lecture et l'ajout
+            # et le constat est rangé deux fois. Un verrou de transaction par consommateur rend à PostgreSQL la
+            # sérialisation qu'ont les consommateurs (sans effet sous SQLite). Pris avant tout point de sauvegarde.
+            verrou_consultatif(cnx, f"bus-consommateur-{consommateur}")
             charge = codec.decoder(evenement["charge"])
             if not attente_wct.peut_livrer(cnx, evenement_id, consommateur, maintenant_dt):
                 return None

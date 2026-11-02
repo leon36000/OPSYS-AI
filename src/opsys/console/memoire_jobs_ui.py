@@ -250,7 +250,8 @@ def creer_router(
         try:
             return appeler_memoire(session, action, *args, **kwargs)
         except worker().BackendConsolidationNonPrisEnCharge as exc:
-            raise HTTPException(409, "backend non pris en charge : les jobs exigent SQLite fichier") from exc
+            raise HTTPException(
+                409, "backend non pris en charge : les jobs exigent SQLite fichier ou PostgreSQL") from exc
         except worker().AccesConsolidationRefuse as exc:
             raise HTTPException(403, "accès au job de consolidation refusé") from exc
         except worker().ConflitJob as exc:

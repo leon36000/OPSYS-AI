@@ -357,6 +357,21 @@ jobs:
           assert all("[sqlite" in c.get("name", "") or "épinglé" in (c.find("skipped").get("message") or "") or "varchar(n)" in (c.find("skipped").get("message") or "") for c in ignores), "PostgreSQL ne doit pas être ignoré sur le runner"
           print(f"{len(cas)} cas du portage PostgreSQL ({len(ignores)} variantes SQLite propres à PostgreSQL ignorées)")
           PYTHON
+      - name: Constats planifiés, bus, entrepôt M8, console du planificateur et jobs M10 sur PostgreSQL (vague 8)
+        run: |
+          python -m pytest tests/test_postgresql_bus_course_consommateurs.py tests/test_postgresql_bus_processus.py tests/test_postgresql_entrepot_m8_limites.py tests/test_postgresql_gardes_justifiees.py tests/test_postgresql_memoire_developpement.py tests/test_postgresql_planification_console.py tests/test_postgresql_planification_constats.py tests/test_postgresql_planification_limites.py tests/test_postgresql_rejeu_cablage_planificateur.py tests/test_postgresql_rejeu_consentement_suivi_retire.py tests/test_postgresql_rejeu_consentement_suivi_retire_scenario.py tests/test_postgresql_rejeu_constats_contradictoires.py tests/test_postgresql_rejeu_constats_planifies.py tests/test_postgresql_rejeu_creance_levee_paiement.py tests/test_postgresql_rejeu_entrepot_m8_planifie.py tests/test_postgresql_rejeu_evenements_budget.py tests/test_postgresql_rejeu_evenements.py tests/test_postgresql_rejeu_evenements_retry_fraicheur.py tests/test_postgresql_rejeu_interconnexion_consommateurs.py tests/test_postgresql_rejeu_interconnexion_m1_message_client.py tests/test_postgresql_rejeu_interconnexion_m2_lectures.py tests/test_postgresql_rejeu_interconnexion_m3_m4_propriete.py tests/test_postgresql_rejeu_interconnexion_m5_charge_marketing.py tests/test_postgresql_rejeu_interconnexion_m5_depense_publicitaire.py tests/test_postgresql_rejeu_interconnexion_m6_m9_m10.py tests/test_postgresql_rejeu_interconnexion_m7_m5_m8.py tests/test_postgresql_rejeu_interconnexion_m8_operations.py tests/test_postgresql_rejeu_interconnexion_scenarios.py tests/test_postgresql_rejeu_m10_consolidation_developpement.py tests/test_postgresql_rejeu_m8_entrepot_interdepartements.py tests/test_postgresql_rejeu_m8_entrepot.py tests/test_postgresql_rejeu_m8_evenements_alerte_proposee.py tests/test_postgresql_rejeu_m8_evenements_cash_libre.py tests/test_postgresql_rejeu_m8_evenements_contenus.py tests/test_postgresql_rejeu_m8_evenements_entonnoir.py tests/test_postgresql_rejeu_m8_evenements_mesures_chantier.py tests/test_postgresql_rejeu_m9_planification_cron_fictive.py tests/test_postgresql_rejeu_planification_console.py tests/test_postgresql_rejeu_planification_departements.py tests/test_postgresql_rejeu_planification_transport.py tests/test_postgresql_rejeu_stop_retire_consentement_marketing.py --junitxml="$RUNNER_TEMP/constats-postgresql.xml"
+          python - <<'PYTHON'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "constats-postgresql.xml")
+          cas = list(rapport.iter("testcase"))
+          assert len(cas) == 727, "727 cas sont requis : rejeux du bus et des constats planifiés, courses en processus du bus, du planificateur, de la console et du magasin de développement M10, limites de taille, gardes justifiées"
+          assert all(c.find("failure") is None and c.find("error") is None for c in cas)
+          ignores = [c for c in cas if c.find("skipped") is not None]
+          assert not ignores, "PostgreSQL ne doit pas être ignoré sur le runner"
+          print(f"{len(cas)} cas des constats planifiés, du bus et de l'entrepôt M8 sur PostgreSQL réel")
+          PYTHON
       - name: Conserver les preuves PostgreSQL, y compris rouges
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
@@ -366,6 +381,7 @@ jobs:
             ${{ runner.temp }}/frontiere-postgresql.xml
             ${{ runner.temp }}/qualification-postgresql.xml
             ${{ runner.temp }}/portage-postgresql.xml
+            ${{ runner.temp }}/constats-postgresql.xml
           if-no-files-found: error
 
   # Le contexte requis juge les groupes Python et les cinq appels du même run/commit.

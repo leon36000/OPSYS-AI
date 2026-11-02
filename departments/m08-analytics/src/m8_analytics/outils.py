@@ -71,6 +71,7 @@ from . import (
     cash_libre,
     contenus,
     entonnoir,
+    entrepot_stockage,
     fraicheur_lectures,
     mesures_chantier,
     operations_recues,
@@ -308,7 +309,11 @@ def _lire_attentes_m6() -> tuple[list[dict[str, Any]] | None, str | None]:
 
 def _ajouter_fait_si_nouveau(faits_cible: Any, fait: dict[str, Any], cles: tuple[str, ...]) -> bool:
     """Ajoute `fait` au registre s'il n'y figure pas déjà (mêmes valeurs pour `cles`, même type) :
-    une relivraison de l'événement ou un rejeu de `repartir()` n'ajoute jamais un second maillon."""
+    une relivraison de l'événement ou un rejeu de `repartir()` n'ajoute jamais un second maillon.
+
+    Un identifiant plus long que la colonne de l'entrepôt qui le portera est refusé ICI (`REJ-ENTREPOT-IDENTIFIANT-TROP-
+    LONG`) : rangé au registre append-only, il ferait échouer chaque construction de l'entrepôt sur PostgreSQL."""
+    entrepot_stockage.verifier_identifiants(fait)
     for existant in faits_cible:
         if existant.get("type_entree") == fait["type_entree"] and all(
             existant.get(cle) == fait.get(cle) for cle in cles

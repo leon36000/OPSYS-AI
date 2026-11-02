@@ -137,12 +137,19 @@ class Monde:
         return None
 
 
-def monter(tmp_path, monkeypatch, departements: tuple[str, ...] | None = None) -> Monde:
-    """Base migrée + manifestes réels (tous les départements, ou le sous-ensemble demandé)."""
-    url = f"sqlite:///{tmp_path / 'interconnexion.db'}"
-    monkeypatch.setenv(stockage.ENV_URL, url)
-    monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "instance-fictive"))
-    stockage.migrer(url)
+def monter(tmp_path, monkeypatch, departements: tuple[str, ...] | None = None, *, url: str | None = None) -> Monde:
+    """Base migrée + manifestes réels (tous les départements, ou le sous-ensemble demandé).
+
+    `url` : une base DÉJÀ migrée d'un des deux moteurs (fixture `url_base` de `pg_parite`) ; sans elle, un fichier
+    SQLite neuf sous `tmp_path`."""
+    if url is None:
+        url = f"sqlite:///{tmp_path / 'interconnexion.db'}"
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "instance-fictive"))
+        stockage.migrer(url)
+    else:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "instance-fictive"))
     tous = charger_departements(RACINE / "departments")
     choisis = {d: tous[d] for d in (departements or tuple(tous))}
     from m1_front_office import outils as m1

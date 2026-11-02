@@ -339,13 +339,13 @@ def test_interfaces_humaines_liste_rapport_statut_sans_capacite(base_dev, depot_
 @pytest.mark.parametrize(
     "url_refusee",
     [
-        "postgresql+psycopg://fictif.invalid/base_fictive",
+        "mysql+pymysql://fictif.invalid/base_fictive",  # ni SQLite ni PostgreSQL : sérialisation non prouvée
         "sqlite://",
         "sqlite:///:memory:",
         "sqlite:///file:fictif?mode=memory&uri=true",
     ],
 )
-def test_backend_pg_refuse_avant_credential_et_mutation(base_dev, depot_git, monkeypatch, url_refusee):
+def test_backend_non_qualifie_refuse_avant_credential_et_mutation(base_dev, depot_git, monkeypatch, url_refusee):
     job = _module()
     credential, _ = _autoriser(job, base_dev, depot_git, monkeypatch)
     avant = job._journal().lire()

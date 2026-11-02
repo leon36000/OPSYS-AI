@@ -22,6 +22,8 @@ from sqlalchemy.engine import make_url
 
 from opsys import memoire_consolidation as runtime
 from opsys import stockage
+from opsys.stockage.concurrence import verrou_consultatif
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import developpement as dev
 from . import registre
@@ -51,18 +53,34 @@ class ConflitJob(RuntimeError):
 
 
 class BackendConsolidationNonPrisEnCharge(AccesConsolidationRefuse):
-    """Les preuves de sérialisation de ce lot couvrent uniquement SQLite BEGIN IMMEDIATE."""
+    """Le moteur n'est ni un fichier SQLite durable ni PostgreSQL : la sérialisation des écrivains n'y est pas
+    prouvée."""
 
 
-def _sqlite_seulement() -> None:
+# Verrou de transaction NOMMÉ, partagé avec les écrivains du magasin de développement (`developpement._connexion`) :
+# sous SQLite, `BEGIN IMMEDIATE` sérialise déjà tous les écrivains ; sous PostgreSQL (READ COMMITTED), deux jobs
+# liraient
+# le même état (grant, bail, tête du canon) et le perdant d'un bail ou d'un rapport ne serait pas dit.
+VERROU = dev.VERROU_DEVELOPPEMENT
+
+
+def _verrouiller() -> None:
+    """À appeler au début de chaque transaction qui lit l'état du job puis y ajoute un maillon."""
+    verrou_consultatif(stockage.connexion_courante(), VERROU)
+
+
+def _backend_qualifie() -> None:
+    """SQLite fichier durable, ou PostgreSQL : les deux écrivent sous le verrou ci-dessus (prouvé sur PostgreSQL 17
+    réel : `tests/test_postgresql_memoire_developpement.py`). Tout autre moteur, et toute base SQLite volatile, sont
+    refusés."""
     courante = stockage.connexion_courante()
     url = courante.engine.url if courante is not None else make_url(stockage.url_base())
     dialecte = courante.dialect.name if courante is not None else url.get_backend_name()
     volatile = not url.database or url.database == ":memory:" or url.query.get("mode") == "memory"
     volatile |= bool(url.database and url.database.startswith("file:") and ":memory:" in url.database)
-    if dialecte != "sqlite" or volatile:
+    if dialecte not in DIALECTES_QUALIFIES or (dialecte == "sqlite" and volatile):
         raise BackendConsolidationNonPrisEnCharge(
-            "backend_non_pris_en_charge : jobs développement SQLite fichier uniquement"
+            "backend_non_pris_en_charge : jobs développement sur SQLite fichier ou PostgreSQL uniquement"
         )
 
 
@@ -83,7 +101,7 @@ def _lire() -> list[dict[str, Any]]:
 
 
 def _ajouter(paquet: dict[str, Any]) -> str:
-    _sqlite_seulement()
+    _backend_qualifie()
     return _journal().ajouter(
         {
             "type_entree": "memoire_developpement",
@@ -187,7 +205,7 @@ def autoriser(
     limites: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Crée/renouvelle un grant par humain authentifié ; fichier neuf, jamais de secret rendu."""
-    _sqlite_seulement()
+    _backend_qualifie()
     actor = dev._acteur()
     _identifiant(job_id)
     try:
@@ -234,6 +252,7 @@ def autoriser(
             stream.flush()
             os.fsync(stream.fileno())
         with stockage.transaction():
+            _verrouiller()
             dev._acteur()
             previous = _etat(job_id)["grant"]
             grant = {
@@ -265,9 +284,10 @@ def autoriser(
 
 
 def revoquer(job_id: str) -> dict[str, Any]:
-    _sqlite_seulement()
+    _backend_qualifie()
     _identifiant(job_id)
     with stockage.transaction():
+        _verrouiller()
         actor = dev._acteur()
         if _etat(job_id)["grant"] is None:
             raise ValueError("job inconnu")
@@ -505,10 +525,11 @@ def _produire_rapport(grant: dict[str, Any]) -> dict[str, Any]:
 
 def executer(job_id: str, credential_file: str | Path) -> dict[str, Any]:
     """Un créneau dû par appel ; autorité et lease revérifiés atomiquement avant le rapport."""
-    _sqlite_seulement()
+    _backend_qualifie()
     _identifiant(job_id)
     capability_hash = _credential(job_id, credential_file)
     with stockage.transaction():
+        _verrouiller()
         state = _etat(job_id)
         grant = _grant_valide(state, capability_hash)
         head = _tete_dev()
@@ -555,6 +576,7 @@ def executer(job_id: str, credential_file: str | Path) -> dict[str, Any]:
         _ajouter(lease)
     report = _produire_rapport(grant)
     with stockage.transaction():
+        _verrouiller()
         courant = _etat(job_id)
         actuel = _grant_valide(courant, capability_hash)
         if actuel["version"] != grant["version"]:

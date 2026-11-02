@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from opsys import contexte, etat, identite, stockage
+from opsys.stockage.concurrence import verrou_consultatif
 
 from . import registre
 
@@ -355,9 +356,17 @@ def _connecter() -> tuple[sqlite3.Connection, tuple[set[str], set[str], set[str]
     return cnx, baseline
 
 
+# Verrou de transaction nommé du magasin de développement : le canon est relu en mémoire puis un seul maillon des
+# nouveautés est ajouté. Sous SQLite, `BEGIN IMMEDIATE` (transaction externe) sérialise les écrivains ; sous PostgreSQL
+# (READ COMMITTED), deux écrivains liraient le même canon, calculeraient leur chaîne d'événements sur la même tête et
+# la bifurqueraient. Le verrou est pris AVANT la relecture du canon (sans effet sous SQLite).
+VERROU_DEVELOPPEMENT = "m10-developpement"
+
+
 @contextmanager
 def _connexion():
-    with stockage.transaction():
+    with stockage.transaction() as externe:
+        verrou_consultatif(externe, VERROU_DEVELOPPEMENT)
         cnx, baseline = _connecter()
         try:
             yield cnx

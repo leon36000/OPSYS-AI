@@ -215,7 +215,9 @@ def _reserver_creneau(nom: str, maintenant: float) -> tuple[str, int]:
 def _fin_de_passage(nom: str, maintenant: float, statut: str, code: str | None) -> None:
     with stockage.transaction() as cnx:
         cnx.execute(update(EXECUTEURS_T).where(EXECUTEURS_T.c.executeur == nom).values(
-            dernier_passage=int(maintenant), dernier_statut=statut[:24], dernier_code=code))
+            dernier_passage=int(maintenant), dernier_statut=statut[:24],
+            # `VARCHAR(64)` : SQLite ne mesure pas, PostgreSQL refuse (un code démesuré interrompait tout le tour)
+            dernier_code=None if code is None else code[:64]))
 
 
 def _cumuler(total: dict[str, int], partiel: Mapping[str, Any]) -> None:
