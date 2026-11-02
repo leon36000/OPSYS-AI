@@ -203,9 +203,11 @@ filtre de clé de mesure des événements, texte dans l'événement, contradicti
 débranché, chiffre dans un texte de leçon, semaines répétées, avis favorables comptés, décision humaine non exigée, leçon visant le
 mauvais département, plan « poursuivre la mesure » rétabli, niveau des tâches, lecture non gardée.
 
-**Contrôles de fin** : `ruff check src tests departments` propre ; `opsys-metier verifier` OK ; `registre-mcp verifier` OK (révision 14,
-639 outils exposés, 616 outils de départements, 248 déclarés aux appareils) ; `scripts/docs/*` à jour ; suite complète du département
-M7 : voir le rapport de livraison ; suite complète du socle (`src/` touché) : voir le rapport de livraison.
+**Contrôles de fin** (2 novembre 2026) : `ruff check src tests departments` propre ; `opsys-metier verifier` OK ; `registre-mcp verifier` OK
+(révision 14, 639 outils exposés, 616 outils de départements, 248 déclarés aux appareils) ; `scripts/docs/*` à jour ; suite complète du
+département M7 : **4 846 passés** (4 609 avant) ; suite complète de M10 : 1 545 passés ; 502 tests de socle ciblés (consommateurs,
+planification, leçons, interconnexion, cohérence documentaire, matrices, paquets, garde de texte, commande métier, packs, registre MCP) passés.
+La suite complète du socle (`src/` touché) est rapportée dans le rapport de livraison.
 
 ## 7. Ce qui est volontairement hors périmètre
 
