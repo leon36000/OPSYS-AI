@@ -388,7 +388,12 @@ def test_un_constat_comptable_incoherent_passe_le_schema_mais_pas_la_mesure(mond
     creances = _mesures(monde)["m8_creances_ouvertes_cad"]
     assert creances["statut"] == "non_calculable" and creances["valeur"] is None
     brutes = {m["metric_id"]: m for m in moteur_mesures.lire(_registres(monde))}
-    assert "incohérent" in brutes["m8_creances_ouvertes_cad"]["manque"][0]["raison"]
+    # C4 : l'incohérence n'est plus un « non calculable » parmi d'autres, c'est un ÉCHEC DE QUALITÉ nommé (QUALITY_FAIL)
+    bloquee = brutes["m8_creances_ouvertes_cad"]
+    assert bloquee["qualite"]["statut"] == "echec" and bloquee["qualite"]["echecs"][0]["regle"] == (
+        "Q-CREANCES-TOTAL-EGALE-TRANCHES")
+    assert "contrôle de qualité" in bloquee["manque"][0]["raison"] and "tranches" in bloquee["manque"][0]["raison"]
+    assert creances["pastille"] == "QUALITY_FAIL"
     reponse = _m8(monde, "m8_repondre_question", question="Quelles sont nos créances ouvertes ?", maintenant=MAINTENANT)
     assert reponse["mesures"][0]["valeur"] is None and "999999" not in json.dumps(reponse)
     # le fait garde sa provenance : type d'événement et empreinte de la charge reçue, pour la preuve

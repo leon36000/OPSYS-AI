@@ -300,20 +300,27 @@ def _lire(deps, **args):
         return _outils(deps)["m9_lire_reglages_manquants"].fonction(**args)
 
 
-def test_lire_a_la_livraison_dit_dix_manquants_avec_ce_que_ca_bloque_et_la_proposition(deps):
+def test_lire_a_la_livraison_dit_seize_manquants_avec_ce_que_ca_bloque_et_la_proposition(deps):
     page = _lire(deps)
-    # 10 réglages vides (M2, M8) + 2 de M6 (C3) dont la valeur d'un agent est déjà écrite à department.yaml.
-    assert page["accepte"] is True and page["total"] == 12 and page["manquants"] == 10
+    # 19 réglages vides (M2, M8 dont six seuils d'alerte, M5) + 2 de M6 (C3) déjà valorisés à department.yaml.
+    assert page["accepte"] is True and page["total"] == 21 and page["manquants"] == 19
     assert page["chaine"]["valide"] is True and "recommandation, non validée" in page["mention"]
-    lignes = page["reglages"]
-    # la liste ne rend que ce qui MANQUE : les deux seuils de M6 ont déjà une valeur, ils ne s'y trouvent pas.
-    assert len(lignes) == 10 and page["prochain_depart"] is None
+    # la page est bornée (budget de sortie du port de M9) : la liste ne rend que ce qui MANQUE (pas les deux seuils
+    # de M6, déjà valorisés) et tient en plusieurs pages, dans l'ordre stable
+    assert len(page["reglages"]) < 19 and page["prochain_depart"] == len(page["reglages"])
+    lignes = list(page["reglages"])
+    depart = page["prochain_depart"]
+    while depart is not None:
+        suite = _lire(deps, depart=depart)
+        lignes += suite["reglages"]
+        depart = suite["prochain_depart"]
+    assert len(lignes) == 19 and len({r["cle"] for r in lignes}) == 19
     relances = next(r for r in lignes if r["cle"] == CLE)
     assert relances["statut"] == "vide" and relances["valeur"] is None
     assert relances["proposition"] == {"valeur": "7", "etiquette": "recommandation, non validée",
                                        "source": relances["proposition"]["source"]}
     assert "REJ-RELANCES-A-CONFIGURER" in relances["debloque"]
-    assert len(json.dumps(page, ensure_ascii=False)) < 6000
+    assert len(json.dumps(page, ensure_ascii=False)) < 6000 and len(json.dumps(suite, ensure_ascii=False)) < 6000
     for ligne in lignes:
         assert set(ligne) == {"cle", "departement", "libelle", "statut", "valeur", "unite", "debloque", "proposition",
                               "version"}
@@ -321,11 +328,12 @@ def test_lire_a_la_livraison_dit_dix_manquants_avec_ce_que_ca_bloque_et_la_propo
 
 def test_lire_filtre_par_departement_pagine_et_refuse_un_depart_invalide(deps):
     assert {r["departement"] for r in _lire(deps, departement="m08-analytics")["reglages"]} == {"m08-analytics"}
-    assert _lire(deps, departement="m05-financecore")["reglages"] == []
+    assert {r["departement"] for r in _lire(deps, departement="m05-financecore")["reglages"]} == {"m05-financecore"}
+    assert _lire(deps, departement="m03-estimation")["reglages"] == []
     premiere = _lire(deps, depart=0)
     assert premiere["depart"] == 0
     with pytest.raises(ValueError, match="REJ-REGLAGE-DEPART"):
-        _lire(deps, depart=11)
+        _lire(deps, depart=25)
     with pytest.raises(ValueError, match="REJ-REGLAGE-DEPART"):
         _lire(deps, depart=-1)
 
@@ -334,7 +342,7 @@ def test_lire_apres_adoption_ne_liste_plus_le_reglage_comme_manquant_sauf_si_dem
     with stockage.transaction() as cnx:
         aide.resultat(aide.adopter(cnx, deps, CLE, 7))
     manquants = _lire(deps)
-    assert manquants["manquants"] == 9 and CLE not in {r["cle"] for r in manquants["reglages"]}
+    assert manquants["manquants"] == 18 and CLE not in {r["cle"] for r in manquants["reglages"]}
     tous = _lire(deps, seulement_manquants=False)
     adopte = next(r for r in tous["reglages"] if r["cle"] == CLE)
     assert (adopte["statut"], adopte["valeur"], adopte["version"]) == ("adopte", "7", 1)

@@ -50,7 +50,9 @@ def test_les_manifestes_livres_declarent_les_reglages_de_m2_et_de_m8():
     assert set(m2) == {"m2.jours_inactivite_dormant", "m2.jours_soumission_perimee", "m2.jours_entre_relances",
                        "m2.bandes_valeur_cents"}
     m8 = _declarations("m08-analytics")
-    assert len(m8) == 6 and all(c.startswith("m8.bornes_") for c in m8)
+    # six couples « pire / cible » du score de santé, puis six seuils d'alerte métier (C3), jamais une proposition
+    assert len(m8) == 12 and all(c.startswith(("m8.bornes_", "m8.seuil_alerte_")) for c in m8)
+    assert sum(1 for c in m8 if c.startswith("m8.bornes_")) == 6
     for reglage in [*m2.values(), *m8.values()]:
         assert reglage.niveau is Niveau.N3 and reglage.debloque and reglage.libelle
         assert reglage.chemin[0] == "configuration"
@@ -90,7 +92,8 @@ def test_les_reglages_de_m8_sont_exactement_les_indicateurs_du_score_de_sante_av
     catalogue = yaml.safe_load((racine / "definitions" / "m8-catalogue.v1.yaml").read_text(encoding="utf-8"))
     sens = {m["metric_id"]: m["sens"] for m in catalogue["mesures"]}
     indicateurs = {i["mesure"] for c in sante["composantes"] for i in c["indicateurs"]}
-    declares = {r.chemin[-1]: r for r in _declarations("m08-analytics").values()}
+    declares = {r.chemin[-1]: r for r in _declarations("m08-analytics").values() if r.chemin[:2] == ("configuration",
+                                                                                                         "sante")}
     assert set(declares) == indicateurs
     for mesure, reglage in declares.items():
         assert reglage.chemin[:3] == ("configuration", "sante", "bornes") and reglage.type == "bornes_pire_cible"

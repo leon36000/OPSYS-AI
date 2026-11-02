@@ -151,7 +151,7 @@ def test_un_processus_tue_net_laisse_un_travail_a_moitie_fait_qu_un_autre_repren
     assert bail.acquerir(mort["ressource"], "autre", 60) is None
     resume = p.tour(avance=1000)  # le créneau et le bail du mort sont échus
     r = resume["executeurs"]["m8.entrepot"]
-    assert r["statut"] == "ok" and r["etapes"] == 3
+    assert r["statut"] == "ok" and r["etapes"] == 4
     with stockage.transaction() as cnx:
         assert cnx.exec_driver_sql("SELECT COUNT(*) FROM m8_ent_constructions").scalar_one() == 1  # pas refaite
         reprise = cnx.execute(select(PLANIFICATEUR_BAUX.c.jeton, PLANIFICATEUR_BAUX.c.porteur)).one()

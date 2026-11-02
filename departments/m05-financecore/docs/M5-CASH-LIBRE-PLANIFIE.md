@@ -103,10 +103,15 @@ de M5, non calculable publié tel quel, étanchéité avec l'outil N3).
 - PostgreSQL : rien n'a tourné dessus (aucune table nouvelle ; les outils et le planificateur ne sont pas qualifiés là).
 - La boucle réelle du serveur sur plusieurs jours ; les jours de changement d'heure ne sont éprouvés que par le calcul du créneau
   existant.
-- **Fraîcheur du soir.** M8 date un constat de M5 du **début du jour de référence en UTC** et la fenêtre du catalogue est de 24 h ;
-  le constat change de jour à minuit LOCAL (UTC-5 en novembre). Les quatre mesures sont donc à jour en journée et **périmées de
-  19 h à minuit, heure locale**, même quand tous les passages réussissent (caractérisé par un test, pas souhaité). Le remède sans
-  toucher au code est la fenêtre de 48 h déclarée par le propriétaire (prouvée, §5.4). Ne pas changer le catalogue de M8 ici est un
-  choix de périmètre ; la décision de fond (dater le constat du jour local ?) appartient à l'architecte.
+- **Fraîcheur du soir : CORRIGÉE (chantier D0 de M8, `claude/m8-qualite-alertes-jour`).** Cette livraison avait caractérisé un
+  défaut : M8 datait un constat de M5 du début du jour de référence en UTC, avec la fenêtre de 24 h du catalogue, alors que le jour
+  change à minuit LOCAL (UTC-5) ; les quatre mesures étaient périmées de 19 h à minuit locales même quand tous les passages
+  réussissaient. M8 date maintenant le jour d'un constat de **minuit local du fuseau de l'entreprise** (`opsys.horloge`, le même
+  fuseau que `Ports.fuseau` qui donne « aujourd'hui » à M5), sans toucher au catalogue ni à la fenêtre de 24 h : à 21 h locale le
+  constat du jour est à jour, et il périme 24 h après minuit local si le planificateur tombe en panne (preuve :
+  `tests/test_m8_jour_local_planifie.py`, `departments/m08-analytics/tests/test_jour_local.py`). Reste vrai : la fenêtre de 48 h
+  du propriétaire (§5.4) demeure un remède possible pour un planificateur qui ne passe qu'une fois par jour. La journée du
+  changement d'heure d'automne dure 25 h : sa dernière heure sort de la fenêtre de 24 h (limite de la fenêtre déclarée, non
+  changée).
 - Aucune activation réelle chez le client ; aucun relevé bancaire réel ; les chiffres fiscaux sont ceux du manifeste de test.
 - Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié.

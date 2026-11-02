@@ -1,0 +1,172 @@
+# RÈGLES DE QUALITÉ des mesures de M8 (M8.3, chantier C4) : ce qui doit être VRAI d'une donnée pour qu'on ose la montrer.
+#
+# Évaluées de façon DÉTERMINISTE, sans horloge, sur les faits que M8 a reçus et sur les valeurs que le moteur en a tirées
+# (`m8_analytics.qualite_mesures`). Une règle qui échoue BLOQUE les mesures qu'elle nomme : la mesure devient « non
+# calculable » avec la raison, sa tuile porte la pastille QUALITY_FAIL, le copilote refuse de donner un chiffre, le score de
+# santé est indéterminé pour elle et M10 mémorise l'échec. La fraîcheur est une autre dimension (pastille STALE, jamais
+# QUALITY_FAIL) : une donnée vieille n'est pas une donnée fausse.
+#
+# AUCUNE règle ici n'est un seuil d'affaires (« un cash libre trop bas », « un taux trop faible » sont des alertes, avec des
+# seuils que la direction déclare) : seulement des INVARIANTS de forme et de cohérence qu'aucune entreprise ne peut violer
+# sans qu'une donnée soit fausse (un compte n'est pas négatif, un pourcentage est entre 0 et 100, un total est la somme de ses
+# tranches, les clics d'un moteur de recherche ne dépassent pas ses impressions).
+#
+# Trois genres de règles (ensemble fermé) :
+#   plage     une ou plusieurs mesures dont la valeur doit rester dans [min, max] (l'une des deux bornes au moins ; textes
+#             décimaux, jamais des flottants) ;
+#   relation  `gauche` doit être au plus égale à `droite` (deux mesures du catalogue, dont les deux sont calculées) ; l'échec
+#             bloque les deux (on ignore laquelle est fausse) ;
+#   controle  une vérification de COHÉRENCE d'un fait source qu'aucune mesure seule ne voit (total contre tranches, total de
+#             facture contre ses composantes, drapeau de déficit contre le signe du montant). `controle` nomme une
+#             vérification du code (ensemble fermé) et `bloque` les mesures qu'elle rend douteuses.
+#
+# Chaque règle dit en français ce qu'elle vérifie (`libelle`, sans aucun chiffre tiré d'une donnée) et le geste de correction
+# (`correction`, un gabarit : M8 ne corrige rien, il nomme le département propriétaire de la source). Une règle sur une mesure
+# hors catalogue, un identifiant en double, une clé de plus ou une borne illisible refuse le fichier entier.
+schema: opsys.m8.qualite_mesures/v1
+version: 1
+regles:
+  # -- Aucun compte n'est négatif -------------------------------------------------------------------------------------------
+  - id: Q-COMPTES-NON-NEGATIFS
+    type: plage
+    mesures:
+      - m8_leads_recus
+      - m8_leads_qualifies
+      - m8_devis_envoyes
+      - m8_devis_acceptes
+      - m8_devis_sans_reponse
+      - m8_contenus_exportes
+      - m8_leads_par_contenu
+      - m8_devis_envoyes_par_contenu
+      - m8_devis_acceptes_par_contenu
+      - m8_chantiers_termines
+      - m8_chantiers_signal_materiaux
+      - m8_chantiers_marge_reelle
+      - m8_chantiers_en_perte
+      - m8_conversions_hors_ligne
+      - m8_anomalies_depense_critiques
+      - m8_receptions_materiaux
+      - m8_receptions_avec_ecart
+      - m8_demandes_qualifiees_m1
+      - m8_demandes_m1_sans_lead_m2
+      - m8_commandes_envoyees
+      - m8_ecritures_en_attente
+      - m8_factures_emises
+      - m8_clics_recherche
+      - m8_impressions_recherche
+      - m8_visites_site
+      - m8_pipeline_leads_ouverts
+      - m8_violations_sla_commercial
+      - m8_anomalies_integrite_crm
+      - m8_articles_en_rupture
+      - m8_articles_sur_reserves
+      - m8_reservations_incompletes
+      - m8_plaintes_periode
+      - m8_leads_publicitaires
+    min: "0"
+    libelle: "Un nombre de leads, de devis, de chantiers, de factures, d'articles ou de plaintes n'est jamais négatif."
+    correction: "Vérifier, auprès du département propriétaire de la mesure, l'évènement reçu qui a produit ce compte, puis lui faire republier son constat."
+  # -- Pas de revenu ni de montant d'activité négatif ---------------------------------------------------------------------
+  - id: Q-MONTANTS-NON-NEGATIFS
+    type: plage
+    mesures:
+      - m8_carnet_signe_cad
+      - m8_facturation_emise_cad
+      - m8_creances_ouvertes_cad
+      - m8_creances_90_jours_plus_cad
+      - m8_valeur_ponderee_pipeline_cad
+      - m8_releves_depense_pub_cad
+      - m8_cout_par_lead_pub_cad
+    min: "0"
+    libelle: "Le revenu facturé, le carnet signé, les créances, la valeur du pipeline et une dépense publicitaire relevée ne sont jamais négatifs."
+    correction: "Vérifier le montant à la source (M5 pour le revenu et les créances, M2 et M3 pour le carnet et le pipeline, M7 pour les relevés), le corriger là, puis faire republier le constat."
+  - id: Q-DUREES-NON-NEGATIVES
+    type: plage
+    mesures:
+      - m8_delai_lead_acceptation_jours
+      - m8_heures_sur_site_chantiers
+      - m8_capacite_heures_disponibles
+      - m8_capacite_heures_planifiees
+      - m8_charge_planifiee_pct
+    min: "0"
+    libelle: "Une durée, un nombre d'heures ou une charge planifiée n'est jamais négatif."
+    correction: "Vérifier les dates et les heures reçues du département propriétaire (M2, M3 ou M4), puis lui faire republier son constat."
+  # -- Un pourcentage de taux est entre 0 et 100 --------------------------------------------------------------------------
+  - id: Q-TAUX-ENTRE-0-ET-100
+    type: plage
+    mesures:
+      - m8_taux_acceptation_pct
+      - m8_taux_conversion_resolus_pct
+    min: "0"
+    max: "100"
+    libelle: "Un taux d'acceptation ou de conversion est compris entre 0 % et 100 %."
+    correction: "Vérifier les devis ou les leads reçus (une acceptation sans devis envoyé, un doublon), auprès de M2 et de M3."
+  # -- Relations entre mesures d'une même source ----------------------------------------------------------------------------
+  - id: Q-CREANCES-90-PLUS-DANS-LE-TOTAL
+    type: relation
+    gauche: m8_creances_90_jours_plus_cad
+    operateur: au_plus
+    droite: m8_creances_ouvertes_cad
+    libelle: "Les créances de 90 jours et plus ne dépassent pas le total des créances ouvertes."
+    correction: "Faire refaire le constat des mesures comptables par M5 après vérification des factures ouvertes."
+  - id: Q-CLICS-AU-PLUS-IMPRESSIONS
+    type: relation
+    gauche: m8_clics_recherche
+    operateur: au_plus
+    droite: m8_impressions_recherche
+    libelle: "Les clics d'un moteur de recherche ne dépassent pas ses impressions."
+    correction: "Vérifier le relevé du moteur de recherche (Search Console, Bing) reçu de M7 : une impression est comptée avant un clic."
+  - id: Q-ECARTS-DE-RECEPTION-DANS-LES-RECEPTIONS
+    type: relation
+    gauche: m8_receptions_avec_ecart
+    operateur: au_plus
+    droite: m8_receptions_materiaux
+    libelle: "Le nombre de réceptions avec écart ne dépasse pas le nombre de réceptions."
+    correction: "Vérifier les réceptions enregistrées par M6, puis lui faire republier ses réceptions."
+  - id: Q-CHANTIERS-EN-PERTE-DANS-LES-CHANTIERS-MESURES
+    type: relation
+    gauche: m8_chantiers_en_perte
+    operateur: au_plus
+    droite: m8_chantiers_marge_reelle
+    libelle: "Les chantiers en perte ne dépassent pas les chantiers dont la marge réelle est connue."
+    correction: "Vérifier la marge réelle des chantiers terminés auprès de M5, puis lui faire republier ses constats."
+  - id: Q-SIGNAUX-DE-MATERIAUX-DANS-LES-CHANTIERS-TERMINES
+    type: relation
+    gauche: m8_chantiers_signal_materiaux
+    operateur: au_plus
+    droite: m8_chantiers_termines
+    libelle: "Les chantiers avec un signal de matériaux ne dépassent pas les chantiers terminés."
+    correction: "Vérifier les variances de matériaux reçues de M6 et les fins de chantier reçues de M4."
+  - id: Q-DEMANDES-SANS-LEAD-DANS-LES-DEMANDES-QUALIFIEES
+    type: relation
+    gauche: m8_demandes_m1_sans_lead_m2
+    operateur: au_plus
+    droite: m8_demandes_qualifiees_m1
+    libelle: "Les demandes de M1 sans lead dans M2 ne dépassent pas les demandes qualifiées de M1."
+    correction: "Vérifier les demandes qualifiées reçues de M1 et les leads reçus de M2."
+  - id: Q-LEADS-PUBLICITAIRES-DANS-LES-LEADS
+    type: relation
+    gauche: m8_leads_publicitaires
+    operateur: au_plus
+    droite: m8_leads_recus
+    libelle: "Les leads venus d'une publicité ne dépassent pas les leads reçus."
+    correction: "Vérifier la source (UTM) des leads reçus de M2 et la déclaration des canaux publicitaires du propriétaire."
+  # -- Cohérence d'un fait source ---------------------------------------------------------------------------------------
+  - id: Q-CREANCES-TOTAL-EGALE-TRANCHES
+    type: controle
+    controle: creances_total_egale_tranches
+    bloque: [m8_creances_ouvertes_cad, m8_creances_90_jours_plus_cad]
+    libelle: "Le total des créances est la somme de ses tranches d'âge, et aucune tranche n'est négative."
+    correction: "Faire refaire le constat des mesures comptables par M5 (m5_constater_mesures_comptables) après vérification des factures ouvertes."
+  - id: Q-FACTURES-EMISES-COHERENTES
+    type: controle
+    controle: factures_emises_coherentes
+    bloque: [m8_factures_emises, m8_facturation_emise_cad]
+    libelle: "Une facture émise a des montants lisibles, ni négatifs ni incohérents : le total avec taxes est le montant avant taxes plus les taxes."
+    correction: "Vérifier la facture nommée au rapport de qualité dans M5, la corriger là, puis faire republier le constat des factures émises (m5_constater_factures_emises)."
+  - id: Q-CASH-LIBRE-COHERENT
+    type: controle
+    controle: cash_libre_coherent
+    bloque: [m8_cash_libre_cad, m8_solde_tresorerie_cad, m8_comptes_a_payer_cad, m8_taxes_a_remettre_cad]
+    libelle: "Un constat du cash libre calculé porte un montant lisible, son drapeau de déficit correspond au signe de ce montant, et les comptes à payer ne sont pas négatifs."
+    correction: "Faire refaire le constat du cash libre par M5 après vérification du solde et des obligations."

@@ -27,10 +27,13 @@ from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from opsys import contexte, evenements, stockage
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import (
+    alertes_metier,
     catalogue_mesures,
     collecte,
     copilote,
@@ -40,12 +43,15 @@ from . import (
     memoire,
     mesures_chantier,
     moteur_mesures,
+    pastilles,
+    qualite_mesures,
     sante,
     synthese_direction,
     wallboards,
 )
 
 DEPARTEMENT = "m08-analytics"
+_PAR_AGENT = "agent"  # le geste vient d'un agent (aucun droit d'appareil : pas d'identité de personne)
 _ROLE_ADMIN = "admin"
 _PROPRIETAIRES = frozenset({"admin", "nathan_owner"})
 _MAINTENANT = {
@@ -72,6 +78,11 @@ def _catalogue() -> dict[str, Any]:
 @lru_cache(maxsize=1)
 def _definition_sante() -> dict[str, Any]:
     return sante.charger(_catalogue())
+
+
+@lru_cache(maxsize=1)
+def _regles_alertes() -> dict[str, Any]:
+    return alertes_metier.charger(_catalogue())
 
 
 @lru_cache(maxsize=1)
@@ -109,6 +120,7 @@ def construire(
     budget_sortie: int,
     recherche_connaissances: Callable[[str, str], dict[str, Any]] | None = None,
     etat_planificateur: Callable[[float], dict[str, Any]] | None = None,
+    alertes_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Les outils de la couche analytique. Tout ce qui touche au socle (registres, configuration, identité, recherche
     dans la
@@ -128,6 +140,7 @@ def construire(
         mesures = fraicheur_mesures.lire_mesures_avec_fraicheur(
             brutes, catalogue, instant, conf["fenetres"], plus_stricte, cadences["fenetres"]
         )
+        mesures = pastilles.ajouter(mesures, etats_de_collecte(mesures, instant))
         return {
             "catalogue": catalogue,
             "registres": registres,
@@ -135,6 +148,28 @@ def construire(
             "configuration_fraicheur": conf,
             "empreinte_registres": moteur_mesures.empreinte_registres(registres),
         }
+
+    def etats_de_collecte(mesures: list[dict[str, Any]], instant: Any) -> dict[str, str]:
+        """L'état de collecte de chaque mesure, SEULEMENT quand il sert : la pastille GATED se dérive d'une mesure non
+        calculable que retient un geste humain (constat jamais activé, en ombre, expiré, planificateur coupé). Sans
+        mesure non calculable hors qualité, ou sans planificateur lisible (hors transaction), aucun état : MISSING,
+        jamais un GATED deviné."""
+        if etat_planificateur is None or not any(
+            m["statut"] != entonnoir.STATUT_CALCULEE and not qualite_mesures.en_echec(m) for m in mesures
+        ):
+            return {}
+        cnx = stockage.connexion_courante()
+        if cnx is None:  # hors transaction : l'état du planificateur ne se lit qu'en appel d'outil
+            return {}
+        try:
+            # Un point de sauvegarde : si la base n'a pas les tables du planificateur (installation partielle), la
+            # transaction de l'appel n'est pas empoisonnée (PostgreSQL abandonne la transaction à la première erreur).
+            with cnx.begin_nested():
+                etat = etat_planificateur(instant.timestamp())
+        except (ValueError, SQLAlchemyError):
+            return {}
+        diagnostic = collecte.diagnostiquer(mesures, etat["constats"], planificateur_autorise=etat["autorise"])
+        return {ligne["metric_id"]: ligne["etat_collecte"] for ligne in diagnostic["mesures"]}
 
     def avertissements_fraicheur(conf: dict[str, Any]) -> dict[str, Any]:
         extra: dict[str, Any] = {}
@@ -189,6 +224,8 @@ def construire(
                 "fenetre_s": m["fraicheur"]["fenetre_s"],
                 "origine_fenetre": m["fraicheur"]["origine_fenetre"],
                 "couverture": m["couverture"]["etat"],
+                "pastille": m["pastille"]["code"],
+                "qualite": m["qualite"]["statut"],
                 "a_jour": m["fraicheur"]["peut_etre_montree_comme_a_jour"] and m["statut"] == entonnoir.STATUT_CALCULEE,
                 "dernier_fait_le": m["dernier_fait_le"],
                 "source": m["source"],
@@ -252,6 +289,10 @@ def construire(
                     "perimee",
                     "a_jour",
                     "partielle",
+                    "qualite",
+                    "qualite_en_echec",
+                    "pastille",
+                    "libelle_pastille",
                     "couverture",
                     "libelle_fraicheur",
                     "etat_seuil",
@@ -521,6 +562,192 @@ def construire(
 
         return mesures_chantier.page_bornee(lignes, depart, budget_sortie, construire_page)
 
+    # -- Rapport de qualité : quelles mesures le contrôle de qualité a bloquées, et quoi corriger ----------------------
+    def lire_rapport_qualite(
+        maintenant: str,
+        fraicheur_max_s: int | None = None,
+        seulement_echecs: bool = True,
+        depart: int = 0,
+    ) -> dict[str, Any]:
+        """Le rapport de qualité des données (chantier C4) : par département source, les règles en échec, ce qu'elles
+        vérifient et le geste de correction (gabarit du fichier de règles). LECTURE seule, sans aucune valeur de
+        mesure : la valeur douteuse n'est jamais rendue (le moteur l'a retenue). Comme la synthèse de direction :
+        l'identité d'un admin est revérifiée en base ; aucun droit d'appareil n'est ajouté."""
+        exiger_admin_appareil()
+        if type(seulement_echecs) is not bool:
+            raise ValueError("REJ-QUALITE-FILTRE-INVALIDE : seulement_echecs est un booléen")
+        lu = lecture(maintenant, fraicheur_max_s)
+        regles = moteur_mesures.regles_de_qualite(lu["catalogue"])
+        rapport = qualite_mesures.rapport(regles, lu["mesures"])
+        lignes = [
+            {"departement": groupe["departement"], **echec}
+            for groupe in rapport["departements"]
+            for echec in groupe["echecs"]
+        ]
+        if not seulement_echecs:
+            vus = {ligne["metric_id"] for ligne in lignes}
+            lignes += [
+                {"departement": m["proprietaire"], "metric_id": m["metric_id"], "nom": m["nom"],
+                 "statut_qualite": m["qualite"]["statut"], "regles_evaluees": m["qualite"]["regles_evaluees"]}
+                for m in lu["mesures"] if m["metric_id"] not in vus
+            ]
+        base = {
+            "maintenant": maintenant,
+            "version_regles": rapport["version_regles"],
+            "n_regles": rapport["n_regles"],
+            "n_mesures": rapport["n_mesures"],
+            "comptes": rapport["comptes"],
+            "lecture": rapport["lecture"],
+            **avertissements_fraicheur(lu["configuration_fraicheur"]),
+        }
+
+        def construire_page(page: list[dict[str, Any]], prochain: int | None) -> dict[str, Any]:
+            return {**base, "n_lignes": len(lignes), "lignes": page, "prochain_depart": prochain,
+                    "regle": "Une mesure en échec est bloquée : aucune valeur n'est donnée. M8 ne corrige rien."}
+
+        return mesures_chantier.page_bornee(lignes, depart, budget_sortie, construire_page)
+
+    # -- Alertes métier : règles déclaratives, cycle de vie, action proposée ----------------------------------------
+    def evaluation_alertes(maintenant: str, fraicheur_max_s: int | None) -> dict[str, Any]:
+        """L'évaluation des règles d'alerte sur la lecture ordinaire (même fraîcheur, même qualité que partout) et les
+        seuils que la direction a déclarés (``configuration.alertes.seuils``). Lecture pure."""
+        lu = lecture(maintenant, fraicheur_max_s)
+        regles = _regles_alertes()
+        seuils = alertes_metier.lire_seuils(configuration().get("alertes"), regles)
+        verdicts = alertes_metier.evaluer(regles, lu["mesures"], seuils)
+        return {"lu": lu, "regles": regles, "seuils": seuils, "verdicts": verdicts}
+
+    def avertissements_seuils(seuils: dict[str, Any]) -> dict[str, Any]:
+        extra: dict[str, Any] = {}
+        if seuils["invalides"]:
+            extra["seuils_alertes_invalides"] = seuils["invalides"]
+        if seuils["ignores"]:
+            extra["seuils_alertes_ignores"] = seuils["ignores"]
+        return extra
+
+    def lire_alertes_metier(
+        maintenant: str,
+        statut: str | None = None,
+        fraicheur_max_s: int | None = None,
+        depart: int = 0,
+    ) -> dict[str, Any]:
+        """Les alertes métier : l'état de chaque règle (seuil déclaré, à configurer ou invalide ; franchie, dans la
+        cible ou non évaluée et pourquoi) et les épisodes du registre avec leur état EFFECTIF. Lecture pure : rien
+        n'est écrit,
+        aucune alerte n'est ouverte ici (c'est ``m8_evaluer_alertes_metier``)."""
+        exiger_admin_appareil()
+        instant = fraicheur_mesures.lire_maintenant(maintenant)
+        if statut is not None and statut not in (
+            alertes_metier.STATUT_OUVERTE,
+            alertes_metier.STATUT_ACCUSEE,
+            alertes_metier.STATUT_REPORTEE,
+            alertes_metier.STATUT_RESOLUE,
+        ):
+            raise ValueError("REJ-ALERTE-STATUT-INCONNU : statut = ouverte, accusee, reportee ou resolue")
+        evaluation = evaluation_alertes(maintenant, fraicheur_max_s)
+        registre = list(alertes_cible)
+        vues = [alertes_metier.vue_episode(e, maintenant) for e in alertes_metier.episodes(registre).values()]
+        vues = [v for v in vues if statut is None or v["statut"] == statut]
+        vues.sort(key=lambda v: (v["ouverte_le"], v["alerte_id"]), reverse=True)
+        en_cours = alertes_metier.episodes_en_cours(alertes_metier.episodes(registre))
+        a_ouvrir = [
+            v["regle"] + ":" + v["metric_id"]
+            for v in evaluation["verdicts"]
+            if v["etat"] == alertes_metier.ETAT_FRANCHI and (v["regle"], v["metric_id"]) not in en_cours
+        ]
+        base = {
+            "maintenant": instant.isoformat(),
+            "version_regles": evaluation["regles"]["version"],
+            "regles": alertes_metier.etat_des_regles(
+                evaluation["regles"], evaluation["verdicts"], evaluation["seuils"]
+            ),
+            "franchies_non_ouvertes": a_ouvrir,
+            "comptes": {s: sum(1 for v in vues if v["statut"] == s) for s in sorted({v["statut"] for v in vues})},
+            **avertissements_fraicheur(evaluation["lu"]["configuration_fraicheur"]),
+            **avertissements_seuils(evaluation["seuils"]),
+        }
+
+        def construire_page(page: list[dict[str, Any]], prochain: int | None) -> dict[str, Any]:
+            return {
+                **base,
+                "n_alertes": len(vues),
+                "alertes": page,
+                "prochain_depart": prochain,
+                "regle": "M8 propose, il ne décide pas : une alerte nomme le département propriétaire et une action "
+                "d'un gabarit fermé, jamais une cause. Rien n'est poussé hors de l'application.",
+            }
+
+        return mesures_chantier.page_bornee(vues, depart, budget_sortie, construire_page)
+
+    @ferme_aux_appareils
+    def evaluer_alertes_metier(
+        maintenant: str, ecrire: bool = True, fraicheur_max_s: int | None = None
+    ) -> dict[str, Any]:
+        """Évalue les règles et range ce qui change au registre append-only : UNE ouverture par épisode (et l'événement
+        ``m8.alerte_proposee`` qui la propose à M9, une seule fois), la résolution des épisodes revenus dans la
+        cible. Une
+        règle « non évaluée » ne change rien. ``ecrire`` faux : dit ce qui serait fait, n'écrit ni ne publie rien."""
+        if type(ecrire) is not bool:
+            raise ValueError("REJ-ALERTE-ECRIRE-INVALIDE : ecrire est un booléen")
+        connexion_requise("l'évaluation des alertes métier")
+        evaluation = evaluation_alertes(maintenant, fraicheur_max_s)
+        registre = list(alertes_cible)
+        plan = alertes_metier.planifier(
+            evaluation["regles"], evaluation["verdicts"], evaluation["lu"]["mesures"], registre, maintenant
+        )
+        publiees = 0
+        if ecrire:
+            for entree in plan["ouvertures"]:
+                alertes_cible.append(entree)
+                charge = alertes_metier.charge_evenement(entree)
+                premiere = evenements.charge_publiee(alertes_metier.EVENEMENT, charge["evenement_id"])
+                evenements.publier(
+                    alertes_metier.EVENEMENT, DEPARTEMENT, premiere if premiere is not None else charge,
+                    evenement_id=charge["evenement_id"],
+                )
+                publiees += 1
+            for entree in plan["resolutions"]:
+                alertes_cible.append(entree)
+        verdicts = evaluation["verdicts"]
+        return {
+            "maintenant": maintenant,
+            "ecrit": ecrire,
+            "ouvertes": [e["alerte_id"] for e in plan["ouvertures"]],
+            "resolues": [e["alerte_id"] for e in plan["resolutions"]],
+            "publiees": publiees,
+            "bornees": plan["bornees"],
+            "inchangees": plan["inchangees"],
+            "regles_non_evaluees": sum(1 for v in verdicts if v["etat"] == alertes_metier.ETAT_NON_EVALUEE),
+            **avertissements_seuils(evaluation["seuils"]),
+            "regle": "Une alerte est PROPOSÉE à M9 : M8 n'exécute rien et ne pousse rien hors de l'application.",
+        }
+
+    @ferme_aux_appareils
+    def accuser_alerte(alerte_id: str, maintenant: str) -> dict[str, Any]:
+        """Dit « vu » : l'alerte sort de « À voir » mais l'épisode reste ouvert jusqu'au retour dans la cible. Un double
+        accusé n'écrit rien."""
+        fraicheur_mesures.lire_maintenant(maintenant)
+        connexion_requise("l'accusé de réception d'une alerte")
+        try:
+            entree = alertes_metier.accuser(list(alertes_cible), alerte_id, maintenant, _PAR_AGENT)
+        except alertes_metier.AlertesRefusees as refus:
+            raise ValueError(str(refus)) from refus
+        if entree is not None:
+            alertes_cible.append(entree)
+        return {"alerte_id": alerte_id, "accusee": entree is not None, "deja_accusee": entree is None}
+
+    @ferme_aux_appareils
+    def reporter_alerte(alerte_id: str, maintenant: str, jusqu_au: str) -> dict[str, Any]:
+        """Cache l'alerte jusqu'à ``jusqu_au`` (futur, au plus trente jours) puis elle redevient visible d'elle-même."""
+        fraicheur_mesures.lire_maintenant(maintenant)
+        connexion_requise("le report d'une alerte")
+        try:
+            entree = alertes_metier.reporter(list(alertes_cible), alerte_id, maintenant, jusqu_au, _PAR_AGENT)
+        except alertes_metier.AlertesRefusees as refus:
+            raise ValueError(str(refus)) from refus
+        alertes_cible.append(entree)
+        return {"alerte_id": alerte_id, "reportee_jusqu_au": jusqu_au}
+
     # -- Pont BI (métadonnées seulement) ----------------------------------------------------------------------------
     @ferme_aux_appareils
     def lire_pont_bi(limite_journal: int = 20) -> dict[str, Any]:
@@ -774,6 +1001,97 @@ def construire(
             ),
             fonction=lire_etat_collecte,
             **lecture_seule,
+        ),
+        Outil(
+            nom="m8_lire_rapport_qualite",
+            description=(
+                "Rapport de QUALITÉ des données (M8.3) : quelles mesures le contrôle de qualité a BLOQUÉES (donnée "
+                "aberrante ou incohérente à la source : revenu négatif, total différent de la somme de ses tranches, "
+                "clics plus nombreux que les impressions…), par département source, la règle en échec, ce qu'elle "
+                "vérifie et le geste de correction. Une mesure bloquée n'a aucune valeur : ni les tuiles, ni le "
+                "copilote, ni le score de santé ne la montrent. Lecture seule, sans aucune valeur de mesure ; M8 ne "
+                "corrige rien. Les règles sont celles de definitions/m8-qualite.v1.yaml (invariants, jamais des "
+                "seuils d'affaires)."
+            ),
+            parametres=_schema(
+                {
+                    "maintenant": _MAINTENANT,
+                    "fraicheur_max_s": _FRAICHEUR_MAX,
+                    "seulement_echecs": {
+                        "type": "boolean",
+                        "description": "Vrai (défaut) : seulement les mesures bloquées ; faux : toutes.",
+                    },
+                    "depart": _DEPART,
+                },
+                ["maintenant"],
+            ),
+            fonction=lire_rapport_qualite,
+            **lecture_seule,
+        ),
+        Outil(
+            nom="m8_lire_alertes_metier",
+            description=(
+                "Les ALERTES MÉTIER de M8 (trésorerie sous le seuil, créances de 90 jours et plus, taux "
+                "d'acceptation, soumissions sans réponse, rupture de matériel, pipeline bas, donnée périmée, qualité "
+                "en échec) : l'état de chaque règle (seuil déclaré par la direction, à configurer ou invalide ; "
+                "franchie, dans la cible ou non évaluée et pourquoi) et les épisodes du registre avec leur état "
+                "effectif (ouverte, accusée, reportée, résolue), chacun avec la valeur courante, la référence "
+                "franchie, l'action recommandée (gabarit fermé), le département propriétaire et les mesures à "
+                "consulter. Jamais une cause. Lecture seule : n'ouvre rien. statut filtre les épisodes."
+            ),
+            parametres=_schema(
+                {
+                    "maintenant": _MAINTENANT,
+                    "statut": {"type": ["string", "null"], "enum": ["ouverte", "accusee", "reportee", "resolue", None]},
+                    "fraicheur_max_s": _FRAICHEUR_MAX,
+                    "depart": _DEPART,
+                },
+                ["maintenant"],
+            ),
+            fonction=lire_alertes_metier,
+            **lecture_seule,
+        ),
+        Outil(
+            nom="m8_evaluer_alertes_metier",
+            description=(
+                "Évalue les règles d'alerte métier et range ce qui change au registre append-only : UNE ouverture "
+                "par épisode (proposée à M9 par m8.alerte_proposee, une seule fois), la résolution d'un épisode revenu "
+                "dans la cible. Une règle sans seuil déclaré, une valeur périmée, non calculable ou bloquée par la "
+                "qualité n'ouvre ni ne ferme rien. ecrire = false : dit ce qui serait fait. Rien n'est poussé hors de "
+                "l'application ; M8 n'exécute aucune action."
+            ),
+            parametres=_schema(
+                {"maintenant": _MAINTENANT, "ecrire": {"type": "boolean"}, "fraicheur_max_s": _FRAICHEUR_MAX},
+                ["maintenant"],
+            ),
+            fonction=evaluer_alertes_metier,
+            **ecriture_interne,
+        ),
+        Outil(
+            nom="m8_accuser_alerte",
+            description=(
+                "Accuse réception d'une alerte métier (« vu ») : elle sort de la section « À voir » mais l'épisode "
+                "reste ouvert jusqu'au retour dans la cible. Un double accusé n'écrit rien ; une alerte résolue est "
+                "refusée."
+            ),
+            parametres=_schema({"alerte_id": {"type": "string", "maxLength": 140}, "maintenant": _MAINTENANT},
+                               ["alerte_id", "maintenant"]),
+            fonction=accuser_alerte,
+            **ecriture_interne,
+        ),
+        Outil(
+            nom="m8_reporter_alerte",
+            description=(
+                "Reporte une alerte métier : elle est cachée de « À voir » jusqu'à l'instant choisi (RFC 3339 avec "
+                "fuseau, dans le futur, au plus trente jours), puis redevient visible d'elle-même."
+            ),
+            parametres=_schema(
+                {"alerte_id": {"type": "string", "maxLength": 140}, "maintenant": _MAINTENANT,
+                 "jusqu_au": {"type": "string", "maxLength": 40}},
+                ["alerte_id", "maintenant", "jusqu_au"],
+            ),
+            fonction=reporter_alerte,
+            **ecriture_interne,
         ),
         Outil(
             nom="m8_lire_pont_bi",

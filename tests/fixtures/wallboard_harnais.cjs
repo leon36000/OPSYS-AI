@@ -18,7 +18,7 @@ class El {
 function construire() {
   const racine = new El("main", {}, { intervalle: "30", api: "/api/wb", flux: "/api/wb/flux" });
   const mk = (champs) => { const t = new El("li"); champs.forEach((c) => { const e = new El("p", { "data-champ": c }); t.enfants.push(e); }); return t; };
-  const t1 = mk(["valeur", "etat", "detail"]); t1.attrs["data-tuile"] = "leads"; t1.classList.add("tuile");
+  const t1 = mk(["valeur", "pastille", "etat", "detail"]); t1.attrs["data-tuile"] = "leads"; t1.classList.add("tuile");
   const t2 = mk(["valeur", "etat", "detail"]); t2.attrs["data-tuile"] = "carnet"; t2.classList.add("tuile");
   const banniere = new El("div", { id: "banniere" }); banniere.enfants.push(new El("div", { "data-champ": "messages" }));
   const maj = new El("p", { id: "mise-a-jour" });
@@ -66,6 +66,21 @@ async function principal() {
     sortie.etat_complete = dom.t2.querySelector('[data-champ="etat"]').textContent;
     app.appliquer(donnees());
     sortie.etat_apres_complet = dom.t1.querySelector('[data-champ="etat"]').textContent; }
+  // 1c. la pastille (QUALITY_FAIL) est dite en toutes lettres et en classe ; une valeur hostile reste du texte ; la tuile
+  // bloquée par la qualité porte sa classe, que la mise à jour suivante retire
+  { const dom = construire(); const { e } = env(dom); const app = creer(e);
+    const bloquee = donnees(); Object.assign(bloquee.tuiles[0], { pastille: "QUALITY_FAIL", libelle_pastille: "Qualité en échec",
+      qualite_en_echec: true });
+    app.appliquer(bloquee);
+    const p = dom.t1.querySelector('[data-champ="pastille"]');
+    sortie.pastille_texte = p.textContent; sortie.pastille_classes = [...p.classList.s].sort();
+    sortie.tuile_qualite = dom.t1.classList.contains("qualite-echec");
+    const saine = donnees(); Object.assign(saine.tuiles[0], { pastille: "FRESH", libelle_pastille: "À jour", qualite_en_echec: false });
+    app.appliquer(saine);
+    sortie.pastille_apres = [...p.classList.s].sort(); sortie.tuile_qualite_apres = dom.t1.classList.contains("qualite-echec");
+    const hostile = donnees(); Object.assign(hostile.tuiles[0], { pastille: "<img src=x>", libelle_pastille: "<script>x</script>" });
+    app.appliquer(hostile);
+    sortie.pastille_hostile = p.textContent; sortie.pastille_hostile_classes = [...p.classList.s].sort(); }
   // 2. flux : ouverture, instantané, fin -> fermeture et reconnexion planifiée
   { FauxFlux.instances.length = 0; const dom = construire(); const { e, minuteries } = env(dom); const app = creer(e); app.demarrer();
     const flux = FauxFlux.instances[0]; sortie.flux_url = flux.url; sortie.flux_credentials = flux.opts.withCredentials;

@@ -32,7 +32,7 @@ from typing import Any
 
 import yaml
 
-from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, nombres
+from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, nombres, qualite_mesures
 
 SCHEMA = "opsys.m8.sante/v1"
 CLE_CONFIGURATION = "sante"
@@ -48,6 +48,7 @@ STATUT_DETERMINE = "determine"
 STATUT_INDETERMINE = "indetermine"
 
 RAISON_MESURE_MANQUANTE = "mesure_manquante"
+RAISON_QUALITE_ECHEC = "qualite_echec"
 RAISON_MESURE_PERIMEE = "mesure_perimee"
 RAISON_FRAICHEUR_INCONNUE = "fraicheur_inconnue"
 RAISON_BORNES_A_CONFIGURER = "bornes_a_configurer"
@@ -240,6 +241,11 @@ def _indicateur(
         "raison": None,
         "detail": None,
     }
+    if qualite_mesures.en_echec(mesure):
+        # Une donnée FAUSSE n'est pas une donnée manquante : la composante est indéterminée pour une raison de qualité,
+        # dite comme telle (pas de note sur une valeur que le contrôle de qualité a bloquée).
+        ligne.update(raison=RAISON_QUALITE_ECHEC, detail=mesure["detail"])
+        return ligne
     if mesure["statut"] != entonnoir.STATUT_CALCULEE:
         ligne.update(raison=RAISON_MESURE_MANQUANTE, detail=mesure["detail"])
         return ligne
@@ -275,6 +281,7 @@ def _indicateur(
 
 _LIBELLE_RAISON = {
     RAISON_MESURE_MANQUANTE: "mesure non calculable",
+    RAISON_QUALITE_ECHEC: "contrôle de qualité en échec",
     RAISON_MESURE_PERIMEE: "mesure périmée",
     RAISON_FRAICHEUR_INCONNUE: "fraîcheur inconnue",
     RAISON_BORNES_A_CONFIGURER: "bornes à configurer",
@@ -525,6 +532,7 @@ __all__ = [
     "RAISON_FRAICHEUR_INCONNUE",
     "RAISON_MESURE_MANQUANTE",
     "RAISON_MESURE_PERIMEE",
+    "RAISON_QUALITE_ECHEC",
     "REJ_SANTE_BORNES_INVALIDES",
     "REJ_SANTE_INVALIDE",
     "SCHEMA",

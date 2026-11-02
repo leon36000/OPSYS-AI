@@ -112,7 +112,7 @@ def test_une_installation_neuve_dit_constat_inactif_pour_ce_qu_un_constat_nourri
     assert resume["planificateur_autorise"] is True and resume["n_mesures"] == len(causes)
     assert sum(resume["resume"].values()) == len(causes)
     assert resume["resume"]["constat_inactif"] >= 20
-    assert {c["etat"] for c in resume["constats"]} == {"inactif"} and len(resume["constats"]) == 9
+    assert {c["etat"] for c in resume["constats"]} == {"inactif"} and len(resume["constats"]) == 10
     assert CASH in {c["executeur"] for c in resume["constats"]}
 
 
@@ -135,12 +135,12 @@ def test_la_liste_de_controle_d_une_installation_neuve_n_a_rien_de_fait_et_dit_q
     par_constat = {}
     for e in etapes[1:]:
         par_constat.setdefault(e["constat"], []).append((e["etape"], e["fait"]))
-    assert len(par_constat) == 9
+    assert len(par_constat) == 10
     for nom, suite in par_constat.items():
         assert suite == [("activer_en_ombre", False), ("passer_en_actif", False),
                          ("premier_passage_reussi", False)], nom
     a_faire = _toutes(monde, "liste_de_controle")  # le défaut : seulement ce qui reste à faire
-    assert len(a_faire) == 27 and all(not e["fait"] and e["action"] for e in a_faire)
+    assert len(a_faire) == 30 and all(not e["fait"] and e["action"] for e in a_faire)
     assert {CASH} <= {e["constat"] for e in a_faire}
 
 

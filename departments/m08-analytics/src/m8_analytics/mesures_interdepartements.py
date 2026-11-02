@@ -58,6 +58,14 @@ _VERDICT_CONFORME = "CONFORME"
 Resultat = mesures_communes.Resultat
 _cites = mesures_communes.cites
 _de_type = mesures_communes.de_type
+
+
+def _fuseau(reg: dict[str, list[dict[str, Any]]]) -> Any:
+    """Le fuseau de l'entreprise déclaré par l'adaptateur (registre ``declarations``) : le jour d'un constat de M5 est
+    minuit LOCAL de ce fuseau."""
+    return synthese.fuseau_declare(reg.get("declarations", []))
+
+
 _empreinte_faits = mesures_communes.empreinte_faits
 _jour = mesures_communes.jour
 _manque = mesures_communes.manque
@@ -326,7 +334,7 @@ def _creances(reg: dict[str, list[dict[str, Any]]], tranche: str | None) -> Resu
     dernier = operations_recues.dernier_constat_comptable(reg["operations"])
     if dernier is None:
         return _non_calculable([_MANQUE_COMPTABLE])
-    instant = synthese.jour_en_instant(dernier.get("date_reference"))
+    instant = synthese.jour_en_instant(dernier.get("date_reference"), _fuseau(reg))
     creances = dernier.get("creances")
     total = nombres.decimal_lu(creances.get("total")) if isinstance(creances, dict) else None
     tranches = creances.get("par_tranche") if isinstance(creances, dict) else None
@@ -380,7 +388,7 @@ def _composante_du_cash_libre(reg: dict[str, list[dict[str, Any]]], composante_i
     constat = cash_libre.constat_courant(reg["cash_libre"])
     if constat is None:
         return _non_calculable([_manque("m5.cash_libre_constate", source, "aucun constat du cash libre reçu")])
-    instant = synthese.jour_en_instant(constat.get("date_reference"))
+    instant = synthese.jour_en_instant(constat.get("date_reference"), _fuseau(reg))
     composantes = [
         constat.get("solde"),
         *(constat.get("composantes") if isinstance(constat.get("composantes"), list) else []),
@@ -425,7 +433,7 @@ def _ecritures_en_attente(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     dernier = operations_recues.dernier_constat_comptable(reg["operations"])
     if dernier is None:
         return _non_calculable([_MANQUE_COMPTABLE])
-    instant = synthese.jour_en_instant(dernier.get("date_reference"))
+    instant = synthese.jour_en_instant(dernier.get("date_reference"), _fuseau(reg))
     nombre = dernier.get("brouillons_en_attente")
     if type(nombre) is not int or nombre < 0:
         return _non_calculable(

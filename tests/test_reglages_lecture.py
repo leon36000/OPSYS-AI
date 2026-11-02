@@ -222,8 +222,8 @@ def test_une_base_sans_le_registre_ne_sert_rien_et_ne_casse_pas_la_transaction(t
 def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_bloque(deps):
     with stockage.transaction():
         etat = lecture.etat_des_reglages(deps)
-    # 13 réglages vides (M2, M8, M5) + 2 de M6 (C3) dont la valeur est déjà écrite à department.yaml.
-    assert etat["total"] == 15 and etat["manquants"] == 13 and etat["chaine"]["valide"] is True
+    # 19 réglages vides (M2, M8 dont six seuils d'alerte, M5) + 2 de M6 (C3) déjà valorisés à department.yaml.
+    assert etat["total"] == 21 and etat["manquants"] == 19 and etat["chaine"]["valide"] is True
     par_cle = {r["cle"]: r for r in etat["reglages"]}
     relances = par_cle["m2.jours_entre_relances"]
     assert relances["statut"] == "vide" and relances["manque"] is True and relances["valeur"] is None
@@ -238,7 +238,10 @@ def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_b
         assert seuil["statut"] == "fichier" and seuil["manque"] is False and seuil["niveau"] == "N3"
         assert seuil["proposition"]["etiquette"] == "recommandation, non validée"
         assert seuil["proposition"]["valeur"] in ("0.3", "0.15")
-    assert all("INDÉTERMINÉ" in r["debloque"] for r in etat["reglages"] if r["departement"] == "m08-analytics")
+    assert all("INDÉTERMINÉ" in r["debloque"] for r in etat["reglages"] if r["cle"].startswith("m8.bornes_"))
+    # les six seuils d'alerte métier (C3) disent ce qu'ils débloquent : sans eux, la règle est non évaluée
+    seuils = [r for r in etat["reglages"] if r["cle"].startswith("m8.seuil_alerte_")]
+    assert len(seuils) == 6 and all("non évaluée" in r["debloque"] or "ALERTE-" in r["debloque"] for r in seuils)
     assert all(r["proposition"] is None for r in etat["reglages"] if r["departement"] == "m08-analytics")
 
 

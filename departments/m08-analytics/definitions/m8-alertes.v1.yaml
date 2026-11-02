@@ -1,0 +1,123 @@
+# ALERTES MÉTIER de M8 (M8.9, chantier C3) : des règles DÉCLARATIVES sur le catalogue fermé des mesures.
+#
+# M8 ne décide rien (c'est M9) et n'agit jamais lui-même sur un autre département : une alerte DIT ce qui est franchi
+# (la valeur courante et la référence qu'elle franchit), PROPOSE une action choisie dans un gabarit FERMÉ (`actions`
+# ci-dessous, aucune action n'est générée), NOMME le département propriétaire de la mesure (celui du catalogue, jamais
+# un autre) et liste les mesures à consulter. Jamais une « cause » : M8 ne sait pas pourquoi une valeur a changé, et la
+# garde statique du paquet interdit même la clé. Rien n'est poussé hors de l'application : l'alerte ouverte est lue dans
+# la section « À voir » du propriétaire et dans le briefing de M9 ; une poussée vers un téléphone ou un courriel est une
+# décision du propriétaire, en attente (ANALYSE-M8 §5, Q2).
+#
+# Trois genres de règles (ensemble fermé) :
+#   seuil       une mesure franchit un SEUIL QUE LA DIRECTION DÉCLARE (écran « Réglages de direction », réglage `reglage` :
+#               `configuration.alertes.seuils.<reglage>`). Aucun seuil n'est inventé ici : sans seuil déclaré, la règle est
+#               « non évaluée » et le dit (jamais une alerte sur un seuil deviné). `sens` : au_dessus = la valeur ATTEINT ou
+#               dépasse le seuil ; au_dessous = elle l'atteint ou passe sous. Une valeur périmée, de fraîcheur inconnue,
+#               non calculable ou bloquée par le contrôle de qualité n'alerte JAMAIS sur sa valeur ;
+#   peremption  une mesure DÉJÀ calculée est devenue périmée (fenêtre du catalogue, aucun seuil : la direction n'a rien à
+#               décider). Seules les mesures qu'un CONSTAT planifié rafraîchit sont visées : une mesure datée par la dernière
+#               facture émise (factures émises, facturation) vieillit sans panne dès qu'un jour passe sans facture ;
+#   qualite     le contrôle de qualité des données a bloqué une mesure (`definitions/m8-qualite.v1.yaml`).
+#
+# Un épisode = de l'ouverture (premier franchissement) à la résolution (retour dans la cible, constaté sur une valeur à
+# jour). UNE seule alerte par épisode : une valeur qui reste franchie ne rouvre rien, un accusé de réception ne la ferme
+# pas, un report la cache jusqu'à l'instant choisi, puis elle redevient visible. Le registre du cycle de vie est append-only.
+schema: opsys.m8.alertes_metier/v1
+version: 1
+actions:
+  examiner_tresorerie: >-
+    Revoir avec {departement} les encaissements attendus et les paiements à venir derrière « {mesure} », puis soumettre
+    la situation à M9 pour décision. M8 n'exécute aucune action. À valider auprès d'un comptable (CPA) / professionnel
+    qualifié.
+  relancer_creances: >-
+    Faire examiner par {departement} les factures ouvertes de 90 jours et plus (« {mesure} ») et préparer leurs relances ;
+    aucune relance ne part sans approbation. À valider auprès d'un comptable (CPA) / professionnel qualifié.
+  examiner_conversion: >-
+    Faire revoir par {departement} les soumissions envoyées et leur suivi (« {mesure} »), puis soumettre la situation à M9
+    pour interprétation.
+  relancer_soumissions: >-
+    Faire préparer par {departement} la relance des soumissions restées sans réponse (« {mesure} ») ; aucune relance ne part
+    sans approbation.
+  commander_materiel: >-
+    Faire examiner par {departement} les articles en rupture (« {mesure} ») contre les chantiers à venir, et préparer les
+    demandes de commande ; aucune commande ne part sans approbation.
+  alimenter_pipeline: >-
+    Faire examiner par {departement} le niveau du pipeline de leads (« {mesure} ») et les sources de leads, puis soumettre
+    la situation à M9 pour interprétation.
+  relancer_collecte: >-
+    Lire l'état de la collecte (m8_lire_etat_collecte) et faire republier par {departement} le constat qui nourrit
+    « {mesure} » ; la mesure se remet à jour d'elle-même.
+  corriger_donnee: >-
+    Lire le rapport de qualité (m8_lire_rapport_qualite), corriger à la source, dans {departement}, la donnée qui bloque
+    « {mesure} », puis lui faire republier son constat ; la mesure se rétablit d'elle-même.
+regles:
+  - id: ALERTE-TRESORERIE-SOUS-SEUIL
+    genre: seuil
+    mesure: m8_cash_libre_cad
+    sens: au_dessous
+    reglage: tresorerie_sous_seuil
+    gravite: critique
+    action: examiner_tresorerie
+    mesures_liees: [m8_solde_tresorerie_cad, m8_comptes_a_payer_cad, m8_taxes_a_remettre_cad, m8_creances_ouvertes_cad]
+    libelle: "Le cash libre atteint ou passe sous le seuil que la direction a déclaré."
+  - id: ALERTE-CREANCES-90-JOURS
+    genre: seuil
+    mesure: m8_creances_90_jours_plus_cad
+    sens: au_dessus
+    reglage: creances_90_jours
+    gravite: attention
+    action: relancer_creances
+    mesures_liees: [m8_creances_ouvertes_cad, m8_cash_libre_cad]
+    libelle: "Les créances de 90 jours et plus atteignent ou dépassent le seuil que la direction a déclaré (factures en retard)."
+  - id: ALERTE-CONVERSION-SOUS-SEUIL
+    genre: seuil
+    mesure: m8_taux_acceptation_pct
+    sens: au_dessous
+    reglage: taux_acceptation
+    gravite: attention
+    action: examiner_conversion
+    mesures_liees: [m8_devis_envoyes, m8_devis_acceptes, m8_devis_sans_reponse]
+    libelle: "Le taux d'acceptation des soumissions atteint ou passe sous le seuil que la direction a déclaré."
+  - id: ALERTE-DEVIS-SANS-REPONSE
+    genre: seuil
+    mesure: m8_devis_sans_reponse
+    sens: au_dessus
+    reglage: devis_sans_reponse
+    gravite: attention
+    action: relancer_soumissions
+    mesures_liees: [m8_devis_envoyes, m8_taux_acceptation_pct]
+    libelle: "Le nombre de soumissions sans réponse atteint ou dépasse le seuil que la direction a déclaré."
+  - id: ALERTE-RUPTURE-MATERIEL
+    genre: seuil
+    mesure: m8_articles_en_rupture
+    sens: au_dessus
+    reglage: articles_en_rupture
+    gravite: attention
+    action: commander_materiel
+    mesures_liees: [m8_articles_sur_reserves, m8_reservations_incompletes]
+    libelle: "Le nombre d'articles en rupture atteint ou dépasse le seuil que la direction a déclaré."
+  - id: ALERTE-PIPELINE-BAS
+    genre: seuil
+    mesure: m8_pipeline_leads_ouverts
+    sens: au_dessous
+    reglage: pipeline_leads_ouverts
+    gravite: attention
+    action: alimenter_pipeline
+    mesures_liees: [m8_leads_recus, m8_leads_qualifies, m8_taux_conversion_resolus_pct]
+    libelle: "Le nombre de leads ouverts atteint ou passe sous le seuil que la direction a déclaré (niveau du pipeline, non une variation)."
+  - id: ALERTE-DONNEE-PERIMEE
+    genre: peremption
+    mesures:
+      - m8_cash_libre_cad
+      - m8_creances_ouvertes_cad
+      - m8_pipeline_leads_ouverts
+      - m8_articles_en_rupture
+      - m8_plaintes_periode
+    gravite: attention
+    action: relancer_collecte
+    libelle: "Une mesure déjà calculée est devenue périmée : sa dernière valeur connue ne doit plus guider une décision."
+  - id: ALERTE-QUALITE-ECHEC
+    genre: qualite
+    gravite: attention
+    action: corriger_donnee
+    libelle: "Le contrôle de qualité des données a bloqué une mesure : aucune valeur n'est montrée tant que la source n'est pas corrigée."

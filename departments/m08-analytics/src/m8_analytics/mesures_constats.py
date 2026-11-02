@@ -74,13 +74,15 @@ def _decimal(valeur: Any) -> Decimal | None:
     return nombres.decimal_lu(valeur)
 
 
-def _jour_instant(texte: Any) -> str | None:
-    return synthese.jour_en_instant(texte)
+def _jour_instant(texte: Any, reg: dict[str, list[dict[str, Any]]]) -> str | None:
+    """Minuit LOCAL du jour (AAAA-MM-JJ) dans le fuseau que l'adaptateur a déclaré pour l'entreprise (celui du
+    planificateur qui a donné « aujourd'hui » à M5) : ``synthese.jour_en_instant``."""
+    return synthese.jour_en_instant(texte, synthese.fuseau_declare(reg.get("declarations", [])))
 
 
-def _dernier_jour_emis(factures: list[dict[str, Any]]) -> str | None:
-    """L'instant (début du jour d'émission, le plus ancien possible) de la facture émise le plus récemment."""
-    jours = [_jour_instant(f.get("emise_le")) for f in factures]
+def _dernier_jour_emis(factures: list[dict[str, Any]], reg: dict[str, list[dict[str, Any]]]) -> str | None:
+    """L'instant (minuit local du jour d'émission, le plus ancien possible) de la facture émise le plus récemment."""
+    jours = [_jour_instant(f.get("emise_le"), reg) for f in factures]
     return plus_recent([j for j in jours if j is not None])
 
 
@@ -124,7 +126,7 @@ def _depense_comptabilisee_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat
     dernier = _dernier_constat_depense(reg["operations"])
     if dernier is None:
         return non_calculable([_MANQUE_DEPENSE_COMPTABILISEE])
-    instant = _jour_instant(dernier.get("date_reference"))
+    instant = _jour_instant(dernier.get("date_reference"), reg)
     montant = _decimal(dernier.get("comptabilise_cad"))
     brouillons_cad = _decimal(dernier.get("brouillons_en_attente_cad"))
     entrees = {
@@ -215,7 +217,7 @@ def _ecart_depense_pub_comptabilisee_cad(reg: dict[str, list[dict[str, Any]]]) -
         return non_calculable(
             [manque("periode", _SOURCE_M5_DEPENSE, "constat illisible : période ou montant comptabilisé absents")],
             entrees_constat,
-            _jour_instant(dernier.get("date_reference")),
+            _jour_instant(dernier.get("date_reference"), reg),
         )
     comparables: list[dict[str, Any]] = []
     a_cheval: list[str] = []
@@ -245,7 +247,7 @@ def _ecart_depense_pub_comptabilisee_cad(reg: dict[str, list[dict[str, Any]]]) -
                 )
             ],
             entrees_constat,
-            _jour_instant(dernier.get("date_reference")),
+            _jour_instant(dernier.get("date_reference"), reg),
         )
     if not comparables:
         return non_calculable(
@@ -260,7 +262,7 @@ def _ecart_depense_pub_comptabilisee_cad(reg: dict[str, list[dict[str, Any]]]) -
                 )
             ],
             entrees_constat,
-            _jour_instant(dernier.get("date_reference")),
+            _jour_instant(dernier.get("date_reference"), reg),
         )
     somme = sum((Decimal(str(_decimal(r.get("montant_cad")))) for r in comparables), Decimal(0))
     ecart = somme - comptabilise
@@ -300,7 +302,7 @@ def _ecart_depense_pub_comptabilisee_cad(reg: dict[str, list[dict[str, Any]]]) -
     canaux = {str(r.get("canal")) for r in comparables}
     fenetre, _ = fenetre_source_s(canaux, de_type(operations, operations_recues.TYPE_SIGNAUX))
     instant = _plus_ancien(
-        [_jour_instant(dernier.get("date_reference")), plus_recent([r.get("releve_le") for r in comparables])]
+        [_jour_instant(dernier.get("date_reference"), reg), plus_recent([r.get("releve_le") for r in comparables])]
     )
     return nombres.texte_decimal(ecart), entrees, [], instant, couverture, fenetre
 
@@ -332,6 +334,10 @@ def _factures_courantes(operations: list[dict[str, Any]]) -> list[dict[str, Any]
     return [fait for _, fait in meilleures.values()]
 
 
+# La même lecture de l'état courant de chaque facture, offerte au contrôle de qualité (`qualite_mesures`).
+factures_courantes = _factures_courantes
+
+
 def _factures_emises(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     courantes = _factures_courantes(reg["operations"])
     if not courantes:
@@ -342,7 +348,7 @@ def _factures_emises(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
         "n_annulees_apres_envoi": len(courantes) - len(actives),
         "empreinte_faits": empreinte_faits(courantes),
     }
-    instant = _dernier_jour_emis(courantes)
+    instant = _dernier_jour_emis(courantes, reg)
     return str(len(actives)), entrees, [], instant, None, None
 
 
@@ -354,7 +360,7 @@ def _facturation_emise_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     avant = [_decimal(f.get("montant_avant_taxes_cad")) for f in actives]
     apres = [_decimal(f.get("montant_apres_taxes_cad")) for f in actives]
     taxes = [_decimal(f.get("total_taxes_cad")) for f in actives]
-    instant = _dernier_jour_emis(courantes)
+    instant = _dernier_jour_emis(courantes, reg)
     if not actives:
         return non_calculable(
             [
@@ -1001,7 +1007,7 @@ def _plaintes_periode(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     derniere_date = max(f["date_reference"] for f in constats)
     constat = dernier_par_publication([f for f in constats if f["date_reference"] == derniere_date])
     assert constat is not None
-    instant = _jour_instant(constat.get("date_reference"))
+    instant = _jour_instant(constat.get("date_reference"), reg)
     entrees = {
         "date_reference": constat.get("date_reference"),
         "jours": constat.get("jours"),

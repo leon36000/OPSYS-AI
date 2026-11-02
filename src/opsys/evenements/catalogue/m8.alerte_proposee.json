@@ -16,8 +16,8 @@
     },
     "type_alerte": {
       "type": "string",
-      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-INVALIDE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE", "MESURE-SEUIL-FRANCHI", "MESURE-SEUIL-A-CONFIGURER"],
-      "description": "Verdict m8_analytics.qualite.py à l'origine de l'alerte (VERDICT_DONNEE_ABSENTE, VERDICT_DONNEE_PERIMEE, VERDICT_HORS_PLAGE) — les trois premiers sont les seuls que m8_analytics.alertes.proposer_action sait transformer en action proposée ; les deux derniers (T1.5-d) viennent de m8_analytics.mesures_chantier.charges_alertes."
+      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-INVALIDE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE", "MESURE-SEUIL-FRANCHI", "MESURE-SEUIL-A-CONFIGURER", "METIER-SEUIL-FRANCHI", "METIER-DONNEE-PERIMEE", "METIER-QUALITE-ECHEC"],
+      "description": "Verdict m8_analytics.qualite.py à l'origine de l'alerte (VERDICT_DONNEE_ABSENTE, VERDICT_DONNEE_PERIMEE, VERDICT_HORS_PLAGE) — les trois premiers sont les seuls que m8_analytics.alertes.proposer_action sait transformer en action proposée ; les deux suivants (T1.5-d) viennent de m8_analytics.mesures_chantier.charges_alertes ; les trois METIER-* (C3, extension additive) viennent des règles d'alerte métier de m8_analytics.alertes_metier (définitions/m8-alertes.v1.yaml) : METIER-SEUIL-FRANCHI (une mesure franchit un seuil que la direction a déclaré), METIER-DONNEE-PERIMEE (une mesure déjà calculée est périmée), METIER-QUALITE-ECHEC (le contrôle de qualité a bloqué une mesure)."
     },
     "quoi": {
       "type": "string",
@@ -93,6 +93,22 @@
         {
           "type": "object",
           "additionalProperties": false,
+          "required": ["regle", "metric_id", "episode", "courant", "unite", "sens", "seuil", "departement"],
+          "description": "METIER-* (C3) : l'épisode d'une alerte métier. courant et seuil sont des textes décimaux (null pour une péremption ou un échec de qualité : aucune valeur n'est donnée), sens vaut au_dessus ou au_dessous (null hors seuil), departement est le propriétaire de la mesure au catalogue. Jamais une cause.",
+          "properties": {
+            "regle": {"type": "string", "pattern": "^ALERTE-[A-Z0-9]+(-[A-Z0-9]+){1,8}$"},
+            "metric_id": {"type": "string"},
+            "episode": {"type": "integer", "minimum": 1, "description": "Rang de l'épisode pour cette règle et cette mesure : une seule ouverture par épisode."},
+            "courant": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$"},
+            "unite": {"type": "string"},
+            "sens": {"type": ["string", "null"], "enum": ["au_dessus", "au_dessous", null]},
+            "seuil": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$"},
+            "departement": {"type": "string", "pattern": "^m[0-9]{2}-[a-z0-9-]{1,40}$"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
           "required": ["metric_id", "manque"],
           "description": "MESURE-SEUIL-A-CONFIGURER (T1.5-d) : ce qui manque pour qu'une alerte soit possible.",
           "properties": {
@@ -104,7 +120,23 @@
     },
     "action_proposee": {
       "type": "string",
-      "description": "OPTIONNEL (T1.5-d) — l'action que M8 propose (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »), un texte de gabarit sans cause ni responsable. M8 ne l'exécute jamais et M9 la relaie sans la décider. Présente pour MESURE-SEUIL-FRANCHI et MESURE-SEUIL-A-CONFIGURER."
+      "description": "OPTIONNEL (T1.5-d) — l'action que M8 propose (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »), un texte de gabarit sans cause ni responsable. M8 ne l'exécute jamais et M9 la relaie sans la décider. Présente pour MESURE-SEUIL-FRANCHI, MESURE-SEUIL-A-CONFIGURER et les trois METIER-* (gabarit fermé du fichier de règles, avec le département propriétaire nommé ; rien n'est exécuté ni poussé hors de l'application)."
+    },
+    "gravite": {
+      "type": "string",
+      "enum": ["attention", "critique"],
+      "description": "OPTIONNEL (C3, METIER-*) : la gravité déclarée par la règle d'alerte. Un niveau, jamais une décision."
+    },
+    "alerte_id": {
+      "type": "string",
+      "pattern": "^ALERTE-[A-Z0-9]+(-[A-Z0-9]+){1,8}:m8_[a-z0-9_]{1,76}:[1-9][0-9]{0,5}$",
+      "description": "OPTIONNEL (C3, METIER-*) : l'identité de l'épisode au registre append-only de M8 (règle, mesure, rang) ; le cycle de vie (accusé, report, résolution) y est tenu, il ne repasse pas par le bus."
+    },
+    "mesures_liees": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {"type": "string", "pattern": "^m8_[a-z0-9_]{1,76}$"},
+      "description": "OPTIONNEL (C3, METIER-*) : les mesures du catalogue à consulter pour situer l'alerte."
     },
     "source": {
       "type": "string",

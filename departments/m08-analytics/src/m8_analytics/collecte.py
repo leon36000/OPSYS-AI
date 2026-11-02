@@ -54,6 +54,7 @@ _ETATS = (
     "source_perimee",
     "fraicheur_inconnue",
     "sans_constat_planifie",
+    "qualite_en_echec",
 )
 _STATUTS_ECHEC = frozenset({"erreur", "refus", "plafond", "attente_transport"})
 _CALCULEE = "calculee"
@@ -179,6 +180,17 @@ def _diagnostic_mesure(
         "action": None,
     }
     if mesure["statut"] == _CALCULEE and fraicheur in _FRAICHEUR_A_JOUR:
+        return ligne
+    if (mesure.get("qualite") or {}).get("statut") == "echec":
+        # Un contrôle de qualité a échoué : le constat peut passer sans erreur et la mesure rester bloquée. Ce n'est
+        # ni un manque ni un retard de collecte, et le planificateur n'y peut rien : c'est la donnée de la source qui
+        # est fausse.
+        ligne.update(
+            etat_collecte="qualite_en_echec",
+            phrase="Un contrôle de qualité des données a échoué : la mesure est bloquée, aucune valeur n'est montrée.",
+            action="Lire le rapport de qualité (m8_lire_rapport_qualite), corriger la donnée à la source dans le "
+            "département propriétaire, puis lui faire republier son constat : la mesure se rétablit d'elle-même.",
+        )
         return ligne
     if constats:
         # Plusieurs constats peuvent nourrir une mesure : on retient la cause du plus en retard (le premier qui n'est

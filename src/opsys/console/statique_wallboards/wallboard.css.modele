@@ -36,6 +36,14 @@ a { color: inherit; }
   text-decoration-thickness: 3px; }
 .tuile.fraicheur-perime .etat, .tuile.fraicheur-inconnu .etat, .tuile.fraicheur-manquant .etat, .tuile.deconnecte .etat {
   background: var(--perime-fg); color: var(--perime-bg); }
+.tuile .pastille-ligne { margin: .25rem 0 0; }
+.pastille { display: inline-block; padding: .1rem .5rem; border-radius: 999px; border: 2px solid var(--bordure); font-size: .85rem;
+  font-weight: 700; letter-spacing: .02em; }
+.pastille-FRESH { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-bg); }
+.pastille-PARTIAL, .pastille-GATED { background: var(--attention-bg); color: var(--attention-fg); border-color: var(--attention-fg); }
+.pastille-STALE, .pastille-MISSING { background: var(--perime-fg); color: var(--perime-bg); border-color: var(--perime-fg); }
+.pastille-QUALITY_FAIL { background: var(--critique-bg); color: var(--critique-fg); border: 3px double var(--critique-fg); }
+.tuile.qualite-echec { border-style: double; border-width: 6px; border-color: var(--critique-bg); }
 .tv .wb h1 { font-size: 3rem; }
 .tv .tuile .valeur { font-size: 4.2rem; }
 .tv .tuile h2 { font-size: 1.5rem; }

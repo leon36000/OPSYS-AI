@@ -241,7 +241,7 @@ l'affaire du déploiement ; l'adresse du client n'est pas journalisée (Loi 25, 
 ## 7. M8.18 Intégration mémoire (`memoire.py`, `m10_memoire/analytique.py`)
 
 * **Publier vers M10** : `m8_publier_faits_consolides` (N2) publie UN événement `m8.fait_consolide` (catalogue du socle, schéma fermé) : les 56 mesures (valeur ou null,
-  unité, propriétaire, version de définition, dernier fait, fraîcheur), les **changements de définition** et les **anomalies** (`devenue_non_calculable`, `perimee`)
+  unité, propriétaire, version de définition, dernier fait, fraîcheur), les **changements de définition** et les **anomalies** (`devenue_non_calculable`, `perimee` et, depuis le chantier C4, `echec_qualite` : la mesure est bloquée par le contrôle de qualité)
   depuis la consolidation précédente, avec l'empreinte des registres. Identifiant lié à l'état des registres et au catalogue : republier le même état rejoue la
   première enveloppe. **Aucune personne** (le catalogue du socle refuse un champ de plus).
 * **M10 mémorise** (`analytique.py`, consommateur `m8.fait_consolide`) dans son registre `faits_analytiques` (append-only, chaîné), par liste blanche et formes fermées ;

@@ -363,6 +363,143 @@ panne puis reprise, activation échue, coupe-circuit, lecture seule, aucune vale
 la cause d'une mesure nourrie par plusieurs constats est celle du premier non sain ; la page ne propose aucun bouton (l'activation
 reste à la page Connecteurs) ; aucun parcours navigateur réel.
 
+## 9 ter. La qualité des données branchée : `QUALITY_FAIL` et pastilles (chantier C4)
+
+**Le défaut.** La qualité n'était pas branchée sur le catalogue : un revenu négatif, un total qui n'est pas la somme de ses tranches, des
+clics plus nombreux que les impressions traversaient M8 (la tuile les montrait, le copilote les citait, le score les notait). Seul le
+constat des créances avait sa garde locale (« non calculable » parmi d'autres).
+
+**Le correctif.** `definitions/m8-qualite.v1.yaml` (fichier validé en entier, refusé au moindre écart : clé inconnue, mesure hors catalogue,
+doublon, borne illisible, vérification inconnue) déclare des règles d'un ensemble FERMÉ, évaluées de façon DÉTERMINISTE, sans horloge, par
+`qualite_mesures.py` dans `moteur_mesures.lire` :
+
+| Genre | Ce qui doit être vrai | Exemples livrés |
+|---|---|---|
+| `plage` | une mesure reste dans [min, max] (au moins une borne, texte décimal) | comptes, durées, charge ≥ 0 ; revenu facturé, carnet, créances, valeur du pipeline ≥ 0 ; taux d'acceptation et de conversion entre 0 et 100 |
+| `relation` | `gauche` ≤ `droite`, les deux calculées (l'échec bloque les deux : on ignore laquelle est fausse) | créances 90 jours et plus ≤ total ; clics ≤ impressions ; réceptions avec écart ≤ réceptions ; chantiers en perte ≤ chantiers à marge connue ; signaux de matériaux ≤ chantiers terminés ; demandes sans lead ≤ demandes qualifiées ; leads publicitaires ≤ leads |
+| `controle` | une cohérence d'un FAIT source (ensemble fermé de vérifications du code) | total des créances = somme de ses tranches (aucune négative) ; facture : montants lisibles, ni négatifs, total = avant taxes + taxes ; cash libre : montant lisible, `en_deficit` = signe du montant, comptes à payer ≥ 0 |
+
+**Aucune règle n'est un seuil d'affaires** (un cash libre bas est une ALERTE, §9 quater) : seulement des invariants qu'aucune entreprise ne
+viole sans qu'une donnée soit fausse. Un déficit réel et cohérent n'est donc PAS une erreur de qualité (testé). Une mesure qu'aucune règle
+ne couvre est « non évaluée » (jamais un « ok » par défaut).
+
+**Un échec BLOQUE** les mesures que la règle nomme : `statut` = `non_calculable`, `valeur` et `entrees` vides (la valeur douteuse n'est
+conservée nulle part), `manque` = `[{champ: qualite, raison: "contrôle de qualité en échec : …"}]`, `qualite` = `{statut: echec, echecs: [règle,
+ce qu'elle vérifie, nombre de faits, références (identifiant de facture, jour du constat)]}`. Aucun chiffre tiré d'une donnée n'est repris.
+Le blocage est une fonction des faits : une fois le constat corrigé et republié, la mesure se rétablit d'elle-même.
+
+| Surface | Ce que fait un échec de qualité |
+|---|---|
+| Tuile et bannière du wallboard | pastille `QUALITY_FAIL` dite en toutes lettres (« Qualité en échec (QUALITY_FAIL) »), libellé « QUALITÉ EN ÉCHEC », classe et motif distincts, aucune valeur ; la bannière passe au moins à « attention » et le dit (pas comptée comme une donnée manquante) |
+| Copilote | REFUS typé `REJ-COPILOTE-QUALITE-ECHEC` avec explication, `chiffres` vide, reçu authentique ; question mixte : les mesures saines sont données, la bloquée est dite « BLOQUÉE » ; fraîcheur et tendance ne citent rien |
+| Score de santé | l'indicateur n'est pas noté, la composante est indéterminée avec la raison `qualite_echec` (distincte de « mesure non calculable ») ; le score global l'est aussi |
+| Collecte (`m8_lire_etat_collecte`) | état `qualite_en_echec` (ni un manque ni un retard de collecte) avec l'action |
+| Mémoire | anomalie `echec_qualite` dans `m8.fait_consolide` (additif : schéma + M10 + validateur de M9), répétée à chaque consolidation tant qu'elle dure ; M10 la mémorise sans valeur |
+| Entrepôt, pont BI | la ligne est `non_calculable` avec le détail ; aucune valeur douteuse n'est exportée |
+
+**Pastilles** (`pastilles.py`, DÉRIVÉES, aucune table) : `QUALITY_FAIL` > `GATED` (non calculable ET un geste humain la retient : constat jamais
+activé, en ombre, expiré, planificateur coupé ; seulement quand l'état de collecte a pu être lu) > `MISSING` (non calculable autrement) >
+`STALE` (périmée ou fraîcheur inconnue) > `PARTIAL` (couverture partielle) > `FRESH`. **Pas de `LIVE`** (aucune source n'est temps réel : le
+rafraîchissement du wallboard relit des faits), **pas d'`ESTIMATED`** (M8 ne produit aucune estimation). Une donnée vieille n'est jamais
+`QUALITY_FAIL` : c'est une autre dimension (`STALE`).
+
+`m8_lire_rapport_qualite` (T0/N0, aucun droit d'appareil, admin relu en base) : par département source, les règles en échec, ce qu'elles
+vérifient, le geste de correction (gabarit du fichier de règles), pages bornées, aucune valeur de mesure.
+
+**Prouvé** : `departments/m08-analytics/tests/test_qualite_mesures.py` (règles, refus d'un fichier abusif, chaque genre en échec et en
+succès, forme du blocage, rétablissement, pastilles et leur ordre, tuile, bannière, copilote, score, collecte, mémoire, rapport) et
+`tests/test_m8_qualite_planifiee.py` (vrai bus, vrai planificateur à horloge injectée, vrais outils : un relevé de moteur de recherche dont les
+clics dépassent les impressions bloque la mesure, la tuile de la vraie console, le copilote, le rapport et la mémoire de M10, puis tout se
+rétablit à la correction ; un constat de cash libre incohérent bloque les quatre mesures et rend la composante « finance » indéterminée).
+
+**Limites (sans euphémisme)** :
+- Les contrôles sont ceux que les FAITS REÇUS permettent. Unicité, intégrité référentielle, « une soumission a un client », « un chantier a une
+  adresse », « une fin a un horodatage » ne sont pas évaluables : M8 ne reçoit pas ces champs (ils restent chez les départements sources).
+- Une valeur plausible mais fausse passe : le bus n'authentifie pas le producteur d'un événement (limite du socle), et aucune règle de M8 ne sait
+  qu'un montant cohérent est inexact.
+- Pour une règle `relation`, M8 ne sait pas laquelle des deux mesures est fausse : les deux sont bloquées.
+- Aucun historique daté des échecs : le rapport est une fonction des faits d'aujourd'hui ; la trace durable est l'anomalie `echec_qualite` des
+  consolidations (M10).
+- `GATED` se dérive de l'état du planificateur : hors transaction d'outil ou sans les tables du planificateur, la pastille est `MISSING`.
+- Prouvé sur SQLite, données fictives, horloge injectée ; PostgreSQL non rejoué pour ce chantier ; aucun parcours navigateur réel de la
+  pastille (le script est exercé sous Node avec un faux DOM ; le rendu serveur est testé dans la vraie console).
+
+## 9 quater. Les alertes métier : règles déclaratives, cycle de vie, action proposée (chantier C3)
+
+**Le défaut.** M8 n'avait aucune alerte métier (trésorerie, baisse de leads, rupture, facture en retard), aucun cycle de vie (accusé, report,
+résolution), aucune poussée vers un humain ; seules existaient les alertes de qualité d'une métrique d'agent et deux seuils de chantier.
+
+**Le correctif.** `definitions/m8-alertes.v1.yaml` (validé en entier, mêmes refus que les règles de qualité, plus : gabarit d'action
+inconnu, champ de gabarit inconnu, deux règles pour la même mesure ou le même seuil) déclare huit règles sur le catalogue fermé :
+
+| Règle | Genre | Mesure | Sens | Gravité |
+|---|---|---|---|---|
+| `ALERTE-TRESORERIE-SOUS-SEUIL` | seuil | cash libre | atteint ou passe sous | critique |
+| `ALERTE-CREANCES-90-JOURS` (facture en retard) | seuil | créances de 90 jours et plus | atteint ou dépasse | attention |
+| `ALERTE-CONVERSION-SOUS-SEUIL` | seuil | taux d'acceptation | atteint ou passe sous | attention |
+| `ALERTE-DEVIS-SANS-REPONSE` | seuil | soumissions sans réponse | atteint ou dépasse | attention |
+| `ALERTE-RUPTURE-MATERIEL` | seuil | articles en rupture | atteint ou dépasse | attention |
+| `ALERTE-PIPELINE-BAS` | seuil | leads ouverts (un NIVEAU, pas une variation) | atteint ou passe sous | attention |
+| `ALERTE-DONNEE-PERIMEE` | péremption | cash libre, créances, leads ouverts, ruptures, plaintes (mesures rafraîchies par un constat) | périmée alors qu'elle était calculée | attention |
+| `ALERTE-QUALITE-ECHEC` | qualité | toute mesure | bloquée par le contrôle de qualité | attention |
+
+**Les seuils sont ceux de la direction, jamais ceux de M8** : six réglages de direction (`m8.seuil_alerte_*`, type décimal, N3, aucune
+proposition, `configuration.alertes.seuils.<nom>`), adoptés depuis la console (retour arrière possible) ; vides à la livraison. Sans seuil, ou avec
+un seuil illisible, la règle est **« non évaluée »** et `m8_lire_alertes_metier` le dit (`a_configurer` / `invalide`), jamais une alerte sur un
+seuil deviné. La borne franchit (au_dessous : ≤ ; au_dessus : ≥). Une valeur périmée, de fraîcheur inconnue, non calculable ou bloquée par la
+qualité n'alerte JAMAIS sur sa valeur et ne résout rien.
+
+**Une alerte** dit la valeur courante et la référence franchie, propose une **action d'un gabarit fermé** (huit, dans le fichier ; la finance
+porte « À valider auprès d'un comptable (CPA) / professionnel qualifié »), **nomme le département propriétaire** de la mesure au catalogue (dérivé,
+jamais déclaré à part) et liste les mesures à consulter. **Jamais de cause** (la garde AST du paquet interdit la clé ; un test vérifie aussi les
+objets produits).
+
+**Cycle de vie** (registre append-only `alertes_metier`, chaîné) : `alerte_ouverte` (UNE par épisode, id `règle:mesure:rang`), `alerte_accusee`
+(« vu » : sort de « À voir », l'épisode reste ouvert ; un double accusé n'écrit rien), `alerte_reportee` (cachée jusqu'à un instant futur, au plus 30
+jours ; un report échu redonne l'alerte SANS rien écrire), `alerte_resolue` (retour dans la cible constaté sur une valeur à jour). Un report lève un accusé
+et un accusé lève un report. Une rechute ouvre l'épisode SUIVANT. Borne : 30 ouvertures par 24 h (le surplus est compté et reviendra).
+
+**Évaluation et proposition.** Quatrième étape du tour planifié `m8.entrepot` (`m8_evaluer_alertes_metier`, N2, agent seulement ; en ombre il dit
+« aurait » et n'écrit rien). Chaque ouverture publie UNE FOIS `m8.alerte_proposee` (extension ADDITIVE : types `METIER-SEUIL-FRANCHI`,
+`METIER-DONNEE-PERIMEE`, `METIER-QUALITE-ECHEC`, une forme de preuve, champs facultatifs `gravite`, `alerte_id`, `mesures_liees` ; identifiant
+déterministe) que M9 reçoit (briefing). `attentes()` de M8 met les alertes OUVERTES dans « À voir » du propriétaire (niveau N3 si critique, N2 sinon ;
+aucun montant dans le résumé). **Rien n'est poussé hors de l'application** (ni téléphone, ni courriel) : c'est une décision du propriétaire, en attente.
+
+**Prouvé** : `departments/m08-analytics/tests/test_alertes_metier.py` (pur) et `tests/test_m8_alertes_metier_planifiees.py` (vrai planificateur à horloge
+injectée, vrai bus, vrai sas N3 pour adopter le seuil, vraie section « À voir » du socle) : sans seuil rien ne s'ouvre ; trésorerie sous le seuil
+déclaré → une alerte avec action et propriétaire, reçue par M9, visible dans « À voir » ; dix passages de plus n'ouvrent rien ; accusé, double accusé,
+report, échéance, résolution, rechute (épisode 2) ; valeur périmée ; retour arrière du seuil ; ombre ; aucun envoi ni donnée personnelle.
+
+**Limites (sans euphémisme)** :
+- **« Baisse de leads » n'est pas couverte comme variation** : les comptes de leads sont cumulatifs et M8 n'a pas d'historique de période ; seule la règle
+  `ALERTE-PIPELINE-BAS` (niveau de leads ouverts) existe. Une variation demandera les tendances déterministes (autre chantier).
+- Aucun écran pour accuser ou reporter : les gestes passent par les outils N2 d'un AGENT (`par` = « agent », pas une identité de personne) ;
+  les écrans mobiles sont un autre chantier (aucun droit d'appareil n'est ajouté). La résolution est automatique seulement (aucune résolution
+  manuelle : elle se rouvrirait à l'évaluation suivante tant que la valeur reste franchie).
+- Pas d'hystérésis : une valeur qui oscille autour du seuil ouvre des épisodes successifs (bornés à 30 par 24 h).
+- Le seuil retiré (retour arrière) rend la règle non évaluée sans fermer l'épisode en cours.
+- Aucune poussée externe, aucune escalade, aucun canal : « À voir » et le briefing de M9 seulement. Les seuils critiques et le canal de poussée sont une
+  décision du propriétaire (ANALYSE-M8 §5, Q2) ; aucune valeur n'est proposée.
+- Cadence : celle du tour `m8.entrepot` (3 600 s par défaut) et seulement une fois qu'un admin l'a activé (inactif par défaut).
+- Prouvé sur SQLite, données fictives, horloge injectée ; PostgreSQL non rejoué pour ce chantier.
+
+### Mutations de D0, C4 et C3 (64, une à une, dans un clone)
+
+Chaque mutation est appliquée seule dans un CLONE du dépôt, les tests ciblés (pur + bout en bout) sont rejoués, le fichier est restauré et
+son empreinte comparée à l'original (restaurations vérifiées). Résultat : **63 tuées, 1 survivante équivalente**. Une première passe avait laissé passer une vraie
+mutation (les types d'alerte `METIER-DONNEE-PERIMEE` et `METIER-QUALITE-ECHEC` permutés ; une autre mutation était inapplicable, son texte
+ayant été reformaté) : un test (`test_chaque_genre_de_regle_ouvre_son_propre_type_d_alerte_et_le_bon_departement`) tue la première et la seconde
+est rejouée. Les mutations « mauvaise dimension » comptent :
+
+| Famille | Exemples tués |
+|---|---|
+| D0, jour local (11) | jour dans le fuseau UTC au lieu du fuseau local ; décalage fixe de cinq heures sans heure d'été ; fuseau déclaré ignoré (synthèse, interdépartements, constats : trois chemins distincts) ; fuseau illisible replié sur l'UTC ; adaptateur qui déclare l'UTC ; défaut du planificateur en UTC ; fin de journée au lieu du début ; fenêtre doublée |
+| C4, qualité et pastilles (25) | `QUALITY_FAIL` traité comme `STALE` ou comme `MISSING` ; `GATED` confondu avec `MISSING`, tout non calculable devenu `GATED`, `jamais_recue` comptée comme geste humain ; l'échec ne bloque plus la valeur ; relation à l'envers ; bornes de plage exclusives ; déficit incohérent, total des créances, total de facture, montant négatif non contrôlés ; règle en double acceptée ; copilote qui ne refuse plus ou cite la valeur ; score qui note une donnée bloquée ; tuile et bannière sans l'échec ; mémoire sans l'anomalie ou qui la double ; M10 qui refuse le nouveau type ; qualité appliquée hors du moteur ; collecte qui ne nomme plus l'échec |
+| C3, alertes (28) | frontière stricte ; sens inversé ; seuil absent valant zéro ; valeur périmée qui alerte ; déduplication retirée ; règle non évaluée qui résout ; report sans échéance ou à échéance incluse ; double accusé écrit ; report dans le passé ; alerte rangée au MAUVAIS DÉPARTEMENT ; destinataire de l'événement altéré ; action d'un autre gabarit ; types d'alerte permutés ; clé `cause` dans la vue (garde AST) ; borne d'inondation retirée ; « À voir » qui inclut les accusées ou inverse les niveaux ; rechute qui réutilise le rang 1 ; accusé qui ne lève pas le report et inversement ; tour planifié qui n'évalue pas ; ouverture sans événement ; seuil textuel accepté ; péremption évaluée sur une mesure non calculable |
+
+**Survivante équivalente** : `C4-24` (la bannière ne compte plus l'échec de qualité dans son niveau) : une tuile bloquée est aussi une tuile
+non calculable, et la règle suivante (« non calculable donne au moins attention ») redonne le même niveau ; aucun comportement observable ne change.
+
 ## 10. Commandes
 
 ```bash

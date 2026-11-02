@@ -284,7 +284,7 @@ def test_la_depense_comptabilisee_est_reprise_telle_quelle_avec_ses_brouillons_d
     assert m["entrees"]["sequence"] == 1 and m["entrees"]["periode_debut"] == "2026-10-28"
     assert m["entrees"]["brouillons_en_attente"] == 2 and m["entrees"]["brouillons_en_attente_cad"] == "113.75"
     assert m["couverture"]["etat"] == "partielle" and m["couverture"]["manquants"] == 2
-    assert "brouillon" in m["detail"] and m["dernier_fait_le"] == f"{JOUR}T00:00:00+00:00"
+    assert "brouillon" in m["detail"] and m["dernier_fait_le"] == f"{JOUR}T00:00:00-04:00"
 
 
 def test_sans_brouillon_en_attente_la_couverture_est_complete(definitions):
@@ -419,7 +419,7 @@ def test_la_fenetre_de_m7_s_applique_a_l_ecart_et_l_instant_est_le_plus_ancien_d
     m = _op(definitions, "m8_ecart_depense_pub_comptabilisee_cad", _depense(), *_releves_fictifs(), signal)
     assert m["fenetre_source_s"] == 12 * 3600
     assert (
-        m["dernier_fait_le"] == f"{JOUR}T00:00:00+00:00"
+        m["dernier_fait_le"] == f"{JOUR}T00:00:00-04:00"
     )  # le jour de M5 (début de jour) est plus ancien que le relevé de M7
 
 

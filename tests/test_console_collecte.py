@@ -230,7 +230,7 @@ def test_le_wallboard_collecte_est_servi_par_la_console_et_se_remplit_quand_les_
 
     monde.propager()
     neuve = navigateur.get("/api/wallboards/collecte").json()
-    assert len(neuve["tuiles"]) == 9 and {t["fraicheur"] for t in neuve["tuiles"]} <= {"manquant", "inconnu", "perime"}
+    assert len(neuve["tuiles"]) == 10 and {t["fraicheur"] for t in neuve["tuiles"]} <= {"manquant", "inconnu", "perime"}
     assert neuve["banniere"]["niveau"] != "ok"
 
     monde.activer("actif")

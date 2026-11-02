@@ -58,20 +58,40 @@ def _dormir(secondes: float) -> None:
     time.sleep(secondes)
 
 
+def _pastille_html(t: Mapping[str, Any]) -> str:
+    """La pastille de confiance de la tuile (FRESH, STALE, PARTIAL, MISSING, QUALITY_FAIL, GATED), dite en toutes
+    lettres et jamais par la seule couleur : le code est dans le texte et dans la classe. Une tuile sans pastille
+    (donnée qui ne
+    vient pas de M8) n'en montre aucune, plutôt qu'une pastille devinée."""
+    code, libelle = t.get("pastille"), t.get("libelle_pastille")
+    if not isinstance(code, str) or not isinstance(libelle, str):
+        return ""
+    return (
+        f'<p class="pastille-ligne"><span class="pastille pastille-{pages.e(code)}" data-champ="pastille">'
+        f"{pages.e(libelle)} ({pages.e(code)})</span></p>"
+    )
+
+
 def _tuile_html(t: Mapping[str, Any]) -> str:
     identifiant = pages.e(t["id"])
     icone = _ICONES.get(t["etat_seuil"], "•")
     if t["fraicheur"] in ("perime", "inconnu", "manquant"):
         icone = "⏱" if t["fraicheur"] == "perime" else "?"
+    if t.get("qualite_en_echec") is True:
+        icone = "⛔"
     detail = f"Dernier fait il y a {t['age_affiche']}" if t.get("age_affiche") else "Aucun âge connu"
     # Une valeur calculée sur une partie seulement de ce qu'elle devrait couvrir le dit sur la tuile (jamais complète).
     partielle = " · couverture partielle" if t.get("partielle") is True else ""
     return (
-        f'<li class="tuile etat-{pages.e(t["etat_seuil"])} fraicheur-{pages.e(t["fraicheur"])}" '
+        f'<li class="tuile etat-{pages.e(t["etat_seuil"])} fraicheur-{pages.e(t["fraicheur"])}'
+        f'{" qualite-echec" if t.get("qualite_en_echec") is True else ""}" '
         f'data-tuile="{identifiant}" '
         f'data-page="{int(t["page"])}"><article aria-labelledby="t-{identifiant}">'
         f'<h2 id="t-{identifiant}">{pages.e(t["titre"])}</h2>'
         f'<p class="valeur" data-champ="valeur">{pages.e(t["valeur_affichee"])}</p>'
+        # La pastille (FRESH, STALE, PARTIAL, MISSING, QUALITY_FAIL, GATED) est DITE en toutes lettres, jamais par la
+        # seule couleur : le code est dans le texte et dans la classe.
+        f"{_pastille_html(t)}"
         f'<p class="etat"><span aria-hidden="true">{icone}</span> <span data-champ="etat">'
         f"{pages.e(t['libelle_fraicheur'])} · {pages.e(t['libelle_seuil'])}{partielle}</span></p>"
         f'<p class="detail" data-champ="detail">{pages.e(detail)}</p>'

@@ -1,7 +1,8 @@
 """Les exécuteurs des départements et de la vérification : ce qui était livré (outils N0 à N2, calculs, constats) mais
 qu'aucun planificateur ne déclenchait (docs/architecture/PLANIFICATION.md).
 
-- `m8.entrepot` : reconstruction de l'entrepôt dérivé de M8, publication des faits consolidés, santé de l'entreprise ;
+- `m8.entrepot` : reconstruction de l'entrepôt dérivé de M8, publication des faits consolidés, santé de l'entreprise,
+  évaluation des alertes métier (une ouverture par épisode, proposée à M9 ; rien n'est poussé hors de l'application) ;
 - `m5.cycle` : cycle d'opérations comptables de M5 (brouillons, relances PRÉPARÉES, flux fournisseurs, préclôture,
   mesures) : jamais un paiement, un envoi ni une clôture ;
 - `m10.mnemo` : le « mnemo-quotidien » du manifeste de M10 (soi, synchronisation du graphe, leçons, surveillance) ;
@@ -93,7 +94,12 @@ class _ParOutils:
 class EntrepotM8(_ParOutils):
     nom = "m8.entrepot"
     departement = "m08-analytics"
-    outils = ("m8_construire_entrepot", "m8_publier_faits_consolides", "m8_enregistrer_sante_entreprise")
+    outils = (
+        "m8_construire_entrepot",
+        "m8_publier_faits_consolides",
+        "m8_enregistrer_sante_entreprise",
+        "m8_evaluer_alertes_metier",
+    )
 
     def traiter(self, ressource: str, ctx: Contexte, bail: Bail) -> dict[str, Any]:
         maintenant = ctx.maintenant_dt().isoformat()
@@ -112,6 +118,11 @@ class EntrepotM8(_ParOutils):
         inchanges += 0 if publie.get("nouvelle") else 1
         ctx.exiger_actif(bail)
         self._appeler(ctx, "m8_enregistrer_sante_entreprise", {"maintenant": maintenant})
+        etapes += 1
+        ctx.exiger_actif(bail)
+        # Les alertes métier (C3) : une ouverture par épisode, la résolution au retour dans la cible ; une règle sans
+        # seuil déclaré par la direction est « non évaluée » et n'écrit rien. Rien n'est poussé hors de l'application.
+        self._appeler(ctx, "m8_evaluer_alertes_metier", {"maintenant": maintenant})
         etapes += 1
         self._clore(ressource, code, etapes=etapes, inchanges=inchanges)
         return {"etapes": etapes, "inchanges": inchanges, "code": code}

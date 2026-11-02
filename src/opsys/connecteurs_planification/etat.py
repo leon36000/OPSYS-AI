@@ -106,7 +106,8 @@ DEFINITIONS: tuple[Definition, ...] = (
     # -- planification autonome : ce qui était livré mais jamais déclenché (docs/architecture/PLANIFICATION.md) ------
     Definition("m8.entrepot", "M8 : entrepôt analytique", 3600, "N2",
                "Reconstruit l'entrepôt dérivé (inchangé si les registres n'ont pas bougé), publie les faits consolidés "
-               "pour M10 et enregistre la santé de l'entreprise. Calcul et écriture dérivée, réversibles.",
+               "pour M10, enregistre la santé de l'entreprise et évalue les alertes métier (une ouverture par épisode, "
+               "proposée à M9). Calcul et écriture dérivée, réversibles ; rien n'est poussé hors de l'application.",
                famille="departements"),
     Definition("m5.cycle", "M5 : cycle d'opérations comptables", 3600, "N2",
                "Brouillons d'écriture, relances de créances PRÉPARÉES, flux fournisseurs, préclôture du mois écoulé et "

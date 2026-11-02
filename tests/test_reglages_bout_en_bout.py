@@ -196,7 +196,7 @@ def test_le_score_de_sante_de_m8_est_indetermine_puis_calculable_puis_de_nouveau
     assert {m["raison"] for m in vide["manques"]} == {"bornes_a_configurer"}
     manquants = [r for r in monde.get("/api/reglages").json()["reglages"]
                  if r["departement"] == "m08-analytics" and r["manque"]]
-    assert len(manquants) == 6 and all(r["proposition"] is None for r in manquants)
+    assert len(manquants) == 12 and all(r["proposition"] is None for r in manquants)  # six bornes, six seuils d'alerte
 
     for mesure, bornes in jeux_fictifs.BORNES_SANTE_FICTIVES.items():
         reponse = _adopter(monde, f"m8.bornes_{mesure[3:]}", _saisie_bornes(bornes))
@@ -205,7 +205,7 @@ def test_le_score_de_sante_de_m8_est_indetermine_puis_calculable_puis_de_nouveau
     assert calcule["statut"] == "determine" and calcule["score"] is not None
     assert calcule["ponderations"]["validee"] is False, "adopter des bornes ne valide pas les pondérations"
     assert all(r["manque"] is False for r in monde.get("/api/reglages").json()["reglages"]
-               if r["departement"] == "m08-analytics")
+               if r["departement"] == "m08-analytics" and r["cle"].startswith("m8.bornes_"))
 
     assert _revenir(monde, "m8.bornes_cash_libre_cad").status_code == 303
     redevenu = _sante()

@@ -18,11 +18,13 @@ FICTIF = True
 
 
 def mesure(metric_id="m8_cash_libre_cad", *, statut="calculee", fraicheur="a_jour",
-           dernier_fait_le="2026-11-12T00:00:00+00:00", manque=(), valeur="27861.98", proprietaire="m05-financecore"):
+           dernier_fait_le="2026-11-12T00:00:00+00:00", manque=(), valeur="27861.98", proprietaire="m05-financecore",
+           qualite=None):
     return {
         "metric_id": metric_id, "nom": f"Mesure {metric_id}", "proprietaire": proprietaire, "statut": statut,
         "valeur": valeur if statut == "calculee" else None, "dernier_fait_le": dernier_fait_le,
         "manque": [{"champ": m} for m in manque], "fraicheur": {"statut": fraicheur},
+        **({"qualite": {"statut": qualite}} if qualite is not None else {}),
     }
 
 
@@ -262,6 +264,7 @@ def test_chaque_etat_a_une_phrase_et_une_action_en_francais_sauf_a_jour():
         (mesure(statut="non_calculable", fraicheur="manquant"), [], True),
         (mesure(fraicheur="perime"), [], True),
         (mesure(statut="non_calculable", fraicheur="manquant"), [constat()], False),
+        (mesure(statut="non_calculable", fraicheur="manquant", qualite="echec"), [constat()], True),
     ]
     vues = set()
     for m, constats, autorise in cas:

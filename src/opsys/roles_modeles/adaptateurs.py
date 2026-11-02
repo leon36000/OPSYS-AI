@@ -24,6 +24,7 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 from sqlalchemy import Connection
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from .. import stockage
 from ..connaissances import ports
@@ -116,8 +117,13 @@ def est_raccorde(cnx: Connection, role: str, fournisseur: Fournisseur) -> bool:
 
 
 def embeddings_raccordes() -> bool:
-    with stockage.transaction() as cnx:
-        ligne = service.ligne_role(cnx, "embeddings")
+    """Rôle `embeddings` affecté ET dimension mesurée. Une base sans le registre des rôles (installation non migrée) dit
+    « non raccordé » : jamais une erreur, jamais un raccordement supposé."""
+    try:
+        with stockage.transaction() as cnx:
+            ligne = service.ligne_role(cnx, "embeddings")
+    except (OperationalError, ProgrammingError):
+        return False
     return bool(ligne and type((ligne["mesures"] or {}).get("dimension")) is int)
 
 
