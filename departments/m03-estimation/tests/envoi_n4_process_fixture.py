@@ -485,7 +485,9 @@ def environnement_enfant(dossier: Path, chemin_db: Path, role: str) -> dict[str,
         chemins.append(os.environ["PYTHONPATH"])
     return {**os.environ, stockage.ENV_URL: f"sqlite:///{chemin_db}", "OPSYS_HOME": str(maison),
             "OPSYS_EVENEMENTS_REPARTITEUR": "0", "OPSYS_DEPARTMENTS": str(RACINE_DEPARTEMENTS),
-            "PYTHONPATH": os.pathsep.join(chemins), "PYTHONDONTWRITEBYTECODE": "1"}
+            "PYTHONPATH": os.pathsep.join(chemins), "PYTHONDONTWRITEBYTECODE": "1",
+            # Voie d'ESSAI de M3 (M3-C1) : ces processus enfants estiment avec un barème libre (jamais en exploitation).
+            "OPSYS_M3_VOIE_LIBRE": "essai"}
 
 
 class ProcessusPossede:

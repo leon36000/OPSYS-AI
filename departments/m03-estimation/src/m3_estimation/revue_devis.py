@@ -113,8 +113,11 @@ CHAMPS_CONTEXTE = (
     "client_a_risque",
     "distance_km",
     "donnees_fournisseur_completes",
+    "mesure_a_bornes_larges",
 )
-_CLES_BOOLEENNES = ("alerte_plancher", "service_complexe", "client_a_risque", "donnees_fournisseur_completes")
+_CLES_BOOLEENNES = (
+    "alerte_plancher", "service_complexe", "client_a_risque", "donnees_fournisseur_completes", "mesure_a_bornes_larges",
+)
 
 # Seuils de `department.yaml/configuration/revue_devis`. Aucun n'a de valeur par défaut ici.
 CHAMPS_SEUILS = (
@@ -366,6 +369,13 @@ def _juger_mesure_incertaine(entrees: _Entrees) -> tuple[dict[str, Any] | None, 
     if manque is not None:
         return None, manque
     niveau = entrees.faits["niveau_confiance_hierarchie"]
+    # M3-C2 : une estimation fondée sur une mesure DÉCLARÉE à bornes larges (au-delà du seuil de revue du barème) exige
+    # aussi la revue ; le fait n'existe que pour les estimations déclarées (absent : critère inchangé).
+    if entrees.faits.get("mesure_a_bornes_larges") is True:
+        return _motif(
+            MESURE_INCERTAINE, ("mesure_a_bornes_larges", "vrai", SOURCE_CONTEXTE),
+            "mesure à bornes larges : revue humaine requise",
+        ), None
     if niveau not in _NIVEAUX_MESURE_INCERTAINE:
         return None, None
     return _motif(

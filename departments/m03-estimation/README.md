@@ -13,6 +13,23 @@ quotidien déterministe (S009). Outils d'agent exposés dans
 `src/m3_estimation/outils.py` (`m3_estimer_projet` et les outils unitaires).
 Suite de tests et suite de mutation vertes (`departments/m03-estimation/tests`).)
 
+**Barème et mesure DÉCLARÉS (M3-C1, M3-C2) — `m3_estimer_projet` n'accepte plus de barème, de quantité, de plancher ni de
+taux libres.** L'estimation exige `bareme_ref {bareme_id, version}` (une version du barème de l'entreprise, déclarée par le
+propriétaire, validée, **en vigueur** : `bareme_registre.py`) et `mesure_ref {mesure_id}` (la mesure du chantier déclarée par une
+personne, avec bornes, méthode, confiance et pièces : `mesure_declaree.py`). Le plancher rentable, les taux de marge, les seuils
+et les textes de soumission sont des paramètres de la version de barème. Une référence absente, inconnue, périmée, non validée
+ou une mesure insuffisante est un refus nommé qui dit quoi déclarer (`REJ-BAREME-*`, `REJ-MESURE-*`) ; une valeur libre est
+refusée (`REJ-BAREME-LIBRE-REFUSE`) sauf sur la **voie d'essai** (variable d'environnement du serveur `OPSYS_M3_VOIE_LIBRE=essai`
+ET appel hors MCP : tests et appels historiques, jamais un agent). L'intervalle d'une mesure à bornes est l'enveloppe des
+quantités basse et haute ; au-delà du seuil de revue déclaré, `revue_humaine_requise` (et la revue d'envoi du devis le dit). La
+réponse rappelle la référence exacte et un reçu (`declaration`) : `m3_rejouer_estimation` refait le calcul avec la version citée,
+même après une révision du barème. Sept outils (`m3_declarer_bareme`, `m3_valider_bareme`, `m3_lire_bareme`, `m3_lister_baremes`,
+`m3_declarer_mesure`, `m3_lire_mesure`, `m3_rejouer_estimation`) ; déclarer est réservé à une **personne** (jamais un agent).
+La soumission gagne exclusions, hypothèses, délai (durée, jamais une date) et validité, tirés de données déclarées
+(`conditions_soumission.py`). **Aucune valeur de barème n'est livrée**, aucune saisie en console n'existe encore, PostgreSQL n'est
+pas éprouvé pour ces registres : voir [`M3-BAREME-MESURE-DECLARES.md`](../../docs/architecture/M3-BAREME-MESURE-DECLARES.md)
+(modèle, voie de compatibilité, points d'accroche CFG-1 et calibration, limites).
+
 Identité authentifiée (PLAN T1.4-c4, T2.3-d, puis T1.4-k2, docs/architecture/ROLES.md) : pendant un appel
 d'appareil, la vue d'un devis vient du rôle confirmé en base (l'employé ne voit ni coût, ni marge, ni prix ;
 `role` ne peut que restreindre). Depuis T1.4-k2, un vendeur ne lit (`m3_lire_devis`) et n'obtient le

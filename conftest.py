@@ -23,6 +23,16 @@ def _instance_isolee(tmp_path, monkeypatch):
     stockage.liberer()
 
 
+@pytest.fixture(autouse=True)
+def _voie_libre_m3_essai(monkeypatch):
+    """Voie d'ESSAI de M3 (M3-C1) : les tests historiques passent encore barème, quantité et plancher en arguments.
+
+    Cette variable d'environnement du serveur, avec un appel qui ne vient pas du MCP, est la seule façon d'ouvrir cette
+    voie (`m3_estimation.outils_bareme.voie_libre_autorisee`). Un test qui vérifie le refus d'un barème libre la retire
+    (`monkeypatch.delenv("OPSYS_M3_VOIE_LIBRE")`). Jamais posée par l'installateur ni par le conteneur."""
+    monkeypatch.setenv("OPSYS_M3_VOIE_LIBRE", "essai")
+
+
 @pytest.fixture
 def declarer_services():
     """Fabrique : écrit le profil d'entreprise de l'instance de test (`$OPSYS_HOME/entreprise.yaml`).

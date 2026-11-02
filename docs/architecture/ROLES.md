@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 248 outils sur 613 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 254 outils sur 620 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -101,7 +101,7 @@ Rien qui lise les données des autres (`m4_lire_outbox`, `m4_lire_position_gps`,
 M10. Les trois outils M7 bornés à l'import d'avis, à la liste filtrée et au consentement de référence
 sont décrits ci-dessus; décisions, exportations et publication restent fermées à l'employé.
 
-### `seller` (28 outils) : §9.4, ses leads, ses relances et ses soumissions
+### `seller` (30 outils) : §9.4, ses leads, ses relances et ses soumissions
 
 | Outil | Pourquoi |
 |---|---|
@@ -119,6 +119,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 | `m3_generer_soumission_brouillon` | §9.4 « soumissions ». HTML ou PDF (`format`), mêmes gardes. Sans coût ni marge. Les devis de ses leads seulement. |
 | `m3_demander_envoi_devis` (T2, **N4**) | §9.4 « soumissions », §7 M3.14 « revue et approbation humaine » (T4.7). Il DEMANDE : le socle met la demande dans la file du propriétaire, rien n'est envoyé, rien ne change. Il ne décide jamais (voir « L'envoi d'un devis par approbation N4 » plus bas). |
 | `m3_qualifier_photos` | §9.4 « demander des photos au client » : ce qui manque. |
+| `m3_declarer_mesure` (T1), `m3_lire_mesure` (T0) | M3-C2 (`docs/architecture/M3-BAREME-MESURE-DECLARES.md`) : le vendeur DÉCLARE la mesure d'un chantier de SES leads (valeur, unité, bornes basse et haute, méthode, confiance, pièces) sous son propre nom. L'auteur est la personne de l'appareil, revérifiée en base ; un agent n'a aucune identité d'appareil et est refusé (`REJ-MESURE-IDENTITE`), un vendeur ne déclare pas la mesure du lead d'un autre. Une mesure ne contient ni coût ni prix. |
 | `m2_proposer_profil_propriete` (T1, **N2**), `m2_proposer_profil_propriete_depuis_courriel` (T1, **N2**) | M2.3 : un BROUILLON de profil de propriété pour le client de SES leads (liste blanche, source obligatoire, révision attendue) ; depuis un courriel, par motifs fixes et extrait comme preuve. Rien n'est confirmé. Voir « Les outils « ventes » de M2 ». |
 | `m2_confirmer_profil_propriete` (T1, **N3**) | M2.3 : une PERSONNE confirme ou écarte le brouillon ; publie le fait minimisé `m2.profil_propriete_confirme`. Un agent seul : `REJ-HUMAIN-REQUIS`. |
 | `m2_lire_profil_propriete` (T0) | M2.3 : les propriétés de SES clients (confirmé, brouillon, âge, complétude). Textes libres neutralisés. |
@@ -130,9 +131,9 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (247 outils) : §9.5 + employé + vendeur
+### `admin` (253 outils) : §9.5 + employé + vendeur
 
-Les 17 outils de l'employé, les 27 du vendeur également permis à l'admin, et :
+Les 17 outils de l'employé, les 29 du vendeur également permis à l'admin, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
@@ -145,6 +146,7 @@ Les 17 outils de l'employé, les 27 du vendeur également permis à l'admin, et 
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
 | M2 | `m2_proposer_profil_propriete_depuis_onboarding` (T1, N2) | M2.3 : propose en BROUILLON la propriété à l'adresse d'une fiche client importée à l'onboarding (déjà validée par une personne). Admin seulement : un client importé n'a pas encore de vendeur. |
 | M2 | `m2_corriger_contact_client` (N3), `m2_lister_historique_contact_client`, `m2_reconcilier_memoire_contact_client` (N0) | CRM-04 : admin SQL actif, correction avec révision attendue et motif, historique privé et diagnostic de livraison M10. Aucun envoi au client, accès vendeur ou réécriture des documents historiques. |
+| M3 | `m3_declarer_bareme`, `m3_valider_bareme` (T1), `m3_lire_bareme`, `m3_lister_baremes` (T0) | M3-C1 (`docs/architecture/M3-BAREME-MESURE-DECLARES.md`) : le barème de l'entreprise (lignes avec source écrite, plancher rentable, taux de marge, seuils, textes de soumission) est DÉCLARÉ par une personne (propriétaire ou admin actif, revérifié en base), versionné et chaîné ; une révision ajoute une version sans écraser l'ancienne. Un agent lit mais ne déclare jamais (`REJ-BAREME-IDENTITE`). Aucune valeur n'est livrée avec le code. |
 | M3 | `m3_lister_devis_lead_admin` (T0/N0) | Sommaires paginés des soumissions d’un lead désigné ; admin SQL actif. Lecture seule, aucune page vide ne prouve l’existence du lead M2. |
 | M4 | `m4_confirmer_dates_cedule` (N3), `m4_lire_calendrier_plan`, `m4_lire_cedule_semaine` (N0) | Calendrier civil explicite d’un plan déjà appliqué, révision et historique ; admin SQL actif. Plan interne seulement, sans confirmation client ni promesse globale de disponibilité. |
 | M4 | `m4_lire_absence_journaliere_console` (N0, transport console privé seulement) | Admin SQL actif et origine/source console, aucun MCP/appareil direct/agent ; source SQLite canonique et session contrôlée par le port privé. Absence signalée seulement, aucune présence/heure/paie déduite ; aucun droit de compte ajouté. |
@@ -477,7 +479,9 @@ Les plus sensibles :
 | `m5_preparer_rapprochement_bancaire` (T1/N2), `m5_lire_rapprochement_bancaire` (T0), `m5_preparer_dossier_cpa` (T1/N2), `m5_verifier_dossier_cpa` (T0) | Rapprochement d'un relevé CSV ou OFX déposé dans `<OPSYS_HOME>/imports/releves/` (lu par son NOM, aucun réseau, aucune API bancaire) et dossier CPA scellé écrit dans `<OPSYS_HOME>/exports/dossier-cpa/` (création exclusive, droits privés). Règles d'appariement expliquées, écarts nommés, reçus rejouables ; le dossier n'est ni une compilation, ni un examen, ni un audit, ni une déclaration. Aucun rôle d'appareil. |
 | `m5_comparer_financement_achat`, `m5_simuler_remboursement_anticipe`, `m5_echelonner_placements_terme_fixe`, `m5_lister_sujets_conseil_fiscal`, `m5_analyser_situation_fiscale`, `m5_rechercher_connaissance_fiscale` (T0/N0) | Conseillers (dette, financement et trésorerie : information générale chiffrée avec reçu, garde NC 31-103 sur le texte libre ; fiscal et comptable : affirmations sourcées, « ESSAI/non approuvé » tant que la source ne l'est pas, refus si la règle est non renseignée ; base de connaissances fiscale : citations ou « inconnu »). Lecture et calcul seulement, aucun événement. Aucun rôle d'appareil ; refus dans le code. |
 | `m6_consommer_materiaux` | Prend encore un WCT fourni par l'appelant ; remplacé par `m6_declarer_materiaux_utilises` (T1.4-i). |
-| `m3_estimer_projet`, `m3_creer_devis` | Le barème, le plancher rentable, le coût de chaque ligne et le taux de marge viendraient de l'appelant. |
+| `m3_estimer_projet`, `m3_simuler_intervalle`, `m3_confronter_plancher` | Depuis M3-C1/M3-C2 le barème, la quantité, le plancher rentable et les taux de marge ne sont plus des arguments libres : `bareme_ref` et `mesure_ref` les désignent (déclarés, versionnés, en vigueur). Un agent qui passe une valeur libre est refusé (`REJ-BAREME-LIBRE-REFUSE`), sans référence aussi (`REJ-BAREME-REFERENCE-REQUISE`). Reste fermé aux appareils : la réponse porte coûts et marges. |
+| `m3_creer_devis` | Le coût de chaque ligne et le taux de marge viennent encore de l'appelant (limite connue : `docs/utilisation/LIMITES-CONNUES.md`) ; la revue N4 de l'envoi est la garde. |
+| `m3_rejouer_estimation` (T0) | Refait le calcul d'une estimation déclarée avec la version de barème et la révision de mesure qu'elle cite : la réponse porte l'intervalle de coût. |
 | `m6_enregistrer_prix`, `m6_enregistrer_fournisseur`, `m6_enregistrer_besoins_prevus`, `m6_marquer_po_envoye` | Livre de prix, courriel de commande d'un fournisseur, prévu issu du devis accepté, engagement externe (N4). |
 | `m8_rapport_metriques`, `m9_etat_consolide` | Ingèrent un snapshot fourni par l'appelant dans le registre de vérité. |
 | `m7_auditer_seo_site`, `m7_calculer_roi` | Chemins de fichiers du serveur. |

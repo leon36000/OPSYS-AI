@@ -189,3 +189,24 @@ d'une frontière connue.
 
 Un script de preuve qui ne peut pas échouer ne prouve rien. Chacun sort non-zéro sur défaut,
 et refuse de conclure quand son extracteur ne trouve rien — un scanner vide passe toujours.
+
+## `batterie_bareme_registre.py` — batterie multi-fichiers sur le barème et la mesure déclarés (M3-C1, M3-C2)
+
+    python3 -B "departments/m03-estimation/tests/outils_preuve/batterie_bareme_registre.py" . [part/total]
+
+Quarante-quatre mutations de MÉTIER réparties sur huit fichiers de `src/m3_estimation` (`bareme_registre`, `mesure_declaree`,
+`entrees_declarees`, `estimation`, `outils`, `outils_bareme`, `conditions_soumission`, `revue_devis`) : exigence et résolution
+de `bareme_ref` (en vigueur, date d'effet à l'instant exact, fin de validité, version périmée, validation, empreinte),
+chaînage et révision, auteur humain, seuils de la mesure (comparaisons strictes), unité, lead, péremption, enveloppe de la
+mesure, plancher et graine déclarés, rejeu, fermeture de la voie libre (appel venu du MCP, valeur de la variable, valeur libre
+mêlée à une référence), arrondis, validité et délai de la soumission.
+
+Elle ne s'appelle PAS `muter_*.py` à dessein : les `muter_<module>.py` ont un contrat commun (une cible, la suite COMPLÈTE
+comme référence, un test déjà rouge refusé avec une phrase précise) que `test_gardes_des_outils.py` éprouve pour chacun ; cette
+batterie couvre huit fichiers avec une suite ciblée et n'a pas ce contrat. Le nommer autrement évite de prétendre qu'il tient.
+
+Différences avec les autres batteries : elle lance une suite CIBLÉE (les fichiers de `CIBLES`, pas les ~3 000 tests du
+département) avec `-x`, car chaque mutation doit faire virer UN de ces fichiers au rouge ; elle accepte `part/total` pour répartir
+les mutations entre exécutions parallèles ; elle échoue si une mutation reste verte, ne compile pas ou n'a pas son ancre. Une
+redondance structurelle est déclarée avec sa raison (la garde de rôle de l'adaptateur répète celle du registre pur). Elle travaille
+sur la même copie jetable (`EnvironnementMutation`) : aucune source réelle n'est écrite.

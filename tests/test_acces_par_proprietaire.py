@@ -64,6 +64,7 @@ OUTILS_M3_DU_VENDEUR = {
     "m3_lister_devis",  # Inventaire courant de ses devis, sans devoir connaître leur numéro.
     "m3_lire_devis", "m3_generer_soumission_brouillon", "m3_qualifier_photos",
     "m3_demander_envoi_devis",  # DEMANDE l'envoi (N4, T4.7) : le propriétaire décide dans la file
+    "m3_declarer_mesure", "m3_lire_mesure",  # M3-C2 : la mesure d'un chantier de SES leads, sous son propre nom
 }
 OUTILS_M2_DE_L_ADMIN = {
     "m2_produire_digest", "m2_detecter_doublons", "m2_signaler_doublon", "m2_arbitrer_doublon",

@@ -151,6 +151,12 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
         "m3_valider_candidat_par_reference", "m3_valider_candidat_par_humain", "m3_lister_modeles_vision",
         "m3_calculer_aire_polygone", "m3_agreger_donnees_geospatiales", "m3_lister_sources_geospatiales",
     }
+    # M3-C1 et M3-C2 (barème et mesure déclarés) : écriture réservée à une personne, lecture et rejeu ; éprouvés par
+    # test_outils_bareme.py. Aucun ne calcule de prix ni de scénario.
+    bareme_mesure_declares = {
+        "m3_declarer_bareme", "m3_valider_bareme", "m3_lire_bareme", "m3_lister_baremes",
+        "m3_declarer_mesure", "m3_lire_mesure", "m3_rejouer_estimation",
+    }
     baseline_13 = {
         "m3_estimer_projet", "m3_qualifier_photos", "m3_classifier_confiance",
         "m3_simuler_intervalle", "m3_confronter_plancher", "m3_creer_devis",
@@ -160,7 +166,9 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     }
     assert noms[0] == "m3_estimer_projet"
     assert len(noms) == len(set(noms))
-    assert set(noms) - outils_calibration - lectures_reprise - modeles_console - site_vision_geospatial == baseline_13
+    reste = set(noms) - outils_calibration - lectures_reprise - modeles_console - site_vision_geospatial
+    assert reste - bareme_mesure_declares == baseline_13
+    assert set(noms) & bareme_mesure_declares == bareme_mesure_declares
     assert set(noms) & site_vision_geospatial == site_vision_geospatial
     assert set(noms) & modeles_console == modeles_console
     assert all(not o.roles_appareil for o in outils_m3.outils() if o.nom in modeles_console)
@@ -173,8 +181,8 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
 def test_la_description_dit_l_essentiel_sous_la_limite():
     description = _outil().description
     assert len(description) <= 1024  # la limite de `Outil` : payée à chaque tour
-    for mot in ("P50", "P80", "facteurs_dominants", "scenarios_prix", "taux_marge_scenarios", "cout_unitaire_mode",
-                "department.yaml", "minimum rentable"):
+    # M3-C1 : les taux et le minimum viennent du barème déclaré (bareme_ref) ; la description le dit en premier.
+    for mot in ("P50", "P80", "facteurs_dominants", "scenarios_prix", "bareme_ref", "mesure_ref"):
         assert mot in description, mot
 
 

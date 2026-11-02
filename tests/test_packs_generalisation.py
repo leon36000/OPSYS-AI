@@ -63,7 +63,10 @@ SOUL_AVANT = {
     # Mnémo : soi, graphe, leçons ajoutés
     "m10-memoire": "cb0aa7ddd4e3830d9f2d8036dea413f3ba97eb3727b2283af1b71d8408c07f58",
 }
-SKILL_M3_AVANT = "7f8bbad11d1f9daf755e3b587350bd91cdb509187bef3e2f992d5d66ed712ff3"
+# Empreinte du skill M3 rendu avec le pack rénovation. Changée par M3-C1/M3-C2 (barème et mesure déclarés) : le skill
+# dit maintenant de passer bareme_ref et mesure_ref au lieu du barème, de la quantité et du plancher libres. Le SOUL.md
+# de M3 n'a pas bougé (SOUL_AVANT intact) ; seule cette ligne change, avec le texte du skill.
+SKILL_M3_AVANT = "b106e53ec2b9e60b8fb62e9a8b8286e8f4601858fab2ac61441f312d885833d5"
 
 PALIERS = {
     "rapide": {"provider": "anthropic", "model": "claude-haiku-4-5-20251001"},
