@@ -395,3 +395,22 @@ def test_le_verdict_refuse_vient_des_violations_et_pas_seulement_des_reserves(v2
     assert evaluer("Tu veux ton devis ? " + BON, v2).refuse  # tutoiement fort : une violation
     pure = evaluer(BON + " #un #deux #trois #quatre", v2)
     assert pure.rapport["verdict"] == "conforme_avec_reserves" and not pure.refuse and pure.violations == ()
+
+
+def test_le_score_global_du_code_arrondit_au_demi_superieur_sur_des_longueurs_variees(v2):
+    """Compare le score rendu à une moyenne pondérée exacte (fractions) arrondie au demi supérieur, pour des textes de
+    longueurs variées (longueur minimale déclarée à 60 : sous-score de longueur gradué)."""
+    from fractions import Fraction
+
+    vus = set()
+    for n in range(1, 60):
+        texte = ("a" * n).strip()
+        e = evaluer(texte, v2)
+        evalues = [(nom, s["score"]) for nom, s in e.rapport["sous_scores"].items() if s["score"] is not None]
+        moyenne = Fraction(
+            sum(conformite.POIDS[nom] * s for nom, s in evalues), sum(conformite.POIDS[nom] for nom, _ in evalues)
+        )
+        attendu = int(moyenne + Fraction(1, 2))  # moyenne positive : plancher de (moyenne + 1/2) = demi supérieur
+        assert e.rapport["score_global"] == attendu, (n, moyenne)
+        vus.add(moyenne % 1 >= Fraction(1, 2))
+    assert vus == {True, False}  # le jeu d'essai contient des fractions au-dessus ET au-dessous du demi
