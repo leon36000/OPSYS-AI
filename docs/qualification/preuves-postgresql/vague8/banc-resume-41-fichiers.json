@@ -1,0 +1,289 @@
+[
+ {
+  "cible": "tests/test_postgresql_bus_course_consommateurs.py",
+  "code": 0,
+  "duree_s": 47.3,
+  "derniere_ligne": "16 passed in 41.37s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_bus_course_consommateurs.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_bus_processus.py",
+  "code": 0,
+  "duree_s": 47.5,
+  "derniere_ligne": "8 passed in 42.27s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_bus_processus.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_entrepot_m8_limites.py",
+  "code": 0,
+  "duree_s": 13.2,
+  "derniere_ligne": "7 passed in 7.33s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_entrepot_m8_limites.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_gardes_justifiees.py",
+  "code": 0,
+  "duree_s": 9.6,
+  "derniere_ligne": "6 passed in 4.50s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_gardes_justifiees.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_memoire_developpement.py",
+  "code": 0,
+  "duree_s": 45.2,
+  "derniere_ligne": "8 passed in 40.11s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_memoire_developpement.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_planification_console.py",
+  "code": 0,
+  "duree_s": 26.9,
+  "derniere_ligne": "6 passed in 21.69s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_planification_console.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_planification_constats.py",
+  "code": 0,
+  "duree_s": 192.7,
+  "derniere_ligne": "12 passed in 184.91s (0:03:04)",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_planification_constats.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_planification_limites.py",
+  "code": 0,
+  "duree_s": 10.7,
+  "derniere_ligne": "6 passed in 5.07s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_planification_limites.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_cablage_planificateur.py",
+  "code": 0,
+  "duree_s": 32.6,
+  "derniere_ligne": "21 passed in 26.28s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_cablage_planificateur.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_consentement_suivi_retire.py",
+  "code": 0,
+  "duree_s": 39.3,
+  "derniere_ligne": "33 passed in 33.46s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_consentement_suivi_retire.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_consentement_suivi_retire_scenario.py",
+  "code": 0,
+  "duree_s": 18.1,
+  "derniere_ligne": "5 passed in 13.10s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_consentement_suivi_retire_scenario.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_constats_contradictoires.py",
+  "code": 0,
+  "duree_s": 29.6,
+  "derniere_ligne": "20 passed in 24.39s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_constats_contradictoires.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_constats_planifies.py",
+  "code": 0,
+  "duree_s": 34.8,
+  "derniere_ligne": "57 passed in 29.71s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_constats_planifies.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_creance_levee_paiement.py",
+  "code": 0,
+  "duree_s": 19.3,
+  "derniere_ligne": "11 passed in 14.29s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_creance_levee_paiement.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_entrepot_m8_planifie.py",
+  "code": 0,
+  "duree_s": 270.2,
+  "derniere_ligne": "19 passed in 264.40s (0:04:24)",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_entrepot_m8_planifie.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_evenements.py",
+  "code": 0,
+  "duree_s": 32.1,
+  "derniere_ligne": "60 passed in 26.17s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_evenements.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_evenements_budget.py",
+  "code": 0,
+  "duree_s": 20.8,
+  "derniere_ligne": "10 passed in 15.21s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_evenements_budget.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_evenements_retry_fraicheur.py",
+  "code": 0,
+  "duree_s": 16.6,
+  "derniere_ligne": "7 passed in 10.79s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_evenements_retry_fraicheur.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_consommateurs.py",
+  "code": 0,
+  "duree_s": 188.2,
+  "derniere_ligne": "100 passed in 180.95s (0:03:00)",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_consommateurs.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m1_message_client.py",
+  "code": 0,
+  "duree_s": 21.1,
+  "derniere_ligne": "11 passed in 16.30s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m1_message_client.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m2_lectures.py",
+  "code": 0,
+  "duree_s": 16.8,
+  "derniere_ligne": "9 passed in 11.47s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m2_lectures.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m3_m4_propriete.py",
+  "code": 0,
+  "duree_s": 22.9,
+  "derniere_ligne": "11 passed in 17.38s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m3_m4_propriete.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m5_charge_marketing.py",
+  "code": 0,
+  "duree_s": 33.3,
+  "derniere_ligne": "9 passed in 21.99s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m5_charge_marketing.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m5_depense_publicitaire.py",
+  "code": 0,
+  "duree_s": 45.4,
+  "derniere_ligne": "11 passed in 31.87s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m5_depense_publicitaire.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m6_m9_m10.py",
+  "code": 0,
+  "duree_s": 40.6,
+  "derniere_ligne": "12 passed in 26.00s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m6_m9_m10.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m7_m5_m8.py",
+  "code": 0,
+  "duree_s": 18.7,
+  "derniere_ligne": "1 passed in 6.54s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m7_m5_m8.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_m8_operations.py",
+  "code": 0,
+  "duree_s": 27.1,
+  "derniere_ligne": "12 passed in 17.31s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_m8_operations.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_interconnexion_scenarios.py",
+  "code": 0,
+  "duree_s": 32.5,
+  "derniere_ligne": "8 passed in 23.24s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_interconnexion_scenarios.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m10_consolidation_developpement.py",
+  "code": 0,
+  "duree_s": 47.9,
+  "derniere_ligne": "33 passed in 39.35s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m10_consolidation_developpement.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m8_entrepot.py",
+  "code": 0,
+  "duree_s": 22.7,
+  "derniere_ligne": "26 passed in 17.67s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m8_entrepot.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m8_entrepot_interdepartements.py",
+  "code": 0,
+  "duree_s": 16.4,
+  "derniere_ligne": "20 passed in 10.83s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m8_entrepot_interdepartements.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m8_evenements_alerte_proposee.py",
+  "code": 0,
+  "duree_s": 20.1,
+  "derniere_ligne": "10 passed in 13.48s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m8_evenements_alerte_proposee.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m8_evenements_cash_libre.py",
+  "code": 0,
+  "duree_s": 37.9,
+  "derniere_ligne": "29 passed in 32.35s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m8_evenements_cash_libre.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m8_evenements_contenus.py",
+  "code": 0,
+  "duree_s": 31.1,
+  "derniere_ligne": "18 passed in 25.55s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m8_evenements_contenus.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m8_evenements_entonnoir.py",
+  "code": 0,
+  "duree_s": 24.5,
+  "derniere_ligne": "15 passed in 19.32s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m8_evenements_entonnoir.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m8_evenements_mesures_chantier.py",
+  "code": 0,
+  "duree_s": 36.1,
+  "derniere_ligne": "23 passed in 29.59s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m8_evenements_mesures_chantier.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_m9_planification_cron_fictive.py",
+  "code": 0,
+  "duree_s": 15.5,
+  "derniere_ligne": "8 passed in 10.36s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_m9_planification_cron_fictive.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_planification_console.py",
+  "code": 0,
+  "duree_s": 22.3,
+  "derniere_ligne": "7 passed in 16.09s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_planification_console.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_planification_departements.py",
+  "code": 0,
+  "duree_s": 24.7,
+  "derniere_ligne": "17 passed in 19.45s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_planification_departements.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_planification_transport.py",
+  "code": 0,
+  "duree_s": 31.4,
+  "derniere_ligne": "21 passed in 25.21s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_planification_transport.py.log"
+ },
+ {
+  "cible": "tests/test_postgresql_rejeu_stop_retire_consentement_marketing.py",
+  "code": 0,
+  "duree_s": 18.2,
+  "derniere_ligne": "8 passed in 12.80s",
+  "journal": "/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-pg7/qualif-pg/pg-20261102T064447Z/tests_test_postgresql_rejeu_stop_retire_consentement_marketing.py.log"
+ }
+]

@@ -61,7 +61,7 @@ JUSTIFICATIONS_TESTEES: dict[str, tuple[str, ...]] = {
         "tests/test_postgresql_gardes_justifiees.py::test_la_reprise_ne_boucle_pas_sur_postgresql_aucun_effacement_n_attend"),
     "src/opsys/exportation.py::_base_sqlite": (
         "tests/test_postgresql_gardes_justifiees.py::test_l_export_du_fichier_sqlite_est_refuse_sur_postgresql_avec_la_voie_pg_dump",
-        "tests/test_postgresql_gardes_justifiees.py::test_la_voie_proposee_existe_et_est_un_vrai_pg_dump"),
+        "tests/test_postgresql_sauvegarde_restauration.py::test_pg_dump_puis_pg_restore_redonnent_la_meme_base_gardes_et_recherche_comprises"),
     "src/opsys/openclaw.py::configuration_cron_memoire_developpement": (
         "tests/test_postgresql_gardes_justifiees.py::test_la_declaration_du_cron_m10_refuse_postgresql_sans_divulguer_l_url_ni_le_mot_de_passe",),
 }

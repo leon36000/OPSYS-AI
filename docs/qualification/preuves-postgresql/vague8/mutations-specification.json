@@ -1,0 +1,362 @@
+[
+ {
+  "id": "M01",
+  "fichier": "src/opsys/evenements/repartiteur.py",
+  "ancien": "            verrou_consultatif(cnx, f\"bus-consommateur-{consommateur}\")\n",
+  "nouveau": "            pass\n",
+  "cibles": [
+   "tests/test_postgresql_bus_course_consommateurs.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "retirer le verrou de livraison par consommateur (verrous)"
+ },
+ {
+  "id": "M02",
+  "fichier": "src/opsys/evenements/repartiteur.py",
+  "ancien": "f\"bus-consommateur-{consommateur}\")",
+  "nouveau": "f\"bus-consommateur-{consommateur}-{evenement_id}\")",
+  "cibles": [
+   "tests/test_postgresql_bus_course_consommateurs.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "verrou par événement au lieu de par consommateur (le croisement de deux événements n'est plus sérialisé)"
+ },
+ {
+  "id": "M03",
+  "fichier": "src/opsys/evenements/repartiteur.py",
+  "ancien": "                if reclamation.rowcount != 1:",
+  "nouveau": "                if False:",
+  "cibles": [
+   "tests/test_evenements.py",
+   "tests/test_evenements_retry_fraicheur.py"
+  ],
+  "pourquoi": "ne plus perdre la réclamation d'un réessai concurrent (rejeu/conflit)"
+ },
+ {
+  "id": "M04",
+  "fichier": "src/opsys/evenements/repartiteur.py",
+  "ancien": "_MAX_TENTATIVES = 5",
+  "nouveau": "_MAX_TENTATIVES = 500",
+  "cibles": [
+   "tests/test_evenements.py",
+   "tests/test_evenements_retry_fraicheur.py"
+  ],
+  "pourquoi": "la quarantaine n'arrive jamais (rejeu)"
+ },
+ {
+  "id": "M05",
+  "fichier": "src/opsys/connecteurs_planification/planificateur.py",
+  "ancien": "        if pris.rowcount != 1:\n            return \"deja_pris\", 0",
+  "nouveau": "        if pris.rowcount < 0:\n            return \"deja_pris\", 0",
+  "cibles": [
+   "tests/test_postgresql_planification_constats.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "le créneau perdu n'est plus détecté (créneaux)"
+ },
+ {
+  "id": "M06",
+  "fichier": "src/opsys/connecteurs_planification/planificateur.py",
+  "ancien": ".values(prochain_passage=int(maintenant) + ligne[\"intervalle_s\"]))",
+  "nouveau": ".values(prochain_passage=int(maintenant)))",
+  "cibles": [
+   "tests/test_postgresql_planification_constats.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "le créneau réservé reste échu (créneaux)"
+ },
+ {
+  "id": "M07",
+  "fichier": "src/opsys/connecteurs_planification/planificateur.py",
+  "ancien": "EXECUTEURS_T.c.executeur == nom, EXECUTEURS_T.c.prochain_passage == ligne[\"prochain_passage\"],\n            EXECUTEURS_T.c.revision == ligne[\"revision\"],",
+  "nouveau": "EXECUTEURS_T.c.executeur == nom,",
+  "cibles": [
+   "tests/test_postgresql_planification_constats.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "retirer la comparaison-échange du créneau (créneaux, idempotence)"
+ },
+ {
+  "id": "M08",
+  "fichier": "src/opsys/connecteurs_planification/planificateur.py",
+  "ancien": "dernier_code=None if code is None else code[:64]))",
+  "nouveau": "dernier_code=code))",
+  "cibles": [
+   "tests/test_postgresql_planification_limites.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "retirer la troncature du code de fin de passage (taille)"
+ },
+ {
+  "id": "M09",
+  "fichier": "src/opsys/connecteurs_planification/bail.py",
+  "ancien": "PLANIFICATEUR_BAUX.c.ressource == ressource).with_for_update()).mappings().first()",
+  "nouveau": "PLANIFICATEUR_BAUX.c.ressource == ressource)).mappings().first()",
+  "cibles": [
+   "tests/test_postgresql_concurrence_processus.py",
+   "-k",
+   "postgresql",
+   "tests/test_postgresql_planification_constats.py",
+   "-k",
+   "postgresql and bail"
+  ],
+  "pourquoi": "retirer le verrou de ligne du bail (verrous)"
+ },
+ {
+  "id": "M10",
+  "fichier": "src/opsys/connecteurs_planification/bail.py",
+  "ancien": "jeton = ligne[\"jeton\"] + (0 if not libre and ligne[\"porteur\"] == porteur else 1)",
+  "nouveau": "jeton = ligne[\"jeton\"]",
+  "cibles": [
+   "tests/test_postgresql_concurrence_processus.py",
+   "-k",
+   "postgresql",
+   "tests/test_postgresql_planification_constats.py",
+   "-k",
+   "postgresql and (tue or bail)"
+  ],
+  "pourquoi": "le jeton de fencing ne croît plus (verrous, redémarrage)"
+ },
+ {
+  "id": "M11",
+  "fichier": "src/opsys/connecteurs_planification/bail.py",
+  "ancien": "PLANIFICATEUR_BAUX.c.jeton == bail.jeton, PLANIFICATEUR_BAUX.c.expire_epoch > maintenant,",
+  "nouveau": "PLANIFICATEUR_BAUX.c.expire_epoch > maintenant,",
+  "cibles": [
+   "tests/test_planification_processus.py",
+   "tests/test_cablage_planificateur.py",
+   "tests/test_m9_planification_cron_fictive.py",
+   "tests/test_postgresql_planification_limites.py"
+  ],
+  "pourquoi": "le renouvellement ne vérifie plus le jeton (verrous)"
+ },
+ {
+  "id": "M12",
+  "fichier": "src/opsys/connecteurs_planification/constats.py",
+  "ancien": "debut = _EPOQUE + timedelta(seconds=ecoule // intervalle_s * intervalle_s)",
+  "nouveau": "debut = _EPOQUE + timedelta(seconds=ecoule)",
+  "cibles": [
+   "tests/test_constats_planifies.py",
+   "tests/test_cablage_planificateur.py"
+  ],
+  "pourquoi": "le créneau n'est plus un multiple de l'intervalle (créneaux, idempotence)"
+ },
+ {
+  "id": "M13",
+  "fichier": "src/opsys/connecteurs_planification/constats.py",
+  "ancien": "return (jour - timedelta(days=jour.weekday()) + timedelta(weeks=decalage)).isoformat()",
+  "nouveau": "return (jour + timedelta(weeks=decalage)).isoformat()",
+  "cibles": [
+   "tests/test_constats_planifies.py",
+   "tests/test_cablage_planificateur.py"
+  ],
+  "pourquoi": "« lundi » n'est plus un lundi (créneaux)"
+ },
+ {
+  "id": "M14",
+  "fichier": "src/opsys/connecteurs_planification/constats.py",
+  "ancien": "            except NiveauInterdit:\n                raise\n            except RefusExecuteur as exc:\n                erreurs += 1",
+  "nouveau": "            except NiveauInterdit:\n                pass\n            except RefusExecuteur as exc:\n                erreurs += 1",
+  "cibles": [
+   "tests/test_entrepot_m8_planifie.py",
+   "-k",
+   "niveau_n3 or jeu_d_appels"
+  ],
+  "pourquoi": "un niveau interdit n'arrête plus le constat (garde)"
+ },
+ {
+  "id": "M15",
+  "fichier": "src/opsys/connecteurs_planification/constats.py",
+  "ancien": "if not isinstance(resultat, dict) or resultat.get(\"accepte\") is not False:",
+  "nouveau": "if not isinstance(resultat, dict) or resultat.get(\"accepte\") is False:",
+  "cibles": [
+   "tests/test_entrepot_m8_planifie.py",
+   "-k",
+   "refus_rendu"
+  ],
+  "pourquoi": "un refus rendu par l'outil devient un succès (idempotence/refus)"
+ },
+ {
+  "id": "M16",
+  "fichier": "src/opsys/evenements/constats.py",
+  "ancien": "    return any(\n        m.get(\"type_entree\") == TYPE_ENTREE\n        and m.get(\"constat\") == ligne[\"constat\"]",
+  "nouveau": "    return False and any(\n        m.get(\"type_entree\") == TYPE_ENTREE\n        and m.get(\"constat\") == ligne[\"constat\"]",
+  "cibles": [
+   "tests/test_constats_contradictoires.py",
+   "tests/test_creance_levee_paiement.py"
+  ],
+  "pourquoi": "la même contradiction est rangée à chaque rejeu (contradiction)"
+ },
+ {
+  "id": "M17",
+  "fichier": "src/opsys/evenements/constats.py",
+  "ancien": "if cle not in exclus and _canonique(existant.get(cle)) != _canonique(valeur)",
+  "nouveau": "if cle not in exclus and _canonique(existant.get(cle)) == _canonique(valeur)",
+  "cibles": [
+   "tests/test_constats_contradictoires.py",
+   "tests/test_creance_levee_paiement.py"
+  ],
+  "pourquoi": "inversion de la comparaison de contenu (contradiction)"
+ },
+ {
+  "id": "M18",
+  "fichier": "src/opsys/evenements/constats.py",
+  "ancien": "return hashlib.sha256(_canonique(dict(contenu)).encode(\"utf-8\")).hexdigest()[:32]",
+  "nouveau": "return hashlib.sha256(b\"x\").hexdigest()[:32]",
+  "cibles": [
+   "tests/test_constats_contradictoires.py",
+   "tests/test_creance_levee_paiement.py"
+  ],
+  "pourquoi": "l'empreinte ne dépend plus du contenu (contradiction)"
+ },
+ {
+  "id": "M19",
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/faits_interconnexion.py",
+  "ancien": "    if charge.get(\"statut\") not in STATUTS_FACTURE_CLOSE:\n        return None",
+  "nouveau": "    if False:\n        return None",
+  "cibles": [
+   "tests/test_constats_contradictoires.py",
+   "tests/test_creance_levee_paiement.py"
+  ],
+  "pourquoi": "une facture seulement envoyée lève la créance (levée de créance)"
+ },
+ {
+  "id": "M20",
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/faits_interconnexion.py",
+  "ancien": "return [c for c in creances if c.get(\"type_entree\") != TYPE_CREANCE or c.get(\"facture_id\") not in closes]",
+  "nouveau": "return [c for c in creances]",
+  "cibles": [
+   "tests/test_constats_contradictoires.py",
+   "tests/test_creance_levee_paiement.py"
+  ],
+  "pourquoi": "la facture payée ne lève plus la créance (levée de créance)"
+ },
+ {
+  "id": "M21",
+  "fichier": "departments/m08-analytics/src/m8_analytics/outils.py",
+  "ancien": "    if champs:\n        ligne = constats.ligne_contradiction(\n            operations_recues.evenement_du_type(type_entree),",
+  "nouveau": "    if False:\n        ligne = constats.ligne_contradiction(\n            operations_recues.evenement_du_type(type_entree),",
+  "cibles": [
+   "tests/test_constats_contradictoires.py",
+   "tests/test_creance_levee_paiement.py"
+  ],
+  "pourquoi": "M8 ne dit plus la contradiction (contradiction)"
+ },
+ {
+  "id": "M22",
+  "fichier": "departments/m08-analytics/src/m8_analytics/outils.py",
+  "ancien": "    if existant is None:\n        faits_cible.append(fait)\n        return {\"enregistre\": True, \"deja_enregistre\": False, **operations_recues.resume_recu(type_entree, fait)}",
+  "nouveau": "    if True:\n        faits_cible.append(fait)\n        return {\"enregistre\": True, \"deja_enregistre\": False, **operations_recues.resume_recu(type_entree, fait)}",
+  "cibles": [
+   "tests/test_constats_contradictoires.py",
+   "tests/test_creance_levee_paiement.py",
+   "tests/test_interconnexion_m8_operations.py"
+  ],
+  "pourquoi": "M8 range le même constat à chaque rejeu (idempotence)"
+ },
+ {
+  "id": "M23",
+  "fichier": "departments/m08-analytics/src/m8_analytics/entrepot_stockage.py",
+  "ancien": "        if isinstance(valeur, str) and len(valeur) > longueur:",
+  "nouveau": "        if isinstance(valeur, str) and len(valeur) >= longueur:",
+  "cibles": [
+   "tests/test_postgresql_entrepot_m8_limites.py"
+  ],
+  "pourquoi": "borne de longueur décalée d'un cran (taille)"
+ },
+ {
+  "id": "M24",
+  "fichier": "departments/m08-analytics/src/m8_analytics/entrepot_stockage.py",
+  "ancien": "        if isinstance(valeur, str) and len(valeur) > longueur:",
+  "nouveau": "        if False:",
+  "cibles": [
+   "tests/test_postgresql_entrepot_m8_limites.py"
+  ],
+  "pourquoi": "plus aucun refus d'identifiant trop long (taille)"
+ },
+ {
+  "id": "M25",
+  "fichier": "src/opsys/connecteurs_planification/etat.py",
+  "ancien": "    verrou_ecriture_console(cnx)\n",
+  "nouveau": "    pass\n",
+  "cibles": [
+   "tests/test_postgresql_planification_console.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "retirer le verrou d'écriture de la console (verrous)"
+ },
+ {
+  "id": "M26",
+  "fichier": "src/opsys/connecteurs_planification/etat.py",
+  "ancien": "        if change.rowcount != 1:",
+  "nouveau": "        if False:",
+  "cibles": [
+   "tests/test_postgresql_planification_console.py"
+  ],
+  "pourquoi": "ne plus refuser une mise à jour perdue (rejeu/conflit)"
+ },
+ {
+  "id": "M27",
+  "fichier": "departments/m10-memoire/src/m10_memoire/developpement.py",
+  "ancien": "        verrou_consultatif(externe, VERROU_DEVELOPPEMENT)\n",
+  "nouveau": "        pass\n",
+  "cibles": [
+   "tests/test_postgresql_memoire_developpement.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "retirer le verrou du magasin de développement (verrous)"
+ },
+ {
+  "id": "M28",
+  "fichier": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+  "ancien": "    with stockage.transaction():\n        _verrouiller()\n        state = _etat(job_id)",
+  "nouveau": "    with stockage.transaction():\n        state = _etat(job_id)",
+  "cibles": [
+   "tests/test_postgresql_memoire_developpement.py",
+   "-k",
+   "postgresql"
+  ],
+  "pourquoi": "retirer le verrou du bail du job de consolidation (verrous)"
+ },
+ {
+  "id": "M29",
+  "fichier": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+  "ancien": "if dialecte not in DIALECTES_QUALIFIES or (dialecte == \"sqlite\" and volatile):",
+  "nouveau": "if dialecte != \"sqlite\" or volatile:",
+  "cibles": [
+   "tests/test_postgresql_rejeu_m10_consolidation_developpement.py"
+  ],
+  "pourquoi": "réintroduire la garde SQLite seulement (portage)"
+ },
+ {
+  "id": "M30",
+  "fichier": "src/opsys/cles_chiffrement.py",
+  "ancien": "\"etat_fichiers\": \"en_attente\" if sqlite else \"non_qualifie\",",
+  "nouveau": "\"etat_fichiers\": \"en_attente\",",
+  "cibles": [
+   "tests/test_postgresql_gardes_justifiees.py"
+  ],
+  "pourquoi": "l'effacement sur PostgreSQL attend à perpétuité au lieu de dire non_qualifie (garde justifiée)"
+ },
+ {
+  "id": "M31",
+  "fichier": "src/opsys/evenements/bus.py",
+  "ancien": "            if ligne.producteur != producteur:",
+  "nouveau": "            if False:",
+  "cibles": [
+   "tests/test_evenements.py",
+   "tests/test_postgresql_bus_processus.py",
+   "-k",
+   "postgresql or evenements"
+  ],
+  "pourquoi": "un autre producteur sous le même identifiant n'est plus un conflit (rejeu/conflit)"
+ }
+]

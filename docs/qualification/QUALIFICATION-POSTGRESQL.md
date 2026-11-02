@@ -909,10 +909,10 @@ le banc (`banc.py suites`, un processus pytest par fichier), mode tel quel puis 
 |---|---:|---:|
 | Tests de ces 93 fichiers (2338) qui émettent du SQL vers PostgreSQL, mode tel quel | **59** (2,5 %), tous dans `test_evenements`, `test_m9_planification_cron_fictive`, `test_planification_migration` ; **0** pour les constats planifiés, le retrait de consentement, les constats contradictoires, la créance levée et l'entrepôt M8 planifié | inchangé (c'est le mode « tel quel » : ces tests bâtissent leurs bases SQLite) |
 | Les mêmes 93 fichiers, mode redirigé (bases SQLite de test redirigées vers PostgreSQL) | 725 tests émettent du SQL PostgreSQL : 699 verts, 26 rouges, **tous liés à SQLite** (7 fichiers sur 93, §17.6) | rejoués en permanence à deux moteurs (`tests/test_postgresql_rejeu_*.py`), sans dépendre d'une exécution manuelle du banc |
-| Cas permanents rejoués sur PostgreSQL dans la CI (étape « vague 8 ») | 0 | **731 cas dans 41 fichiers**, aucun ignoré |
+| Cas permanents rejoués sur PostgreSQL dans la CI (étape « vague 8 ») | 0 | **731 cas dans 41 fichiers**, aucun ignoré ; au banc (mode tel quel, `plugin_pg`) : 731 réussis, dont **698 ont émis du SQL vers PostgreSQL** (les 33 autres sont des tests purs d'un rejeu : grammaire du manifeste, calcul pur) |
 | Défauts propres à PostgreSQL trouvés dans ces services | — | **4** (corrigés, §17.2) + 1 défense en profondeur |
 | Gardes « SQLite seulement » (règle affinée du banc) | 4 | **3**, chacune avec ses tests sur PostgreSQL réel (§17.4) |
-| Points de contrôle portés (`gardes.py --portees`) | 93 | 94 |
+| Points de contrôle portés (`gardes.py --portees`) | 93 | 94 : le nouveau (`consolidation_developpement._backend_qualifie`) est franchi par 34 tests PostgreSQL réussis dans le banc ; les 93 autres ne sont pas rejoués ici (preuve du §16.4, état du portage précédent) |
 | Mutations propres (une à la fois, dans un clone, témoin vert) | — | **31** : 31 tuées (1 survivante au premier passage, fermée par un test, §17.5) ; 8 répétitions de courses réelles : 8 tuées |
 
 Les 1613 tests des mêmes fichiers qui n'émettent aucun SQL (en mode redirigé) sont des tests purs (grammaire du manifeste, calcul de
@@ -977,8 +977,10 @@ verrou ; non audité hors des chemins éprouvés).
 |---|---|---|
 | `consolidation_developpement._sqlite_seulement` → `_backend_qualifie` | **Portée.** Les jobs de consolidation du magasin de développement M10 (grant, bail, rapport, checkpoint) et le magasin lui-même écrivent sous un verrou de transaction nommé `m10-developpement` (`developpement._connexion`, `consolidation_developpement._verrouiller`) ; SQLite fichier et PostgreSQL sont admis, tout autre moteur et toute base SQLite volatile restent refusés | `tests/test_postgresql_memoire_developpement.py` (8) : quatre écrivains de prompts distincts (chaîne d'événements linéaire), même prompt (un événement, trois rejeux), deux textes pour la même version (un gagnant, des `ConflitIdempotence`), quatre exécuteurs du même job (jamais deux rapports pour un créneau, aucun bail vivant en double, chaîne valide) ; rejeu des 33 cas du fichier d'origine (`…_m10_consolidation_developpement`) |
 | `cles_chiffrement._nettoyer_fichiers_courants` | **Reste, correcte par construction.** Elle réécrit les pages d'un FICHIER SQLite (VACUUM, WAL). Sur PostgreSQL la clé est détruite logiquement (DELETE) et l'effacement est inscrit `non_qualifie` / `backend_non_qualifie` dès la demande : jamais « terminé », jamais « en attente » à perpétuité ; l'exécuteur `retention.effacements` n'a rien à reprendre. Le nettoyage physique d'un serveur (WAL archivé, répliques, sauvegardes) n'est pas une opération de l'application | `test_postgresql_gardes_justifiees.py` : 3 cas |
-| `exportation._base_sqlite` | **Reste.** L'export est un instantané du fichier SQLite de l'instance ; PostgreSQL se sauvegarde par `deploy/backup.sh` (`pg_dump`, éprouvé au §11). Refus typé, vers la bonne voie, sans fuite du mot de passe, sans rien créer (pas même le dossier de sortie) | 2 cas |
+| `exportation._base_sqlite` | **Reste.** L'export est un instantané du fichier SQLite de l'instance ; PostgreSQL se sauvegarde par `deploy/backup.sh` (`pg_dump`, éprouvé au §11). Refus typé, vers la bonne voie, sans fuite du mot de passe, sans rien créer (pas même le dossier de sortie) | 1 cas + `test_postgresql_sauvegarde_restauration` (la voie proposée) ; `deploy/backup.sh` lui-même (compose) n'est pas exécuté ici : seule la syntaxe est vérifiée |
 | `openclaw.configuration_cron_memoire_developpement` | **Reste.** La déclaration du cron place `OPSYS_BASE_URL` dans l'environnement d'une commande de la Gateway : sur PostgreSQL ce serait le mot de passe de la base en clair dans la configuration d'un autre produit (aucun coffre pour cette frontière). Le job existe sur PostgreSQL (gardes levée ci-dessus), mais son déclenchement planifié par la Gateway exige SQLite | 1 cas (le job est créé sur PostgreSQL, la déclaration refuse, ni l'URL ni le mot de passe ne sont dans l'erreur) |
+
+Preuve par exécution : `matrice.py --portage` sur le banc de cette vague (41 fichiers) + la sauvegarde `pg_dump`/`pg_restore` : **3 gardes restantes justifiées sur 3**, chacune par des tests RÉUSSIS qui ont émis du SQL PostgreSQL (3/3, 2/2, 1/1).
 
 `gardes.py` (`GARDES_RESTANTES`, `JUSTIFICATIONS_TESTEES`) : le compteur dit « 3 gardes, 3 correctes par construction et prouvées sur PostgreSQL réel, 0 sans justification
 testée » ; `test_banc_postgresql` exige qu'une garde restante ait au moins un test nommé qui existe, et que ce fichier soit dans l'étape PostgreSQL de la CI.
@@ -1066,6 +1068,10 @@ export du fichier SQLite, nettoyage physique des clés et cron M10 de la Gateway
 multi-serveur non prouvés ». Ne jamais écrire « PostgreSQL complet ».
 
 ### 17.8 Reproduire
+
+Preuves brutes de cette vague (rien n'est écrasé) : [`preuves-postgresql/vague8/`](preuves-postgresql/vague8/) : `mutations.json` (31, avec la restauration vérifiée), `mutations-repetees.json` (8),
+`mutations-specification.json` (l'ancien et le nouveau texte de chaque mutation), `rouge-sur-la-base.txt` (49 rouges sur le code de `e0424b040`), `banc-resume-41-fichiers.json`,
+`portage-et-gardes-justifiees.md`, `avant-apres-93-fichiers.json`, `gardes.txt`.
 
 ```bash
 # rejeux et courses de la vague 8 : la liste exacte est celle de l'étape « vague 8 » de .github/workflows/ci.yml
