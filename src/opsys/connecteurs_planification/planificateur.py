@@ -187,10 +187,12 @@ def executeurs_par_defaut() -> list[Executeur]:
     )
     from .exec_m7 import PublicationSociale, PublicationWordPress, TransmissionWordPress
     from .exec_m7_lecture import FondsStudio, SignauxM7, VeilleM7
+    from .exec_m7_rapport import RapportHebdoM7
     from .exec_retention import EffacementsReprise, RetentionCles, RetentionCourriel, RetentionTraces
 
     return [Synchro(), Envoi(), TransmissionWordPress(), PublicationWordPress(), PublicationSociale(),
             EntrepotM8(), CycleM5(), Mnemo(), ReindexationConnaissances(), SignauxM7(), VeilleM7(), FondsStudio(),
+            RapportHebdoM7(),
             VerificationSauvegarde(), BalayagePeremptions(), RetentionCourriel(), RetentionCles(), RetentionTraces(),
             EffacementsReprise(), *constats.executeurs(), *routines.executeurs()]
 

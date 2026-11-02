@@ -99,6 +99,7 @@ class TestManifeste:
             "m3.devis_envoye", "m3.devis_accepte", "m3.devis_sans_reponse",
             "m2.profil_propriete_confirme",  # Mnémo : ne nourrit que le graphe (tests/test_mnemo_outils.py)
             "m5.dossier_cpa_scelle",  # interconnexion M5 -> M10 : mémoire des dossiers scellés
+            "m7.apprentissage_marketing_constate",  # M7-MEMOIRE : observations minimales d'apprentissage marketing
         )
         assert dep.evenements_publie == ("m10.soi_revision_proposee", "m10.lecon_decidee", "m10.arete_en_attente")
         consommateurs = dep.charger_consommateurs()

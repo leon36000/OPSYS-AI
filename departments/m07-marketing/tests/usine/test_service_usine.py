@@ -1025,8 +1025,11 @@ def test_le_manifeste_declare_le_type_publie_et_le_catalogue_le_connait(base_dur
         "m7.conversion_hors_ligne_importee",
         # D2 (docs/architecture/M8-ENTREPOT-SOURCES.md) : le résumé des valeurs de signaux, publié pour M8
         "m7.performance_signaux_constatee",
+        # M7-MEMOIRE (docs/architecture/M7-MARQUE-RAPPORT.md) : l'observation d'apprentissage, publiée pour M10
+        "m7.apprentissage_marketing_constate",
     )
     assert "m7.contenu_exporte" in evenements.types_connus()
+    assert "m7.apprentissage_marketing_constate" in evenements.types_connus()
 
 
 # =============================================================================================================

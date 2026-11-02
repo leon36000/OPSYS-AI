@@ -16,7 +16,7 @@ Ce que l'audit croise, sans croire une seule source : le **catalogue** (les type
 `repartir` appellera). Quatre familles d'écarts : type sans consommateur (et sans fiche), consommateur déclaré sans handler,
 handler sans déclaration (code mort), type consommé que personne ne publie ; plus la lecture croisée non déclarée (section 5).
 
-Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconnexion_consommateurs.py`, 20 consommateurs x 5 garanties) :
+Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconnexion_consommateurs.py`, 21 consommateurs x 5 garanties) :
 
 1. **Charge validée** par le schéma du catalogue à la publication ; une charge hors schéma n'est jamais écrite.
 2. **Idempotent par clé de CONTENU**, pas par `evenement_id` : le même constat rejoué sous un autre identifiant n'ajoute aucun
@@ -33,7 +33,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 
 <!-- interconnexion:debut -->
 
-57 types au catalogue : 48 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
+58 types au catalogue : 49 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
 
 | Type | Producteur | Consommateurs réels | Sans consommateur : justification |
 |---|---|---|---|
@@ -82,6 +82,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m6.reception_enregistree` | M6 | M5, M8 |  |
 | `m6.variance_chantier` | M6 | M3, M4, M5, M8, M10 |  |
 | `m7.anomalie_depense_detectee` | M7 | M8, M9 |  |
+| `m7.apprentissage_marketing_constate` | M7 | M10 |  |
 | `m7.contenu_exporte` | M7 | M8 |  |
 | `m7.conversion_hors_ligne_importee` | M7 | M2, M8 |  |
 | `m7.depenses_marketing_constatees` | M7 | M5, M8 |  |
@@ -145,6 +146,7 @@ test n'a pas d'horloge).
 | M6 | `m5.rapprochement_po_constate` | Attente « À voir » de l'admin quand le dernier état d'une facture est `ECART` ou `INCOMPLET` ; M6 ne modifie jamais la facture ; aucun montant dans l'attente. | `rapprochements_facture_recus` |
 | M9 | `m7.anomalie_depense_detectee`, `m8.fait_consolide` | Section `signaux_de_gestion` du briefing du matin : anomalies de la fenêtre (les plus graves d'abord, au plus 5) et RÉSUMÉ de la dernière consolidation de M8 (comptes et identifiants, aucune valeur). Le briefing reste sous la limite du socle. M9 lit, ne décide pas. | `signaux_gestion_recus` |
 | M10 | `m5.dossier_cpa_scelle` | Mémoire (FINANCIAL, hors de tout paquet de contexte) qu'un dossier de période a été scellé ; même `dossier_id` sous un autre sceau = refus nommé (quarantaine visible), le premier sceau reste. M10 ne rouvre ni ne juge le dossier. | `dossiers_cpa_scelles` |
+| M10 | `m7.apprentissage_marketing_constate` | **Mémoire marketing** (M7-MEMOIRE) : range chaque observation minimale annoncée par M7 après son rapport hebdomadaire (contenu gagnant ou faible, signal d'objection tiré des catégories d'avis, avis de la semaine) : liste blanche stricte, un maillon par `observation_id`, même identifiant avec un autre contenu = contradiction nommée (la première reste), charge hors forme = refus nommé (le CHAMP, jamais la valeur). Aucun texte de contenu ni d'avis, aucune coordonnée, aucun identifiant de lead ou de chantier. Ce n'est pas une leçon : `m10_extraire_lecons` en tire des leçons GOUVERNÉES de genre `apprentissage_marketing` après trois semaines distinctes ; la décision est humaine ([M7-MARQUE-RAPPORT](M7-MARQUE-RAPPORT.md) §4). | `faits_marketing` |
 
 Aucun outil, aucun rôle d'appareil, aucune politique d'approbation, aucune migration n'est ajouté : le compteur d'outils, la portée
 des appareils et le registre MCP ne changent pas.

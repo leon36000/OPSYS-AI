@@ -7,6 +7,33 @@ content factory, données saisonnières, competitive engine, grille AEO/GEO, con
 attribution, ROI, puis l'usine à contenu de chantier de T4.17. 992 tests (dossier `tests/` de M7). Le
 statut du registre est la source de vérité, gate statut_lint.)
 
+## Marque v2, score de conformité, rapport hebdomadaire et mémoire marketing (M7-MARQUE, M7-RAPPORT-HEBDO, M7-MEMOIRE, 2026-11-02)
+
+Détail, preuves, mutations et limites : [`docs/architecture/M7-MARQUE-RAPPORT.md`](../../docs/architecture/M7-MARQUE-RAPPORT.md).
+
+- **Brand Core v2** (`contracts/brand-contract.v2.yaml`, `brand/profil_v2.py`) : extension additive du contrat gelé v1 (un profil
+  v1 reste lisible tel quel). Champs DÉCLARÉS par le propriétaire : promesse, avantages, zones, valeurs, objections et
+  réponses, preuve sociale, garanties validées (et `garanties_a_valider`, jamais citables), mots et messages interdits, voix,
+  style par plateforme, mentions requises. Un champ absent est dit manquant (`completude`) : rien n'est inventé. Un énoncé
+  positif n'est repris que s'il est VALIDÉ par le propriétaire (`validation_champs`, signée par la personne qui configure) ;
+  une restriction vaut dès sa déclaration.
+- **Score de conformité** (`brand/conformite.py`) : verdict (`conforme`, `conforme_avec_reserves`, `refuse`), score global,
+  neuf sous-scores à poids fixes et raisons nommées, sans modèle. **La porte binaire existante reste la loi** (toute violation du
+  socle est une raison bloquante) ; le score l'explique. Intégré à l'usine : un texte du modèle ou du code est refusé
+  (nommé, jamais enregistré) à la proposition, à l'approbation et à l'export, et le score est rangé avec la proposition.
+- **Outils** (agent seulement, lecture pure) : `m7_auditer_contenu_marque` (audit de textes existants, huit par page),
+  `m7_guide_de_ton_marque` (guide généré du profil), `m7_lire_rapport_hebdomadaire`.
+- **Rapport hebdomadaire** (`rapport_hebdo/`, exécuteur `m7.rapport-hebdo` du planificateur, **inactif par défaut**, ombre
+  d'abord) : un rapport par semaine (dernière semaine ISO complète), leads par canal, coût par lead tel que M8 le donne,
+  conversion, ROI honnête (jamais un ratio calculé ici : la finance reste à M5), croissance, meilleurs et pires contenus,
+  opportunités ; chaque recommandation est liée à une donnée ou marquée hypothèse, priorisée (impact x facilité), et crée au
+  plus cinq tâches internes de niveau bas (« À voir », N1). Aucun envoi, aucune dépense, aucune publication.
+- **Plan de croissance à 30 jours** : les actions organiques viennent des données (formats gagnants, créneaux, séries
+  étiquetés `format:`, `creneau:`, `serie:`) ; sinon le plan dit exactement ce qui manque. Jamais d'achat d'abonnés, de faux
+  engagement ni de spam (garde `croissance.verifier_legitimite`).
+- **Mémoire** : `m7.apprentissage_marketing_constate` (minimal, sans texte ni coordonnée) -> registre `faits_marketing` de M10
+  -> leçons GOUVERNÉES de genre `apprentissage_marketing` (proposition par le code, évaluation, décision d'une personne).
+
 ## Signaux de marché et de performance (2026-11-01)
 
 Cinq paquets et cinq modules d'outils s'ajoutent, **hors ligne (ports + doubles, aucun transport réel branché, aucune clé)** : `signaux/`
@@ -67,8 +94,10 @@ versionné).
 - **M4 le porte avec sa preuve**, posée par le serveur (`consentement_recueilli_par` : la personne authentifiée ;
   `consentement_recueilli_le` : l'heure de réception du serveur ; `consentement_version_texte` : le texte présenté).
   Clés additives de `m4.travaux_termines`. M7 les lit dans le WCT reçu par le bus, jamais dans un argument.
-- **Fail-closed** (`reputation/demande_avis.py`) : consentement absent, faux ou sans sa preuve, ou
-  `client_satisfait = false` : aucun brouillon. Le WCT reste quand même enregistré (`wct_recus`).
+- **Fail-closed** (`reputation/demande_avis.py`) : consentement absent, faux ou sans sa preuve : aucun brouillon. Le WCT
+  reste quand même enregistré (`wct_recus`). **La satisfaction ne filtre JAMAIS** (arbitrage retenu, prouvé par
+  `tests/test_evenements_travaux_termines.py::test_client_insatisfait_consentant_recoit_le_meme_brouillon_neutre_a_approuver`) :
+  tout client consentant reçoit le même brouillon neutre, qu'il soit satisfait, insatisfait ou non évalué.
 - **Le brouillon** (`demandes_avis`, gabarit fixe, jamais un texte de modèle) porte la preuve du consentement.
   Nature des travaux (T0.13-b) : `type_travaux` pour un lead v1, le **libellé du service** déclaré par l'entreprise
   (`opsys.taxonomie`) pour un lead v2 ; jamais l'un déduit de l'autre. Service non déclaré : texte générique et
@@ -76,8 +105,11 @@ versionné).
 - **Jamais envoyé** : `approval_status` reste `PROPOSE`. L'envoi au client est un engagement externe (T3), une
   décision humaine qu'aucun outil de M7 ne prend. L'admin relit les brouillons par `m7_lister_demandes_avis`
   (T0, `admin`, huit au plus par appel).
-- **Limite** : `client_satisfait = false` refuse encore la demande (règle de T1.2-c). Les plateformes d'avis interdisent de
-  ne solliciter que les clients satisfaits (P9) : décision à confirmer par Nathan.
+- **Pourquoi on ne change pas le comportement** : les plateformes d'avis interdisent de ne solliciter que les clients
+  satisfaits (P9, « review gating ») : le code actuel respecte cette règle et n'a donc aucune raison de sécurité d'être
+  modifié. **À ne pas confondre** avec les contenus de vitrine (section « Usine à contenu ») : un chantier dont le client est
+  connu insatisfait (`client_satisfait = false`) ne donne aucun contenu PUBLIC, ce qui est une autre décision (on ne fait pas
+  la vitrine d'un chantier jugé mauvais) et ne touche pas la demande d'avis.
 
 ## Contenu public : consentement + floutage (PLAN T4.3)
 

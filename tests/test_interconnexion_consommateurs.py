@@ -196,6 +196,14 @@ CAS = [
         lambda v: ch.dossier_cpa(dossier_id=f"dossier-{v}"),
         "dossiers_cpa_scelles",
     ),
+    (
+        "m10-apprentissage-marketing",
+        M10,
+        M7,
+        "m7.apprentissage_marketing_constate",
+        lambda v: ch.apprentissage_marketing(v),
+        "faits_marketing",
+    ),
 ]
 IDS = [c[0] for c in CAS]
 

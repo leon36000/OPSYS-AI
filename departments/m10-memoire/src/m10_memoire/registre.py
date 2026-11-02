@@ -35,6 +35,7 @@ _TYPE_ENTREE_VALIDES = {
     "fait_strategique",  # Athéna : strategique.py, décision, résultat mesuré ou leçon publiés par M9 (registre dédié)
     "rapport_routine",  # routines planifiées (routines.py) : audit « non-oubli » et KPI, registre `rapports_routine`
     "dossier_cpa_scelle",  # interconnexion M5 -> M10 : dossiers_cpa.py, mémoire des périodes scellées (registre dédié)
+    "fait_marketing",  # M7-MEMOIRE : apprentissage_marketing.py, observations minimales de M7 (registre dédié)
 }
 
 

@@ -5,11 +5,13 @@ Le cycle, sans raccourci :
     événements et registres de M10 ──(code déterministe)──► leçon PROPOSÉE ──► ÉVALUATION hors ligne
         ──► décision HUMAINE (N3) : canari (1 à 50 %) ──► promotion complète │ retour arrière │ refus
 
-- **D'où viennent les leçons.** Jamais d'un modèle : du code les tire de ce que M10 a déjà mémorisé. Quatre genres :
+- **D'où viennent les leçons.** Jamais d'un modèle : du code les tire de ce que M10 a déjà mémorisé. Cinq genres :
   `ecart_materiau` (la quantité réellement utilisée s'écarte du prévu, M6 `variance_chantier`), `ecart_marge` (la
   marge réelle s'écarte de la marge prévue, M5 `rentabilite_chantier`), `refus_recurrent` (un outil est refusé avec le
   même code dans plusieurs affaires, faits candidats du POSTFLIGHT) et `rejets_soi` (la direction rejette de façon
-  répétée les propositions automatiques d'une dimension du modèle de soi : une correction humaine).
+  répétée les propositions automatiques d'une dimension du modèle de soi : une correction humaine) et
+  `apprentissage_marketing` (M7-MEMOIRE : un contenu gagnant ou faible, un signal d'objection ou des avis défavorables
+  reviennent sur des semaines distinctes, d'après les observations minimales que M7 annonce ; aucun texte de client).
 - **Le texte est un gabarit du code, sans chiffre ni identifiant** (`texte_agent`) : les paramètres (facteur, décalage)
   sont des données structurées calculées en `Decimal`, jamais recopiées de tête dans une réponse.
 - **Évaluation hors ligne, en deux parties.** (1) LA MESURE, pour un écart chiffré : le paramètre est ajusté sur les
@@ -48,7 +50,7 @@ TYPE_PROPOSEE = "lecon_proposee"
 TYPE_EVALUATION = "lecon_evaluation"
 TYPE_DECISION = "lecon_decision"
 
-GENRES = ("ecart_materiau", "ecart_marge", "refus_recurrent", "rejets_soi")
+GENRES = ("ecart_materiau", "ecart_marge", "refus_recurrent", "rejets_soi", "apprentissage_marketing")
 GENRES_CHIFFRES = ("ecart_materiau", "ecart_marge")
 CHANTIERS_MIN = 6
 ENTRAINEMENT_MIN = 4
@@ -310,6 +312,32 @@ def _exiger_humain(acteur: Any, motif: Any, horodatage: Any) -> tuple[Any, str]:
 
 # -- extraction (écrit des propositions, jamais plus)
 # ----------------------------------------------------------------------------
+TEXTES_MARKETING = {
+    "contenu_gagnant": (
+        "Des contenus de ce canal ont amené des leads de façon répétée, sur des semaines distinctes : avant de "
+        "proposer "
+        "un nouveau contenu pour ce canal, relis les contenus gagnants cités par la leçon et garde ce qui les "
+        "rend mesurables (lien de suivi, appel clair à demander une soumission) au lieu d'en inventer une autre forme."
+    ),
+    "contenu_faible": (
+        "Des contenus de ce canal restent sans lead longtemps après leur export, de façon répétée : avant de "
+        "proposer un "
+        "nouveau contenu pour ce canal, vérifie le lien de suivi et l'appel à l'action, et dis que la cause est une "
+        "hypothèse, pas un fait."
+    ),
+    "objection_frequente": (
+        "Les avis signalent de façon répétée la même friction : n'y réponds jamais par une promesse, un prix ou un "
+        "délai ; "
+        "prépare la réponse avec le propriétaire, qui la valide avant toute publication."
+    ),
+    "avis_constate": (
+        "Les avis récents penchent défavorablement de façon répétée : ne sollicite pas seulement les clients "
+        "satisfaits "
+        "et prépare les réponses pour validation humaine, sans jamais publier seule."
+    ),
+}
+
+
 def _proposer(
     registre: Any,
     st: EtatLecons,
@@ -323,8 +351,9 @@ def _proposer(
     par: str,
     horodatage: str,
     libelle: str,
+    texte: str | None = None,
 ) -> tuple[str, str]:
-    texte = TEXTES[genre]
+    texte = texte if texte is not None else TEXTES[genre]
     if re.search(r"\d", texte):
         raise ErreurMnemo(codes.ENTREE_INVALIDE, "le texte destiné à l'agent ne porte aucun chiffre")
     ident = lecon_id(genre, cible, cle, identite)
@@ -372,6 +401,7 @@ def extraire(
     rejets: Sequence[Mapping[str, Any]],
     par: str,
     horodatage: str,
+    marketing: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Tire les leçons candidates des observations et les écrit PROPOSÉES. Rien n'est évalué, rien n'est décidé."""
     if not isinstance(par, str) or not _AGENT.fullmatch(par):
@@ -474,6 +504,36 @@ def extraire(
                     libelle=f"{r['rejets']} propositions rejetées par la direction pour la dimension {r['dimension']}",
                 )
             )
+    for g in marketing:
+        genre_obs = g.get("genre_observation")
+        if genre_obs not in TEXTES_MARKETING or g.get("semaines_distinctes", 0) < AFFAIRES_MIN:
+            continue
+        categorie = g.get("categorie")
+        cle = ":".join(x for x in (genre_obs, str(g["canal"]), categorie) if x)
+        if not _CLE.fullmatch(cle):
+            bilan["sans_lecon"].append({"genre": "apprentissage_marketing", "cle": "?", "raison": "cle_invalide"})
+            continue
+        contenu = {
+            "genre_observation": genre_obs, "canal": g["canal"], "categorie": categorie,
+            "semaines_distinctes": g["semaines_distinctes"], "observations": g["observations"],
+            "leads": g["leads"], "occurrences": g["occurrences"], "cles_mesure": list(g.get("cles_mesure", ())),
+        }
+        note(
+            _proposer(
+                registre,
+                st,
+                genre="apprentissage_marketing",
+                cible="m07-marketing",
+                cle=cle,
+                contenu=contenu,
+                identite={"genre_observation": genre_obs, "canal": g["canal"], "categorie": categorie},
+                sources=list(g.get("lignes", ())),
+                par=par,
+                horodatage=horodatage,
+                libelle=f"marketing : {genre_obs} sur {g['canal']}, {g['semaines_distinctes']} semaines distinctes",
+                texte=TEXTES_MARKETING[genre_obs],
+            )
+        )
     return bilan
 
 

@@ -30,6 +30,7 @@ import uuid
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from ..brand import conformite, profil_v2
 from ..content.contenu_public import verifier_consentement
 from ..utm import utm_engine
 from . import gabarits, mesure, plateformes, registre, retrait, verdicts
@@ -149,7 +150,18 @@ def matiere_du_chantier(
         accroche = ""
     if charge.get("ecart_signale") is True:
         avertissements.append("chantier en revue (écart signalé) : à vérifier avant de publier")
-    matiere = gabarits.Matiere(marque=profil["name"], accroche=accroche, nature=nature.libelle, ville=ville)
+    mentions: tuple[str, ...] = ()
+    declarees = [m for m in profil.get("mentions_requises") or [] if _texte_non_vide(m)]
+    if declarees and profil_v2.est_valide(profil, "mentions_requises"):
+        mentions = tuple(declarees)
+    elif declarees:
+        avertissements.append(
+            "mentions requises du profil pas encore validées par le propriétaire : les textes publics ne les portent "
+            "pas, donc la porte qualité les refuse tant qu'elles ne sont pas validées ou ajoutées à la main"
+        )
+    matiere = gabarits.Matiere(
+        marque=profil["name"], accroche=accroche, nature=nature.libelle, ville=ville, mentions=mentions,
+    )
     return matiere, avertissements
 
 
@@ -169,6 +181,15 @@ def contexte_controle(
         identifiants=identifiants,
         longueur_max=longueur_max,
     )
+
+
+def evaluer_texte(
+    texte: str, charge: Mapping[str, Any], profil: Mapping[str, Any], plateforme: Plateforme,
+) -> conformite.Evaluation:
+    """La porte qualité d'un texte de ce chantier pour cette plateforme : la porte binaire du socle (la loi) PLUS les
+    règles déclarées au profil de marque, avec le score de conformité qui les explique (`brand.conformite`)."""
+    contexte = contexte_controle(charge, profil, plateforme.longueur_max)
+    return conformite.evaluer(texte, dict(profil), plateforme, contexte)
 
 
 def description_utilisable(charge: Mapping[str, Any], profil: Mapping[str, Any]) -> tuple[str | None, str | None]:
@@ -228,7 +249,7 @@ def _avertissements_media(plateforme: Plateforme, photos: list[str]) -> list[str
 def _proposition(
     charge: Mapping[str, Any], plateforme: Plateforme, revision: int, texte: str, origine_texte: str,
     nature: Nature, matiere: gabarits.Matiere, profil: Mapping[str, Any], avertissements: list[str], origine: str,
-    marque_source: Mapping[str, Any] | None = None,
+    marque_source: Mapping[str, Any] | None = None, rapport_conformite: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     photos = [p for p in (charge.get("photos") or []) if isinstance(p, str)]
     canonique = json.dumps(
@@ -273,6 +294,7 @@ def _proposition(
         "propose_le": charge["horodatage_completion"],
         "approval_status": registre.STATUT_PROPOSE,  # invariant — jamais auto-publié (D-043)
         **({"marque_source": dict(marque_source)} if marque_source is not None else {}),
+        **({"conformite": conformite.resume(dict(rapport_conformite))} if rapport_conformite is not None else {}),
     }
 
 
@@ -333,22 +355,23 @@ def preparer(
             )
         else:
             texte, origine_texte = gabarits.composer(plateforme.code, matiere), "gabarit"
-        violations = controler_texte(texte, contexte_controle(charge, profil, plateforme.longueur_max))
-        if violations:
+        evaluation = evaluer_texte(texte, charge, profil, plateforme)
+        if evaluation.refuse:
             items.append({
                 "plateforme": plateforme.code, "statut": ITEM_REFUSE, "origine_texte": origine_texte,
-                "regles": [v.en_dict() for v in violations],
+                "regles": [v.en_dict() for v in evaluation.violations],
+                "conformite": conformite.resume(evaluation.rapport),
             })
             continue
         proposition = _proposition(
             charge, plateforme, revision, texte, origine_texte, nature, matiere, profil, avertissements, origine,
-            marque_source,
+            marque_source, evaluation.rapport,
         )
         nouvelles.append(proposition)
         items.append({
             "plateforme": plateforme.code, "statut": ITEM_PROPOSE, "contenu_id": proposition["contenu_id"],
             "revision": revision, "origine_texte": origine_texte, "apercu": _apercu(texte),
-            "avertissements": proposition["avertissements"],
+            "avertissements": proposition["avertissements"], "conformite": proposition["conformite"],
         })
     return Preparation(_statut_global(items), tuple(nouvelles), tuple(items))
 

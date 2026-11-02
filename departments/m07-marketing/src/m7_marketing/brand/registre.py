@@ -22,7 +22,7 @@ from opsys import stockage
 from opsys.stockage import codec
 from opsys.stockage.schema import REGISTRES
 
-from . import brand_schema, profil_client
+from . import brand_schema, profil_client, profil_v2
 
 DEPARTEMENT = "m07-marketing"
 REGISTRE = "brand_profiles"
@@ -56,8 +56,10 @@ def empreinte(valeur: Any) -> str:
     return hashlib.sha256(_json(valeur).encode("utf-8")).hexdigest()
 
 
-def valider_profil(profil: Any) -> dict[str, Any]:
-    """Contrat Brand v1 plus types bornés des seules options consommées par l'usine."""
+def valider_profil(profil: Any, *, tolerant: bool = False) -> dict[str, Any]:
+    """Contrat Brand v1, types bornés des options consommées par l'usine et champs étendus v2. `tolerant` (relecture
+    d'une
+    révision déjà enregistrée) ne refuse pas un champ étendu hors forme : `lire_snapshot_marque` le retire et le dit."""
     valide = brand_schema.validate_profile(profil)
     if not valide["name"].strip():
         raise ValueError("nom commercial vide")
@@ -103,7 +105,13 @@ def valider_profil(profil: Any) -> dict[str, Any]:
             )
         ):
             raise ValueError("heures_publication : plateformes connues et heures HH:MM")
-    return valide
+    # Champs étendus du contrat v2 (M7-MARQUE) : déclarés par le propriétaire, bornés, une ligne chacun.
+    if tolerant:
+        return valide
+    etendu = profil_v2.normaliser(valide)
+    if len(_json(etendu).encode("utf-8")) > MAX_PROFIL_OCTETS:
+        raise ValueError("profil JSON trop grand")
+    return etendu
 
 
 def _versions() -> tuple[list[dict[str, Any]], list[str]]:
@@ -144,7 +152,7 @@ def _versions() -> tuple[list[dict[str, Any]], list[str]]:
             )
         ):
             raise ValueError("révision de marque incohérente")
-        valider_profil(ligne["profil"])
+        valider_profil(ligne["profil"], tolerant=True)
         propre, motif = profil_client.verifier_profil_configure(ligne["profil"])
         if propre is None:
             raise ValueError(motif or "profil non configuré")
@@ -190,7 +198,7 @@ def courant() -> dict[str, Any]:
         dernier = versions[-1]
         return {
             "statut": "configure",
-            "profil": dernier["profil"],
+            "profil": profil_v2.assainir(dernier["profil"])[0],
             "revision": dernier["revision"],
             "configure_par": dernier["configure_par"],
         }
@@ -203,7 +211,14 @@ def lire_snapshot_marque() -> dict[str, Any]:
         except _ERREURS_DONNEES:
             return {"statut": "refuse", "profil": None, "motif": "registre de marque invalide ; aucun repli YAML"}
         if versions:
-            profil = versions[-1]["profil"]
+            profil, ignores = profil_v2.assainir(versions[-1]["profil"])
+            avertissements = [
+                *avertissements,
+                *(
+                    f"Champ étendu « {nom} » hors forme dans la révision enregistrée : ignoré à la lecture."
+                    for nom in ignores
+                ),
+            ]
             revision, source = versions[-1]["revision"], "brand_profiles"
         else:
             try:
@@ -233,6 +248,13 @@ def enregistrer(profil: dict[str, Any], signataire: str, horodatage: str) -> dic
     propre, motif = profil_client.verifier_profil_configure(valide)
     if propre is None:
         return {"statut": "a_configurer", "motif": motif}
+    # Une validation d'énoncé vaut seulement si elle est SIGNÉE par la personne qui configure : jamais celle d'un autre.
+    for nom, entree in (valide.get("validation_champs") or {}).items():
+        if entree["statut"] == profil_v2.STATUT_VALIDE and entree["par"] != signataire:
+            return {"statut": "profil_invalide", "motif": f"validation_champs.{nom} : la validation est signée par "
+                                                          "la personne qui configure le profil"}
+        if entree["statut"] == profil_v2.STATUT_VALIDE and nom not in valide:
+            return {"statut": "profil_invalide", "motif": f"validation_champs.{nom} : aucun énoncé à valider"}
     with stockage.transaction():
         try:
             versions, _avertissements = _versions()

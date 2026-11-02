@@ -133,6 +133,13 @@ DEFINITIONS: tuple[Definition, ...] = (
                "Exécute les demandes de fond en attente dont le modèle sélectionné est LOCAL (sans coût). Une demande "
                "dont le modèle est payant n'est jamais exécutée ici : elle exige une approbation de dépense.",
                famille="departements", transport="studio", plafond_appels_jour=200),
+    Definition("m7.rapport-hebdo", "M7 : rapport marketing hebdomadaire", 86400, "N2",
+               "Compose UNE fois par semaine le rapport marketing (leads par canal, coût par lead et leads par "
+               "contenu lus chez "
+               "M8, performance, avis, croissance), ses recommandations priorisées et sourcées, ses tâches internes "
+               "de niveau "
+               "bas et les observations de mémoire pour M10. Aucune publication, aucune dépense, aucun envoi.",
+               famille="departements"),
     Definition("sauvegarde.verification", "Vérification périodique des sauvegardes", 86400, "N0",
                "Authentifie en entier la plus récente archive chiffrée (intégrité et bonne clé), sans rien écrire, et "
                "dit son âge. Ne crée, ne déplace ni ne supprime aucune sauvegarde.",

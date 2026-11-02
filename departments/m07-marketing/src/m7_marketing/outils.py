@@ -38,10 +38,12 @@ from opsys.outils import Autonomie, Niveau, Outil
 from . import (
     depenses_marketing,
     geo_outils,
+    marque_outils,
     medias_outils,
     mesure_outils,
     performance_campagnes,
     publication_outils,
+    rapport_outils,
     signaux_outils,
     studio_outils,
     veille_outils,
@@ -960,7 +962,7 @@ def attentes() -> list[dict[str, Any]]:
     """Ce qui attend le propriétaire chez M7 (PLAN T4.17) : un contenu de chantier `PROPOSE` par ligne, niveau
     N3, que `m7_decider_contenu` approuve ou rejette. Lecture seule : ne décide ni n'exporte rien. Un contenu
     dont le client a retiré son consentement n'y figure plus."""
-    return usine_service.attentes()
+    return [*usine_service.attentes(), *rapport_outils.taches_attentes()]
 
 
 # ---------------------------------------------------------------------------
@@ -1885,4 +1887,6 @@ def outils() -> tuple[Outil, ...]:
         *veille_outils.outils(),
         *geo_outils.outils(),
         *mesure_outils.outils(),
+        *marque_outils.outils(),
+        *rapport_outils.outils(),
     )

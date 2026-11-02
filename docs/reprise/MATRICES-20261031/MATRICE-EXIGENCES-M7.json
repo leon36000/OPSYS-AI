@@ -56,11 +56,25 @@
       "docs/grs/marketing/M7-MARQUE-USINE-R44A.md"
      ],
      "niveau": "T+H"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/marque/test_profil_v2.py",
+      "departments/m07-marketing/tests/marque/test_conformite.py",
+      "departments/m07-marketing/tests/marque/test_guide.py",
+      "departments/m07-marketing/tests/marque/test_outils_marque.py",
+      "departments/m07-marketing/tests/marque/test_usine_marque.py",
+      "departments/m07-marketing/tests/marque/test_registre_marque_v2.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-MARQUE-RAPPORT.md"
+     ],
+     "niveau": "T+S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Schéma, console et révisions durables testés ; le profil source est un gabarit non validé."
+   "limite": "Schéma, console et révisions durables testés ; le profil source est un gabarit non validé. S'ajoutent (2 novembre 2026) : Brand Core v2 déclaré par le propriétaire (champs étendus, validation signée, relecture tolérante), score de conformité déterministe à sous-scores et raisons intégré à la porte qualité (la porte binaire reste la loi), audit de contenu existant et guide de ton. PAS prouvé : le profil RÉEL n'existe pas (Nathan doit déclarer et valider ses énoncés) ; un motif ne comprend pas le sens ; aucun modèle n'a été utilisé."
   },
   {
    "id": "M7.2",
@@ -151,11 +165,20 @@
       "docs/architecture/M7-SIGNAUX.md"
      ],
      "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/rapport_hebdo/test_croissance.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-MARQUE-RAPPORT.md"
+     ],
+     "niveau": "T+S"
     }
    ],
    "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Saisie humaine privée de métriques (inchangé). S'y ajoutent, avec des DOUBLES seulement, des connecteurs de lecture Umami, Matomo et Search Console (audience, référents, requêtes, pages) avec curseurs, quotas, idempotence et fraîcheur, et une attribution descriptive honnête. PAS prouvé : aucun transport réel branché, aucun planificateur n'appelle l'ingestion, formes d'API jamais exercées contre les vrais services ; aucune croissance calculée."
+   "limite": "Saisie humaine privée de métriques (inchangé). S'y ajoutent, avec des DOUBLES seulement, des connecteurs de lecture Umami, Matomo et Search Console (audience, référents, requêtes, pages) avec curseurs, quotas, idempotence et fraîcheur, et une attribution descriptive honnête. PAS prouvé : aucun transport réel branché, aucun planificateur n'appelle l'ingestion, formes d'API jamais exercées contre les vrais services ; aucune croissance calculée. S'ajoute (2 novembre 2026) un plan à 30 jours dont les actions organiques sont dérivées des observations étiquetées (formats, créneaux, séries) ou, sinon, disent ce qui manque ; garde contre l'achat d'abonnés, le faux engagement et le spam. Observationnel, jamais causal ; aucune donnée réelle."
   },
   {
    "id": "M7.5",
@@ -445,11 +468,24 @@
       "docs/architecture/M7-SIGNAUX.md"
      ],
      "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/rapport_hebdo/test_composition.py",
+      "departments/m07-marketing/tests/rapport_hebdo/test_recommandations.py",
+      "departments/m07-marketing/tests/rapport_hebdo/test_service_rapport.py",
+      "tests/test_m7_rapport_hebdo_planifie.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-MARQUE-RAPPORT.md",
+      "docs/architecture/PLANIFICATION.md"
+     ],
+     "niveau": "T+S"
     }
    ],
    "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Plans et rapport d'acquisition sourcé (inchangé). S'ajoutent des recommandations de contenu sourcées et priorisées par règles lisibles (GEO-01 à GEO-06) sur des signaux datés, avec fraîcheur. PAS prouvé : aucune stratégie fondée sur des données réelles de canal."
+   "limite": "Plans et rapport d'acquisition sourcé (inchangé). S'ajoutent des recommandations de contenu sourcées et priorisées par règles lisibles (GEO-01 à GEO-06) sur des signaux datés, avec fraîcheur. PAS prouvé : aucune stratégie fondée sur des données réelles de canal. S'ajoute (2 novembre 2026) le rapport marketing hebdomadaire planifié (boucle B) : un rapport par semaine, recommandations liées à une donnée ou marquées hypothèse, tâches internes de niveau bas ; l'exécuteur est inactif par défaut et ne fait aucun envoi. PAS prouvé : aucun ROI calculé (la finance reste à M5), jamais sur PostgreSQL ni pendant des jours."
   },
   {
    "id": "M7.12",
@@ -524,11 +560,23 @@
      ],
      "docs": [],
      "niveau": "H"
+    },
+    {
+     "tests": [
+      "tests/test_m7_marque_rapport_bout_en_bout.py",
+      "tests/test_m7_lecons_marketing.py",
+      "departments/m10-memoire/tests/test_apprentissage_marketing.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-MARQUE-RAPPORT.md",
+      "docs/architecture/INTERCONNEXION.md"
+     ],
+     "niveau": "T+S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Chaîne jusqu'à l'export prouvée (H) ; publication réelle non qualifiée ; pas de mesure de plateforme."
+   "limite": "Chaîne jusqu'à l'export prouvée (H) ; publication réelle non qualifiée ; pas de mesure de plateforme. S'ajoute (2 novembre 2026) un parcours S : profil déclaré -> contenus -> porte à scores -> trois semaines -> rapport -> événement m7.* -> leçon M10 gouvernée, avec le vrai bus et le vrai planificateur (horloge injectée). La publication réelle et les plateformes restent hors de ce parcours."
   },
   {
    "id": "M7.15",

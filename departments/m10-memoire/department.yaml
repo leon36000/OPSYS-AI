@@ -80,9 +80,9 @@ budget:
   tokens_mois: 2500000
   alerte_pct: 80
 memoire:
-  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques, registre_dossiers_cpa, registre_soi, registre_lecons]
+  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques, registre_dossiers_cpa, registre_soi, registre_lecons, registre_faits_marketing]
   ecriture: [registre_evenements, registre_affaires, registre_references_configuration, registre_faits_analytiques, registre_dossiers_cpa,
-    registre_soi, registre_lecons]
+    registre_soi, registre_lecons, registre_faits_marketing]
 kpis:
   - id: taux_revisions_arbitrees
     description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.
@@ -144,3 +144,7 @@ evenements:
     # (`m5.dossier_cpa_scelle`), registre `dossiers_cpa_scelles` (FINANCIAL, hors de tout paquet de contexte). M10 se
     # souvient qu'un dossier a été scellé ; il ne le rouvre ni ne le juge (À valider auprès d'un comptable (CPA)).
     - m5.dossier_cpa_scelle
+    # M7-MEMOIRE : observations minimales d'apprentissage marketing (contenu gagnant ou faible, signal d'objection, avis) annoncées
+    # par M7 après son rapport hebdomadaire ; registre `faits_marketing` (INTERNAL, aucune donnée de client), puis leçons
+    # gouvernées de genre `apprentissage_marketing` (m10_extraire_lecons).
+    - m7.apprentissage_marketing_constate

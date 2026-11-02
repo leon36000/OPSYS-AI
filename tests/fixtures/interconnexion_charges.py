@@ -193,6 +193,24 @@ def dossier_cpa(dossier_id: str = "dossier-2026-09", **plus: Any) -> dict[str, A
     return _valide("m5.dossier_cpa_scelle", charge)
 
 
+def apprentissage_marketing(variante: int = 1, **plus: Any) -> dict[str, Any]:
+    """Une observation d'apprentissage marketing de M7 (M7-MEMOIRE) : un contenu gagnant, `variante` en change la
+    clé."""
+    cle = f"facebook-{variante:016x}"
+    charge = {
+        "observation_id": "m7-appr-" + empreinte("appr", str(variante))[:40],
+        "semaine": "2026-10-26",
+        "genre_observation": "contenu_gagnant",
+        "canal": "facebook",
+        "cle_mesure": cle,
+        "resultat": {"leads": 3, "devis_envoyes": 2, "devis_acceptes": 1, "occurrences": None, "avis_positifs": None,
+                     "avis_negatifs": None},
+        "rapport_empreinte": empreinte("rapport", str(variante)),
+    }
+    charge.update(plus)
+    return _valide("m7.apprentissage_marketing_constate", charge)
+
+
 def creance_relance(
     relance_id: str = "relance-fictive-1",
     facture_id: str = "fc-fictive-1",

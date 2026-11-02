@@ -39,3 +39,7 @@ def affaires() -> Any:
 
 def faits_analytiques() -> Any:
     return _registre("faits_analytiques")
+
+
+def faits_marketing() -> Any:
+    return _registre("faits_marketing")

@@ -62,7 +62,7 @@ budget:
   alerte_pct: 80
 memoire:
   lecture: [clients, chantiers, campagnes, avis]
-  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales, depenses_marketing, sites_wordpress, publications_wordpress, comptes_sociaux, publications_sociales, briefs_studio, jobs_studio, provenance_studio, actifs_studio, sources_signaux, curseurs_signaux, signaux_marketing, plans_medias, concurrents_declares, observations_concurrents, propositions_site, conversions_hors_ligne, plans_tests_marketing]
+  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales, depenses_marketing, sites_wordpress, publications_wordpress, comptes_sociaux, publications_sociales, briefs_studio, jobs_studio, provenance_studio, actifs_studio, sources_signaux, curseurs_signaux, signaux_marketing, plans_medias, concurrents_declares, observations_concurrents, propositions_site, conversions_hors_ligne, plans_tests_marketing, rapports_hebdomadaires, taches_marketing]
 # PLAN T4.17-c : M7 consomme le STOP de M1 (`m1.retrait_consentement`, les leads que le client avait ouverts, par leur
 # `lead_id`) et l'inscrit comme retrait du consentement marketing. Catalogue : src/opsys/evenements/catalogue/.
 # PLAN T4.17-e : M7 publie `m7.contenu_exporte` quand le propriétaire prend le paquet manuel d'un contenu (dans la
@@ -70,7 +70,7 @@ memoire:
 # texte, une ville, un lead ni un contact. M8 en tire les contenus qui existent et compte les leads par `utm_content`.
 evenements:
   consomme: [m4.travaux_termines, m1.retrait_consentement, m2.client_associe, m3.devis_accepte, m5.rentabilite_chantier]
-  publie: [m7.contenu_exporte, m7.publication_faite, m7.publication_echouee, m7.signaux_marketing_constates, m7.depenses_marketing_constatees, m7.anomalie_depense_detectee, m7.conversion_hors_ligne_importee, m7.performance_signaux_constatee]
+  publie: [m7.contenu_exporte, m7.publication_faite, m7.publication_echouee, m7.signaux_marketing_constates, m7.depenses_marketing_constatees, m7.anomalie_depense_detectee, m7.conversion_hors_ligne_importee, m7.performance_signaux_constatee, m7.apprentissage_marketing_constate]
 kpis:
   - id: m7_cout_par_lead_global
     description: Coût publicitaire joignable divisé par les leads attribués aux canaux correspondants (CAD/lead).
