@@ -37,6 +37,9 @@ planifications:
       aucune décision, ne signale aucune révision.
   - nom: consolidation-nocturne
     cron: "0 3 * * *"
+    # Remplacée : l'énumération des affaires touchées la veille et leur consolidation sont faites de façon déterministe par
+    # la routine `consolidation-affaires` (planificateur durable, qui reprend CE cron). L'agent n'est plus déclenché.
+    remplacee_par: consolidation-affaires
     consigne: >-
       Pour chaque affaire (lead_id) ayant reçu au moins un événement (lead qualifié, client
       associé, devis accepté ou sans réponse, WCT, variance matériaux ou rentabilité) la veille,
@@ -52,6 +55,26 @@ planifications:
       décisions humaines. Rapporte seulement ce que les outils rendent (énoncés proposés, révisions à trancher, arêtes en attente de
       confirmation, leçons proposées, leçons promues qui régressent) pour que la direction les voie ; un chiffre vient de l'outil,
       jamais de toi. Si un outil refuse, dis son code et arrête.
+# Routines internes déclenchées par le PLANIFICATEUR DURABLE (jamais par un agent) : exécuteurs `m10.routine.<nom>`, inactifs
+# tant qu'un admin ne les active pas ; en ombre, rien n'est écrit. Docs : docs/architecture/PLANIFICATION.md §10. Travail
+# interne seulement (N0 à N2) : aucun contact externe, aucune promotion ni confirmation (décisions humaines).
+routines_planifiees:
+  - nom: consolidation-affaires
+    outils: [m10_lister_affaires_a_consolider, m10_consolider_affaire]
+    cadence: {suit: consolidation-nocturne}
+    description: >-
+      Consolide la veille : l'énumérateur désigne les affaires touchées (registre Événements) dont le fait durable manque ou ne
+      couvre pas toutes les sources, puis chacune est consolidée de façon idempotente.
+  - nom: audit-non-oubli
+    outils: [m10_executer_audit_non_oubli]
+    cadence: {cron: "30 4 * * 1"}   # lundi, à valider par la direction
+    description: >-
+      Audit hebdomadaire « non-oubli » : chaque événement que le bus dit avoir livré à M10 a-t-il sa trace ? chaînes intactes,
+      jours consolidés, révisions en attente. Rapport consultable.
+  - nom: kpis-memoire
+    outils: [m10_calculer_kpis]
+    cadence: {cron: "45 4 * * *"}   # après la consolidation, à valider par la direction
+    description: Calcule les KPI de mémoire du manifeste (ceux que les registres permettent de calculer) vers un résultat consultable.
 budget:
   tokens_jour: 200000
   tokens_mois: 2500000

@@ -115,6 +115,14 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_constats:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    from .connecteurs_planification import routines as routines_planifiees
+
+    problemes_routines = routines_planifiees.problemes(deps)
+    if problemes_routines:
+        print("ERREUR : routines planifiées invalides (department.yaml, bloc routines_planifiees) :", file=sys.stderr)
+        for probleme in problemes_routines:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
     # Un fichier illisible échoue à chaque lecture du profil : le même message ne s'affiche qu'une fois.
     problemes_taxonomie = list(dict.fromkeys(
         taxonomie.verifier_profil()

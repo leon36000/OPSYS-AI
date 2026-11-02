@@ -18,6 +18,7 @@ DETAILS_PERMIS = frozenset({
     "reconcilies", "expires", "aurait", "duree_ms", "revision", "intervalle_s", "ancien_mode", "expire_le", "raison",
     "brouillon_id", "publication_id", "demande_id", "jeton", "porteur", "reseau", "attente_s", "quota", "motif",
     "appels", "etapes", "purges", "elements", "empreinte", "transport", "plafond", "inchanges", "documents", "archives",
+    "notices", "affaires", "oublis", "rapports",
 })
 
 

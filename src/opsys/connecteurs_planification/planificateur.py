@@ -135,6 +135,7 @@ class Contexte:
         return self.maintenant_dt().astimezone(ZoneInfo(self.ports.fuseau)).date().isoformat()
 
     reste_appels: int | None = None  # plafond d'appels restant pour l'exécuteur en cours (`None` : sans plafond)
+    mode: str = "actif"  # mode de l'exécuteur en cours (posé par `tour`) : l'ombre d'une routine à créneau s'en sert
     _outils: dict[str, Any] | None = None
 
     def outils(self) -> dict[str, Any]:
@@ -174,7 +175,7 @@ class Executeur(Protocol):
 
 
 def executeurs_par_defaut() -> list[Executeur]:
-    from . import constats
+    from . import constats, routines
     from .exec_courriel import Envoi, Synchro
     from .exec_departements import (
         BalayagePeremptions,
@@ -191,7 +192,7 @@ def executeurs_par_defaut() -> list[Executeur]:
     return [Synchro(), Envoi(), TransmissionWordPress(), PublicationWordPress(), PublicationSociale(),
             EntrepotM8(), CycleM5(), Mnemo(), ReindexationConnaissances(), SignauxM7(), VeilleM7(), FondsStudio(),
             VerificationSauvegarde(), BalayagePeremptions(), RetentionCourriel(), RetentionCles(), RetentionTraces(),
-            EffacementsReprise(), *constats.executeurs()]
+            EffacementsReprise(), *constats.executeurs(), *routines.executeurs()]
 
 
 def _reserver_creneau(nom: str, maintenant: float) -> tuple[str, int]:
@@ -374,6 +375,7 @@ def tour(departements: Mapping[str, Any] | None = None, *, ports: Ports | None =
             if mode in ("inactif", "pas_echu", "deja_pris"):
                 resume["executeurs"][executeur.nom] = {"statut": mode}
                 continue
+            ctx.mode = mode
             barrage, ctx.reste_appels = _barrage(executeur.nom, mode, maintenant)
             resultat = barrage if barrage is not None else _passer(executeur, mode, ctx)
             _fin_de_passage(executeur.nom, maintenant, resultat["statut"], resultat.get("code"))

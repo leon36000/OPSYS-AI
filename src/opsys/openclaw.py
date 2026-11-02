@@ -1042,6 +1042,8 @@ def generer(
             "tools": politique_base,
         }
         for plan in dep.planifications:
+            if plan.remplacee_par is not None:
+                continue  # remplacée par une routine déterministe du planificateur : jamais deux déclencheurs
             automatisations.append(
                 " ".join(
                     [

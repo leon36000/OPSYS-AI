@@ -59,7 +59,8 @@ def test_vue_departements_reprend_manifeste_mode_outils_et_consommation(departem
     assert (outils["m9_payer"]["autonomie"], outils["m9_payer"]["approbation_requise"]) == ("T3", True)
     assert demo["erreur_outils"] is None
     assert demo["skills"] == ["procedure-demo"]
-    assert demo["planifications"] == [{"nom": "digest", "cron": "0 7 * * 1-5", "consigne": "Résume la journée."}]
+    assert demo["planifications"] == [{"nom": "digest", "cron": "0 7 * * 1-5", "consigne": "Résume la journée.",
+                                       "remplacee_par": None}]
     assert demo["budget"] == {"tokens_jour": 1000, "tokens_mois": 20000, "alerte_pct": 80}
     assert demo["consommation"]["niveau"] == "alerte"
     assert demo["consommation"]["jour"] == {"utilise": 850, "limite": 1000, "pct": 85.0}

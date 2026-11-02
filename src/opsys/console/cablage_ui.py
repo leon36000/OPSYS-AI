@@ -68,6 +68,7 @@ _FAMILLES = (
     ("connecteurs", "Connecteurs (courriel, WordPress, réseaux sociaux)"),
     ("departements", "Départements (calculs, reconstructions, lectures)"),
     ("constats", "Constats planifiés pour M8 (résumés agrégés publiés au bus)"),
+    ("routines", "Routines internes des départements (digest, alertes, consolidation, audit, KPI)"),
     ("verification", "Vérifications"),
     ("retention", "Rétention Loi 25 (suppressions irréversibles)"),
 )

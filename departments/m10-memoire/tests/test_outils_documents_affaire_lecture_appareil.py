@@ -53,9 +53,10 @@ def test_declarations_T0_N0_admin_affaire_fermees_append_et_signatures(index):
     o = outil(index)
     assert tuple(x.nom for x in outils.outils())[-2:] == NOMS
     # + les outils de connaissances, + `m10_lire_faits_analytiques` (M8.18), + `m10_lire_faits_strategiques` (Athéna)
-    from m10_memoire import soi_graphe
+    from m10_memoire import routines_outils, soi_graphe
 
     mnemo = {o.nom for o in soi_graphe.outils_mnemo()}  # outils de Mnémo (tests/test_mnemo_outils.py)
+    mnemo |= {o.nom for o in routines_outils.outils_routines()}  # routines planifiées (test_routines_outils.py)
     ajouts = ("connaissance", "faits_analytiques", "faits_strategiques")
     assert len([x for x in outils.outils() if not any(a in x.nom for a in ajouts) and x.nom not in mnemo]) == 26
     assert o.autonomie is Autonomie.T0 and o.niveau is Niveau.N0

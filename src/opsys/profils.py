@@ -76,6 +76,8 @@ def jobs_cron(dep: Departement) -> dict[str, Any]:
                 "enabled": False,
             }
             for p in dep.planifications
+            # remplacée par une routine déterministe du planificateur : jamais deux déclencheurs
+            if p.remplacee_par is None
         ]
     }
 

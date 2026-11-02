@@ -12,6 +12,10 @@ TYPE_RECU_SMS_HOTE = "reception_hote_sms_v1"
 # classées ».
 TYPE_RECU_COURRIEL = "reception_courriel_connecteur_v1"
 TYPE_REPONSE_COURRIEL = "reponse_courriel_v1"
+# Registre INTERNE `reception_interne` (reception_interne.py), distinct du registre anti-perte : les avis « À voir » que
+# l'adjointe consigne (digest, alertes) et les KPI calculés. Aucun texte de client, aucun contact.
+TYPE_AVIS_RECEPTION = "avis_reception"
+TYPE_KPIS_RECEPTION = "kpis_reception"
 
 _TYPES_ENTREE_VALIDES = {
     "signal",
@@ -27,6 +31,8 @@ _TYPES_ENTREE_VALIDES = {
     TYPE_RECU_SMS_HOTE,
     TYPE_RECU_COURRIEL,
     TYPE_REPONSE_COURRIEL,
+    TYPE_AVIS_RECEPTION,
+    TYPE_KPIS_RECEPTION,
 }
 
 _CANAUX_VALIDES = {"telephone", "courriel", "formulaire", "texte"}

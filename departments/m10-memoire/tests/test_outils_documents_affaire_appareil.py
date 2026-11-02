@@ -77,9 +77,9 @@ def test_declaration_fermee_t1_n3_admin_affaire_append_en_fin(index):
     # Même chose pour `m10_lire_faits_analytiques` (M8.18, lecture des faits consolidés de M8,
     # tests/test_analytique.py).
     # Idem pour les outils de Mnémo (`soi_graphe.outils_mnemo`, tests/test_mnemo_outils.py) et d'Athéna.
-    from m10_memoire import soi_graphe
+    from m10_memoire import routines_outils, soi_graphe
 
-    mnemo = {o.nom for o in soi_graphe.outils_mnemo()}
+    mnemo = {o.nom for o in soi_graphe.outils_mnemo()} | {o.nom for o in routines_outils.outils_routines()}
     hors_ajouts = tuple(o.nom for o in alltools if "connaissance" not in o.nom and "faits_analytiques" not in o.nom
                         and "faits_strategiques" not in o.nom and o.nom not in mnemo)
     assert hors_ajouts == HISTORIQUES + NOMS + (

@@ -1269,6 +1269,12 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=consolider_affaire,
             autonomie=Autonomie.T1,
+            # N2 (tâche interne automatique) et non le défaut T1 -> N3 : la consolidation nocturne est déclenchée par le
+            # planificateur durable (routine `consolidation-affaires`, sans humain ni agent), qui n'appelle JAMAIS un
+            # N3.
+            # Elle ajoute un maillon append-only qui cite ses sources, idempotent par (affaire, jour, sources) : elle
+            # n'engage personne et n'écrase rien (DA-M10-05). Aucun droit d'appareil.
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m10_deposer_faits_candidats",
@@ -1626,9 +1632,12 @@ _OUTILS_AVANT_LECTURE_DOCUMENTAIRE = outils
 
 def outils() -> tuple[Outil, ...]:
     """Conserve les déclarations historiques, ajoute les deux lecteurs T0 et les outils de connaissances."""
+    from . import routines_outils
+
     return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
         *connaissances.outils_connaissances(),
         *soi_graphe.outils_mnemo(),
+        *routines_outils.outils_routines(),
         Outil(
             nom="m10_lire_faits_analytiques",
             description=(
