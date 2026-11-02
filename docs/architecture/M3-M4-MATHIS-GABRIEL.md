@@ -179,6 +179,10 @@ donnée que si la source déclare σ.
   plus 30 jours, plafond du code, valeur déclarée), recueilli par une **personne** (N3 approuvé, jamais un agent), énoncé versionné,
   preuve par référence. Retrait (STOP, client, équipe, administration) immédiat (N2) ; un consentement antérieur ou égal au retrait
   ne le lève pas ; expiré, il ne permet plus rien. Aucun contact ni position n'est gardé (M1 détient le contact par `lead_id`).
+  Le retrait est DIT à M1 par `m4.consentement_suivi_retire` (même transaction ; `lead_id`, canal, instant, maillon terminé ; ni contact
+  ni source) : M1 refuse alors les brouillons visés et neutralise ceux qui ne sont pas partis (voir `INTERCONNEXION.md` §2). Politique
+  SMS (`POLITIQUE-consentement-sms.md` §4) : « appliqué dans les 48 heures » ; le code l'applique à la livraison de l'événement, plus sévère
+  (même choix que le STOP de M1, ADR-0011).
 - **Message** : `m4_preparer_message_eta_client` (T1/N2) compose un texte FIXE (une fenêtre, « estimation, pas une promesse », le
   moyen de se retirer), le fait passer par le garde-fou de texte du socle (aucune adresse, coordonnée, nom, lien, prix…), enregistre
   la fenêtre (empreinte du texte, `conserve_jusqu_au`) et publie `m4.message_client_brouillon_pret` à M1. **Rien n'est envoyé** :

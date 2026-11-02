@@ -535,6 +535,13 @@ cas fictifs ; fenêtre d'arrivée (jamais une heure unique), consentement de sui
 Pas de lien sécurisé, de rôle `client` ni de SMS ; aucun routeur installé (mode bridé). Détails et limites :
 [`docs/architecture/M3-M4-MATHIS-GABRIEL.md`](../../docs/architecture/M3-M4-MATHIS-GABRIEL.md).
 
+**Retrait dit à M1.** `m4_retirer_consentement_suivi_client` publie `m4.consentement_suivi_retire` dans la même transaction que le
+maillon de retrait (`lead_id` pseudonyme, canal, instant, maillon de consentement terminé ; ni contact ni source du retrait). M1,
+qui détient le brouillon déjà publié, refuse alors tout message visé et neutralise ceux qui ne sont pas partis
+([`INTERCONNEXION.md`](../../docs/architecture/INTERCONNEXION.md) §2). Si la publication échoue, le retrait n'est pas posé (même
+transaction). Preuve : `tests/test_outils_adequation_eta.py`, `tests/test_suivi_client.py` et, avec M1 réel,
+`tests/test_consentement_suivi_retire_scenario.py` du socle.
+
 ## Capacité d'équipe publiée pour M8 — `m4_constater_capacite_equipe`
 
 (phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) calcule la capacité d'une semaine comme `m4_lire_capacite_equipe` et publie `m4.capacite_equipe_constatee` : le total des heures d'équipe DÉCLARÉES et le total des heures planifiées de la cédule appliquée. Une semaine non calculable ne porte aucun total (`null`) et dit ses causes en codes fermés, sans suffixe (ni équipe, ni date, ni nombre). Aucune équipe ni aucun membre ne part. L'identifiant porte l'instant du constat.

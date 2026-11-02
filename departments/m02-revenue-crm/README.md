@@ -172,6 +172,13 @@ validation humaine au départ), §9.4 « relances autorisées ». Déclarés dan
 - **Le STOP** : M2 consomme `m1.retrait_consentement` (`_recevoir_retrait_consentement`) : un retrait par lead, le
   `lead_id` du client et jamais son numéro. Il vaut pour la PERSONNE (les leads d'un même client) et pour ses deux
   canaux écrits, prime sur tout consentement, et aucun outil ne le lève. L'appel reste permis.
+- **Créance levée par le paiement** : M2 consomme `m5.facture_emise_constatee` (déjà publié par M5 pour M8) : une facture `PAYEE` ou
+  `ANNULEE` lève la relance de créance de cette facture (`faits_interconnexion.creances_ouvertes`, calculé à la lecture : un
+  état plus ancien rejoué ne la rouvre jamais) ; un paiement partiel n'est jamais `PAYEE`, la relance reste. M2 ne garde que
+  l'identifiant et le statut. Preuve : `tests/test_creance_levee_paiement.py` du socle.
+- **Constat contradictoire** : un fait d'interconnexion rejoué avec la même clé mais un contenu différent (relance de créance,
+  conversion, contexte de site) garde le PREMIER état, est rangé au registre `constats_contradictoires` (noms des champs, jamais
+  les valeurs) et dit par `m2_lister_relances` (`constats_contradictoires`) ; le rejeu identique reste silencieux.
 - **La fréquence** est celle de la personne (`jours_entre_relances`) ; la dernière relance est la dernière PRÉPARÉE.
   Permis pile à la prochaine date permise. Pour un appel d'appareil idempotent, l'heure du serveur fait foi.
 - **GATE NATHAN** : `configuration.relances.jours_entre_relances` et `configuration.segments` (les délais) sont VIDES à
