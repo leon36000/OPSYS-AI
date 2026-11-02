@@ -90,7 +90,7 @@ def test_la_duree_de_l_estimation_d_origine_entre_dans_la_charge_en_texte_decima
     assert isinstance(charge["duree_estimee_minutes"], str)  # jamais un nombre JSON
     sans_mesure = {
         cle: valeur for cle, valeur in charge.items()
-        if cle not in {"duree_estimee_minutes", "semantique_temps"}
+        if cle not in {"duree_estimee_minutes", "semantique_temps", "duree_origine"}
     }
     assert sans_mesure == _charge_devis()
 

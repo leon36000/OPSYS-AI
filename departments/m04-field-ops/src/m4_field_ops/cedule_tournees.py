@@ -989,10 +989,11 @@ def _resume_durees(durees):
     }
 
 
-def _resultat_proposition(maillon, deja, provenance, non_pretes, durees):
+def _resultat_proposition(maillon, deja, provenance, non_pretes, durees=None):
     """Le plan rangé, tel que le maillon le garde ; ``provenance`` (d'où vient chaque valeur), ``non_pretes`` (les
     interventions a_planifier laissées de côté) et ``durees`` (d'où vient la durée de chaque chantier) sont ceux de CET
-    appel, pas ceux d'un appel antérieur."""
+    appel, pas ceux d'un appel antérieur. Sans ``durees``, c'est le résumé que le maillon garde lui-même (relecture
+    d'un plan déjà proposé : la console le revoit sans refaire la préparation)."""
     sortie = maillon["sortie"]
     meta = sortie["meta"]
     return {
@@ -1015,7 +1016,7 @@ def _resultat_proposition(maillon, deja, provenance, non_pretes, durees):
         "propose_par": maillon["propose_par"],
         "provenance": copy.deepcopy(provenance),
         "non_pretes": copy.deepcopy(non_pretes),
-        "durees": _resume_durees(durees),
+        "durees": copy.deepcopy(maillon.get("durees", {})) if durees is None else _resume_durees(durees),
         "a_appliquer_par": "m4_appliquer_cedule (N3, admin) avec ce plan_id ; rien n'est assigné avant",
     }
 
