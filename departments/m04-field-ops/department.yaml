@@ -55,10 +55,13 @@ kpis:
   - id: delai_moyen_resolution_revue
     description: Délai moyen entre l'ouverture d'une demande de revue et sa résolution.
 evenements:                        # ADR-0009 §3, PLAN T1.2-b
-  publie: [m4.travaux_termines, m4.message_client_brouillon_pret, m4.capacite_equipe_constatee]
+  publie: [m4.travaux_termines, m4.message_client_brouillon_pret, m4.consentement_suivi_retire, m4.capacite_equipe_constatee]
   # m4.travaux_termines : même transaction que le WCT (outbox.completer_intervention).
   # m4.message_client_brouillon_pret (M4.14) : brouillon d'une fenêtre d'arrivée pour le client, publié à M1 seulement si le
   # consentement de suivi est actif ; M1 le reprend comme brouillon dans son sas d'envoi (envoi N3 de M1).
+  # m4.consentement_suivi_retire (M4.14) : le retrait du consentement de suivi (STOP, client, équipe) est dit à M1 dans la
+  # même transaction que le maillon de retrait ; M1 refuse tout brouillon préparé avant et marque « suivi retiré » ceux
+  # qui ne sont pas partis (jamais d'envoi). Aucun contact : le lead_id pseudonyme seulement.
   # m6.variance_chantier : confirme completed_verified (outbox.confirmer_verification).
   # m3.devis_accepte (PLAN T4.10-b, DEFINITION-PRODUIT §6 « soumission acceptée -> M4 planifie », M4.5) : une
   # intervention a_planifier naît du devis ; service, ville et urgence sont relus à la source du bus

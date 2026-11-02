@@ -65,6 +65,7 @@ _OUTIL_CONSENTEMENT = "m4_enregistrer_consentement_suivi_client"
 TYPE_BROUILLON = "affectation_brouillon"
 TYPE_APPROUVEE = "affectation_approuvee"
 TYPE_EVENEMENT_MESSAGE = "m4.message_client_brouillon_pret"
+TYPE_EVENEMENT_RETRAIT = "m4.consentement_suivi_retire"
 # Texte destiné au client : une fenêtre de temps, rien d'autre. La date et la promesse de délai sont permises ICI
 # (c'est l'objet du message, décidé par M4 qui connaît la cédule) ; tout le reste de ce qui identifie un client ou
 # engage l'entreprise est refusé.
@@ -549,8 +550,33 @@ def construire(
         )
         if verdict is not None:
             return _refus(verdict)
+        # Le consentement que ce retrait termine se lit AVANT d'écrire le retrait (après, l'état serait « retiré »).
+        vise = suivi_client.consentement_vise_par_retrait(
+            reg.lire(), intervention_id, canal, _instant(maillon["horodatage"])
+        )
         ligne_id = reg.ajouter(maillon)  # un retrait se pose toujours, même sans consentement connu : il bloque
-        return {"accepte": True, "resultat": {"ligne_id": ligne_id, "etat": "retire", "canal": canal}}
+        publie = False
+        if stockage.connexion_courante() is not None:
+            # M1 détient le brouillon déjà publié : il ne peut pas savoir ce retrait sans cet événement (Loi 25 : le
+            # retrait vaut tout de suite pour ce que M1 n'a pas encore envoyé). Même transaction que le maillon.
+            evenements.publier(
+                TYPE_EVENEMENT_RETRAIT,
+                _DEPARTEMENT,
+                {
+                    "intervention_id": intervention_id,
+                    "lead_id": _intervention(reg, intervention_id)["lead_id"],
+                    "canal": canal,
+                    "retire_le": maillon["horodatage"],
+                    "consentement_ligne_id": vise,
+                },
+                evenement_id="m4-suivi-retire-"
+                + encodage.empreinte(intervention_id, canal, maillon["horodatage"], vise or "")[:32],
+            )
+            publie = True
+        return {
+            "accepte": True,
+            "resultat": {"ligne_id": ligne_id, "etat": "retire", "canal": canal, "evenement_publie": publie},
+        }
 
     def lire_consentement(intervention_id: str, canal: str, horodatage_reference: str) -> dict[str, Any]:
         reference = _instant(horodatage_reference)

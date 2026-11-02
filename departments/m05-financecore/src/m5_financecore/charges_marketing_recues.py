@@ -23,15 +23,24 @@ Ce que ce module décide, en fonction pure (aucun import `opsys`, aucune horloge
 
 Idempotence : une ligne par (relevé, révision) au registre `charges_marketing_recues` ; le grand livre dédoublonne en
 plus par `cle_piece`. Le rejeu du même relevé sous un autre `evenement_id` n'écrit rien.
+
+CONTRADICTION. La MÊME clé (relevé, révision) avec un contenu DIFFÉRENT (autre montant, autre période, autre base de
+taxes...) n'est pas un rejeu : chaque ligne garde l'empreinte du contenu reçu (`empreinte_contenu`, jamais le montant en
+clair) et `contenu_contradictoire` la compare à celle de la ligne déjà rangée. Le premier état reste, rien n'est
+écrasé ; `outils._recevoir_depense_marketing` range la contradiction (`opsys.evenements.constats`) et la dit. Une
+ligne écrite avant cette règle n'a pas d'empreinte : elle ne peut pas être comparée (jamais une contradiction présumée).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any
 
 REGISTRE = "charges_marketing_recues"
+CHAMPS_CONTENU = ("canal", "periode_debut", "periode_fin", "montant_cad", "devise", "base_taxes", "source", "releve_le")
 TYPE_ENTREE = "charge_marketing_recue"
 CATEGORIE_CHARGE = "marketing"
 MENTION = "À valider auprès d'un comptable (CPA) / professionnel qualifié"
@@ -46,6 +55,20 @@ REFUSE = "REFUSE"
 
 def cle(charge: Mapping[str, Any]) -> str:
     return f"{charge['releve_id']}|r{charge['revision']}"
+
+
+def empreinte_contenu(charge: Mapping[str, Any]) -> str:
+    """L'empreinte du CONTENU du relevé (tout sauf l'identifiant de l'événement du bus) : ce que deux livraisons du même
+    relevé doivent partager."""
+    contenu = {c: charge[c] for c in CHAMPS_CONTENU}
+    texte = json.dumps(contenu, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
+    return hashlib.sha256(texte.encode("utf-8")).hexdigest()[:32]
+
+
+def contenu_contradictoire(ligne: Mapping[str, Any], charge: Mapping[str, Any]) -> bool:
+    """Vrai si la ligne déjà rangée pour cette clé porte une empreinte différente de celle du relevé reçu."""
+    connue = ligne.get("empreinte_contenu")
+    return isinstance(connue, str) and connue != empreinte_contenu(charge)
 
 
 def cle_piece(charge: Mapping[str, Any]) -> str:
@@ -101,6 +124,7 @@ def ligne_registre(charge: Mapping[str, Any], issue: str, **plus: Any) -> dict[s
         "revision": charge["revision"],
         "canal": charge["canal"],
         "issue": issue,
+        "empreinte_contenu": empreinte_contenu(charge),
         "mention": MENTION,
         **plus,
     }

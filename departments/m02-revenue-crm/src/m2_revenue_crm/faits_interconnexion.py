@@ -13,6 +13,11 @@ lus à ces fonctions.
   porte ni nom ni coordonnée). M2 en tire un avertissement de COORDINATION sur les relances COMMERCIALES du même
   client : ne pas relancer pour vendre quelqu'un qui doit déjà une facture sans que l'humain le sache. Aucune relance
   commerciale n'est supprimée ni retardée automatiquement ;
+- `m5.facture_emise_constatee` (statut `PAYEE` ou `ANNULEE` seulement) : la facture n'est plus due. M2 en garde le FAIT
+  (identifiant de facture et statut, aucun montant ni client) et LÈVE la relance de créance de cette facture : elle ne
+  compte plus pour l'avertissement. Le fait est terminal : aucun événement ne le défait (un `ENVOYEE` plus ancien rejoué
+  après le paiement n'est même pas rangé), et il se lit à la lecture, donc l'ordre de livraison ne compte pas (la
+  relance peut arriver APRÈS le paiement). Un paiement PARTIEL n'est jamais `PAYEE` chez M5 : la relance reste ;
 - `m3.contexte_site_pret` : la dernière version du contexte de site d'un lead (facteurs connus, inconnus, à vérifier,
   en conflit), dite au coach comme un FAIT daté. Rien n'est comblé ni tranché ici.
 """
@@ -25,10 +30,14 @@ from typing import Any
 REGISTRE_CONVERSIONS = "conversions_hors_ligne_recues"
 REGISTRE_CREANCES = "creances_relances_recues"
 REGISTRE_CONTEXTES_SITE = "contextes_site_recus"
+REGISTRE_FACTURES_CLOSES = "factures_closes_recues"
 
 TYPE_CONVERSION = "conversion_hors_ligne_recue"
 TYPE_CREANCE = "creance_relance_recue"
 TYPE_CONTEXTE_SITE = "contexte_site_recu"
+TYPE_FACTURE_CLOSE = "facture_close_recue"
+# Les seuls statuts de `m5.facture_emise_constatee` qui lèvent une relance de créance : la facture n'est plus due.
+STATUTS_FACTURE_CLOSE = ("PAYEE", "ANNULEE")
 
 
 def fait_conversion(charge: Mapping[str, Any]) -> dict[str, Any]:
@@ -60,7 +69,16 @@ def fait_contexte_site(charge: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def fait_facture_close(charge: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Le fait « facture soldée ou annulée » (identifiant et statut, rien d'autre), ou `None` si le constat ne lève rien
+    (`ENVOYEE` : la facture est émise, donc due)."""
+    if charge.get("statut") not in STATUTS_FACTURE_CLOSE:
+        return None
+    return {"type_entree": TYPE_FACTURE_CLOSE, "facture_id": charge["facture_id"], "statut": charge["statut"]}
+
+
 CLES_UNICITE = {
+    TYPE_FACTURE_CLOSE: ("facture_id", "statut"),
     TYPE_CONVERSION: ("conversion_id",),
     TYPE_CREANCE: ("relance_id",),
     TYPE_CONTEXTE_SITE: ("lead_id", "version"),
@@ -74,6 +92,15 @@ def sources_marketing(conversions: Iterable[Mapping[str, Any]]) -> frozenset[str
         for c in conversions
         if c.get("type_entree") == TYPE_CONVERSION and c.get("source_normalisee") is True and c.get("utm_source")
     )
+
+
+def creances_ouvertes(
+    creances: Iterable[Mapping[str, Any]], factures_closes: Iterable[Mapping[str, Any]]
+) -> list[Mapping[str, Any]]:
+    """Les relances de créance dont la facture n'est ni payée ni annulée. Calculé À LA LECTURE depuis les deux
+    registres : ni l'ordre de livraison ni un rejeu ne peuvent la rouvrir."""
+    closes = {f["facture_id"] for f in factures_closes if f.get("type_entree") == TYPE_FACTURE_CLOSE}
+    return [c for c in creances if c.get("type_entree") != TYPE_CREANCE or c.get("facture_id") not in closes]
 
 
 def creances_par_client(creances: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:

@@ -250,3 +250,18 @@ def test_construire_ne_modifie_pas_les_maillons_fournis():
     avant = copy.deepcopy(maillons)
     _consentement(maillons, recueilli_le=_t(5), enregistre_le=_t(5, 9, 5))
     assert maillons == avant
+
+
+def test_le_consentement_vise_par_un_retrait_est_celui_qui_est_actif_ou_vient_d_expirer():
+    maillon, _ = _consentement()
+    maillons = [_avec_ligne_id(maillon, 1)]
+    instant = datetime.fromisoformat
+    assert sc.consentement_vise_par_retrait(maillons, "int-1", "sms", instant(_t(4))) == "l1"  # actif
+    assert sc.consentement_vise_par_retrait(maillons, "int-1", "sms", instant(_t(20))) == "l1"  # expiré : le message
+    # préparé pendant sa validité s'y fonde encore
+    assert sc.consentement_vise_par_retrait([], "int-1", "sms", instant(_t(4))) is None  # aucun consentement
+    assert sc.consentement_vise_par_retrait(maillons, "int-2", "sms", instant(_t(4))) is None  # autre chantier
+    assert sc.consentement_vise_par_retrait(maillons, "int-1", "courriel", instant(_t(4))) is None  # autre canal
+    retrait, _ = sc.construire_retrait(intervention_id="int-1", canal="sms", source="client_stop", retire_le=_t(5))
+    deja_retire = [*maillons, _avec_ligne_id(retrait, 2)]
+    assert sc.consentement_vise_par_retrait(deja_retire, "int-1", "sms", instant(_t(6))) is None  # déjà retiré

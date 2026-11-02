@@ -467,6 +467,23 @@ def test_la_sortie_ne_porte_ni_contact_ni_montant(par_nom, monde):
     assert "client_id" not in tout
 
 
+def test_l_etat_de_lecture_des_relances_dit_les_constats_contradictoires_seulement_quand_il_y_en_a(par_nom, monde):
+    assert "constats_contradictoires" not in _accepte(_lister(par_nom))
+    creance = {"relance_id": "rel-1", "facture_id": "F-1", "client_id": "client-1", "niveau": 1, "jours_retard": 9,
+               "montant_du": "100.00", "echeance": "2026-10-01", "date_reference": "2026-10-10"}
+    with stockage.transaction():
+        premiere = outils._recevoir_creance_relance(dict(creance))
+        rejeu = outils._recevoir_creance_relance(dict(creance))
+    assert premiere["enregistre"] is True and "contradiction" not in rejeu
+    assert "constats_contradictoires" not in _accepte(_lister(par_nom))  # le rejeu identique est silencieux
+    with stockage.transaction():
+        contradictoire = outils._recevoir_creance_relance({**creance, "niveau": 3})
+    assert contradictoire["contradiction"] == "CONSTAT_CONTRADICTOIRE"
+    page = _accepte(_lister(par_nom))
+    assert page["constats_contradictoires"] == 1 and "premier état est conservé" in page["avertissement_constats"]
+    assert "100.00" not in json.dumps(page)
+
+
 # =========================================================================================
 # 3. m2_lister_relances : la configuration, jamais un défaut
 # =========================================================================================

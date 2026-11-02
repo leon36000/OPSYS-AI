@@ -193,6 +193,9 @@ def lire_reponse_courriel(brouillon_id: str) -> dict[str, Any]:
         raise _refus(exc) from None
     c = brouillon.contenu
     corps = c.corps
+    from . import message_client_m4
+
+    retire = message_client_m4.message_retire(brouillon_id)
     if etape["signal_id"].startswith("verification:"):
         # M1.10 : le code à usage unique d'une vérification d'identité n'est jamais lisible par l'agent, qui pourrait
         # sinon se l'attester lui-même.
@@ -201,7 +204,10 @@ def lire_reponse_courriel(brouillon_id: str) -> dict[str, Any]:
         "brouillon_id": brouillon_id, "signal_id": etape["signal_id"], "revision": brouillon.revision,
         "empreinte": brouillon.empreinte, "statut": statut["statut"], "code": statut["code"],
         "demande_id": statut["demande_id"], "approuve_par": statut["approuve_par"],
-        "destinataires": list(c.a), "objet": c.objet, "corps": corps}}
+        "destinataires": list(c.a), "objet": c.objet, "corps": corps,
+        **({"suivi_retire": True, "avertissement": (
+            "Le client a retiré son consentement au suivi de la fenêtre d'arrivée : ce message ne doit pas "
+            "être envoyé. Rien n'a été envoyé.")} if retire is not None else {})}}
 
 
 # ------------------------------------------------------------------------------------------------ brouillons N2
@@ -278,6 +284,13 @@ def demander_envoi_courriel(brouillon_id: str, contexte: str, sources: list[str]
     if etape is None:
         raise ValueError("REJ-M1-COURRIEL-REPONSE-INCONNUE: ce brouillon n'est pas une réponse préparée par M1")
     signal_id = etape["signal_id"]
+    from . import message_client_m4
+
+    if etape["etape"] == message_client_m4.ETAPE_RETIRE or message_client_m4.message_retire(brouillon_id) is not None:
+        raise ValueError(
+            f"{message_client_m4.CODE_RETIRE}: le client a retiré son consentement au suivi de la fenêtre d'arrivée : "
+            "aucune demande d'envoi n'est ouverte pour ce message (Loi 25). Rien n'a été envoyé."
+        )
     liste = list(sources) if sources else [f"courriel:{signal_id}"[:120]]
     try:
         demande_id = envoi.demander_approbation(_cnx(), ACTEUR, brouillon_id, contexte=contexte, sources=liste,

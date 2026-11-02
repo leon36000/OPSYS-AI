@@ -62,6 +62,7 @@ import yaml
 
 from opsys import approbations, contexte, evenements, identite, jetons, stockage, taxonomie
 from opsys.departements import charger_departements
+from opsys.evenements import constats
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
@@ -628,13 +629,38 @@ def _recevoir_operation(type_entree: str, charge: dict[str, Any]) -> dict[str, A
     from opsys.evenements.repartiteur import instant_publication_livre
 
     fait = operations_recues.fait(type_entree, charge, instant_publication_livre())
-    enregistre = _ajouter_fait_si_nouveau(
-        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS), fait, operations_recues.cles_unicite(type_entree)
+    faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS)
+    cles = operations_recues.cles_unicite(type_entree)
+    existant = next(
+        (
+            e
+            for e in faits_cible
+            if e.get("type_entree") == fait["type_entree"] and all(e.get(c) == fait.get(c) for c in cles)
+        ),
+        None,
     )
-    return {
-        "enregistre": enregistre, "deja_enregistre": not enregistre,
-        **operations_recues.resume_recu(type_entree, fait),
-    }
+    if existant is None:
+        faits_cible.append(fait)
+        return {"enregistre": True, "deja_enregistre": False, **operations_recues.resume_recu(type_entree, fait)}
+    resume = {"enregistre": False, "deja_enregistre": True, **operations_recues.resume_recu(type_entree, fait)}
+    # Même clé de contenu : un rejeu identique reste silencieux ; un contenu DIFFÉRENT est une contradiction (le premier
+    # état reste, rien n'est écrasé ; `opsys.evenements.constats`).
+    champs = constats.champs_differents(existant, fait, operations_recues.CHAMPS_NON_COMPARES)
+    if champs:
+        ligne = constats.ligne_contradiction(
+            operations_recues.evenement_du_type(type_entree),
+            {c: fait.get(c) for c in cles},
+            empreinte_premier=constats.empreinte_contenu(operations_recues.contenu_compare(existant)),
+            empreinte_nouveau=constats.empreinte_contenu(operations_recues.contenu_compare(fait)),
+            champs=champs,
+            publie_le=instant_publication_livre(),
+        )
+        audit = stockage.maillons(_DEPARTEMENT, constats.REGISTRE)
+        if not constats.deja_signalee(audit, ligne):
+            audit.append(ligne)
+        resume["contradiction"] = constats.CODE
+        resume["champs"] = champs
+    return resume
 
 
 def _consommateurs_operations() -> dict[str, Any]:
@@ -805,6 +831,8 @@ def outils(
     if faits_operations_cible is None:
         faits_operations_cible = (
             [] if operations_en_memoire else stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS))
+    contradictions_cible = (
+        [] if operations_en_memoire else stockage.maillons(_DEPARTEMENT, constats.REGISTRE))
     if historique_sante_cible is None:
         historique_sante_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_HISTORIQUE_SANTE)
     if publications_cible is None:
@@ -1139,6 +1167,7 @@ def outils(
             situation, faits_chantier, attentes_m6, raison_m6, budget_caracteres=BUDGET_SORTIE,
             faits_cash_libre=list(faits_cash_libre_cible), aujourd_hui=jour,
             faits_operations=list(faits_operations_cible),
+            constats_contradictoires=constats.compter(contradictions_cible),
             fraicheur_attendue=_fraicheur_attendue(fraicheur_lectures.LECTURE_VUE_EXECUTIVE),
         )
 

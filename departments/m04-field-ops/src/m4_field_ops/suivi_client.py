@@ -42,6 +42,7 @@ __all__ = [
     "construire_enregistrement_eta",
     "construire_retrait",
     "compter_messages",
+    "consentement_vise_par_retrait",
     "etat_du_consentement",
 ]
 
@@ -220,6 +221,16 @@ def etat_du_consentement(
         "lead_id": dernier["lead_id"],
         "enonce_version": dernier["enonce_version"],
     }
+
+
+def consentement_vise_par_retrait(
+    maillons: Sequence[Mapping[str, Any]], intervention_id: str, canal: str, retire_le: datetime
+) -> str | None:
+    """Le `ligne_id` du consentement que ce retrait termine : celui qui est actif (ou venait d'expirer) à l'instant du
+    retrait, sinon `None` (aucun consentement, ou déjà retiré). C'est ce que M1 compare au `consentement_ligne_id` d'un
+    brouillon publié avant le retrait, pour le reconnaître sans se fier à aucune horloge."""
+    etat = etat_du_consentement(maillons, intervention_id, canal, retire_le)
+    return etat.get("ligne_id") if etat["etat"] in ("actif", "expire") else None
 
 
 def compter_messages(maillons: Sequence[Mapping[str, Any]], intervention_id: str, canal: str) -> int:

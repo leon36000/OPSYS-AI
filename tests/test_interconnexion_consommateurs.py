@@ -116,6 +116,14 @@ CAS = [
         "creances_relances_recues",
     ),
     (
+        "m2-facture-close",
+        M2,
+        M5,
+        "m5.facture_emise_constatee",
+        lambda v: ch.facture_emise(facture_id=f"fc-close-{v}", statut="PAYEE"),
+        "factures_closes_recues",
+    ),
+    (
         "m2-contexte-site",
         M2,
         M3,
@@ -172,6 +180,14 @@ CAS = [
         "signaux_gestion_recus",
     ),
     ("m9-consolide", M9, M8, "m8.fait_consolide", lambda v: ch.fait_consolide(graine=f"g{v}"), "signaux_gestion_recus"),
+    (
+        "m1-suivi-retire",
+        M1,
+        M4,
+        "m4.consentement_suivi_retire",
+        lambda v: ch.consentement_suivi_retire(intervention_id=f"interv-retrait-{v}"),
+        "messages_clients_m4",
+    ),
     (
         "m10-dossier-cpa",
         M10,

@@ -52,6 +52,8 @@ import yaml
 from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, idempotence, identite, jetons, stockage
+from opsys.evenements import constats
+from opsys.evenements.repartiteur import instant_publication_livre
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage import codec
 from opsys.stockage.concurrence import verrou_ecriture_console
@@ -961,6 +963,18 @@ def lister_relances(
     )
     if verdict is not None:
         return _refus(verdict)
+    contradictions = constats_contradictoires()
+    if contradictions:
+        # État de lecture : un constat reçu deux fois avec un contenu différent (le premier est gardé) est dit ici.
+        page = {
+            **page,
+            "constats_contradictoires": contradictions,
+            "avertissement_constats": (
+                f"{contradictions} constat(s) reçu(s) avec une clé déjà connue mais un contenu différent : le premier "
+                "état est conservé, rien n'est écrasé (registre constats_contradictoires) ; à examiner avec le "
+                "département émetteur."
+            ),
+        }
     return {"accepte": True, "resultat": page}
 
 
@@ -1847,46 +1861,89 @@ def _recevoir_retrait_consentement(charge: dict[str, Any]) -> dict[str, Any]:
 
 
 def _creances_recues() -> list[dict[str, Any]]:
-    """Les relances de créance préparées par M5 et reçues par le bus (lecture ; avertissement de coordination)."""
-    return list(stockage.maillons(_DEPARTEMENT, faits_interconnexion.REGISTRE_CREANCES))
+    """Les relances de créance préparées par M5 et reçues par le bus, SANS celles dont la facture est payée ou annulée
+    (lecture ; avertissement de coordination)."""
+    return list(
+        faits_interconnexion.creances_ouvertes(
+            stockage.maillons(_DEPARTEMENT, faits_interconnexion.REGISTRE_CREANCES),
+            stockage.maillons(_DEPARTEMENT, faits_interconnexion.REGISTRE_FACTURES_CLOSES),
+        )
+    )
 
 
-def _ranger_fait_interconnexion(nom_registre: str, fait: dict[str, Any]) -> bool:
+def _ranger_fait_interconnexion(nom_registre: str, fait: dict[str, Any]) -> dict[str, Any]:
     """Range un fait d'interconnexion (`faits_interconnexion.py`) une seule fois, par clé de CONTENU : le même constat
-    republié sous un autre `evenement_id` est un « déjà reçu », jamais un doublon ni une quarantaine. Si le registre est
-    indisponible, l'exception remonte : le bus réessaie. Rend vrai si le fait vient d'être ajouté."""
+    republié sous un autre `evenement_id` est un « déjà reçu », jamais un doublon ni une quarantaine. La MÊME clé
+    avec un contenu DIFFÉRENT est une contradiction (`opsys.evenements.constats`) : le premier état reste, rien n'est
+    écrasé, la contradiction est rangée au registre `constats_contradictoires` (noms des champs, jamais les valeurs) et
+    dite au bus. Si le registre est indisponible, l'exception remonte : le bus réessaie. Rend `{enregistre,
+    deja_enregistre}` et, en cas de contradiction, `{contradiction, champs}`."""
     registre = stockage.maillons(_DEPARTEMENT, nom_registre)
     cles = faits_interconnexion.CLES_UNICITE[fait["type_entree"]]
     for existant in registre:
         if existant.get("type_entree") == fait["type_entree"] and all(existant.get(c) == fait.get(c) for c in cles):
-            return False
+            champs = constats.champs_differents(existant, fait)
+            if not champs:
+                return {"enregistre": False, "deja_enregistre": True}
+            ligne = constats.ligne_contradiction(
+                fait["type_entree"],
+                {c: fait.get(c) for c in cles},
+                empreinte_premier=constats.empreinte_contenu(existant),
+                empreinte_nouveau=constats.empreinte_contenu(fait),
+                champs=champs,
+                publie_le=instant_publication_livre(),
+            )
+            audit = stockage.maillons(_DEPARTEMENT, constats.REGISTRE)
+            if not constats.deja_signalee(audit, ligne):
+                audit.append(ligne)
+            return {
+                "enregistre": False, "deja_enregistre": True, "contradiction": constats.CODE,
+                "champs": champs,
+            }
     registre.append(fait)
-    return True
+    return {"enregistre": True, "deja_enregistre": False}
+
+
+def constats_contradictoires() -> int:
+    """Le nombre de constats contradictoires rangés (état de lecture : `m2_lister_relances`)."""
+    return constats.compter(stockage.maillons(_DEPARTEMENT, constats.REGISTRE))
 
 
 def _recevoir_conversion_hors_ligne(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m7.conversion_hors_ligne_importee` : range la conversion (identifiants, type, jour, source normalisée,
     valeur déclarée) SANS toucher au lead ni à son contrat. Elle ne sert que le score, en lecture (`source_connue`)."""
-    ajoute = _ranger_fait_interconnexion(
+    rangee = _ranger_fait_interconnexion(
         faits_interconnexion.REGISTRE_CONVERSIONS, faits_interconnexion.fait_conversion(charge))
-    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "conversion_id": charge["conversion_id"]}
+    return {**rangee, "conversion_id": charge["conversion_id"]}
 
 
 def _recevoir_creance_relance(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m5.creance_relance_preparee` : M5 a préparé la relance d'une facture en retard. M2 la range pour
     avertir, sur ses relances commerciales, de coordonner avec M5 ; il n'envoie ni ne prépare rien de plus."""
-    ajoute = _ranger_fait_interconnexion(
+    rangee = _ranger_fait_interconnexion(
         faits_interconnexion.REGISTRE_CREANCES, faits_interconnexion.fait_creance(charge))
-    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "relance_id": charge["relance_id"]}
+    return {**rangee, "relance_id": charge["relance_id"]}
+
+
+def _recevoir_facture_emise(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m5.facture_emise_constatee` pour UNE chose : une facture PAYÉE ou ANNULÉE lève la relance de créance
+    qu'M2 gardait (`creances_ouvertes`). `ENVOYEE` ne dit rien de nouveau (rien n'est rangé, donc un état plus ancien
+    rejoué après le paiement ne rouvre rien). Aucun montant, aucun client n'est gardé."""
+    fait = faits_interconnexion.fait_facture_close(charge)
+    if fait is None:
+        return {
+            "enregistre": False, "deja_enregistre": False, "ignore": "facture_due", "facture_id": charge["facture_id"],
+        }
+    return {**_ranger_fait_interconnexion(faits_interconnexion.REGISTRE_FACTURES_CLOSES, fait),
+            "facture_id": charge["facture_id"], "statut": charge["statut"]}
 
 
 def _recevoir_contexte_site(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m3.contexte_site_pret` : les comptes du contexte de site d'un lead, rangés par version (une version
     déjà reçue ne s'ajoute pas)."""
-    ajoute = _ranger_fait_interconnexion(
+    rangee = _ranger_fait_interconnexion(
         faits_interconnexion.REGISTRE_CONTEXTES_SITE, faits_interconnexion.fait_contexte_site(charge))
-    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "lead_id": charge["lead_id"],
-            "version": charge["version"]}
+    return {**rangee, "lead_id": charge["lead_id"], "version": charge["version"]}
 
 
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
@@ -1901,6 +1958,7 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m7.conversion_hors_ligne_importee": _recevoir_conversion_hors_ligne,
         "m5.creance_relance_preparee": _recevoir_creance_relance,
         "m3.contexte_site_pret": _recevoir_contexte_site,
+        "m5.facture_emise_constatee": _recevoir_facture_emise,
     }
 
 

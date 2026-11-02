@@ -275,6 +275,7 @@ def assembler(
     raison_manque_m6: str | None, budget_caracteres: int | None = None, *,
     faits_cash_libre: list[dict[str, Any]] | None = None, aujourd_hui: str | None = None,
     fraicheur_attendue: dict[str, Any] | None = None, faits_operations: list[dict[str, Any]] | None = None,
+    constats_contradictoires: int = 0,
 ) -> dict[str, Any]:
     """La vue exécutive : ``situation`` est celle de ``entonnoir.situation``, ``faits_chantier`` le registre des
     chantiers terminés (marge réelle de M5), ``attentes_m6`` ce que M6 publie (``None`` s'il n'a pas pu être lu),
@@ -296,6 +297,14 @@ def assembler(
     recues = operations_recues.section(faits_operations or [], aujourd_hui)
     if recues is not None:  # sans aucun constat de M7, M5 ou M3 reçu par le bus : la vue reste inchangée
         vue["operations_recues"] = recues
+    if constats_contradictoires:  # état de lecture : un constat reçu deux fois avec un contenu différent est DIT
+        vue["constats_contradictoires"] = {
+            "nombre": constats_contradictoires,
+            "message": (
+                "Un constat déjà reçu a été rejoué avec un contenu différent : le premier état est gardé, rien n'est "
+                "écrasé (registre constats_contradictoires). À examiner avec le département émetteur."
+            ),
+        }
     if fraicheur_attendue:
         vue.update(fraicheur_attendue)
     return _borner(vue, budget_caracteres)

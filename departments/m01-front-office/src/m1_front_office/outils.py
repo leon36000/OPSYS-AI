@@ -2117,7 +2117,13 @@ def attentes() -> list[dict[str, Any]]:
     le reste), puis l'ancienneté (heure de réception du message déclencheur). Lecture seule : ne crée ni ne clôt rien.
     L'attente disparaît quand une personne clôt le transfert (`m1_clore_transfert`) : sans cet outil elle ne se viderait
     jamais. Sans transfert au registre, aucune attente."""
-    return [transferts.attente(etat) for etat in transferts.lire(_obtenir_registre().lire()) if etat.ouvert]
+    from . import message_client_m4
+
+    return [
+        *(transferts.attente(etat) for etat in transferts.lire(_obtenir_registre().lire()) if etat.ouvert),
+        # Suivi retiré chez M4 : une demande d'envoi N3 déjà ouverte à REFUSER (elle ne peut plus s'exécuter).
+        *message_client_m4.attentes(),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -2221,6 +2227,7 @@ def consommateurs() -> dict[str, Any]:
         **tri_courriel_outils.consommateurs(),
         # Interconnexion M4 -> M1 : la fenêtre d'arrivée préparée par M4 devient un brouillon du sas d'envoi (N3).
         "m4.message_client_brouillon_pret": message_client_m4.recevoir_message_client_brouillon,
+        "m4.consentement_suivi_retire": message_client_m4.recevoir_consentement_suivi_retire,
         "m6.po_courriel_pret": commande_fournisseur.recevoir_po_courriel_pret,
         "m1.courriel_envoye": commande_fournisseur.recevoir_courriel_envoye,
     }
