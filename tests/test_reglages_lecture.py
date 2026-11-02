@@ -193,6 +193,17 @@ def test_un_bloc_illisible_du_fichier_est_remplace_par_la_valeur_adoptee_et_inch
         assert lecture.superposer(donnees, SEGMENTS, 5) == {"jours_inactivite_dormant": 30}
 
 
+@pytest.mark.parametrize("illisible", [5, "texte", ["liste"], {"bornes": 7}, {"bornes": ["x"]}])
+def test_un_intermediaire_illisible_du_fichier_est_remplace_par_la_valeur_adoptee_au_chemin_imbrique(deps, illisible):
+    donnees = _donnees("m08-analytics", sante=illisible, seuils_alerte={"garde": "intacte"})
+    with stockage.transaction():
+        assert lecture.superposer(donnees, ("configuration",), donnees["configuration"]) is donnees["configuration"]
+        _adopter(deps, "m8.bornes_taux_acceptation_pct", {"pire": 20, "cible": 60})
+        servi = lecture.superposer(donnees, ("configuration",), donnees["configuration"])
+    assert servi["sante"] == {"bornes": {"m8_taux_acceptation_pct": {"pire": "20", "cible": "60"}}}
+    assert servi["seuils_alerte"] == {"garde": "intacte"}
+
+
 def test_une_base_sans_le_registre_ne_sert_rien_et_ne_casse_pas_la_transaction(tmp_path, monkeypatch):
     from sqlalchemy import text
 

@@ -223,6 +223,6 @@ def _journaliser(par: str, action: str, reglage: Reglage, resultat: dict[str, An
     valeur : tout le détail est au magasin chaîné."""
     from opsys.etat import journaliser
 
-    journaliser(stockage.connexion_courante(), par, action, reglage.cle,
-                {"version": resultat["version"], "empreinte": resultat.get("empreinte"), "departement":
-                reglage.departement})
+    details = {"version": resultat["version"], "empreinte": resultat.get("empreinte"),
+               "departement": reglage.departement}
+    journaliser(stockage.connexion_courante(), par, action, reglage.cle, details)

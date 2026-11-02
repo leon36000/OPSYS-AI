@@ -50,6 +50,17 @@ constats_planifies:           # optionnel : résumés de routine déclenchés pa
     mesures: [m8_pipeline_leads_ouverts]   # mesures du catalogue de M8 qu'il alimente : la cadence vient d'elles
     appels:                   # 1 à 4 jeux d'arguments ; {calcul: …} sur le créneau, ou {valeur: …} littérale
       - horodatage: {calcul: instant}   # instant | jour | debut_mois | fin_mois | lundi, avec décalage ±N
+reglages:                     # optionnel : ce que la DIRECTION décide (seuils, bornes), adopté depuis la console (REGLAGES-DIRECTION.md)
+  - cle: m3.exemple_de_seuil  # mN.nom ; le département la lit par `opsys.reglages.lecture.superposer`
+    libelle: "…"
+    chemin: configuration.exemple.seuil   # où il lisait déjà sa valeur (compatibilité : fichier = valeur valable)
+    type: entier              # entier | decimal | texte | liste_entiers_croissants | bornes_pire_cible
+    unite: jours
+    min: 1
+    max: 365                  # bornes de SAISIE obligatoires, jamais des seuils d'affaires
+    niveau: N3
+    debloque: "…"             # ce que sa valeur débloque, en une phrase
+    proposition: {valeur: …, etiquette: "recommandation, non validée", justification: "…", source: "fichier du dépôt"}  # facultative
 budget: {tokens_jour: 300000, tokens_mois: 4000000, alerte_pct: 80}
 memoire: {lecture: [clients, chantiers], ecriture: [estimations]}
 kpis:
@@ -70,6 +81,10 @@ des événements (types déclarés au catalogue, fonction présente pour chaque 
 fonction orpheline), les constats planifiés (outil du département, N0 à N2, agent seulement, arguments connus, mesures
 au catalogue de M8, cadence dérivable) et un avatar par département aux noms distincts ([AVATARS](AVATARS.md)). Il
 tourne en CI.
+
+`reglages` (CFG-1) déclare ce que la direction doit décider ; le manifeste ne porte JAMAIS la valeur en vigueur (adoptée par un geste N3 du
+propriétaire, journal chaîné, retour arrière) : voir [REGLAGES-DIRECTION](REGLAGES-DIRECTION.md) pour la précédence (adopté > fichier >
+absence) et la façon de brancher un département.
 
 `planifications` (cron d'un AGENT, avec consigne) et `constats_planifies` (appel déterministe d'un outil par le
 planificateur durable, sans modèle) sont deux choses : le second ne coûte aucun jeton et ne s'active que par un admin
