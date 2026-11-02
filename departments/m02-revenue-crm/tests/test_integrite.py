@@ -531,3 +531,18 @@ def test_le_module_est_pur_aucun_import_opsys_ni_horloge():
     assert "import opsys" not in source and "from opsys" not in source
     for interdit in ("datetime.now", "datetime.utcnow", "time.time", "import random"):
         assert interdit not in source
+
+
+@pytest.mark.parametrize(
+    ("deuxieme", "doublon"),
+    [
+        ("2026-09-08T09:00:00-04:00", True),  # 7 jours calendaires : dans la fenêtre, bord inclus
+        ("2026-09-08T23:30:00+00:00", True),  # 7 jours et 10 h 30, mais encore le 7e jour calendaire (UTC)
+        ("2026-09-09T09:00:00-04:00", False),  # 8 jours calendaires : hors fenêtre
+        ("2026-09-09T00:30:00+00:00", False),  # 7 jours et 11 h 30 d'écart seulement, mais 8 jours calendaires (UTC)
+    ],
+)
+def test_la_fenetre_est_celle_de_l_ingestion_sept_jours_calendaires_bord_inclus(reg, deuxieme, doublon):
+    _paire(reg, horodatage=deuxieme)
+    assert (len(anomalies(auditer(reg), "doublon_probable")) == 1) is doublon
+    assert (doublons.detecter(reg, "dup-b") == ["dup-a"]) is doublon, "la détection de l'ingestion dit la même chose"

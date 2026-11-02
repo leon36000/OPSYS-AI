@@ -185,9 +185,21 @@ def test_un_seuil_invalide_est_dit_invalide_dans_le_manque():
     [("photos", "photos_non_recues"), ("devis", "soumission_non_relancee"), ("satisfaction", "plainte_non_escaladee")],
 )
 def test_une_source_illisible_rend_la_regle_non_evaluee_pas_sans_violation(source, regle):
-    resultat = scan(dossier(), sources={**SOURCES, source: False})
+    # des dossiers qui VIOLERAIENT la règle si la source était lue : la source illisible l'emporte, aucune violation
+    fautifs = [
+        dossier("photos", photos=0),
+        dossier("devis", interactions=[], devis=[_devis(40)]),
+        dossier(
+            "plainte",
+            interactions=[],
+            satisfaction={"client_satisfait": False, "horodatage_completion": _il_y_a(900)},
+        ),
+    ]
+    assert violations(scan(*fautifs), regle), "témoin : sources lisibles, la règle déclenche"
+    resultat = scan(*fautifs, sources={**SOURCES, source: False})
     assert etat(resultat, regle)["etat"] == "non_evaluee" and etat(resultat, regle)["violations"] is None
-    assert "sans la lecture" in etat(resultat, regle)["manque"] or "lecture" in etat(resultat, regle)["manque"]
+    assert violations(resultat, regle) == []
+    assert "lecture" in etat(resultat, regle)["manque"]
 
 
 # -- règle 1 : prochaine action obligatoire ----------------------------------------------------------------------------
@@ -598,3 +610,12 @@ def test_le_module_est_pur_aucun_import_opsys_ni_horloge():
     assert "import opsys" not in source and "from opsys" not in source
     for interdit in ("datetime.now", "datetime.utcnow", "time.time", "import random", "import time"):
         assert interdit not in source
+
+
+def test_a_egalite_de_regle_et_de_debut_les_violations_sont_triees_par_lead_quel_que_soit_l_ordre_d_entree():
+    memes = [dossier(f"lead-{c}", prochaine_action={"description": "x", "echeance": _il_y_a(30)},
+                     derniere_activite=_il_y_a(90)) for c in "cab"]
+    for ordre in (memes, memes[::-1], [memes[1], memes[2], memes[0]]):
+        retard = violations(scan(*ordre), "tache_en_retard")
+        assert len({v["depuis"] for v in retard}) == 1, "même début de violation"
+        assert [v["lead_id"] for v in retard] == ["lead-a", "lead-b", "lead-c"]

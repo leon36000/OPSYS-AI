@@ -573,3 +573,13 @@ def test_le_dernier_chantier_termine_fait_foi_pour_la_satisfaction_d_un_lead():
     sur_origine = fi.fait_satisfaction({"wct_id": "w", "lead_id": "origine", "horodatage_completion": "x",
                                         "client_satisfait": False}, None)
     assert fi.satisfaction_par_lead([sur_origine]).keys() == {"origine"}
+
+
+@pytest.mark.parametrize("brut", ["oui", "non", 1, 0, "true", [True], {"x": 1}])
+def test_seul_un_booleen_explicite_est_garde_comme_satisfaction(brut):
+    from m2_revenue_crm import faits_interconnexion as fi
+
+    charge = {
+        "wct_id": "w", "lead_id": "l", "horodatage_completion": "2026-09-01T12:00:00-04:00", "client_satisfait": brut,
+    }
+    assert fi.fait_satisfaction(charge, None) is None
