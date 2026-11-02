@@ -59,8 +59,7 @@ class BackendConsolidationNonPrisEnCharge(AccesConsolidationRefuse):
 
 # Verrou de transaction NOMMÉ, partagé avec les écrivains du magasin de développement (`developpement._connexion`) :
 # sous SQLite, `BEGIN IMMEDIATE` sérialise déjà tous les écrivains ; sous PostgreSQL (READ COMMITTED), deux jobs
-# liraient
-# le même état (grant, bail, tête du canon) et le perdant d'un bail ou d'un rapport ne serait pas dit.
+# liraient le même état (grant, bail, tête du canon) et le perdant d'un bail ou d'un rapport ne serait pas dit.
 VERROU = dev.VERROU_DEVELOPPEMENT
 
 

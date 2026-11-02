@@ -6,10 +6,10 @@ l'instance (`OPSYS_BASE_URL`, héritée), attend l'instant de départ commun, pu
 
 - `tour_constats` : un tour du planificateur durable, horloge INJECTÉE (la même pour tous), restreint aux exécuteurs de
   constats demandés ;
-- `tour_et_propager` : ce tour, puis la livraison du bus aux consommateurs de M8 (le travail d'une instance du
-serveur) ;
+- `tour_et_propager` : ce tour, puis la livraison du bus aux consommateurs de M8 (le travail d'une instance
+  du serveur) ;
 - `propager` : la livraison du bus seule, pour les départements demandés ;
-- `tour_puis_mourir` : un tour dont l'outil de constat de M7 tue le processus (SIGKILL) après son premier mois ;
+- `tour_puis_mourir` : un tour dont l'outil de constat de M7 tue le processus (SIGKILL) entre ses deux mois ;
 - `construire_entrepot` : l'outil `m8_construire_entrepot` de la VRAIE chaîne de capacités.
 
 Données fictives. Aucun réseau.

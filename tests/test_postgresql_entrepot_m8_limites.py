@@ -1,15 +1,12 @@
-"""Entrepôt de M8 : les identifiants reçus du bus sont bornés par les colonnes `VARCHAR(256)` de l'entrepôt, sur
-SQLite ET
-sur PostgreSQL 17 réel.
+"""Entrepôt de M8 : les identifiants reçus du bus sont bornés par les colonnes `VARCHAR(256)` de l'entrepôt, sur SQLite
+ET sur PostgreSQL 17 réel.
 
 Défaut (PostgreSQL seulement) : le schéma du catalogue accepte un `devis_id` / `lead_id` / `wct_id` de longueur
-quelconque ; M8 le rangeait au registre (append-only) ; la construction suivante de l'entrepôt écrivait ce texte
-dans une
-colonne `VARCHAR(256)` : PostgreSQL refusait (`value too long`), SQLite non. Une seule valeur démesurée faisait donc
-échouer
-CHAQUE construction à vie (le planificateur journalisait un défaut d'exécuteur à chaque tour). La limite est posée à la
-réception : l'événement est un refus typé (réessais puis quarantaine, visible), rien n'entre au registre, l'entrepôt
-se bâtit.
+quelconque ; M8 le rangeait au registre (append-only) ; la construction suivante de l'entrepôt écrivait ce texte dans
+une colonne `VARCHAR(256)` : PostgreSQL refusait (`value too long`), SQLite non. Une seule valeur démesurée faisait
+donc échouer CHAQUE construction à vie (le planificateur journalisait un défaut d'exécuteur à chaque tour). La limite
+est posée à la réception : l'événement est un refus typé (réessais puis quarantaine, visible), rien n'entre au
+registre, l'entrepôt se bâtit.
 """
 
 from __future__ import annotations

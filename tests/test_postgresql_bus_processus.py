@@ -1,5 +1,4 @@
-"""Bus d'événements en VRAIS PROCESSUS (SQLite et PostgreSQL 17 réel) : publication concurrente et livraison
-concurrente.
+"""Bus d'événements en VRAIS PROCESSUS (SQLite et PostgreSQL 17 réel) : publication et livraison concurrentes.
 
 - N processus publient le MÊME `evenement_id` : une seule ligne ; l'enveloppe identique est absorbée, l'enveloppe
   différente lève `ConflitPublication` chez les perdants (la première reste) ;
@@ -7,6 +6,7 @@ concurrente.
   clé de contenu : chaque clé est rangée UNE fois, chaque reçu est `traite` une fois, aucune quarantaine, et une
   contradiction (même clé, contenu différent) est rangée une seule fois, premier état conservé.
 Données fictives, aucun réseau.
+
 """
 
 from __future__ import annotations

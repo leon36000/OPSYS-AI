@@ -2,13 +2,11 @@
 processus, sur SQLite ET sur PostgreSQL 17 réel.
 
 Sous SQLite, `BEGIN IMMEDIATE` sérialise les écrivains : le second admin lit l'état laissé par le premier. Sous
-PostgreSQL (READ COMMITTED), deux admins lisaient la MÊME révision : (1) à la première activation, les deux insèrent la
-ligne et le perdant reçoit une erreur d'intégrité brute ; (2) ensuite, le `UPDATE … WHERE revision = ?` du perdant
-ne touche
-aucune ligne SANS qu'on le voie, et le journal append-only raconte tout de même un changement de mode qui n'a pas eu
-lieu.
-Le geste prend maintenant le verrou d'écriture de la console (comme tout écrivain humain de la console) et refuse
-typiquement (`REVISION_PERIMEE`) si la ligne a changé sous lui. Données fictives.
+PostgreSQL (READ COMMITTED), deux admins lisaient la MÊME révision : (1) à la première activation, les deux insèrent
+la ligne et le perdant reçoit une erreur d'intégrité brute ; (2) ensuite, le `UPDATE … WHERE revision = ?` du perdant
+ne touche aucune ligne SANS qu'on le voie, et le journal append-only raconte tout de même un changement de mode qui
+n'a pas eu lieu. Le geste prend maintenant le verrou d'écriture de la console (comme tout écrivain humain de la
+console) et refuse typiquement (`REVISION_PERIMEE`) si la ligne a changé sous lui. Données fictives.
 """
 
 from __future__ import annotations
@@ -65,3 +63,24 @@ def test_n_admins_qui_changent_le_mode_en_meme_temps_chaque_changement_est_une_r
     derniere = _modes()[0]
     assert derniere["details"]["revision"] == 5
     assert (derniere["mode"], derniere["details"]["intervalle_s"]) == (ligne["mode"], ligne["intervalle_s"])
+
+
+def test_une_mise_a_jour_perdue_est_refusee_et_jamais_racontee_au_journal(p, monkeypatch):
+    """Défense en profondeur (déterministe, deux moteurs) : si la ligne a changé sous le geste malgré le verrou, le
+    `UPDATE … WHERE revision = ?` ne touche rien ; le geste est refusé et le journal append-only ne raconte rien."""
+    p.activer(EXECUTEUR, "ombre", intervalle_s=60)
+    reelle = etat.ligne
+
+    def perimee(cnx, nom):
+        ligne = reelle(cnx, nom)
+        return None if ligne is None else {**dict(ligne), "revision": ligne["revision"] - 1}
+
+    monkeypatch.setattr(etat, "ligne", perimee)
+    with pytest.raises(etat.RefusOperateur) as refus:
+        p.activer(EXECUTEUR, "actif", intervalle_s=120)
+    assert refus.value.code == "REVISION_PERIMEE"
+    monkeypatch.setattr(etat, "ligne", reelle)
+    with stockage.transaction() as cnx:
+        ligne = etat.ligne(cnx, EXECUTEUR)
+    assert (ligne["mode"], ligne["revision"], ligne["intervalle_s"]) == ("ombre", 1, 60)
+    assert len(_modes()) == 1  # seul le premier geste est au journal

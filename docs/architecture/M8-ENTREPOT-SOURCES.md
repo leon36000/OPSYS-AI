@@ -264,7 +264,9 @@ M1 par l'empreinte du contenu lu (les plaintes ne reviennent pas en arrière). C
   scénarios de `test_entrepot_m8_phase2.py` publient des charges conformes au catalogue (`tests/fixtures/interconnexion_charges.py`) ;
   chaque outil de constat est prouvé séparément sur son vrai registre (M5 : `test_interconnexion_m5_depense_publicitaire.py` et
   `test_operations_outils.py` ; M7, M4, M2, M6, M1 : un fichier chacun) ; `test_entrepot_m8_planifie.py` appelle les sept outils réels par
-  le planificateur et suit leurs événements jusqu'au wallboard de la console, au copilote, à M10 et à M9 (SQLite seulement).
+  le planificateur et suit leurs événements jusqu'au wallboard de la console, au copilote, à M10 et à M9 (SQLite, puis rejoué sur PostgreSQL 17
+  réel depuis la vague 8 : `test_postgresql_rejeu_entrepot_m8_planifie.py`, et en vrais processus : `test_postgresql_planification_constats.py` ;
+  un identifiant de plus de 256 caractères est refusé à la réception, il ne peut plus bloquer la construction sur PostgreSQL).
 - **Phase 2 : seuls les relevés HORS_TAXES se comparent à la dépense comptabilisée** ; la dépense comptabilisée ne couvre que les
   écritures qui viennent d'un relevé de M7 (pas la publicité payée autrement). L'écart est donc un écart de DÉFINITION, pas une erreur.
 - **Phase 2 : la capacité est celle de la semaine la plus récente constatée** aux journées datées ; la semaine type n'est pas la

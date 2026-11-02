@@ -131,6 +131,23 @@ def test_la_matrice_additionne_sans_rien_inventer(tmp_path):
     assert "| **Total** |" in matrice.markdown([ligne])
 
 
+def test_une_garde_restante_n_est_prouvee_que_par_des_tests_reussis_avec_du_sql_postgresql(tmp_path):
+    matrice = _charger("matrice")
+    dossier = tmp_path / "pg"
+    dossier.mkdir()
+    lignes = [
+        {"nodeid": "tests/t.py::test_x", "phase": "call", "issue": "passed", "ordres_pg": 3},
+        {"nodeid": "tests/t.py::test_y[postgresql]", "phase": "call", "issue": "passed", "ordres_pg": 0},  # sans SQL PG
+        {"nodeid": "tests/t.py::test_z", "phase": "call", "issue": "failed", "ordres_pg": 5},  # rouge
+    ]
+    (dossier / "t.jsonl").write_text("\n".join(json.dumps(x) for x in lignes), encoding="utf-8")
+    justifications = {"a.py::f": ("tests/t.py::test_x",), "b.py::g": ("tests/t.py::test_x", "tests/t.py::test_y"),
+                      "c.py::h": ("tests/t.py::test_z",)}
+    preuves = {p["garde"]: p["prouvee"] for p in matrice.preuves_justifications([dossier], justifications)}
+    assert preuves == {"a.py::f": True, "b.py::g": False, "c.py::h": False}
+    assert "NON PROUVÉE" in matrice.markdown_justifications(matrice.preuves_justifications([dossier], justifications))
+
+
 def test_le_plugiciel_est_inerte_sans_url_d_administration(monkeypatch):
     with monkeypatch.context() as m:  # variable restaurée aussitôt : le banc lui-même en a besoin en fin de test
         m.delenv("OPSYS_QUALIF_PG_ADMIN_URL", raising=False)

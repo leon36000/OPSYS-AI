@@ -5,16 +5,15 @@ SQLite, ou quand le lever exposerait un secret. Pour chacune : (1) ce que Postgr
 (2) la preuve, sur le vrai serveur, que rien n'est écrit à moitié et qu'aucun identifiant de connexion ne fuit.
 
 - `cles_chiffrement._nettoyer_fichiers_courants` : réécrit les pages d'un fichier SQLite (VACUUM, WAL). Sur PostgreSQL,
-  la clé est détruite LOGIQUEMENT (DELETE) et l'effacement est inscrit `non_qualifie` / `backend_non_qualifie` dès
-  la demande :
-  jamais « terminé », jamais « en attente » à perpétuité ; le nettoyage physique d'un serveur (WAL archivé, répliques,
-  sauvegardes) n'est pas une opération de l'application.
+  la clé est détruite LOGIQUEMENT (DELETE) et l'effacement est inscrit `non_qualifie` / `backend_non_qualifie` dès la
+  demande : jamais « terminé », jamais « en attente » à perpétuité ; le nettoyage physique d'un serveur (WAL archivé,
+  répliques, sauvegardes) n'est pas une opération de l'application.
 - `exportation._base_sqlite` : l'export est un instantané du FICHIER SQLite de l'instance ; PostgreSQL se sauvegarde par
   `deploy/backup.sh` (pg_dump), qui est éprouvé sur PostgreSQL réel (`test_postgresql_sauvegarde_restauration`).
 - `openclaw.configuration_cron_memoire_developpement` : la déclaration du cron place l'URL de la base dans
-l'environnement
-  d'une commande de la Gateway ; pour PostgreSQL, ce serait un mot de passe en clair dans la configuration d'un autre
-  produit. Refus tant qu'il n'existe pas de coffre pour cette frontière.
+  l'environnement d'une commande de la Gateway ; pour PostgreSQL, ce serait un mot de passe en clair dans la
+  configuration d'un autre produit. Refus tant qu'il n'existe pas de coffre pour cette frontière.
+
 Données fictives.
 """
 
