@@ -390,6 +390,55 @@ def test_le_rejeu_par_l_outil_refait_le_calcul_apres_une_revision(monde, monkeyp
     assert inconnu["verdict"]["code"] == "REJ-REJEU-IMPOSSIBLE"
 
 
+# ---------------------------------------------------------------------------------- seuils de revue du barème
+def _devis_sur_estimation(seuils_barème):
+    """Un devis de 15 600 $ lié à une estimation déclarée dont le barème porte (ou non) des seuils de revue."""
+    parametres = deepcopy(cb.PARAMETRES)
+    parametres["seuils_revue"] = seuils_barème
+    _declarer_bareme(parametres=parametres)
+    _declarer_mesure()
+    estimation = _resultat(_estimer(**_refs()))["estimation"]
+    cree = _resultat(_appeler("m3_creer_devis", {
+        "devis_id": estimation["devis_id"], "lead_id": cb.LEAD, "chantier_id": None, "taux_marge": "0.30",
+        "horodatage": "2026-11-02T12:00:00+00:00", "estimation_source_hash": estimation["hash_maillon"],
+        "lignes": [{"description": "Revêtement posé", "quantite": "1200", "unite": "pi2", "cout_unitaire": "10.00",
+                    "reference_besoin_materiau": None}]}))
+    assert cree["accepte"] is True, cree
+    return estimation["devis_id"]
+
+
+def _revue(devis_id, seuils_manifeste):
+    from m3_estimation import devis_durable
+
+    with stockage.transaction():
+        devis, verdict = devis_durable.lire_devis(outils_m3.registre_devis_production(), devis_id)
+        assert verdict is None
+        revue, verdict = outils_m3._evaluer_revue_source(devis, None, seuils_manifeste)
+    assert verdict is None
+    return revue
+
+
+def test_la_revue_du_devis_juge_avec_les_seuils_du_bareme_cite_avant_ceux_de_department_yaml(monde):
+    devis_id = _devis_sur_estimation({"montant_maximal_cad": "1000"})
+    revue = _revue(devis_id, {"montant_maximal_cad": 99999999, "marge_minimale": 0.10})
+    motif = next(m for m in revue["motifs"] if m["code"] == "MONTANT_AU_DESSUS_SEUIL")
+    assert motif["seuil"]["valeur"] == "1000"              # le seuil du barème l'emporte sur celui du manifeste
+    assert motif["donnee"]["valeur"] == "15600.00"
+    non_evaluables = {n["code"] for n in revue["non_evaluables"]}
+    assert "MARGE_SOUS_SEUIL" not in non_evaluables        # marge_minimale vient du manifeste (non déclarée au barème)
+    assert "CHANTIER_ELOIGNE" in non_evaluables            # distance_maximale_km : déclarée nulle part, à configurer
+
+
+def test_sans_seuil_declare_au_bareme_la_revue_garde_ceux_du_manifeste_et_un_manifeste_illisible_reste_illisible(monde):
+    devis_id = _devis_sur_estimation({})
+    revue = _revue(devis_id, {"montant_maximal_cad": 1000})
+    assert "MONTANT_AU_DESSUS_SEUIL" in {m["code"] for m in revue["motifs"]}
+    illisible = _revue(devis_id, "illisible")
+    assert "MONTANT_AU_DESSUS_SEUIL" not in {m["code"] for m in illisible["motifs"]}
+    assert "seuil invalide" in " ".join(
+        " ".join(n["manque"]) for n in illisible["non_evaluables"] if n["code"] == "MONTANT_AU_DESSUS_SEUIL")
+
+
 # ------------------------------------------------------------------------------ outils d'aide : même fermeture
 def test_les_outils_d_aide_ferment_aussi_le_bareme_et_le_plancher_libres(monde, monkeypatch):
     intervalle = {"borne_basse": 10000.0, "borne_haute": 12000.0, "niveau": 0.9}

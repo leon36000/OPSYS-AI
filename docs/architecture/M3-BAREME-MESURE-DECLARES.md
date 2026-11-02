@@ -108,6 +108,8 @@ Les comparaisons de seuil sont strictes (un devis exactement au seuil ne déclen
 
 **Revue d'envoi** : `revue_devis.MESURE_INCERTAINE` se déclenche aussi quand l'estimation source a `mesure_a_bornes_larges`
 (fait canonique de la charge, source `estimation_canonique`). Aucun onzième ou douzième motif : le critère existant est étendu.
+Un devis chiffré avec un barème déclaré est jugé avec les **seuils de revue de ce barème** (`parametres.seuils_revue`, la version
+exacte citée), clé par clé : une clé non déclarée garde celle de `department.yaml`, sinon le critère reste « seuil à configurer ».
 
 ## 5. La voie de compatibilité (et pourquoi un agent ne peut pas la prendre)
 
@@ -157,8 +159,8 @@ faire valider par l'entreprise ; toute portée juridique : **À valider auprès 
 
 - **Réglages de direction (CFG-1, `claude/cfg-reglages-direction`)** : appeler `bareme_registre.declarer_version` /
   `valider_version` et `mesure_declaree.declarer` (ou les outils) avec l'identité de la personne ; l'écran n'a qu'à produire
-  `lignes`, `parametres`, `soumission`. `department.yaml/configuration` (seuils de revue, taux de scénarios) reste lu par la revue
-  d'envoi d'un devis et par la voie d'essai : CFG-1 devra les unifier avec les paramètres du barème.
+  `lignes`, `parametres`, `soumission`. `department.yaml/configuration` (seuils de revue, taux de scénarios) reste lu par la voie d'essai et,
+  pour les clés que le barème ne déclare pas, par la revue d'envoi d'un devis : CFG-1 devra les unifier avec les paramètres du barème.
 - **Apprentissage des durées (`claude/apprentissage-durees`)** : une calibration appliquée devra se référer à une **version de
   barème**. Le barème compilé porte `version = "<id>@v<n>"` ; l'empreinte du barème compilé (`trace_calibration_temps.empreinte_bareme`)
   et `bareme_version` des contrats la suivent ; le bloc `declaration` de la charge cite la référence exacte. Aujourd'hui,
@@ -182,7 +184,7 @@ Tests du département M3 (base SQLite migrée, horloge injectée, données ficti
 
 Hors département : `tests/e2e/test_verticale_affaire_durable.py` déclare désormais barème et mesure depuis des appareils réels
 (HTTP, SQLite **et PostgreSQL via docker**) avant l'estimation de l'agent. Mutations : `tests/outils_preuve/batterie_bareme_registre.py`
-(44 mutations de métier sur huit fichiers, copie jetable, suite ciblée ; une redondance structurelle déclarée avec sa raison).
+(46 mutations de métier sur huit fichiers, copie jetable, suite ciblée ; une redondance structurelle déclarée avec sa raison).
 
 ## 10. Limites
 

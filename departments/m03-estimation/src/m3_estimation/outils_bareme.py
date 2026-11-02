@@ -52,6 +52,7 @@ __all__ = [
     "construire_declaration",
     "outils_bareme",
     "plancher_declare",
+    "seuils_revue_declares",
     "simuler_declare",
     "verdict_voie_libre_refusee",
     "voie_libre_autorisee",
@@ -369,6 +370,18 @@ def conditions_pour_devis(
         version_bareme=version, mesure=mesure, duree_estimee_minutes=bloc.get("duree_estimee_minutes"),
         horodatage_devis=devis["horodatage"],
     )
+
+
+def seuils_revue_declares(bloc: dict[str, Any]) -> tuple[dict[str, Any] | None, dict | None]:
+    """Les seuils de revue d'un devis (``parametres.seuils_revue``) du barème que l'estimation source CITE.
+
+    Version exacte (même remplacée depuis) : la revue d'un devis juge selon le barème avec lequel il a été chiffré."""
+    version, verdict = bareme_registre.resoudre(
+        journal_bareme(), bloc["bareme_ref"], horloge.maintenant(), exiger_en_vigueur=False
+    )
+    if verdict is not None:
+        return None, verdict
+    return dict(version["parametres"].get("seuils_revue", {})), None
 
 
 # -- rejeu ---------------------------------------------------------------------------------------------------------

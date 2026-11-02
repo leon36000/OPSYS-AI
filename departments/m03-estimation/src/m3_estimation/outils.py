@@ -1970,6 +1970,14 @@ def _evaluer_revue_source(devis: dict[str, Any], contexte_revue: Any, seuils: An
     )
     if contexte_revue is not None and not isinstance(contexte_revue, dict):
         return revue_devis.evaluer_revue(devis, contexte_revue, seuils)
+    bloc_declare = charge.get("declaration")
+    if isinstance(bloc_declare, dict) and (seuils is None or isinstance(seuils, dict)):
+        # M3-C1 : un devis chiffré avec un barème déclaré est jugé avec les seuils DÉCLARÉS dans ce barème (clé par
+        # clé ; une clé non déclarée garde celle de department.yaml, sinon reste « seuil à configurer »).
+        seuils_barème, verdict_seuils = outils_bareme.seuils_revue_declares(bloc_declare)
+        if verdict_seuils is not None:
+            return None, verdict_seuils
+        seuils = {**(seuils or {}), **seuils_barème}
     contexte_effectif = dict(contexte_revue or {})
     for cle in (*_CHAMPS_FAITS_REVUE, "mesure_a_bornes_larges"):
         contexte_effectif.pop(cle, None)

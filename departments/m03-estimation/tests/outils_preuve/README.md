@@ -194,7 +194,7 @@ et refuse de conclure quand son extracteur ne trouve rien — un scanner vide pa
 
     python3 -B "departments/m03-estimation/tests/outils_preuve/batterie_bareme_registre.py" . [part/total]
 
-Quarante-quatre mutations de MÉTIER réparties sur huit fichiers de `src/m3_estimation` (`bareme_registre`, `mesure_declaree`,
+Quarante-six mutations de MÉTIER réparties sur huit fichiers de `src/m3_estimation` (`bareme_registre`, `mesure_declaree`,
 `entrees_declarees`, `estimation`, `outils`, `outils_bareme`, `conditions_soumission`, `revue_devis`) : exigence et résolution
 de `bareme_ref` (en vigueur, date d'effet à l'instant exact, fin de validité, version périmée, validation, empreinte),
 chaînage et révision, auteur humain, seuils de la mesure (comparaisons strictes), unité, lead, péremption, enveloppe de la

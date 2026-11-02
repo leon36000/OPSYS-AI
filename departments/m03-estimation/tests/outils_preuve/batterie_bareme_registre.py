@@ -153,6 +153,11 @@ MUTATIONS = [
     ("soumission : le délai promet une date", "conditions_soumission.py",
      '"Aucune date de début ni de fin n\'est promise par la présente soumission ; la planification des "',
      '"La date de début sera le lundi suivant l\'acceptation ; la planification des "'),
+    ("revue : les seuils du manifeste écrasent ceux du barème cité", "outils.py",
+     "seuils = {**(seuils or {}), **seuils_barème}", "seuils = {**seuils_barème, **(seuils or {})}"),
+    ("revue : les seuils du barème cité sont ignorés", "outils.py",
+     "    if isinstance(bloc_declare, dict) and (seuils is None or isinstance(seuils, dict)):",
+     "    if False:"),
     ("revue : la mesure à bornes larges ne déclenche plus le motif", "revue_devis.py",
      '    if entrees.faits.get("mesure_a_bornes_larges") is True:', "    if False:"),
 ]
