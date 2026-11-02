@@ -68,6 +68,34 @@ du fichier (`segments: 5`) est remplacé par la valeur adoptée, et rendu tel qu
 | Écran : accès (propriétaire / administrateur / employé), CSRF, champs fermés, bornes, double envoi, retour arrière, échappement | `tests/test_console_reglages.py` |
 | Bout en bout M2 et M8, panne, redémarrage, chaîne falsifiée, compatibilité | `tests/test_reglages_bout_en_bout.py` |
 
+## 4 bis. Mutations (les tests tuent-ils ?)
+
+39 mutations, une à une, dans un **clone** du dépôt au commit livré (`git archive`), les six fichiers de tests ciblés rejoués après
+chacune, puis le fichier restauré et son empreinte comparée à l'originale (**les 39 restaurations vérifiées**). Résultat : **37
+tuées, 2 survivantes, toutes deux expliquées** (équivalentes).
+
+| Cible | Mutations tuées |
+|---|---|
+| Précédence | le fichier l'emporte sur l'adopté ; sans adoption le fichier n'est plus rendu tel quel (même objet) ; un intermédiaire illisible n'est plus remplacé |
+| Fail-closed | valeur adoptée non revalidée contre la déclaration ; hors transaction la lecture ne s'arrête plus ; maillon illisible = panne ; chaîne cassée non signalée par l'écran |
+| Chaînage | empreinte propre, lien au précédent, ancienne valeur, version : chaque contrôle retiré isolément ; empreinte du précédent non posée |
+| Bornes et types | adoption non validée ; borne haute exclusive ; booléen accepté pour un entier ; sens pire/cible inversé ; liste non strictement croissante |
+| Retour arrière, idempotence, concurrence | retour toujours vers l'absence ; retour sans rien à annuler ; double adoption qui écrit ; version attendue ignorée ; écriture sans attendre le rang |
+| Niveau N3 et auto-adoption | niveau de la demande non contrôlé ; la console dépose en N4 ; l'administrateur ou n'importe quel rôle humain compte ; la demande d'un autre outil sert ; CSRF de la console retiré |
+| Journal sans renseignement personnel | filtre de la raison retiré ; la raison entre dans l'audit du socle ; une adoption idempotente est journalisée |
+| Branchement et schéma | M2 ou M8 ne passent plus par la couche ; le manifeste ne lit plus `reglages:` ; un réglage N4 accepté |
+
+**Survivantes, expliquées** : (1) la console ne valide plus type et bornes avant de déposer la demande : l'outil les refuse à
+l'identique et la transaction annulée ne laisse ni demande ni maillon (les tests de la console le vérifient), c'est une double
+validation voulue ; (2) `system_agent` ajouté aux rôles d'adoption : le socle exclut déjà les rôles non humains
+(`ROLES_NON_HUMAINS`) quel que soit l'argument `roles`, et le sas ne laisse décider un N3 qu'au propriétaire.
+
+**Trous trouvés par une première passe (survivantes) puis fermés** : le lien par empreinte, la comparaison à la valeur en vigueur et
+la version d'un dernier maillon retouché n'étaient vus que par un autre contrôle (trois tests isolent maintenant chacun) ; le
+remplacement d'un intermédiaire illisible du fichier au chemin imbriqué (cinq cas). **Trous vus à l'analyse des survivantes
+équivalentes, fermés avant la passe finale** : un non-propriétaire apprenait « clé inconnue » avant « refusé » (le refus précède
+maintenant toute validation) ; une adoption idempotente pouvait laisser une ligne d'audit de trop.
+
 ## 5. Les propositions (aucune valeur inventée)
 
 Les trois délais de M2 (`30`, `14`, `7` jours) sont les **exemples chiffrés écrits dans le manifeste de M2** depuis T4.6 et T4.9,
