@@ -5,12 +5,33 @@ Front Office IA — reception omnicanale, voix 0->5, qualification, adjointe
 Statut: PARTIAL (EPIC E — vague 1 livrée en mode ombre : registre, machine à états des phases
 voix 0->5, garde-fou des interdits absolus, qualification, adaptateurs, digest.)
 
+## Profil de réception proposé par le pack, et bac à sable vocal textuel — tranche du 2 novembre 2026
+
+**Profil prêt à qualifier (M1-A).** Sans profil, M1 enregistre tout et ne qualifie rien (questions, vocabulaire des plaintes,
+destinataires, fenêtre et poids sont vides par défaut). Le pack `renovation-exterieure-qc` PROPOSE maintenant les cinq éléments
+(questions des quatre services, vocabulaire des plaintes et des urgences, destinataires en rôles, fenêtre de 30 minutes et poids
+30/50/20 en recommandations illustratives) : **tout est `a_valider`, rien n'est lu par M1 avant qu'une personne l'ait adopté**,
+un élément à la fois, par `opsys-metier pack adopter ÉLÉMENT --par NOM` (signé au journal, n'écrase jamais une valeur du
+propriétaire). Prouvé sur SQLite avec le vrai bus et le vrai M2 (`tests/test_m1_pack_renovation_bout_en_bout.py`) : une demande
+de gouttières donne un lead, les questions manquantes du service, la demande de photos (quand la politique « photos » est validée),
+un score et une prochaine action datée ; les mêmes entrées sans adoption ne donnent aucune question et ne reconnaissent ni plainte
+ni danger. **Jamais mesuré sur de vrais messages**, adoption par ligne de commande (pas une approbation N3 de la console), questions
+posées seulement avec une fenêtre adoptée. Voir [PACKS-SECTORIELS](../../docs/architecture/PACKS-SECTORIELS.md).
+
+**Bac à sable vocal textuel (M1-D, M1.19).** `politique_dialogue.py` (règles pures de dialogue) et `bac_a_sable_voix.py` (harnais) font
+jouer de **faux appels écrits d'avance** (tours de texte, confiance de transcription injectée, horloge simulée) : garde-fou en
+boucle, redemander sur faible confiance, repli après deux échecs consécutifs, colère, danger, sujet légal ou financier, messagerie
+sans personne, transfert avec résumé, divulgation d'abord, consentement. **Ce bac à sable ne prouve que la politique de dialogue, pas
+la voix** : aucun audio, aucun moteur, aucune ligne ; le canal voix reste « prévu », M1.2 reste SIMULE et M1.19 passe d'ABSENT à
+SIMULE (jamais FAIT_PROUVE). Seuils à décider par Nathan (aucune valeur par défaut). Voir
+[M1-BAC-A-SABLE-VOIX](../../docs/architecture/M1-BAC-A-SABLE-VOIX.md).
+
 ## Tri des courriels, identité, rendez-vous, SMS, apprentissage — tranche du 1er novembre 2026
 
 M1.6 (tri déterministe explicable des courriels et aiguillage par événements), M1.9 (fenêtres de rendez-vous depuis la capacité de M4, confirmation depuis la cédule
 datée), M1.10 (vérification d'identité à preuves minimales), M1.7 (gouvernance de l'assistant SMS), M1.13 (propositions d'amélioration promues par une personne) et le canal
 de M1 pour les commandes de M6 : **PARTIEL, prouvé sur doubles**, aucun service réel. Statuts, mesures, outils, limites :
-[`docs/architecture/M1-M6-LEA-ROSALIE.md`](../../docs/architecture/M1-M6-LEA-ROSALIE.md). Corpus fictifs : `evals/tri-courriel-{dev,test}.v1.json`. M1.2 (voix) reste **SIMULE**.
+[`docs/architecture/M1-M6-LEA-ROSALIE.md`](../../docs/architecture/M1-M6-LEA-ROSALIE.md). Corpus fictifs : `evals/tri-courriel-{dev,test}.v1.json`. M1.2 (voix) reste **SIMULE** (un bac à sable textuel exerce seulement sa politique de dialogue, voir plus haut).
 
 ## Plaintes structurées — `m1_lire_plaintes_structurees`
 

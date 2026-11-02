@@ -11,7 +11,7 @@ Point de départ : l'analyse d'écarts du 2026-10-31 (`ANALYSE-ECARTS-MODULES.md
 
 | Module | Lignes | FAIT_PROUVE | PARTIEL | SIMULE | ABSENT | INCONNU | Département | Suite de tests du département rejouée (base ci-dessus) |
 |---|---|---|---|---|---|---|---|---|
-| M1 | 20 | 0 | 18 | 1 | 1 | 0 | Front Office | 1766 passed, 0 failed, 0 skipped |
+| M1 | 20 | 0 | 18 | 2 | 0 | 0 | Front Office | 1766 passed, 0 failed, 0 skipped |
 | M2 | 15 | 1 | 14 | 0 | 0 | 0 | Revenue CRM | 2269 passed, 0 failed, 0 skipped (rejouée le 2026-11-01 sur la branche claude/m2-victor, base 1b58f4e6c) |
 | M3 | 18 | 1 | 15 | 2 | 0 | 0 | Estimation | 3018 passed, 0 failed, 36 skipped le 2026-11-02 (M3-C1/M3-C2, 9ed79e649 ; avant : 2774 passed, 36 skipped) : 8 tests de test_mesure_plan.py (extra vision-photo absent), 25 cas de campagne de mutation de test_gardes_des_outils.py (réservés au job CI m03-preuves), 3 gardes de CI ; test_gardes_des_outils.py passe |
 | M4 | 24 | 2 | 22 | 0 | 0 | 0 | Field Ops | 3304 passed, 0 failed, 20 skipped (pyvrp absent) |
@@ -53,7 +53,7 @@ Lecture : le produit reste PARTIEL (mode `ombre` partout). Aucun département n'
 
 - M1.14 (Pont CRM M2) : analyse = FAIT_PROUVE, vérifié = PARTIEL. L'analyse d'écarts la déclarait FAIT_PROUVE (périmètre lead). La cible PERIMETRE M1.14 cite aussi activité/tâche/transcription/photos, absents du contrat v2 (schéma m1.lead_qualifie.json) : rétrogradée PARTIEL.
 - M1.15 (Boucle M7 (UTM → lead → qualité) et STOP → M7) : analyse = FAIT_PROUVE, vérifié = PARTIEL. L'analyse d'écarts la déclarait FAIT_PROUVE ; le retour qualité/conversion/perte de la cible n'existe pas (aucun événement M2→M7) : rétrogradée PARTIEL.
-- M1.19 (Bac à sable vocal) : analyse = PARTIEL, vérifié = ABSENT. L'analyse d'écarts regroupait M1.19-M1.20 sous PARTIEL ; vérification : aucun bac à sable vocal dans M1 ni dans la console (grep sandbox|bac à sable|faux appel) : ABSENT.
+- M1.19 (Bac à sable vocal) : analyse = PARTIEL, vérifié = ABSENT à la base 83efcd82b, puis SIMULE le 2026-11-02 (branche claude/m1-pack-bac-a-sable) : un bac à sable TEXTUEL exerce la politique de dialogue sur des faux appels écrits d'avance ; aucun audio, aucun STT/TTS, aucune ligne : jamais FAIT_PROUVE, la voix n'est pas prouvée.
 - M3.14 (Revue et approbation humaine) : analyse = FAIT_PROUVE, vérifié = PARTIEL. L'analyse d'écarts la déclarait FAIT_PROUVE (mécanisme). Les critères de validation obligatoire de la cible restent « non évaluables » sans seuils : rétrogradée PARTIEL.
 - M4.16 (Exécution du job (machine à états)) : analyse = PARTIEL, vérifié = PARTIEL. L'analyse d'écarts marquait l'écart de 18 statuts INCONNU ; vérifié dans etats.py : 9 états, correspondance partielle avec la définition.
 - M6.4 (Besoins matériaux depuis M3) : analyse = FAIT_PROUVE, vérifié = PARTIEL. L'analyse d'écarts la déclarait FAIT_PROUVE tout en notant « recommandation fournisseur/coût estimé : partielle » : la cible cite ces deux éléments, rétrogradée PARTIEL.

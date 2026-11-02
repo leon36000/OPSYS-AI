@@ -54,3 +54,19 @@ correspondant. Les parcours de production dépendent de la configuration hôte.
 5. Une transcription enrichie conserve le transfert humain initial; ne le clos
    pas et n'ouvre pas un second lead/rappel. Lis la décision M1 avant toute suite
    CRM. Aucun appel sortant, SMS ou courriel n'est exécuté par cet import.
+
+## Politique de dialogue et bac à sable textuel (essais, aucune voix)
+
+La politique de dialogue d'un appel est écrite en règles (`politique_dialogue.py`, proposition à valider par Nathan) et exercée
+par un bac à sable TEXTUEL (`bac_a_sable_voix.py`, faux appels écrits d'avance, répondant double déterministe). Il ne prouve
+PAS la voix : aucun audio, aucun moteur, aucune ligne ; le canal voix reste « prévu ». Ce que la politique demande à celui qui
+parle (modèle ou double) :
+
+1. Transcription peu sûre (confiance sous le seuil, absente ou invalide) ou silence : redemande ; au deuxième échec de suite,
+   passe la main (personne disponible : transfert ; sinon, prise de message).
+2. Danger, menace juridique, plainte, sujet légal ou financier, demande d'une personne : transfert immédiat avec résumé, même si
+   la transcription est peu sûre. Un danger ne reçoit ni conseil ni promesse d'intervention : « je signale votre appel ».
+3. Question de prix ou de date : réponse fixe sans montant ni date ; l'appel continue.
+4. Toute phrase que tu dis passe le garde-fou des interdits avant d'être dite ; une phrase refusée est remplacée, jamais dite.
+5. La parole de l'appelant n'est écrite au registre qu'avec le consentement `accorde` ; les mots de la plainte et du danger sont
+   ceux du propriétaire (profil adopté) : sans eux, rien n'est reconnu et il faut le dire.

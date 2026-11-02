@@ -119,6 +119,193 @@ exemples:
     demande: "Un brouillon de post pour dire qu'on pose des gouttières avant les premières bordées de neige."
     fictif: true
 
+# Propositions de profil de réception (M1-A) : ce que le propriétaire écrit lui-même dans `entreprise.yaml` pour que M1
+# qualifie (questions par service, vocabulaire des plaintes et des urgences, destinataires de transfert, fenêtre de
+# conversation, poids du score). TOUT est `a_valider` : rien de ceci n'est lu par M1 tant que Nathan n'a pas adopté un
+# élément (`opsys-metier pack adopter <élément> --par NOM`, signé au journal d'audit). Les mots-clés servent à
+# reconnaître qu'une question a reçu réponse (mot entier, pluriel admis, accents et casse ignorés) ; une demande de
+# photos ne se reconnaît jamais par du texte et reste fermée tant que la politique « photos » n'est pas validée.
+# Source : le prompt de Nathan (M1.3, juin 2026) et l'analyse d'écart M1 (2026-11-02). Rien n'est calibré sur de vrais
+# messages de clients ; aucun nom de personne, aucune coordonnée, aucun montant.
+propositions_profil:
+  source: >-
+    Prompt de Nathan, sous-module M1.3 (qualification par service) et M1.8 (plaintes), 2026-06-08 ; analyse d'écart
+    M1 du 2026-11-02. Propositions de départ, non calibrées sur de vrais messages, à corriger par le propriétaire.
+  questions_qualification:
+    gouttieres:
+      - code: adresse
+        question: "Quelle est l'adresse des travaux (numéro civique et rue)?"
+        mots_cles: [adresse, rue, avenue, boulevard, chemin, rang, place, croissant, montée, côte, impasse, allée]
+        statut: a_valider
+      - code: type_batiment
+        question: "Quel type de bâtiment est-ce (maison, duplex, jumelé, commerce ou autre)?"
+        mots_cles: [maison, bungalow, cottage, duplex, triplex, jumelé, condo, chalet, commerce, immeuble, bâtiment]
+        statut: a_valider
+      - code: etages
+        question: "Combien d'étages le bâtiment compte-t-il?"
+        mots_cles: [étage, plain-pied, bungalow, cottage]
+        statut: a_valider
+      - code: photos_facades
+        question: "Pouvez-vous nous envoyer des photos de l'avant, de l'arrière et des côtés du bâtiment?"
+        photos: true
+        statut: a_valider
+      - code: probleme
+        question: "Quel est le problème observé (fuite, débordement, gouttière décrochée ou bosselée, glace)?"
+        mots_cles: [fuite, fuit, fuient, déborde, débordent, débordement, coule, coulent, décrochée, décroché, bosselée, affaissée, bouchée, glace, rouillée, percée, abîmée]
+        statut: a_valider
+      - code: reparation_ou_neuf
+        question: "Souhaitez-vous une réparation ou un remplacement complet?"
+        mots_cles: [réparation, réparer, remplacement, remplacer, neuf, neuves, nouvelles, nouveau]
+        statut: a_valider
+      - code: urgence
+        question: "Est-ce urgent (eau qui entre dans le bâtiment, dommage en cours)?"
+        mots_cles: [urgent, urgence, rapidement, vite, pressé, infiltration, dégât d'eau]
+        statut: a_valider
+      - code: delai
+        question: "Pour quelle période souhaitez-vous faire faire les travaux?"
+        mots_cles: [semaine, mois, printemps, été, automne, hiver, bientôt, prochainement, délai, flexible]
+        statut: a_valider
+      - code: acces_arbres
+        question: "L'accès est-il dégagé (cour, clôture, escalier) et y a-t-il des arbres ou des branches près du bâtiment?"
+        mots_cles: [accès, cour, clôture, barrière, escalier, stationnement, arbre, branches, haie]
+        statut: a_valider
+      - code: couleur
+        question: "Avez-vous une préférence de couleur (blanc, brun, noir, gris ou autre)?"
+        mots_cles: [couleur, blanc, brun, noir, gris, beige, bronze, argent]
+        statut: a_valider
+    revetement:
+      - code: adresse
+        question: "Quelle est l'adresse des travaux (numéro civique et rue)?"
+        mots_cles: [adresse, rue, avenue, boulevard, chemin, rang, place, croissant, montée, côte, impasse, allée]
+        statut: a_valider
+      - code: revetement_actuel
+        question: "De quel matériau est le revêtement actuel (vinyle, aluminium, bois, brique, autre)?"
+        mots_cles: [vinyle, aluminium, bois, brique, canexel, acier, pierre, stuc, fibrociment]
+        statut: a_valider
+      - code: etages
+        question: "Combien d'étages le bâtiment compte-t-il?"
+        mots_cles: [étage, plain-pied, bungalow, cottage]
+        statut: a_valider
+      - code: surface
+        question: "Quelle est la surface approximative à couvrir, en pieds carrés ou en mètres carrés?"
+        mots_cles: [pied carré, mètre carré, superficie, surface, murs]
+        statut: a_valider
+      - code: photos_murs
+        question: "Pouvez-vous nous envoyer des photos de chaque côté du bâtiment et des zones abîmées?"
+        photos: true
+        statut: a_valider
+      - code: reparation_ou_remplacement
+        question: "Souhaitez-vous une réparation ou un remplacement complet du revêtement?"
+        mots_cles: [réparation, réparer, remplacement, remplacer, neuf, nouveau, refaire]
+        statut: a_valider
+      - code: infiltration
+        question: "Constatez-vous une infiltration d'eau, de la moisissure ou du pourrissement?"
+        mots_cles: [infiltration, infiltre, eau, moisissure, pourri, pourrissement, humidité]
+        statut: a_valider
+      - code: materiau_souhaite
+        question: "Avez-vous un matériau en tête pour le nouveau revêtement?"
+        mots_cles: [vinyle, aluminium, bois, brique, canexel, acier, fibrociment, matériau, cèdre]
+        statut: a_valider
+      - code: delai
+        question: "Pour quelle période souhaitez-vous faire faire les travaux?"
+        mots_cles: [semaine, mois, printemps, été, automne, hiver, bientôt, prochainement, délai, flexible]
+        statut: a_valider
+    soffite_fascia:
+      - code: photos_soffite
+        question: "Pouvez-vous nous envoyer des photos du soffite et du fascia concernés?"
+        photos: true
+        statut: a_valider
+      - code: longueur
+        question: "Quelle est la longueur approximative concernée, en pieds ou en mètres?"
+        mots_cles: [pied, mètre, pouce, longueur]
+        statut: a_valider
+      - code: ventilation
+        question: "Le soffite est-il ajouré pour la ventilation de l'entretoit?"
+        mots_cles: [ventilation, ventilé, ajouré, perforé, aération, entretoit]
+        statut: a_valider
+      - code: dommage
+        question: "Quel dommage constatez-vous (pourriture, trou, panneau arraché, nid d'animaux)?"
+        mots_cles: [pourri, pourriture, trou, arraché, tombé, nid, écaillé, gondolé, abîmé]
+        statut: a_valider
+      - code: hauteur
+        question: "À quelle hauteur se trouvent-ils (un étage, deux étages)?"
+        mots_cles: [étage, hauteur, haut, plain-pied]
+        statut: a_valider
+      - code: acces
+        question: "L'accès au pourtour du bâtiment est-il dégagé?"
+        mots_cles: [accès, dégagé, cour, clôture, escalier, arbre, stationnement]
+        statut: a_valider
+    reparation:
+      - code: probleme
+        question: "Quel est le problème à réparer?"
+        mots_cles: [trou, fissure, arraché, pourri, brisé, percé, fuite, décroché, abîmé, cassé]
+        statut: a_valider
+      - code: urgence
+        question: "Est-ce urgent (eau qui entre, pièce qui risque de tomber)?"
+        mots_cles: [urgent, urgence, rapidement, vite, pressé, infiltration]
+        statut: a_valider
+      - code: photos_dommage
+        question: "Une photo du dommage nous aiderait beaucoup, si vous pouvez nous l'envoyer."
+        photos: true
+        statut: a_valider
+      - code: risque_securite
+        question: "Y a-t-il un risque pour la sécurité des occupants ou des passants?"
+        mots_cles: [risque, danger, dangereux, sécurité, tomber, chute]
+        statut: a_valider
+      - code: delai
+        question: "Pour quelle période souhaitez-vous la réparation?"
+        mots_cles: [semaine, mois, printemps, été, automne, hiver, bientôt, prochainement, délai, flexible]
+        statut: a_valider
+  signaux_plainte:
+    insatisfaction:
+      statut: a_valider
+      termes: [déçu, déçue, insatisfait, insatisfaite, mécontent, mécontente, fâché, fâchée, en colère, tanné, tannée,
+               écoeuré, écoeurée, inacceptable, scandaleux, honteux, plainte, pas content, pas satisfait, pas satisfaite,
+               service lamentable, service épouvantable, incompétent, incompétents, bâclé, bâclée, arnaque, arnaqué,
+               arnaquée, personne ne me rappelle, jamais rappelé, aucune nouvelle, sans nouvelles, mauvais avis,
+               avis négatif, j'en ai assez, à bout]
+    degat:
+      statut: a_valider
+      termes: [après vos travaux, après votre passage, après l'installation, vos employés ont, vous avez endommagé,
+               vous avez brisé, vous avez abîmé, ont endommagé, ont brisé, ont abîmé, dommages causés, dégâts causés,
+               dégât causé, laissé un dégât, laissé du dégât]
+    garantie:
+      statut: a_valider
+      termes: [sous garantie, réclamation, malfaçon, mal installé, mal installée, mal posé, mal posée, travail mal fait,
+               travaux défectueux, défectueux, défectueuse, ça n'a pas tenu, pas conforme]
+    avocat:
+      statut: a_valider
+      termes: [avocat, avocate, mise en demeure, poursuite, poursuivre, poursuivre en justice, tribunal, petites créances,
+               recours judiciaire, protection du consommateur, régie du bâtiment, huissier]
+    securite:
+      statut: a_valider
+      termes: [danger, dangereux, dangereuse, incendie, fumée, feu, gaz, odeur de gaz, fuite de gaz, fil électrique,
+               fils électriques, court-circuit, étincelles, électrocution, choc électrique, effondrement, s'effondre,
+               blessé, blessée, blessure, ambulance, pompiers, "911"]
+  destinataires_transfert:
+    ventes: {role: seller, statut: a_valider}
+    estimation: {role: manager, statut: a_valider}
+    admin: {role: admin, statut: a_valider}
+    finance: {role: finance, statut: a_valider}
+    plainte: {role: nathan_owner, statut: a_valider}
+    urgence: {role: nathan_owner, statut: a_valider}
+    technique: {role: manager, statut: a_valider}
+    proprietaire: {role: nathan_owner, statut: a_valider}
+  fenetre_conversation_minutes:
+    valeur: 30
+    statut: a_valider
+    etiquette: recommandation, non validée
+    justification: >-
+      Illustratif : l'exemple chiffré de la documentation de M1 (M1-canaux §8), jamais calibré sur l'entreprise. Un client
+      qui écrit le service puis la ville quelques minutes plus tard est regroupé ; au-delà, une nouvelle conversation.
+  poids_score_lead:
+    statut: a_valider
+    etiquette: recommandation, non validée
+    valeurs: {urgence: 30, completude: 50, zone: 20}
+    justification: >-
+      Illustratif : les poids de la fixture fictive de M1 (profil-fictif.v1.yaml), jamais calibrés sur l'entreprise.
+      Un poids à 0 écarte le critère.
+
 blocs:
   m01:
     ligne: >-

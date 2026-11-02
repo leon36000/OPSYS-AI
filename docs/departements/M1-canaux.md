@@ -416,6 +416,10 @@ Rien de ceci n'a de valeur par défaut dans le code : sans décision, le systèm
    dans les 15 minutes) est une décision, pas un calcul.
 Les questions et les poids des tests sont fictifs : `departments/m01-front-office/fixtures/qualification/profil-fictif.v1.yaml`
 (`fictif: true`).
+**Une première version à corriger existe (2026-11-02, M1-A)** : le pack `renovation-exterieure-qc` propose les questions des
+quatre services, les poids et la fenêtre, tout `a_valider` ; rien n'est actif avant l'adoption signée de chaque élément
+(`opsys-metier pack adopter`, voir [PACKS-SECTORIELS](../architecture/PACKS-SECTORIELS.md)). Les questions ne se posent qu'avec une
+fenêtre de conversation adoptée.
 
 ## 10. Plaintes, urgences et transfert humain (T4.5)
 
@@ -575,6 +579,10 @@ Rien de ceci n'a de valeur par défaut dans le code : sans décision, le systèm
 5. **La règle « la plainte prime tant qu'elle est ouverte »** : garder, ou limiter le rattachement dans le temps.
 Les vocabulaires, rôles et messages des tests sont fictifs : `departments/m01-front-office/fixtures/plaintes/plaintes.v1.yaml`
 (`fictif: true`).
+**Une première version à corriger existe (2026-11-02, M1-A)** : le pack `renovation-exterieure-qc` propose le vocabulaire des
+plaintes et des urgences (cinq catégories) et la table de destinataires (des rôles), tout `a_valider`, actifs seulement après
+l'adoption signée de l'élément. Elles servent aussi à la politique de dialogue vocal (
+[M1-BAC-A-SABLE-VOIX](../architecture/M1-BAC-A-SABLE-VOIX.md)).
 
 ## 11. Le garde-fou de texte est dans le socle, et l'avis légal y est partout (T4.17-c)
 

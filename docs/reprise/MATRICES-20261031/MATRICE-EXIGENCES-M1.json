@@ -109,7 +109,7 @@
    ],
    "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
    "current_status": "SIMULE",
-   "limite": "Statut revérifié le 2026-11-01 sans changement : aucun runtime STT/TTS/SIP/VAD n'existe dans le dépôt ; avatars.CANAUX_REALISES = {messagerie} (la politique refuse tout canal vocal « disponible ») ; phases_voix.py ne fait que consommer des événements fournis par l'hôte. Rien n'a été branché dans cette tranche : le contrat de session voix est seulement réutilisé par l'assistant SMS.",
+   "limite": "Statut revérifié le 2026-11-01 sans changement : aucun runtime STT/TTS/SIP/VAD n'existe dans le dépôt ; avatars.CANAUX_REALISES = {messagerie} (la politique refuse tout canal vocal « disponible ») ; phases_voix.py ne fait que consommer des événements fournis par l'hôte. Rien n'a été branché dans cette tranche : le contrat de session voix est seulement réutilisé par l'assistant SMS. Mise à jour 2026-11-02 (claude/m1-pack-bac-a-sable) : la POLITIQUE de dialogue (faible confiance -> redemander, échecs répétés, colère, danger, sujet légal ou financier -> personne, messagerie en repli) est maintenant des règles pures testées (politique_dialogue.py) et exercées par un bac à sable textuel (M1.19) ; cela ne change rien à l'absence totale de runtime vocal : statut inchangé.",
    "verification": "grep twilio|sip : fournisseurs listés dans outils.py seulement pour l'import d'appel par l'hôte (mock/twilio/telnyx/plivo), aucun pipeline",
    "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
@@ -147,11 +147,21 @@
      ],
      "docs": [],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "tests/test_pack_propositions_profil.py",
+      "tests/test_m1_pack_renovation_bout_en_bout.py"
+     ],
+     "docs": [
+      "docs/architecture/PACKS-SECTORIELS.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Règles déterministes à mots-clés ; sans profil d'entreprise rien ne qualifie (verdicts « à configurer »). Le score reste dans M1 (le contrat LeadQualifie v2 ne le porte pas).",
+   "limite": "Règles déterministes à mots-clés ; sans profil d'entreprise rien ne qualifie (verdicts « à configurer »). Le score reste dans M1 (le contrat LeadQualifie v2 ne le porte pas). Mise à jour 2026-11-02 (claude/m1-pack-bac-a-sable) : le pack renovation-exterieure-qc PROPOSE désormais un profil de réception complet (questions des quatre services, vocabulaire des plaintes et des urgences, destinataires, fenêtre, poids), tout a_valider, actif seulement après adoption signée (opsys-metier pack adopter). Prouvé sur SQLite avec le vrai bus et M2 (tests/test_m1_pack_renovation_bout_en_bout.py) ; les questions et les mots n'ont jamais été mesurés sur de vrais messages, la demande de photos reste fermée tant que la politique photos n'est pas validée, et M1 ne pose les questions qu'avec une fenêtre de conversation adoptée. Statut inchangé : le profil reste à valider par Nathan.",
    "verification": "contrat lead v2 : aucun champ score/photos/transcription"
   },
   {
@@ -641,13 +651,30 @@
    "gates_to_resolve_or_keep_open": [
     "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)"
    ],
-   "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun faux appel ni pipeline STT/TTS : seule la machine à états des phases (cf. M1.2) est testée.",
-   "ecart_analyse": "L'analyse d'écarts regroupait M1.19-M1.20 sous PARTIEL ; vérification : aucun bac à sable vocal dans M1 ni dans la console (grep sandbox|bac à sable|faux appel) : ABSENT.",
-   "verification": "grep sandbox|bac à sable|faux appel dans departments/m01-front-office : seul test_suivi_conversation.py (sans lien vocal)"
+   "decisions_nathan": [
+    "Seuil de confiance de transcription et nombre d'échecs avant repli (SeuilsDialogue : aucune valeur par défaut)",
+    "Lexique générique (sujets légal et financier, demande d'une personne, prix, date) et ordre de préséance"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_politique_dialogue.py",
+      "departments/m01-front-office/tests/test_bac_a_sable_voix.py",
+      "departments/m01-front-office/tests/test_bac_a_sable_voix_scenarios.py",
+      "departments/m01-front-office/tests/test_bac_a_sable_voix_passerelle.py"
+     ],
+     "docs": [
+      "docs/architecture/M1-BAC-A-SABLE-VOIX.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "ea631e4bc8f929a819585f3ff503218210748702",
+   "current_status": "SIMULE",
+   "limite": "Bac à sable TEXTUEL seulement (SIMULE, jamais FAIT_PROUVE) : des faux appels écrits d'avance (tours de texte, confiance de transcription injectée, horloge simulée) exercent la POLITIQUE DE DIALOGUE (garde-fou en boucle, redemander sur faible confiance, repli sur échecs répétés, colère, danger, sujet légal ou financier, messagerie sans personne, transfert avec résumé) sur les vrais morceaux de M1 et la session voix du socle. Aucun audio, aucun VAD/STT/TTS, aucune ligne téléphonique, aucun fournisseur : latence, accent fr-CA, bruit et interruptions réelles ne sont pas mesurés ; les seuils (confiance, nombre d'échecs) et le lexique générique sont des propositions que Nathan n'a pas validées ; sans vocabulaire de plaintes adopté, colère et danger ne sont pas reconnus. Un essai opt-in contre la passerelle de modèles n'a exercé le garde-fou que contre un seul vrai appel de modèle.",
+   "ecart_analyse": "Avant ce chantier : ABSENT (aucun faux appel). Désormais SIMULE : la politique est exercée sur des doubles, pas la voix.",
+   "verification": "tests listés en preuve rejoués ; grep faux appel|bac_a_sable_voix dans departments/m01-front-office/src",
+   "verifie_sur_branche": "claude/m1-pack-bac-a-sable"
   },
   {
    "id": "M1.20",

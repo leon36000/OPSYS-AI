@@ -171,6 +171,11 @@ s'écrit à part : « déçu », « déçue »). Les types de transfert sont ceu
 (`tests/test_taxonomie_plaintes.py`) les compare à ce texte. Un vocabulaire ou une table invalides n'arrêtent pas la réception
 d'un message. Ce que M1 en fait : [M1-canaux](../departements/M1-canaux.md) §10.
 
+> **Propositions du pack (M1-A).** Les cinq éléments de M1 ci-dessus (questions, poids, vocabulaire des plaintes, destinataires,
+> fenêtre) sont vides par défaut. Un pack sectoriel peut en PROPOSER une première version, tout `a_valider` ; elle n'entre dans ce
+> profil que par une adoption signée (`opsys-metier pack adopter`), jamais par le choix du pack. Voir
+> [PACKS-SECTORIELS](PACKS-SECTORIELS.md), « Propositions de profil ».
+
 ## Canaux publicitaires et sources UTM (D6, entrepôt de M8)
 
 La clé `canaux_marketing` d'`entreprise.yaml` dit à QUEL canal de dépense publicitaire correspond chaque source UTM des leads.
