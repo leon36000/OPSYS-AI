@@ -741,6 +741,124 @@ def test_le_filet_ne_garde_rien_de_plus_que_ses_comptes_une_propriete_en_trop_ne
         assert interdit not in texte
 
 
+# ================================================================================================ M5 : pré-audit
+REGLES_PREAUDIT = (
+    "FACTURE_SANS_PAIEMENT",
+    "PAIEMENT_SANS_FACTURE",
+    "DEPENSE_SANS_RECU",
+    "TAXE_INCOHERENTE",
+    "DOUBLON_PROBABLE",
+    "TRANSACTION_HORS_NORME",
+    "FACTURE_MODIFIEE",
+    "CHANGEMENT_COMPTE_INHABITUEL",
+    "PISTE_AUDIT_INCOMPLETE",
+    "DOCUMENT_MANQUANT",
+)
+
+
+def _preaudit(
+    date=JOUR, comptes=None, non_evaluees=(), partielles=(), gravite=None, version="d" * 16, heure=7, total="auto"
+):
+    comptes = comptes or {}
+    par_regle = {r: None if r in non_evaluees else comptes.get(r, 0) for r in REGLES_PREAUDIT}
+    evaluees = [n for n in par_regle.values() if n is not None]
+    return _fait(
+        op.TYPE_PREAUDIT,
+        "m5.preaudit_constate",
+        {
+            "evenement_id": f"m5-preaudit-{date}-{version}-{heure}",
+            "date_reference": date,
+            "constate_le": f"{date}T07:00:00-04:00",
+            "version_donnees": version,
+            "constats_par_regle": par_regle,
+            "constats_total": (sum(evaluees) if evaluees else None) if total == "auto" else total,
+            "constats_par_gravite": gravite or {"haute": 0, "moyenne": 0, "faible": 0},
+            "regles_non_evaluees": list(non_evaluees),
+            "regles_partielles": list(partielles),
+        },
+        heure,
+    )
+
+
+def test_le_preaudit_complet_est_repris_tel_quel_a_couverture_complete(definitions):
+    f = _preaudit(
+        comptes={"DOUBLON_PROBABLE": 1, "DEPENSE_SANS_RECU": 2},
+        gravite={"haute": 1, "moyenne": 2, "faible": 0},
+    )
+    m = _op(definitions, "m8_constats_preaudit", f)
+    assert m["statut"] == "calculee" and m["valeur"] == "3" and m["couverture"] == {"etat": "complete"}
+    assert m["entrees"]["constats_par_regle"]["DOUBLON_PROBABLE"] == 1
+    assert m["entrees"]["constats_par_gravite"] == {"haute": 1, "moyenne": 2, "faible": 0}
+    assert m["dernier_fait_le"] == f"{JOUR}T07:00:00-04:00" and m["unite"] == "constats"
+
+
+def test_zero_constat_avec_toutes_les_regles_evaluees_est_un_vrai_zero(definitions):
+    m = _op(definitions, "m8_constats_preaudit", _preaudit())
+    assert m["statut"] == "calculee" and m["valeur"] == "0" and m["couverture"] == {"etat": "complete"}
+
+
+def test_des_regles_non_evaluees_ou_partielles_rendent_la_couverture_partielle_et_la_nomment(definitions):
+    f = _preaudit(
+        comptes={"DOUBLON_PROBABLE": 1},
+        non_evaluees=("TRANSACTION_HORS_NORME", "CHANGEMENT_COMPTE_INHABITUEL"),
+        partielles=("DOUBLON_PROBABLE",),
+    )
+    m = _op(definitions, "m8_constats_preaudit", f)
+    assert m["statut"] == "calculee" and m["valeur"] == "1" and m["couverture"]["etat"] == "partielle"
+    assert (m["couverture"]["couverts"], m["couverture"]["attendus"]) == (7, 10)
+    raison = m["couverture"]["raison"]
+    assert (
+        "TRANSACTION_HORS_NORME" in raison and "CHANGEMENT_COMPTE_INHABITUEL" in raison and "DOUBLON_PROBABLE" in raison
+    )
+    assert m["entrees"]["regles_non_evaluees"] == ["TRANSACTION_HORS_NORME", "CHANGEMENT_COMPTE_INHABITUEL"]
+    assert m["entrees"]["regles_partielles"] == ["DOUBLON_PROBABLE"]
+    seulement_partielles = _preaudit(partielles=("DOUBLON_PROBABLE",), version="e" * 16)
+    c = _op(definitions, "m8_constats_preaudit", seulement_partielles)["couverture"]
+    assert c["etat"] == "partielle" and (c["couverts"], c["attendus"]) == (9, 10)
+
+
+def test_aucune_regle_evaluee_le_total_est_nul_et_la_mesure_non_calculable_jamais_zero(definitions):
+    f = _preaudit(non_evaluees=REGLES_PREAUDIT)
+    assert f["constats_total"] is None
+    m = _op(definitions, "m8_constats_preaudit", f)
+    _non_calculable(m, "constats_total")
+    assert "zéro constat" in m["manque"][0]["raison"]
+
+
+def test_le_preaudit_du_jour_le_plus_recent_est_repris_le_dernier_publie_l_emporte_quel_que_soit_l_ordre(definitions):
+    hier = _preaudit(date="2026-10-29", comptes={"DOCUMENT_MANQUANT": 99}, version="1" * 16)
+    matin = _preaudit(comptes={"DOCUMENT_MANQUANT": 1}, version="2" * 16, heure=7)
+    soir = _preaudit(comptes={"DOCUMENT_MANQUANT": 4}, version="3" * 16, heure=18)
+    for ordre in ((hier, matin, soir), (soir, matin, hier), (matin, hier, soir)):
+        assert _op(definitions, "m8_constats_preaudit", *ordre)["valeur"] == "4"
+
+
+def test_aucun_constat_du_preaudit_la_mesure_est_non_calculable(definitions):
+    _non_calculable(_op(definitions, "m8_constats_preaudit"), "m5.preaudit_constate")
+
+
+@pytest.mark.parametrize(
+    "abime",
+    [{"constats_total": -1}, {"constats_total": "3"}, {"constats_par_regle": {}}, {"constats_total": 3.5}],
+)
+def test_un_constat_du_preaudit_illisible_est_non_calculable_jamais_une_valeur_devinee(definitions, abime):
+    fait = {**_preaudit(comptes={"DOCUMENT_MANQUANT": 1}), **abime}
+    _non_calculable(_op(definitions, "m8_constats_preaudit", fait))
+
+
+def test_le_preaudit_ne_garde_que_des_comptes_une_propriete_en_trop_ne_traverse_pas():
+    brut = _preaudit()
+    charge = {k: v for k, v in brut.items() if k not in ("type_entree", "provenance", "publie_le")}
+    charge["evenement_id"] = brut["provenance"]["evenement_id"]
+    charge.update({"facture_id": "F-1", "fournisseur": "four-1", "montant_cad": "1500.00"})
+    range_ = op.fait(op.TYPE_PREAUDIT, charge, f"{JOUR}T07:00:00-04:00")
+    assert not {"facture_id", "fournisseur", "montant_cad"} & set(range_)
+    assert op.cles_unicite(op.TYPE_PREAUDIT) == ("date_reference", "version_donnees", "constate_le")
+    texte = json.dumps(range_, ensure_ascii=False)
+    for interdit in ("F-1", "four-1", "1500.00"):
+        assert interdit not in texte
+
+
 # ================================================================================================ M6 : disponibilité
 def test_les_cinq_comptes_de_disponibilite_sont_repris(definitions):
     d = _dispo()

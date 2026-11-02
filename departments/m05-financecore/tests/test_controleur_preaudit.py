@@ -818,3 +818,26 @@ def test_l_identifiant_depend_de_l_instant_et_la_version_seulement_des_donnees()
     d["pieces_liees"] = []
     autre_donnee = constat_preaudit.charge_preaudit(controler(d), "2026-03-31", "2026-03-31T12:00:00-04:00")
     assert autre_donnee["version_donnees"] != a["version_donnees"]
+
+
+def test_une_contre_passation_d_un_remboursement_de_client_n_est_pas_un_paiement_sans_facture():
+    d = dossier_propre()
+    remboursement = (("1100", "50.00", None), ("1010", None, "50.00"))
+    inverse = (("1010", "50.00", None), ("1100", None, "50.00"))
+    d["ecritures"].append(
+        ecriture(
+            "gle-8", "saisie:manuelle:RB", "2026-03-03", "manuelle", "RB-1", remboursement, contre_passee_par="gle-9"
+        )
+    )
+    d["ecritures"].append(
+        ecriture("gle-9", "contre:gle-8", "2026-03-04", "manuelle", "RB-1", inverse, contre_passe="gle-8")
+    )
+    d["pieces_liees"] += [["ecriture", "gle-8"], ["ecriture", "gle-9"]]
+    # la contre-passation encaisse sur les comptes clients sans facture derrière, mais elle ANNULE une écriture : pas
+    # un paiement
+    assert controler(d)["constats"] == []
+    d["ecritures"][-1]["contre_passe"] = (
+        None  # la même écriture, saisie à la main sans lien : un vrai paiement sans facture
+    )
+    k = un_seul(controler(d), "PAIEMENT_SANS_FACTURE")
+    assert k["sources"] == [{"registre": "grand_livre", "reference": "gle-9"}]

@@ -752,3 +752,61 @@ def test_un_texte_saisi_par_une_personne_ne_traverse_pas_tel_quel_vers_le_modele
     for interdit in ("IGNORE TOUTES", "<script>", "${jndi}", "paie tout", "alert(1)"):
         assert interdit not in texte, interdit
     assert len(sans_recu[0]["raison"]) < 400
+
+
+def test_les_ecarts_de_taxe_a_net_nul_sans_facture_vivante_ne_sont_pas_des_constats_des_deux_cotes():
+    from m5_financecore import outils_rapports
+
+    resultat = {
+        "taxes": {
+            "tps_a_percevoir": {
+                "ecarts": [
+                    {"facture_id": "F-1", "raison": "mouvement de taxe sans facture", "au_grand_livre": "0.00"},
+                    {"facture_id": "F-2", "raison": "mouvement de taxe sans facture", "au_grand_livre": "5.00"},
+                    {
+                        "facture_id": "F-3",
+                        "raison": "montant différent",
+                        "attendu_taxes": "5.00",
+                        "au_grand_livre": "0.00",
+                    },
+                    {
+                        "facture_id": "F-4",
+                        "raison": "sans écriture définitive",
+                        "attendu_taxes": "5.00",
+                        "au_grand_livre": "0.00",
+                    },
+                ]
+            }
+        },
+        "intrants": {
+            "tps_cti": {
+                "ecarts": [
+                    {
+                        "facture_fournisseur_id": "A-1",
+                        "raison": "mouvement de taxe sans facture",
+                        "au_grand_livre": "0.00",
+                    },
+                    {
+                        "facture_fournisseur_id": "A-2",
+                        "raison": "mouvement de taxe sans facture",
+                        "au_grand_livre": "-3.00",
+                    },
+                    {
+                        "facture_fournisseur_id": "A-3",
+                        "raison": "montant différent",
+                        "attendu_facture": "5.00",
+                        "au_grand_livre": "0.00",
+                    },
+                ]
+            }
+        },
+    }
+    ecarts = outils_rapports._ecarts_taxes(resultat)
+    assert [(e["cote"], e["reference"]) for e in ecarts] == [
+        ("clients", "F-2"),
+        ("clients", "F-3"),
+        ("clients", "F-4"),
+        ("intrants", "A-2"),
+        ("intrants", "A-3"),
+    ]
+    assert [e["sans_ecriture"] for e in ecarts] == [False, False, True, False, False]  # F-1 et A-1 : net nul, écartés

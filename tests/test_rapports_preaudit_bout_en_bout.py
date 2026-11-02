@@ -499,6 +499,62 @@ def test_chaque_rapport_cite_ses_sources_avec_la_taille_et_la_tete_des_registres
     assert apres["total_actif"] == avant["total_actif"]  # le brouillon n'est pas additionné, mais la source a changé
 
 
+def empreintes_des_registres():
+    """La taille et la tête de chaque registre de M5 (y compris celui des mouvements d'argent) : ce qu'un geste en
+    lecture seule
+    ne doit jamais changer."""
+    resultat = {}
+    for nom in (
+        "grand_livre",
+        "operations_comptables",
+        "factures",
+        "comptes_a_payer",
+        "plans_facturation",
+        "numerotation_factures",
+        "documents_facturation",
+        "rentabilite",
+        "wct_recus",
+        "devis_recus",
+        "principal",
+        "constats_cash_libre",
+        "budgets_declares",
+    ):
+        maillons = registre(nom)
+        resultat[nom] = (len(maillons), maillons[-1].get("ligne_id") if maillons else None)
+    return resultat
+
+
+def test_les_rapports_et_le_controle_n_ecrivent_rien_et_ne_clorent_aucune_periode(monde):
+    exercice(monde)
+    avant = empreintes_des_registres()
+    assert avant["grand_livre"][0] > 14 and avant["principal"] == (
+        0,
+        None,
+    )  # aucun mouvement d'argent n'a jamais existé ici
+    for nom, arguments in (
+        ("m5_etat_des_resultats", {"debut": "2026-08-01", "fin": "2026-10-31"}),
+        ("m5_bilan_brouillon", {"au": "2026-10-31"}),
+        ("m5_budget_contre_reel", {"periode_debut": "2026-08", "periode_fin": "2026-10"}),
+        ("m5_rentabilite_par_axe", {"axe": "ville"}),
+        ("m5_rentabilite_par_axe", {"axe": "service"}),
+        ("m5_rapport_mensuel_direction", {"periode": "2026-10"}),
+        ("m5_controler_preaudit", {"aujourd_hui": "2026-11-12"}),
+        ("m5_lire_budget", {}),
+    ):
+        reponse = appeler(monde, nom, arguments)
+        assert reponse["ok"] is True, (nom, reponse)  # accepté, ou refus nommé : dans les deux cas, rien d'écrit
+    # le constat publie UN événement au bus, et c'est tout
+    _utile(
+        appeler(
+            monde, "m5_constater_preaudit", {"aujourd_hui": "2026-11-12", "horodatage": "2026-11-12T08:00:00-05:00"}
+        )
+    )
+    assert empreintes_des_registres() == avant
+    # aucune période n'a été close : le verrou du grand livre reste absent
+    assert not any(m["type_entree"] == "gl_periode_cloturee" for m in registre("grand_livre"))
+    assert len(monde.publies(TYPE)) == 1
+
+
 # ================================================================================== données déclarées absentes
 def test_donnees_declarees_absentes_budget_couts_directs_dimension_et_seuils_disent_quoi_declarer_jamais_zero(monde):
     exercice(monde)

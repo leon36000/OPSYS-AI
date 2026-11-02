@@ -432,9 +432,7 @@ def _doublon(d: Mapping[str, Any]) -> Resultat:
                 _constat(
                     "DOUBLON_PROBABLE",
                     f"{len(groupe)} factures du même fournisseur au même montant avant taxes ({montant} $) à "
-                    f"{texte_fenetre} : numéros "
-                    + ", ".join(sorted(str(numeros[i]) for i in groupe))
-                    + ".",
+                    f"{texte_fenetre} : numéros " + ", ".join(sorted(str(numeros[i]) for i in groupe)) + ".",
                     [{"registre": "comptes_a_payer", "reference": i} for i in groupe],
                     "Vérifier auprès du fournisseur ; si c'est un doublon, annuler la facture en trop "
                     "(m5_annuler_facture_fournisseur, "
@@ -596,9 +594,11 @@ def _changement_de_compte(d: Mapping[str, Any]) -> Resultat:
     for fournisseur in sorted(par_fournisseur):
         suite = sorted(par_fournisseur[fournisseur], key=lambda t: (t[0], t[1]))
         for index, (jour, ident, compte, numero) in enumerate(suite):
-            if index < n or compte is None:
+            if compte is None:
                 continue
-            precedents = [t[2] for t in suite[index - n : index]]
+            precedents = [t[2] for t in suite[max(0, index - n) : index]]
+            if len(precedents) < n:
+                continue  # historique trop court : rien n'est « inhabituel » faute de points de comparaison
             if len(set(precedents)) == 1 and precedents[0] is not None and precedents[0] != compte:
                 constats.append(
                     _constat(

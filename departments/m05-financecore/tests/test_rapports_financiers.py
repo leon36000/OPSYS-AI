@@ -768,3 +768,24 @@ def test_les_sources_citees_dans_les_entrees_se_retrouvent_dans_chaque_rapport_e
     )
     assert avec["recu"]["empreinte"] != sans["recu"]["empreinte"]  # citer une autre source change l'empreinte
     assert rapports_financiers.rejouer(avec["recu"]) == (True, "")
+
+
+def test_un_budget_demesure_est_refuse_avant_tout_calcul(plan):
+    un_mois = [{"compte": "4100", "mois": f"2026-{m:02d}", "montant": "1.00"} for m in range(1, 13)]
+    assert budgets.construire_budget(un_mois, "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None)[1] is None
+    trop = [{"compte": "4100", "mois": "2026-01", "montant": "1.00"}] * (budgets.LIGNES_MAX + 1)
+    _, refus = budgets.construire_budget(trop, "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None)
+    assert refus["code"] == "REJ-BUDGET-ENTREE-INVALIDE" and str(budgets.LIGNES_MAX) in refus["detail"]
+    trois_ans = [
+        {"compte": "4100", "mois": "2026-01", "montant": "1.00"},
+        {"compte": "4100", "mois": "2029-02", "montant": "1.00"},
+    ]
+    _, refus = budgets.construire_budget(trois_ans, "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None)
+    assert refus["code"] == "REJ-BUDGET-MOIS-INVALIDE" and str(budgets.MOIS_MAX) in refus["detail"]
+    pile = [
+        {"compte": "4100", "mois": "2026-01", "montant": "1.00"},
+        {"compte": "4100", "mois": "2028-12", "montant": "1.00"},
+    ]
+    assert (
+        budgets.construire_budget(pile, "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None)[1] is None
+    )  # 36 mois
