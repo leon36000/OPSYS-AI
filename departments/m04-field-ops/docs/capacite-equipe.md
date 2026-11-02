@@ -114,3 +114,22 @@ M4 sur déclaration existent) ni déduire une présence ni un effectif. Il refai
 charge incohérente : effectif hors de 1 à 50 ou non entier, jours qui ne valent pas minutes × effectif / durée (ou
 minutes / durée si `null`), base qui contredit les effectifs, total converti écrit en base partielle ou manquant
 ailleurs. `verifier_charge` (module M4) rejoue ces contrôles côté producteur.
+
+## Projection sous hypothèses : `m4.projection_capacite` (M9-C2)
+
+Producteur : M4. Outils : `m4_projeter_capacite_hypotheses` et `m4_verifier_recu_projection_capacite` (T0, `roles_appareil` vide ;
+`src/m4_field_ops/capacite_hypothese.py`, calcul pur). M9 les appelle par son port privé pour chiffrer un « et si » ; M4 en reste
+propriétaire. La **base** est la charge `m4.capacite_equipe` calculable de la semaine (ce contrat, inchangé) ; les **hypothèses**, déclarées
+par une personne, sont :
+
+* `absences` : `[{equipe_id, personnes (1-50), jours (1-7)}]`. Perte d'heures d'équipe = personnes × jours × `duree_jour_personne_minutes`
+  / `effectif_planifie`, **seulement** si le profil déclare les deux ; sinon la projection est non calculable et nomme
+  `duree_jour_personne_minutes_non_declaree` ou `effectif_planifie_non_declare:<équipe>` (aucun 1 ni 480 supposé) ;
+* `jours_bloques` : des jours civils de la semaine (portée `semaine_type` seulement), traités comme un congé de TOUTES les équipes ;
+* `hausse_demande_pct` : majoration (0 à 1000) des heures planifiées de la cédule (hypothèse de proportionnalité, pas une prévision).
+
+Tout ou rien (un seul manque rend la projection non calculable). Par équipe : heures disponibles et planifiées de base, pertes, heures
+projetées, solde, `capacite_epuisee` (projection ≤ 0), `statut` (`SURCHARGE` si le planifié dépasse le disponible, y compris à zéro heure
+disponible), `utilisation_pct`. **Reçu rejouable** : méthode `m4.projection_capacite.v1`, entrées (base, hypothèses, sources du profil et
+du registre), résultat, empreinte SHA-256 ; `m4_verifier_recu_projection_capacite` refait le calcul à partir des seules entrées du reçu.
+Aucune écriture. Tests : `tests/test_capacite_hypothese.py`.

@@ -335,11 +335,15 @@ def lire_lectures_croisees(chemin: Path | None = None) -> list[dict[str, Any]]:
 
 def _lectures_m9() -> list[dict[str, Any]]:
     """Les lectures de M9 vers ses producteurs, tirées de la liste blanche du port (source unique)."""
-    from ..lecteurs_m9 import DEPARTEMENT_M9, LECTURES_AUTORISEES
+    from ..lecteurs_m9 import CALCULS_AUTORISES, DEPARTEMENT_M9, LECTURES_AUTORISEES
 
+    sources = sorted({*LECTURES_AUTORISEES, *CALCULS_AUTORISES})
     return [
-        {"lecteur": DEPARTEMENT_M9, "source": source, "voie": "port:lecteur_producteurs_m9", "outils": sorted(outils)}
-        for source, outils in sorted(LECTURES_AUTORISEES.items())
+        {
+            "lecteur": DEPARTEMENT_M9, "source": source, "voie": "port:lecteur_producteurs_m9",
+            "outils": sorted(LECTURES_AUTORISEES.get(source, frozenset()) | CALCULS_AUTORISES.get(source, frozenset())),
+        }
+        for source in sources
     ]
 
 

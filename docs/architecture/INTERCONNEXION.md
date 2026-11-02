@@ -103,10 +103,10 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | Lecteur | Source | Voie | Outils ou registres lus |
 |---|---|---|---|
 | M9 | M1 | `port:lecteur_producteurs_m9` | `m1_lire_plaintes_structurees`, `m1_produire_digest` |
-| M9 | M2 | `port:lecteur_producteurs_m9` | `m2_analyser_pipeline`, `m2_lister_leads`, `m2_lister_relances`, `m2_prevoir_pipeline` |
+| M9 | M2 | `port:lecteur_producteurs_m9` | `m2_analyser_pipeline`, `m2_lister_leads`, `m2_lister_relances`, `m2_prevoir_pipeline`, `m2_rejouer_recu_commercial`, `m2_scanner_sla` |
 | M9 | M3 | `port:lecteur_producteurs_m9` | `m3_lire_ecarts_estime_reel` |
-| M9 | M4 | `port:lecteur_producteurs_m9` | `m4_lire_capacite_equipe`, `m4_lire_cedule_semaine`, `m4_lire_meteo_intervention`, `m4_lire_retards_incidents`, `m4_lister_interventions` |
-| M9 | M5 | `port:lecteur_producteurs_m9` | `m5_lire_calendrier_obligations`, `m5_lire_comptes_a_recevoir`, `m5_lire_rentabilite_chantier`, `m5_lire_statut_revue_fiscale`, `m5_lister_comptes_a_payer`, `m5_prevoir_tresorerie` |
+| M9 | M4 | `port:lecteur_producteurs_m9` | `m4_lire_capacite_equipe`, `m4_lire_cedule_semaine`, `m4_lire_meteo_intervention`, `m4_lire_retards_incidents`, `m4_lister_interventions`, `m4_projeter_capacite_hypotheses`, `m4_verifier_recu_projection_capacite` |
+| M9 | M5 | `port:lecteur_producteurs_m9` | `m5_comparer_credit_bail_achat`, `m5_lire_calendrier_obligations`, `m5_lire_comptes_a_recevoir`, `m5_lire_rentabilite_chantier`, `m5_lire_statut_revue_fiscale`, `m5_lister_comptes_a_payer`, `m5_prevoir_tresorerie`, `m5_simuler_tresorerie_monte_carlo`, `m5_verifier_recu_calcul` |
 | M9 | M6 | `port:lecteur_producteurs_m9` | `m6_lire_disponibilite` |
 | M9 | M7 | `port:lecteur_producteurs_m9` | `m7_lire_depenses_marketing`, `m7_lire_performance_campagnes` |
 | M9 | M8 | `port:lecteur_producteurs_m9` | `m8_lire_mesures_chantier`, `m8_lire_synthese_direction`, `m8_lire_vue_executive`, `m8_lister_definitions_metriques` |

@@ -96,6 +96,7 @@ def verifier_wct_en_attente(cap, projection):
         horodatage_completion=charge["horodatage_completion"],
         duree_reelle_minutes=charge.get("duree_reelle_minutes"),
         empreinte_charge=encodage.empreinte(charge),
+        **wct_recus.dimensions_a_rejouer(candidats[0], charge),
     )
     if encodage.encoder_canonique(candidats[0]) != encodage.encoder_canonique(attendu) or encodage.encoder_canonique(
         par_devis[0]

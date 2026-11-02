@@ -8,7 +8,7 @@ from opsys import stockage
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import capture_strategique as cs
-from . import dossier_strategique, occasions, risques
+from . import dossier_strategique, occasions, reglages_radar, risques
 from .outils_tissu import DEPARTEMENT, borner, exiger_admin_strict
 
 REGISTRE_CAPTURES = "captures_strategiques"
@@ -26,28 +26,56 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
 
     def radar_risques(connaissance: str, perime_apres_jours: int | None = None, depart: int = 0) -> dict[str, Any]:
         exiger_admin_strict()
-        radar = risques.evaluer(captures(), connaissance=connaissance, perime_apres_jours=perime_apres_jours)
-        liste = radar["risques"]
-        if type(depart) is not int or not 0 <= depart <= len(liste):
-            raise ValueError("REJ-RADAR-DEPART : départ entre 0 et le nombre de risques requis ; reprendre à 0")
-        entete = {k: v for k, v in radar.items() if k != "risques"}
-        marge = budget_sortie - len(cs.canonique(entete)) - 600
-        page: list[dict] = []
-        for risque in liste[depart:]:
-            if len(cs.canonique(page + [risque])) > marge:
+        radar = risques.evaluer(
+            captures(), connaissance=connaissance, perime_apres_jours=perime_apres_jours, **reglages_radar.lire()
+        )
+        liste, regles = radar["risques"], radar["regles_non_evaluees"]
+        total = len(liste) + len(regles)
+        if type(depart) is not int or not 0 <= depart <= total:
+            raise ValueError("REJ-RADAR-DEPART : départ entre 0 et le nombre d'éléments requis ; reprendre à 0")
+        # Une seule curseur sur les risques PUIS les règles non évaluées : la sortie d'un outil est bornée, et un radar
+        # sans seuil déclaré compte plus de règles non évaluées que de risques.
+        entete = {
+            "accepte": True,
+            "type": radar["type"],
+            "version": radar["version"],
+            "grille": radar["grille"],
+            "connaissance": radar["connaissance"],
+            "perime_apres_jours": radar["perime_apres_jours"],
+            "perime_origine": radar["perime_origine"],
+            "radar_id": radar["radar_id"],
+            "total_risques": len(liste),
+            "total_regles_non_evaluees": len(regles),
+            "depart": depart,
+        }
+        if depart == 0:  # le contexte du radar : une fois, à la première page
+            entete.update(
+                {
+                    k: radar[k]
+                    for k in ("regles_evaluees", "seuils_declares", "escalade", "reglages_a_declarer", "limites")
+                }
+            )
+        marge = budget_sortie - len(cs.canonique(entete)) - 400
+        page_risques: list[dict] = []
+        page_regles: list[dict] = []
+        position = depart
+        while position < total:
+            if position < len(liste):
+                candidat, cible = liste[position], page_risques
+            else:
+                candidat, cible = regles[position - len(liste)], page_regles
+            if len(cs.canonique([*page_risques, *page_regles, candidat])) > marge:
                 break
-            page.append(risque)
-        if liste[depart:] and not page:
-            raise ValueError("REJ-TISSU-BORNE : un risque dépasse la borne de sortie")
-        suivant = depart + len(page)
+            cible.append(candidat)
+            position += 1
+        if position == depart and total > depart:
+            raise ValueError("REJ-TISSU-BORNE : un élément du radar dépasse la borne de sortie")
         return borner(
             {
-                "accepte": True,
                 **entete,
-                "total_risques": len(liste),
-                "risques": page,
-                "depart": depart,
-                "prochain_depart": suivant if suivant < len(liste) else None,
+                "risques": page_risques,
+                "regles_non_evaluees": page_regles,
+                "prochain_depart": position if position < total else None,
             },
             budget_sortie,
         )

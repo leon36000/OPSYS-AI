@@ -232,10 +232,12 @@ def m4_alimenter_interventions(m4: dict, nombre: int = 5) -> list[str]:
     ]
 
 
-def m4_naitre_par_le_bus(m4: dict, chantiers=CHANTIERS) -> dict[str, str]:
+def m4_naitre_par_le_bus(m4: dict, chantiers=CHANTIERS, *, monde_charge: bool = False) -> dict[str, str]:
     """Interventions « à planifier » nées comme en production : lead qualifié (M1), devis accepté (M3) et matériel prêt
     (M6) publiés sur le bus, livrés à M4 SEUL par le répartiteur réel. Le lead porte un SERVICE (v2), ce qui permet à
-    la météo de choisir des règles. Rend `{lead_id: intervention_id}`."""
+    la météo de choisir des règles. Rend `{lead_id: intervention_id}`. ``monde_charge`` : le bus porte déjà d'autres
+    événements pour M4 (un monde complet) : le décompte exact des livraisons n'est plus exigé, les chantiers
+    demandés doivent seulement tous y figurer."""
     taxonomie.enregistrer_services(SERVICES_PROPRES)
     accepte_le = "2026-10-20T10:00:00-04:00"
     for lead_id, ville, service, _, _ in chantiers:
@@ -314,9 +316,11 @@ def m4_naitre_par_le_bus(m4: dict, chantiers=CHANTIERS) -> dict[str, str]:
         )
         assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
         livres += resume["livres"]
-    assert livres == 2 * len(chantiers), livres
+    assert livres >= 2 * len(chantiers) and (monde_charge or livres == 2 * len(chantiers)), livres
     liste = lire_outil(m4, "m4_lister_interventions", {"statut": "a_planifier"})
     par_lead = {ligne["lead_id"]: ligne["intervention_id"] for ligne in liste}
+    if monde_charge:
+        par_lead = {lead: iid for lead, iid in par_lead.items() if lead in {c[0] for c in chantiers}}
     assert sorted(par_lead) == sorted(c[0] for c in chantiers), par_lead
     return par_lead
 

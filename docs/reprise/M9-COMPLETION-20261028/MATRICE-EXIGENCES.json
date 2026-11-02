@@ -293,12 +293,19 @@
      "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final6-20261030T105819Z.xml",
      "sha_execution": "a1fa7493",
      "resultat": "1776 passed, 0 failed, 0 skipped"
+    },
+    {
+     "m9c_20261102": "Huit chocs « et si » chiffrés par les moteurs des propriétaires : M5 (Monte-Carlo, achat), M4 (capacité : absences, météo, demande), M2 (intervalle de prévision), chacun avec source, reçu et rejeu par le propriétaire. « Retard de paiement de 30 % du carnet » chiffré par M5 avec reçu vérifié ; « deux employés absents » chiffré par M4. M9 ne calcule aucun impact (garde AST) ; moteur absent, refusé ou en erreur = « non chiffré, manque X », jamais zéro.",
+     "tests": "departments/m09-strategic-intelligence/tests/test_scenarios_chiffres.py, tests/test_m9_scenarios_chiffres_integre.py, departments/m04-field-ops/tests/test_capacite_hypothese.py",
+     "execution": "docs/reprise/M9-RADAR-SCENARIOS-20261102/preuves-execution/ ; docs/architecture/M9-RADAR-SCENARIOS.md",
+     "sha_execution": "voir run_summary_m9c_20261102",
+     "resultat": "rouge sur ea631e4bc ; vert ensuite ; 59 mutations, aucune survivante après correctifs des tests"
     }
    ],
    "verified_commit": "a1fa7493",
    "current_status": "PARTIEL",
    "lot0_finding": "Aucun moteur de scénarios. M5 (m5_preparer_decision_capital, m5_prevoir_tresorerie) et M4 portent finance/capacité ; pas de projection 12/24 mois ni scénarios côté M5.",
-   "limite": "Contrats consommateur prêts ; aucun producteur ne publie encore de port de simulation. | 19 chocs du cahier (8 avec calcul arithmétique sur bases citées, cashflow serré et rupture d'inventaire renvoyés à leur propriétaire) et interpréteur de questions « et si… » déterministe, borné en temps, injection sans effet. Les simulations finance/capacité/stock restent chez leurs propriétaires. | Neuf chocs en sensibilité arithmétique sur bases citées ; finance, capacité et stock restent à calculer par leurs propriétaires (aucun port de simulation métier)."
+   "limite": "Contrats consommateur prêts ; aucun producteur ne publie encore de port de simulation. | 19 chocs du cahier (8 avec calcul arithmétique sur bases citées, cashflow serré et rupture d'inventaire renvoyés à leur propriétaire) et interpréteur de questions « et si… » déterministe, borné en temps, injection sans effet. Les simulations finance/capacité/stock restent chez leurs propriétaires. | Neuf chocs en sensibilité arithmétique sur bases citées ; finance, capacité et stock restent à calculer par leurs propriétaires (aucun port de simulation métier). | M9-C2 2026-11-02 : finance (M5), capacité (M4) et pipeline (M2) sont maintenant chiffrés par leurs propriétaires pour huit chocs ; stock et cashflow serré hors de ces huit, le reste du cahier garde la sensibilité arithmétique citée. Les lois, probabilités et graines sont des hypothèses déclarées par la personne, pas des faits du métier. Un « et si » reste préparatoire (aucune décision, aucune action externe). À valider auprès d'un comptable (CPA) / professionnel qualifié pour toute décision financière. Statut inchangé : PARTIEL."
   },
   {
    "id": "M9.9",
@@ -335,6 +342,12 @@
      "execution": "docs/reprise/M9-ATHENA-20261101/preuves-execution/suite-m9-final-20261101.log; docs/reprise/M9-ATHENA-20261101/preuves-execution/suite-apres-sceau-20261101.log",
      "sha_execution": "16d48ff7b",
      "resultat": "M9 + raccord : 2238 passed, 2 skipped ; périphérie M8/M10/socle : 3631 passed, 1 attendu rouge avant resceau MCP puis 401 passed après resceau"
+    },
+    {
+     "m9c_20261102": "La prévision de leads de M2 (intervalle) est consommée par un scénario chiffré (position d'un niveau hypothétique face à l'intervalle, rejeu du reçu par M2) ; sans historique suffisant M2 refuse et M9 dit « non chiffré ». Statut inchangé : PARTIEL.",
+     "tests": "departments/m09-strategic-intelligence/tests/test_scenarios_chiffres.py, tests/test_m9_scenarios_chiffres_integre.py",
+     "execution": "docs/reprise/M9-RADAR-SCENARIOS-20261102/preuves-execution/ ; docs/architecture/M9-RADAR-SCENARIOS.md",
+     "sha_execution": "voir run_summary_m9c_20261102"
     }
    ],
    "verified_commit": "a1fa7493",
@@ -430,12 +443,19 @@
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_risques.py",
      "cahier": "docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md"
+    },
+    {
+     "m9c_20261102": "Radar à 21 règles dont les seuils sont DÉCLARÉS par la direction (réglages m9.*) : règle sans seuil = « non évaluée » avec ce qu'il faut déclarer, jamais « aucun risque ». Un risque critique (multiple déclaré du seuil, ou cash libre négatif) crée un avis interne, une tâche et une mémoire M10, jamais un message externe. Parcours d'un mois fictif avec les vrais outils M9+M5+M4+M2+M8, horloge injectée.",
+     "tests": "departments/m09-strategic-intelligence/tests/test_risques_regles.py, test_reglages_radar.py, test_escalade_risques.py, tests/test_m9_radar_scenarios_e2e.py",
+     "execution": "docs/reprise/M9-RADAR-SCENARIOS-20261102/preuves-execution/ ; docs/architecture/M9-RADAR-SCENARIOS.md",
+     "sha_execution": "voir run_summary_m9c_20261102",
+     "resultat": "rouge sur ea631e4bc (9 échecs + 10 erreurs de collecte), vert ensuite ; 59 mutations, aucune survivante après correctifs des tests"
     }
    ],
    "verified_commit": "0d2e691d",
    "current_status": "DONE_VERIFIED",
    "lot0_finding": "Signaux M6.20 (rupture, hausse de prix) inexistants côté M6 ; M4 fournit retards/incidents/météo ; M5 trésorerie ; radar à composer avec absence de cause explicite.",
-   "limite": "Radar à sept règles + delta entre deux instants connus ; les autres types de risque du cahier attendent un signal structuré des producteurs (M1 n'expose les plaintes qu'en texte). | Signaux publiés par les propriétaires ; gravité = grille proposée non validée ; aucune cause établie ; règle non évaluée = risque inconnu."
+   "limite": "Radar à sept règles + delta entre deux instants connus ; les autres types de risque du cahier attendent un signal structuré des producteurs (M1 n'expose les plaintes qu'en texte). | Signaux publiés par les propriétaires ; gravité = grille proposée non validée ; aucune cause établie ; règle non évaluée = risque inconnu. | M9-C1 2026-11-02 : 21 règles, 9 seuils déclarés par la direction (aucune valeur par défaut inventée ; niveau N3), escalade interne seulement (avis + tâche + mémoire), rafraîchissement automatique NON branché (décision de Nathan en attente), mode autonome non touché. Exercé en processus (SQLite) et sur des producteurs fictifs : PostgreSQL, Core et un modèle réel NON exercés ; la qualité d'un conseil sur ces risques n'est pas établie."
   },
   {
    "id": "M9.13",
@@ -920,5 +940,18 @@
    "rep-V02"
   ],
   "note": "run_summary historique conservé tel quel ; ce bloc décrit la livraison Athéna. Aucun FAIT_PROUVE : les statuts DONE_VERIFIED antérieurs ne sont pas relevés."
+ },
+ "run_summary_m9c_20261102": {
+  "branche": "claude/m9-radar-scenarios",
+  "base": "ea631e4bc",
+  "note_sha": "Le SHA final de la livraison est donné dans le rapport de la session ; cette matrice est dans le même commit.",
+  "tests": "M9 département : 1756 passed, 2 skipped avant -> 1876 passed, 2 skipped après ; socle M9 + raccords + registre MCP + deux tests de bout en bout : 680 passed ; M10 + M4 + cohérence documentaire + matrices : 5347 passed, 20 skipped ; M5 + M2 (consommés) : 6665 passed, 1 skipped ; garde-fous (paquets, texte, cohérence, portées, packs, registre, évènements, interconnexion, évaluation) : 842 passed après regénération des chiffres",
+  "rouge_avant": "preuves-execution/rouge-avant-ea631e4bc.txt : 9 échecs + 10 erreurs sur la base",
+  "mutations": "59 mutations, 6 survivantes au premier passage (5 trous de tests comblés, 1 mutant équivalent reformulé), 59/59 tuées ensuite",
+  "verifier": "OK 10 départements, 661 outils, 254 déclarés aux appareils",
+  "registre_mcp": "révision 23, 684 outils exposés, scellé",
+  "lint": "ruff check src tests departments : All checks passed",
+  "qualification_modele_reel": "OUVERTE",
+  "statuts_inchanges": "M9.8 PARTIEL, M9.9 PARTIEL, M9.12 DONE_VERIFIED (avec limites ci-dessus)"
  }
 }

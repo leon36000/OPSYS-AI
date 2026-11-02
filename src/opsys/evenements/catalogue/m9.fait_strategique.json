@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m9.fait_strategique",
   "title": "M9 — Faits stratégiques (décision de la direction, résultat mesuré, leçon), publiés pour la mémoire de M10",
-  "description": "Émis par M9 Athéna (departments/m09-strategic-intelligence/src/m9_strategic_intelligence/adaptateur_boucle.py::m9_publier_faits_strategiques) : UNE entrée du registre chaîné `decisions_direction` = UN événement. Genres : `decision` (énoncé de la direction et résultats attendus en SENS seulement), `resultat_observe` (sens observé de chaque mesure M8 comparé à l'attendu : CONCORDE, NE_CONCORDE_PAS ou NON_MESURABLE), `lecon` (proposée, validée ou rejetée par la direction). Consommé par M10, qui le mémorise tel quel dans son registre `faits_strategiques` (append-only, FINANCIAL : jamais dans un paquet de contexte). evenement_id déterministe lié à l'empreinte du maillon M9 : republier la même entrée rejoue la première enveloppe. Une leçon n'établit AUCUNE cause ; elle n'est une leçon qu'une fois validée par la direction. Aucun nom de personne : seulement le rôle du signataire. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "description": "Émis par M9 Athéna (departments/m09-strategic-intelligence/src/m9_strategic_intelligence/adaptateur_boucle.py::m9_publier_faits_strategiques) : UNE entrée du registre chaîné `decisions_direction` = UN événement. Genres : `decision` (énoncé de la direction et résultats attendus en SENS seulement), `resultat_observe` (sens observé de chaque mesure M8 comparé à l'attendu : CONCORDE, NE_CONCORDE_PAS ou NON_MESURABLE), `lecon` (proposée, validée ou rejetée par la direction), `risque` (escalade INTERNE d'un risque critique du radar de M9, statut `signale_par_le_radar` : `decision_id` = l'avis, `texte` = l'avis assemblé de codes et de valeurs de propriétaires, aucune cause ni action ; émis par `m9_escalader_risques_critiques`). Consommé par M10, qui le mémorise tel quel dans son registre `faits_strategiques` (append-only, FINANCIAL : jamais dans un paquet de contexte). evenement_id déterministe lié à l'empreinte du maillon M9 : republier la même entrée rejoue la première enveloppe. Une leçon n'établit AUCUNE cause ; elle n'est une leçon qu'une fois validée par la direction. Aucun nom de personne : seulement le rôle du signataire. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
   "type": "object",
   "additionalProperties": false,
   "$defs": {
@@ -12,10 +12,10 @@
   },
   "properties": {
     "evenement_id": {"type": "string", "pattern": "^m9-strat-[0-9a-f]{64}$"},
-    "genre": {"type": "string", "enum": ["decision", "resultat_observe", "lecon"]},
+    "genre": {"type": "string", "enum": ["decision", "resultat_observe", "lecon", "risque"]},
     "decision_id": {"type": "string", "minLength": 1, "maxLength": 128},
     "lecon_id": {"type": ["string", "null"], "maxLength": 64},
-    "statut": {"type": "string", "enum": ["declaree_par_la_direction", "observe_par_mesure", "proposee_non_validee", "validee_par_la_direction", "rejetee_par_la_direction"]},
+    "statut": {"type": "string", "enum": ["declaree_par_la_direction", "observe_par_mesure", "proposee_non_validee", "validee_par_la_direction", "rejetee_par_la_direction", "signale_par_le_radar"]},
     "texte": {"type": ["string", "null"], "maxLength": 1200},
     "attendus": {
       "type": "array", "maxItems": 8,

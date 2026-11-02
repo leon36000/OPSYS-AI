@@ -184,6 +184,23 @@ LECTURES: tuple[Lecture, ...] = (
         {"horodatage", "regle", "permises_seulement", "decalage", "limite"},
         reference="horodatage",
     ),
+    # Filet anti-perte de M2 (scan SLA, sept règles) : la page est limitée à UNE violation (le radar ne lit que l'état
+    # et le compte de chaque règle, que M2 donne en entier quelle que soit la page). Une règle dont le délai n'est pas
+    # déclaré chez M2 est « non évaluée » : M9 le dit, il ne la compte jamais comme respectée.
+    _lecture(
+        "m2.sla_filet",
+        "m02-revenue-crm",
+        "m2_scanner_sla",
+        {"horodatage"},
+        fixes={"decalage": 0, "limite": 1},
+        reference="horodatage",
+        citables=(
+            "resultat.resultat.leads_examines",
+            "resultat.resultat.regles[*].regle",
+            "resultat.resultat.regles[*].etat",
+            "resultat.resultat.regles[*].violations",
+        ),
+    ),
     _lecture(
         "m3.ecarts",
         "m03-estimation",

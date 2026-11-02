@@ -60,6 +60,16 @@ def construire(
     return resultat
 
 
+def dimensions_a_rejouer(recu: Mapping[str, Any] | None, charge: Mapping[str, Any]) -> dict[str, Any]:
+    """`service` et `ville` à repasser à `construire` pour REJOUER un reçu : celles de la charge, mais seulement pour
+    les dimensions que le reçu gardé porte déjà. Un reçu écrit avant que M5 garde ces dimensions n'en a pas : le
+    rejouer avec elles le ferait paraître divergent à tort ; un reçu qui les porte doit les porter EXACTEMENT comme
+    la charge."""
+    if not isinstance(recu, Mapping):
+        return {}
+    return {cle: charge.get(cle) for cle in ("service", "ville") if cle in recu}
+
+
 def verifier_rejeu(recu: Mapping[str, Any], charge: Mapping[str, Any]) -> None:
     """Refuse toute divergence et tout reçu historique dont la charge complète est inconnue."""
     empreinte = recu.get("empreinte_charge")

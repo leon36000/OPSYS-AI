@@ -61,6 +61,103 @@ configuration:
   # lundi à 7 h (3 jours couvrent la fin de semaine). 0 : le jour même seulement. Réglage d'affichage, pas
   # un seuil d'affaires ; absent ou invalide, le briefing retombe sur 0.
   fenetre_alertes_jours: 3
+  # Seuils du radar de risques (M9.12) : VIDES à dessein — aucune valeur n'est inventée. La direction les déclare depuis
+  # l'écran « Réglages de direction » (bloc `reglages:` ci-dessous) ; tant qu'un seuil manque, la règle correspondante
+  # est « non évaluée » et le dit (jamais « aucun risque »).
+  radar: {}
+# Réglages de direction (CFG-1, docs/architecture/REGLAGES-DIRECTION.md) : les seuils que le radar de risques de M9 lit par la
+# couche unique `opsys.reglages.lecture.superposer`. Aucune proposition : aucune source écrite ne fournit de valeur.
+reglages:
+  - cle: m9.plaintes_seuil_nombre
+    libelle: "Nombre de plaintes déclarées dans la période lue qui déclenche un risque"
+    chemin: configuration.radar.plaintes_seuil_nombre
+    type: entier
+    unite: "plaintes"
+    min: 1
+    max: 1000
+    niveau: N3
+    debloque: >-
+      Débloque la règle « plaintes_afflux » du radar de risques (m9_radar_risques) : sans ce seuil, les plaintes de M1 ne sont pas évaluées.
+  - cle: m9.capacite_utilisation_seuil_pct
+    libelle: "Part des heures de quart déclarées d'une équipe déjà planifiée qui déclenche un risque de surcharge"
+    chemin: configuration.radar.capacite_utilisation_seuil_pct
+    type: decimal
+    unite: "%"
+    min: "1"
+    max: "300"
+    niveau: N3
+    debloque: >-
+      Débloque la règle « capacite_surcharge_cedule » du radar : heures planifiées d'une équipe face à ses heures de quart déclarées (M4).
+  - cle: m9.depense_marketing_plafond_cad
+    libelle: "Plafond de dépense marketing pour la période lue de M7"
+    chemin: configuration.radar.depense_marketing_plafond_cad
+    type: decimal
+    unite: "CAD"
+    min: "1"
+    max: "10000000"
+    niveau: N3
+    debloque: >-
+      Débloque la règle « depense_marketing_plafond » du radar : dépense marketing établie par M7 pour la période lue.
+  - cle: m9.leads_plancher_par_semaine
+    libelle: "Nombre de leads par semaine sous lequel la borne haute de la prévision de M2 signale une baisse"
+    chemin: configuration.radar.leads_plancher_par_semaine
+    type: entier
+    unite: "leads/semaine"
+    min: 1
+    max: 100000
+    niveau: N3
+    debloque: >-
+      Débloque la règle « leads_sous_plancher » du radar : borne haute de la prévision par intervalle de M2 face à ce plancher.
+  - cle: m9.estimation_ecart_relatif_max
+    libelle: "Dépassement relatif de la durée estimée (0,25 = 25 %) qui signale une erreur d'estimation"
+    chemin: configuration.radar.estimation_ecart_relatif_max
+    type: decimal
+    unite: "fraction"
+    min: "0.01"
+    max: "10"
+    niveau: N3
+    debloque: >-
+      Débloque la règle « estimation_ecart_main_doeuvre » du radar : durée réelle contre durée estimée de M3 (0.25 = 25 %).
+  - cle: m9.retard_chantier_jours
+    libelle: "Nombre de jours de report d'un chantier qui en fait un retard prolongé"
+    chemin: configuration.radar.retard_chantier_jours
+    type: entier
+    unite: "jours"
+    min: 1
+    max: 365
+    niveau: N3
+    debloque: >-
+      Débloque la règle « chantier_retard_prolonge » du radar : ancienneté d'un report d'intervention chez M4.
+  - cle: m9.donnees_perimees_jours
+    libelle: "Âge, en jours, au-delà duquel une lecture n'est plus considérée à jour"
+    chemin: configuration.radar.donnees_perimees_jours
+    type: entier
+    unite: "jours"
+    min: 1
+    max: 365
+    niveau: N3
+    debloque: >-
+      Débloque la règle « donnees_perimees » du radar : âge maximal d'une lecture de producteur avant d'être dite périmée.
+  - cle: m9.cash_libre_plancher_cad
+    libelle: "Cash libre minimal toléré (en dessous, un risque est signalé)"
+    chemin: configuration.radar.cash_libre_plancher_cad
+    type: decimal
+    unite: "CAD"
+    min: "1"
+    max: "100000000"
+    niveau: N3
+    debloque: >-
+      Débloque la règle « cash_libre_sous_plancher » du radar : cash libre constaté par M5 sous ce plancher (un déficit est signalé sans réglage).
+  - cle: m9.multiple_seuil_critique
+    libelle: "Multiple d'un seuil à partir duquel un dépassement est dit critique (escalade interne)"
+    chemin: configuration.radar.multiple_seuil_critique
+    type: decimal
+    unite: "× le seuil"
+    min: "1.1"
+    max: "10"
+    niveau: N3
+    debloque: >-
+      Débloque l'escalade interne : un dépassement n'est dit critique (avis, tâche, mémoire) qu'à ce multiple du seuil déclaré. Sans lui, aucune escalade par dépassement.
 kpis:
   - id: taux_contradictions_non_arbitrees
     description: Part des contradictions internes détectées sans arbitrage humain consigné dans M10.

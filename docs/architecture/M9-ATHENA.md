@@ -126,7 +126,8 @@ décision de la direction (N3) ──► résultat mesuré par le code (N2) ─�
   connaissances par M9 (l'ingestion appartient à M10 : brouillon, N2, puis son cycle de revue). Aucun nom de personne ne voyage :
   seulement le rôle du signataire.
 * M10 (`m10_lire_faits_strategiques`, T0) range l'événement tel quel, par liste blanche et formes fermées, au niveau FINANCIAL (jamais
-  dans un paquet de contexte) ; le texte est rendu comme DONNÉE non fiable.
+  dans un paquet de contexte) ; le texte est rendu comme DONNÉE non fiable. Depuis M9-C1, le genre `risque` (statut `signale_par_le_radar`)
+  y range aussi l'escalade INTERNE d'un risque critique du radar (texte seul : ni leçon, ni attendus, ni signataire ; voir M9-RADAR-SCENARIOS).
 
 ## 8. Évaluation
 
@@ -155,6 +156,9 @@ nombre libre, entier nu compris (`rg-entier-libre`) ; la limite du texte écrit 
 | `m9_rafraichir_lectures_direction`, `m9_mesurer_resultat_decision`, `m9_publier_faits_strategiques` | T1 / N2 | admin authentifié ; effet interne seulement (captures, résultat, événement interne) |
 | `m9_consigner_decision_direction`, `m9_valider_lecon_decision` | T1 / **N3** | sous LEUR demande approuvée par un propriétaire actif ; un appel direct n'a aucun mandat |
 | `m8_lire_synthese_direction`, `m5_lire_statut_revue_fiscale`, `m10_lire_faits_strategiques` | T0 / N0 | lectures T0 ajoutées chez les producteurs, fermées aux appareils |
+| `m9_chiffrer_scenario`, `m9_lister_scenarios_chiffres`, `m9_lire_avis_risques` | T0 / N0 | admin authentifié (console) ; aucun rôle d'appareil — voir [M9-RADAR-SCENARIOS](M9-RADAR-SCENARIOS.md) |
+| `m9_escalader_risques_critiques` | T1 / N2 | admin authentifié (console) ; avis, tâche et mémoire INTERNES, aucun message externe |
+| `m4_projeter_capacite_hypotheses`, `m4_verifier_recu_projection_capacite` | T0 / N0 | calculs de M4 appelés par le port de M9 (`CALCULS_AUTORISES`), fermés aux appareils |
 
 Compteur d'outils : 537 → 552 (+15). Registre MCP resellé (`opsys-metier registre-mcp sceller`). Le garde statique
 `tests/test_m9_acces_strict.py` couvre `outils_athena.py` (chaque outil appelle `exiger_admin_strict`).
@@ -181,3 +185,10 @@ Voir le rapport de livraison (comptes exacts des suites, mutations, rouges avant
 * **Nombres écrits en lettres** dans une recommandation : non détectables.
 * **Reçus M5** : intégrité des empreintes vérifiée, rejeu non fait par M9 (appartient à `m5_verifier_recu_calcul`).
 * Lectures par affaire (M3 contexte de site, M4 ETA / adéquation) et dossier CPA : non raccordés (voir § 1).
+
+## 12. Radar complété, escalade interne et scénarios chiffrés (2026-11-02)
+
+Le radar de risques compte 21 règles aux seuils déclarés par la direction (les lectures M1, M2, M3, M4, M7 et le cash libre y sont
+consommées), un risque critique crée un avis, une tâche et une trace de mémoire INTERNES, et les scénarios « et si » sont chiffrés par
+les moteurs des propriétaires (M5, M4, M2) avec leurs reçus : [M9-RADAR-SCENARIOS.md](M9-RADAR-SCENARIOS.md). Les limites du § 11 restent
+vraies, notamment : rien ne tourne seul (aucun cron, décision de Nathan en attente) et aucune qualité de conseil n'est établie.

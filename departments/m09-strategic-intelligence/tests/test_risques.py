@@ -105,7 +105,16 @@ def test_quatre_domaines_signales_avec_gravite_preuves_et_sans_cause():
     assert res["grille"]["statut"] == "PROPOSEE_NON_VALIDEE_PAR_NATHAN"
     cash = r[("cash_alerte_seuil", "tresorerie")]
     assert cash["preuves"][0] == "m5.prevision_tresorerie#0:p0.resultat.resultat.alerte.statut"
-    assert res["regles_non_evaluees"] == [] and len(res["radar_id"]) == 64
+    historiques = {
+        "cash_alerte_seuil",
+        "cash_non_evaluable",
+        "materiaux_reservation_incomplete",
+        "capacite_incident_ouvert",
+        "capacite_report_en_cours",
+        "meteo_report_en_cours",
+        "qualite_ecart_marge_negatif",
+    }
+    assert [n for n in res["regles_non_evaluees"] if n["regle"] in historiques] == [] and len(res["radar_id"]) == 64
     assert "cause" not in str(res.keys()) and not any("responsable" in str(x) for x in res["risques"])
 
 

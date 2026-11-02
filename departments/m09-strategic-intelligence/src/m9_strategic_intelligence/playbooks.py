@@ -65,7 +65,13 @@ def _critere(id_, libelle, lecture, chemin, operateur, cible=None, *, lier=False
 CATALOGUE: dict[str, dict] = {
     "cash": {
         "nom": "Tension de trésorerie",
-        "declenche_par": ["cash_alerte_seuil", "cash_non_evaluable"],
+        "declenche_par": [
+            "cash_alerte_seuil",
+            "cash_non_evaluable",
+            "cash_libre_deficit",
+            "cash_libre_non_calculable",
+            "cash_libre_sous_plancher",
+        ],
         "etapes": [
             _etape(
                 "lire_prevision",
@@ -205,7 +211,12 @@ CATALOGUE: dict[str, dict] = {
     },
     "surcharge": {
         "nom": "Surcharge ou blocage des équipes",
-        "declenche_par": ["capacite_incident_ouvert", "capacite_report_en_cours"],
+        "declenche_par": [
+            "capacite_incident_ouvert",
+            "capacite_report_en_cours",
+            "capacite_surcharge_cedule",
+            "chantier_retard_prolonge",
+        ],
         "etapes": [
             _etape(
                 "lire_cedule",
@@ -338,7 +349,7 @@ CATALOGUE: dict[str, dict] = {
     },
     "rupture": {
         "nom": "Rupture ou manque de matériaux",
-        "declenche_par": ["materiaux_reservation_incomplete"],
+        "declenche_par": ["materiaux_reservation_incomplete", "materiaux_disponible_negatif"],
         "etapes": [
             _etape(
                 "identifier",
@@ -559,7 +570,7 @@ CATALOGUE: dict[str, dict] = {
     },
     "risque_plaintes": {
         "nom": "Risque de plaintes clients",
-        "declenche_par": [],
+        "declenche_par": ["plaintes_afflux", "plaintes_sensibles_ouvertes"],
         "etapes": [
             _etape(
                 "lire_incidents",
@@ -610,14 +621,17 @@ CATALOGUE: dict[str, dict] = {
         "arret": [
             _critere(
                 "arret_manuel_plainte",
-                "Arrêter si la personne juge la plainte réglée ou portée en litige (aucun producteur ne mesure les "
-                "plaintes)",
+                "Arrêter si la personne juge la plainte réglée ou portée en litige (M1 compte les plaintes déclarées, "
+                "il ne juge pas leur règlement)",
                 "m4.retards_incidents",
                 "",
                 "manuel",
             )
         ],
-        "limites": ["Aucun producteur capturé ne compte les plaintes : déclencheur déclaré par la personne."],
+        "limites": [
+            "Les plaintes déclarées par M1 (m1.plaintes_structurees) déclenchent ce livre de jeu au seuil déclaré par "
+            "la direction ; M1 ne dit ni la gravité ni la cause d'une plainte.",
+        ],
         "donnees_requises": ["m4.retards_incidents", "m8.mesures_chantier"],
         "departements": ["m01", "m04", "m08", "m09"],
         "risques": [
@@ -699,7 +713,7 @@ CATALOGUE: dict[str, dict] = {
     },
     "roi_marketing_faible": {
         "nom": "Rendement marketing faible",
-        "declenche_par": [],
+        "declenche_par": ["depense_marketing_plafond"],
         "etapes": [
             _etape(
                 "lire_performance",
@@ -1406,8 +1420,22 @@ def instancier(
         except (InvalidOperation, TypeError) as exc:
             raise _refus("REJ-PLAYBOOK-LIAISON", f"{id_} : cible décimale textuelle requise") from exc
     declenche = declenchement(gabarit, radar)
-    if declenche["statut"] == "A_DECLARER" and declare_par_la_personne:
-        declenche = {"statut": "DECLENCHE", "declare_par_la_personne": True, "risques": []}
+    if declenche["statut"] in ("A_DECLARER", "INCONNU") and declare_par_la_personne:
+        # Aucun producteur ne mesure ce signal, ou le radar ne peut pas l'évaluer (lecture ou seuil manquant) : la
+        # personne
+        # peut déclarer le déclencheur ; les règles non évaluées restent dites. Un radar qui a ÉVALUÉ et ne voit rien
+        # n'est
+        # pas contredit par une déclaration.
+        declenche = {
+            "statut": "DECLENCHE",
+            "declare_par_la_personne": True,
+            "risques": [],
+            **(
+                {"regles_non_evaluees": declenche["regles_non_evaluees"]}
+                if declenche.get("regles_non_evaluees")
+                else {}
+            ),
+        }
     etapes = []
     for etape in gabarit["etapes"]:
         sensible = etape["type"] == "action_sensible"

@@ -83,6 +83,7 @@ def calculer(devis_id, cap):
         horodatage_completion=charge["horodatage_completion"],
         duree_reelle_minutes=charge.get("duree_reelle_minutes"),
         empreinte_charge=encodage.empreinte(charge),
+        **wct_recus.dimensions_a_rejouer(recu_wct[0] if len(recu_wct) == 1 else None, charge),
     )
     if (
         len(recu_wct) != 1

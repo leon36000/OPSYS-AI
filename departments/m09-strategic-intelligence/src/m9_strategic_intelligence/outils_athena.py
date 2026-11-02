@@ -29,6 +29,7 @@ from . import (
     outils_tissu,
     priorites_direction,
     recommandation_gouvernee,
+    reglages_radar,
     tableau_direction,
 )
 from . import capture_strategique as cs
@@ -105,6 +106,7 @@ def construire_outils(
             maintenant=maintenant,
             alertes_m8=alertes_de_la_fenetre(maintenant, alertes),
             perime_apres_jours=perime_apres_jours,
+            seuils_radar=reglages_radar.lire(),
         )
 
     def resume_section(section: dict) -> dict:

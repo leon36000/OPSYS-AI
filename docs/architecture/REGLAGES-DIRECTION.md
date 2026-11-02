@@ -5,7 +5,7 @@ N3 et la vraie console (client HTTP de test).** Branchés : **M2** (trois délai
 six couples « pire / cible » du score de santé et, depuis le chantier C3, six seuils d'alerte métier, `m8.seuil_alerte_*`) et **M6** (le seuil d'écart de matériaux d'un chantier terminé et le seuil d'écart de
 prix à la réception : `m6.seuil_variance_chantier_pourcentage` et `m6.seuil_ecart_prix_reception_pourcentage`, décimaux de 0.01 à 5, dont la valeur
 en vigueur est déjà celle de `department.yaml` — 0.30 et 0.15, choisies par un agent — et la proposition étiquetée « recommandation, non validée » ;
-prouvé par `tests/test_reglages_m6.py`). **M5** (trois seuils du pré-audit : transaction hors norme, fenêtre de doublon, historique de changement de compte, sans aucune proposition ; [M5-RAPPORTS-PREAUDIT](M5-RAPPORTS-PREAUDIT.md)) s'y est branché ensuite. Les autres départements (M3 barème, M4…) se branchent de la même façon
+prouvé par `tests/test_reglages_m6.py`). **M5** (trois seuils du pré-audit : transaction hors norme, fenêtre de doublon, historique de changement de compte, sans aucune proposition ; [M5-RAPPORTS-PREAUDIT](M5-RAPPORTS-PREAUDIT.md)) s'y est branché ensuite, puis **M9** (neuf seuils de son radar de risques, sans proposition : voir [M9-RADAR-SCENARIOS](M9-RADAR-SCENARIOS.md)). Les autres départements (M3 barème, M4…) se branchent de la même façon
 (§7) ; rien n'y est fait. Aucune valeur réelle, aucun envoi : ce chantier ne fait que ranger des décisions de direction.
 
 ## 1. Le problème

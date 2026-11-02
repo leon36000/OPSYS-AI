@@ -62,6 +62,7 @@ def publier(devis_id, *, cap=None):
         horodatage_completion=charge["horodatage_completion"],
         duree_reelle_minutes=charge.get("duree_reelle_minutes"),
         empreinte_charge=encodage.empreinte(charge),
+        **wct_recus.dimensions_a_rejouer(par_wct[0] if len(par_wct) == 1 else None, charge),
     )
     if (
         len(par_wct) != 1

@@ -132,7 +132,10 @@ def test_gabarit_incomplet_ou_incoherent_refuse_au_chargement(alteration):
 @pytest.mark.parametrize("playbook", sorted(ONZE_NOUVEAUX))
 def test_nouveaux_gabarits_instancies_sans_effet_et_a_declarer(playbook):
     plan, _ = _plan(playbook, [])
-    assert plan["declenchement"]["statut"] == "A_DECLARER", "aucun producteur ne mesure ces signaux"
+    if pb.CATALOGUE[playbook]["declenche_par"]:  # depuis M9-C1 : une règle du radar le déclenche, absente = inconnu
+        assert plan["declenchement"]["statut"] == "INCONNU", "règles du radar non évaluées : jamais « non déclenché »"
+    else:
+        assert plan["declenchement"]["statut"] == "A_DECLARER", "aucun producteur ne mesure ces signaux"
     for etape in plan["etapes"]:
         assert etape["effet_autorise"] is False
         if etape["type"] == "action_sensible":
@@ -289,3 +292,40 @@ def test_identifiant_d_instance_lie_au_contenu():
     a, _ = _plan("hausse_prix", [], declare_par_la_personne=True, liaisons={"marge_retablie": "100"})
     b, _ = _plan("hausse_prix", [], declare_par_la_personne=True, liaisons={"marge_retablie": "101"})
     assert a["playbook_instance_id"] != b["playbook_instance_id"]
+
+
+def _aide_radar():
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    if "aide_radar" not in sys.modules:
+        spec = importlib.util.spec_from_file_location("aide_radar", Path(__file__).with_name("aide_radar.py"))
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["aide_radar"] = module
+        spec.loader.exec_module(module)
+    return sys.modules["aide_radar"]
+
+
+def test_les_regles_de_plaintes_declenchent_le_livre_de_jeu_et_une_regle_non_evaluee_laisse_la_personne_declarer():
+    A = _aide_radar()
+
+    def declenchement(nombre, seuils, declare=False):
+        chaine: list = []
+        A.capturer(chaine, "m1.plaintes_structurees", A.page_plaintes(nombre))
+        radar = risques.evaluer(chaine, connaissance=A.CONNAISSANCE, seuils=seuils)
+        return pb.instancier("risque_plaintes", radar, connaissance=A.CONNAISSANCE, declare_par_la_personne=declare)[
+            "declenchement"
+        ]
+
+    seuils = {"plaintes_seuil_nombre": 3}
+    assert declenchement(3, seuils)["statut"] == "DECLENCHE" and declenchement(3, seuils)["risques"]
+    # sous le seuil : évalué, rien ; une déclaration ne contredit pas un radar qui a évalué
+    assert declenchement(1, seuils)["statut"] == "NON_DECLENCHE"
+    assert declenchement(1, seuils, declare=True)["statut"] == "NON_DECLENCHE"
+    # seuil non déclaré : INCONNU, jamais « non déclenché » ; la personne peut déclarer, les règles non évaluées
+    # restent dites
+    assert declenchement(1, None)["statut"] == "INCONNU"
+    declare = declenchement(1, None, declare=True)
+    assert declare["statut"] == "DECLENCHE" and declare["declare_par_la_personne"] is True
+    assert "plaintes_afflux" in declare["regles_non_evaluees"]
