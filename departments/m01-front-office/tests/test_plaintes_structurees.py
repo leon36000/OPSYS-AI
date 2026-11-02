@@ -486,7 +486,7 @@ def test_l_outil_est_une_lecture_pure_fermee_a_tout_appareil_et_n_ajoute_aucun_d
     manifeste = yaml.safe_load((M1 / "department.yaml").read_text(encoding="utf-8"))
     assert manifeste["evenements"] == {
         "consomme": ["m1.courriel_recu", "m6.po_courriel_pret", "m1.courriel_envoye",
-                     "m4.message_client_brouillon_pret"],
+                     "m4.message_client_brouillon_pret", "m4.consentement_suivi_retire"],
         "publie": [
             "m1.lead_qualifie", "m1.retrait_consentement", "m1.courriel_recu", "m1.brouillon_courriel_pret",
             "m1.approbation_envoi_demandee", "m1.courriel_envoye", "m1.envoi_courriel_echoue",

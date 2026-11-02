@@ -274,6 +274,25 @@ def message_client(
     return _valide("m4.message_client_brouillon_pret", charge)
 
 
+def consentement_suivi_retire(
+    intervention_id: str = "interv-fictive-1",
+    lead_id: str = "lead-fictif-1",
+    canal: str = "courriel",
+    retire_le: str = "2026-11-02T09:00:00-05:00",
+    consentement_ligne_id: str | None = "consent-fictif-1",
+    **plus: Any,
+) -> dict[str, Any]:
+    charge = {
+        "intervention_id": intervention_id,
+        "lead_id": lead_id,
+        "canal": canal,
+        "retire_le": retire_le,
+        "consentement_ligne_id": consentement_ligne_id,
+    }
+    charge.update(plus)
+    return _valide("m4.consentement_suivi_retire", charge)
+
+
 def client_associe(lead_id: str = "lead-fictif-1", client_id: str | None = None, **plus: Any) -> dict[str, Any]:
     charge = {
         "lead_id": lead_id,

@@ -107,6 +107,11 @@ seulement dit sa couverture (`couverture`, `detail`) ; une source absente reste 
 une mesure nommée. Rien n'est ajouté aux droits d'appareil, aux outils ni aux migrations. Sources, états, décisions à prendre et limites :
 [`docs/architecture/M8-ENTREPOT-SOURCES.md`](../../docs/architecture/M8-ENTREPOT-SOURCES.md).
 
+**Constat contradictoire.** Un constat de `faits_operations` rejoué avec la même clé de contenu mais un contenu différent garde le
+PREMIER état (rien n'est écrasé), est rangé au registre `constats_contradictoires` (noms des champs, jamais les valeurs ; la
+provenance et l'instant de publication ne sont pas du contenu) et dit par `m8_lire_vue_executive` (`constats_contradictoires`, absent
+s'il n'y en a aucun). Le rejeu identique reste silencieux. Preuve : `tests/test_constats_contradictoires.py` du socle.
+
 #### Phase 2 : des résumés agrégés publiés par les départements (18 mesures de plus)
 
 Les décisions D1 à D7 de l'architecte (r10) sont exécutées **sans lecture croisée ni droit d'appareil de plus** : sept départements

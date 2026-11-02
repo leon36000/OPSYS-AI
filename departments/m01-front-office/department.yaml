@@ -54,7 +54,10 @@ evenements:
   # Interconnexion M4 -> M1 (docs/architecture/INTERCONNEXION.md) : m4.message_client_brouillon_pret (fenêtre d'arrivée
   # préparée par M4, client consentant) devient un BROUILLON dans le sas d'envoi (canal courriel) ou est rangé « sms à
   # reprendre » (l'assistant SMS ne prend que ses gabarits). Rien n'est envoyé : l'envoi est une demande N3 d'une personne.
-  consomme: [m1.courriel_recu, m6.po_courriel_pret, m1.courriel_envoye, m4.message_client_brouillon_pret]
+  # m4.consentement_suivi_retire : le retrait du consentement de suivi (dit par M4, seul à le connaître) refuse tout brouillon
+  # visé, marque « suivi retiré » ceux qui ne sont pas partis, rend caduque une approbation en attente et le dit à la direction.
+  consomme: [m1.courriel_recu, m6.po_courriel_pret, m1.courriel_envoye, m4.message_client_brouillon_pret,
+             m4.consentement_suivi_retire]
   publie: [m1.lead_qualifie, m1.retrait_consentement, m1.courriel_recu, m1.brouillon_courriel_pret,
            m1.approbation_envoi_demandee, m1.courriel_envoye, m1.envoi_courriel_echoue, m1.courriel_aiguille,
            m1.commande_courriel_envoyee, m1.plaintes_constatees]

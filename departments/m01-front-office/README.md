@@ -73,6 +73,14 @@ v2 au bus (`m1.lead_qualifie`, `source` = le canal). Le canal est désactivé ta
 écrite des politiques ne sont pas fournis ; aucune réponse n'est envoyée au client sans approbation humaine.
 Conception, configuration générée, garde-fous et greffes du core à faire : [M1-canaux](../../docs/departements/M1-canaux.md).
 
+**Suivi retiré chez M4.** M1 consomme aussi `m4.consentement_suivi_retire` (`message_client_m4.py`) : le retrait du consentement de
+suivi du client (Loi 25, effet à la livraison de l'événement) refuse tout brouillon de fenêtre d'arrivée qu'il vise (y compris livré
+APRÈS lui), marque « suivi retiré » ceux qui ne sont pas partis, rend caduque une approbation en attente (le brouillon retombe en
+`BROUILLON`), refuse `m1_demander_envoi_courriel` pour ce message (`REJ-M1-MESSAGE-SUIVI-RETIRE`), le dit dans
+`m1_lire_reponse_courriel` (`suivi_retire`) et met dans la file de la direction une attente « refuser la demande » pour une demande
+N3 déjà ouverte. Un message déjà réservé, envoyé ou d'issue incertaine ne se rappelle pas. Voir
+[`INTERCONNEXION.md`](../../docs/architecture/INTERCONNEXION.md) §2 ; preuve : `tests/test_consentement_suivi_retire.py` du socle.
+
 M2 consomme ce lead pour de vrai depuis T2.1-b (`evenements.consomme` de M2, sans greffe) : ingestion complète, idempotente ;
 un refus lève, le répartiteur réessaie puis met en quarantaine.
 

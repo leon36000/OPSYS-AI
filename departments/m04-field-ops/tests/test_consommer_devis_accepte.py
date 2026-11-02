@@ -186,7 +186,8 @@ class TestManifeste:
             "m2.profil_propriete_confirme",
         )
         assert dep.evenements_publie == (
-            "m4.travaux_termines", "m4.message_client_brouillon_pret", "m4.capacite_equipe_constatee",
+            "m4.travaux_termines", "m4.message_client_brouillon_pret", "m4.consentement_suivi_retire",
+            "m4.capacite_equipe_constatee",
         )
         assert dep.charger_consommateurs()["m3.devis_accepte"].__name__ == "_recevoir_devis_accepte"
         assert set(dep.evenements_consomme) == set(dep.charger_consommateurs())

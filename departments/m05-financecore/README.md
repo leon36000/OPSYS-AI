@@ -414,3 +414,13 @@ l'analyse est marquée ESSAI/non approuvé. Architecture, outils, flux, événem
 ## Dépense publicitaire comptabilisée et factures émises publiées pour M8
 
 (phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) `m5_constater_depense_publicitaire` (T1/N2) publie `m5.depense_publicitaire_constatee` : le solde net, hors taxes, des écritures DÉFINITIVES du compte de marketing qui viennent d'un relevé de M7 (ou le contre-passent) sur une période, et ce qui attend encore sa validation (brouillons : nombre et montant). `m5_constater_factures_emises` (T1/N2) publie `m5.facture_emise_constatee` pour chaque facture que une personne a ENVOYÉE (ENVOYEE, PAYEE, ANNULEE après envoi ; jamais un brouillon) : identifiant opaque et montants, SANS client. Les deux entrent aussi dans `m5_executer_cycle_comptable`. Module pur : `constats_pour_m8.py`. À valider auprès d'un comptable (CPA) / professionnel qualifié.
+
+**Qui d'autre lit ces factures émises, et ce que M5 dit d'un relevé contradictoire.** M2 consomme aussi `m5.facture_emise_constatee` :
+une facture `PAYEE` ou `ANNULEE` lève la relance de créance (`m5.creance_relance_preparee`) préparée pour elle ; `ENVOYEE` ne lève
+rien, un paiement partiel n'est jamais `PAYEE`. C'est le cycle comptable (`m5_executer_cycle_comptable`, étape
+`factures_emises_pour_m8`) qui publie l'état `PAYEE` : tant qu'il n'a pas tourné après le paiement, la relance reste. Côté
+consommation, le relevé de dépense de M7 (`m7.depenses_marketing_constatees`) rejoué avec le même (relevé, révision) mais un autre
+contenu garde le premier brouillon, est rangé au registre `constats_contradictoires` (empreintes seulement) et le cycle comptable le
+dit (`en_attente_d_une_personne.constats_contradictoires_m7_a_examiner`, absent s'il n'y en a aucun). Les lignes du journal
+`charges_marketing_recues` écrites avant ce changement n'ont pas d'empreinte : elles ne sont jamais comparées. Preuve :
+`tests/test_creance_levee_paiement.py` et `tests/test_constats_contradictoires.py` du socle.

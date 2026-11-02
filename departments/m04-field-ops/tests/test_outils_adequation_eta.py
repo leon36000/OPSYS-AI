@@ -709,6 +709,64 @@ def test_un_retrait_est_immediat_et_bloque_tout_nouveau_message(par_nom, monde):
     )
 
 
+def _retirer(par_nom, iid, canal="sms", horodatage="2030-06-01T08:00:00-04:00"):
+    return _appeler(
+        par_nom,
+        "m4_retirer_consentement_suivi_client",
+        {"intervention_id": iid, "canal": canal, "source": "client_stop", "horodatage": horodatage},
+    )
+
+
+def test_le_retrait_publie_a_m1_dans_la_meme_transaction_sans_aucune_donnee_personnelle(par_nom, monde):
+    iid = _iid(monde)
+    consentement = _consentir(par_nom, iid)
+    ligne_consentement = _maillons_du_type("consentement_suivi_client")[0]["ligne_id"]
+    assert consentement[1]["statut"] == "executee"
+    resultat = aide._resultat(_retirer(par_nom, iid))
+    assert resultat["evenement_publie"] is True
+    [ligne] = _evenements("m4.consentement_suivi_retire")
+    charge = json.loads(ligne.charge)
+    assert schemas.erreurs_charge("m4.consentement_suivi_retire", charge) == []
+    assert charge == {
+        "intervention_id": iid,
+        "lead_id": "L-E2E-01",
+        "canal": "sms",
+        "retire_le": "2030-06-01T08:00:00-04:00",
+        "consentement_ligne_id": ligne_consentement,  # le consentement que ce retrait termine
+    }
+    assert ligne.evenement_id.startswith("m4-suivi-retire-")
+    for interdit in ("client_stop", "Client Fictif", "telephone", "latitude", "@"):
+        assert interdit not in ligne.charge
+
+
+def test_un_retrait_sans_consentement_actif_publie_quand_meme_avec_un_maillon_nul(par_nom, monde):
+    iid = _iid(monde)
+    aide._resultat(_retirer(par_nom, iid))
+    [ligne] = _evenements("m4.consentement_suivi_retire")
+    assert json.loads(ligne.charge)["consentement_ligne_id"] is None
+    # un second retrait au même instant est le MÊME événement (déterministe) ; à un autre instant, un autre.
+    aide._resultat(_retirer(par_nom, iid))
+    assert len(_evenements("m4.consentement_suivi_retire")) == 1
+    aide._resultat(_retirer(par_nom, iid, horodatage="2030-06-01T09:00:00-04:00"))
+    assert len(_evenements("m4.consentement_suivi_retire")) == 2
+
+
+def test_le_second_retrait_ne_vise_plus_le_consentement_deja_termine(par_nom, monde):
+    iid = _iid(monde)
+    _consentir(par_nom, iid)
+    aide._resultat(_retirer(par_nom, iid, horodatage="2030-06-01T08:00:00-04:00"))
+    aide._resultat(_retirer(par_nom, iid, horodatage="2030-06-01T08:00:00-04:00"))  # déjà retiré : ne vise plus rien
+    aide._resultat(_retirer(par_nom, iid, horodatage="2030-06-01T09:00:00-04:00"))
+    visees = [json.loads(e.charge)["consentement_ligne_id"] for e in _evenements("m4.consentement_suivi_retire")]
+    assert len(visees) == 3 and sum(v is not None for v in visees) == 1 and visees.count(None) == 2
+
+
+def test_un_retrait_d_une_intervention_inconnue_ne_publie_rien(par_nom, monde):
+    reponse = _retirer(par_nom, "interv-inconnue")
+    assert aide._code_refus(reponse) == "REJ-AFFECTATION-INTROUVABLE"
+    assert _evenements("m4.consentement_suivi_retire") == []
+
+
 def test_un_consentement_expire_ne_permet_plus_aucun_message(par_nom, monde):
     iid = _iid(monde)
     _consentir(par_nom, iid)

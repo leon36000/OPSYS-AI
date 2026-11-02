@@ -209,6 +209,8 @@ from typing import Any
 import yaml
 
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
+from opsys.evenements import constats
+from opsys.evenements.repartiteur import instant_publication_livre
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
@@ -3614,8 +3616,24 @@ def _recevoir_depense_marketing(charge: dict[str, Any]) -> dict[str, Any]:
     stockage non durable) LÈVE : le bus réessaie, puis met en quarantaine, visible."""
     journal = stockage.maillons(_DEPARTEMENT, charges_marketing_recues.REGISTRE)
     cle_relevee = charges_marketing_recues.cle(charge)
-    if any(m.get("cle") == cle_relevee for m in journal):
-        return {"traite": True, "deja_recu": True, "releve_id": charge["releve_id"], "revision": charge["revision"]}
+    connues = [m for m in journal if m.get("cle") == cle_relevee]
+    if connues:
+        resume = {"traite": True, "deja_recu": True, "releve_id": charge["releve_id"], "revision": charge["revision"]}
+        premiere = connues[0]  # le PREMIER état reste : une contradiction ne l'écrase jamais
+        if charges_marketing_recues.contenu_contradictoire(premiere, charge):
+            ligne = constats.ligne_contradiction(
+                "m7.depenses_marketing_constatees",
+                {"releve_id": charge["releve_id"], "revision": charge["revision"]},
+                empreinte_premier=premiere["empreinte_contenu"],
+                empreinte_nouveau=charges_marketing_recues.empreinte_contenu(charge),
+                champs=None,
+                publie_le=instant_publication_livre(),
+            )
+            audit = stockage.maillons(_DEPARTEMENT, constats.REGISTRE)
+            if not constats.deja_signalee(audit, ligne):
+                audit.append(ligne)
+            resume["contradiction"] = constats.CODE
+        return resume
     proposees = {
         m["releve_id"]: m["revision"] for m in journal if m.get("issue") == charges_marketing_recues.BROUILLON_PROPOSE
     }

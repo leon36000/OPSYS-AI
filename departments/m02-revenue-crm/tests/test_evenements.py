@@ -170,6 +170,7 @@ class TestManifeste:
             "m3.devis_envoye", "m1.retrait_consentement",
             # Interconnexion (docs/architecture/INTERCONNEXION.md) : lecture seule, rien n'est écrasé.
             "m7.conversion_hors_ligne_importee", "m5.creance_relance_preparee", "m3.contexte_site_pret",
+            "m5.facture_emise_constatee",
         )
         consommateurs = dep.charger_consommateurs()
         assert "m4.travaux_termines" in consommateurs

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m4.consentement_suivi_retire",
+  "title": "M4 — Consentement de suivi du client retiré",
+  "description": "Émis par M4 (departments/m04-field-ops/src/m4_field_ops/outils_adequation_eta.py, outil m4_retirer_consentement_suivi_client, M4.14) dans la MÊME transaction que le maillon de retrait au registre de M4, quand le consentement du client au suivi de sa fenêtre d'arrivée (finalité fenetre_arrivee, ce chantier, ce canal) est retiré (STOP, demande du client, équipe ou administration). Pendant de m4.message_client_brouillon_pret : M1 détient le brouillon que M4 a publié avant le retrait, M4 seul connaît le retrait. L'effet est immédiat à la livraison : M1 ne crée ni n'avance plus aucun brouillon préparé avant le retrait pour ce chantier et ce canal, et marque « suivi retiré » ceux qui ne sont pas encore partis (jamais d'envoi). Aucun contact, aucun nom, aucun texte libre, aucune source du retrait : la clé de contact est le lead_id PSEUDONYME que les deux flux portent déjà. horodatage du retrait fourni par la plateforme (retire_le). consentement_ligne_id : le maillon de consentement que ce retrait met fin (ou null si aucun n'était actif), pour que M1 reconnaisse sans horloge les brouillons qui s'y fondaient ; un nouveau consentement recueilli APRÈS le retrait donne un autre maillon et ne fait pas partie de ce retrait. evenement_id déterministe (m4-suivi-retire-<empreinte du chantier, du canal, de l'instant et du maillon visé>) : une redélivrance est un no-op. Consommé par M1 (registre messages_clients_m4). Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "intervention_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "lead_id": {"type": "string", "minLength": 1, "maxLength": 128, "description": "Lead M2 : la clé par laquelle M1 retrouve le contact du client (jamais un contact)."},
+    "canal": {"enum": ["sms", "courriel"]},
+    "retire_le": {"type": "string", "format": "date-time", "description": "Instant du retrait, RFC 3339 avec fuseau, fourni par la plateforme."},
+    "consentement_ligne_id": {"type": ["string", "null"], "maxLength": 128, "description": "Maillon du consentement de suivi que ce retrait termine (null : aucun n'était actif ou expiré)."}
+  },
+  "required": ["intervention_id", "lead_id", "canal", "retire_le", "consentement_ligne_id"]
+}

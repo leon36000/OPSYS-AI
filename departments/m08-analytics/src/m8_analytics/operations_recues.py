@@ -283,6 +283,20 @@ def cles_unicite(type_entree: str) -> tuple[str, ...]:
     return _CLES_UNICITE[type_entree]
 
 
+# Ce qui n'est PAS du contenu constaté : la provenance (son empreinte couvre l'`evenement_id` du bus, qui change à
+# chaque rejeu) et l'instant de publication. Deux faits de même clé qui ne diffèrent que par ces champs sont un rejeu.
+CHAMPS_NON_COMPARES = ("provenance", "publie_le")
+
+
+def contenu_compare(fait_range: dict[str, Any]) -> dict[str, Any]:
+    """Le contenu d'un fait rangé, sans provenance ni instant de publication (ce que deux livraisons partagent)."""
+    return {cle: valeur for cle, valeur in fait_range.items() if cle not in CHAMPS_NON_COMPARES}
+
+
+def evenement_du_type(type_entree: str) -> str:
+    return _EVENEMENT_DU_TYPE[type_entree]
+
+
 def resume_recu(type_entree: str, fait_range: dict[str, Any]) -> dict[str, Any]:
     """Ce que le reçu du bus garde : l'identifiant du constat, jamais un montant ni une valeur."""
     cle = _CLES_UNICITE[type_entree][0]

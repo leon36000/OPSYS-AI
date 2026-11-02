@@ -26,6 +26,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from opsys import approbations, contexte, evenements, jetons, stockage
+from opsys.evenements import constats
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import (
@@ -972,6 +973,12 @@ def executer_cycle_comptable(aujourd_hui: str, horodatage: str, periode: str | N
         "relances_a_envoyer_via_m1": len(final["etat_ops"]["par_type"]["op_relance_preparee"]),
         "periode_a_clore_n4": None if periode is None else periode,
     }
+    contradictions = constats.compter(stockage.maillons(_o._DEPARTEMENT, constats.REGISTRE))
+    if contradictions:
+        # Un relevé de M7 reçu deux fois avec le même (relevé, révision) mais un contenu différent : le premier état
+        # (et son brouillon) restent, une personne tranche (registre constats_contradictoires). Absent quand il n'y en a
+        # aucune : l'empreinte du cycle ne change pas pour qui n'en a pas.
+        en_attente["constats_contradictoires_m7_a_examiner"] = contradictions
     empreinte = encodage.empreinte("m5.cycle.v1", etapes, en_attente)
     return accepte(
         {
