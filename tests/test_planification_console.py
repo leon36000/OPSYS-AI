@@ -49,16 +49,17 @@ def test_la_page_montre_tous_les_tours_par_famille_avec_leur_etat(env):
     _connexion(client)
     r = client.get("/plateforme/connecteurs")
     assert r.status_code == 200
-    for nom in etat.NOMS:
+    for nom in etat.noms():
         assert f"<code>{nom}</code>" in r.text, nom
-    for titre in ("Connecteurs (courriel", "Départements (calculs", "Vérifications", "Rétention Loi 25"):
+    for titre in ("Connecteurs (courriel", "Départements (calculs", "Constats planifiés pour M8", "Vérifications",
+                  "Rétention Loi 25"):
         assert titre in r.text
     assert "En attente de transport" in r.text  # WordPress, réseaux sociaux, signaux… ne sont pas raccordés
     assert "Tours non branchés" in r.text
     for t in inventaire.TOURS:
         if t.decision in ("brancher_quand_transport", "ne_jamais_automatiser", "a_construire"):
             assert t.identifiant in r.text, t.identifiant
-    assert r.text.count("Inactif") >= len(etat.NOMS)
+    assert r.text.count("Inactif") >= len(etat.noms())
 
 
 def test_l_api_donne_l_etat_complet_sans_secret(env):
@@ -67,7 +68,7 @@ def test_l_api_donne_l_etat_complet_sans_secret(env):
     mon.activer("m8.entrepot", "ombre")
     api = client.get("/api/plateforme/connecteurs").json()
     par_nom = {v["executeur"]: v for v in api["executeurs"]}
-    assert set(par_nom) == set(etat.NOMS)
+    assert set(par_nom) == set(etat.noms())
     m8 = par_nom["m8.entrepot"]
     assert m8["mode"] == "ombre" and m8["expire_le"] and m8["prochain_passage"] and m8["famille"] == "departements"
     assert par_nom["m7.signaux"]["en_attente_transport"] is True and par_nom["m7.signaux"]["transport"] == "signaux"

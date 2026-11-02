@@ -46,6 +46,14 @@ planifications:
     consigne: >-
       Résume en 5 lignes les variances d'inventaire et les suggestions de
       réapprovisionnement de la veille. Aucun mouvement nouveau.
+# Constats de routine déclenchés par le PLANIFICATEUR DURABLE (jamais par un agent) : voir M1 et PLANIFICATION.md §9.
+constats_planifies:
+  - nom: disponibilite
+    outil: m6_constater_disponibilite
+    mesures: [m8_articles_en_rupture, m8_articles_sur_reserves, m8_reservations_incompletes]
+    description: Cinq comptes de disponibilité du matériel, sans article, quantité ni prix.
+    appels:
+      - horodatage: {calcul: instant}
 budget:
   tokens_jour: 200000
   tokens_mois: 3000000

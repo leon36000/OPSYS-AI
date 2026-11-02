@@ -194,3 +194,7 @@ Bugs corrigés (test rouge → vert) lors de cette passe :
 ## Disponibilité du matériel publiée pour M8 — `m6_constater_disponibilite`
 
 (phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) publie `m6.disponibilite_constatee` : CINQ comptes (articles suivis, en rupture, sur-réservés, réservations actives et incomplètes), calculés comme `m6_lire_disponibilite` (module pur `constat_disponibilite.py`). Aucun article, quantité, prix ni chantier ne part. L'identifiant porte l'instant du constat.
+
+**Déclenchement.** Ce constat est déclaré par `constats_planifies` du `department.yaml` et lancé par le planificateur durable
+(exécuteur `m6.constat.disponibilite`, inactif par défaut, cadence par défaut dérivée du catalogue de M8) : `horodatage` = le début du créneau. Aucun agent n'a besoin de le
+faire à la main. Voir `docs/architecture/PLANIFICATION.md` §9.

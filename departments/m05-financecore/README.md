@@ -424,3 +424,8 @@ contenu garde le premier brouillon, est rangé au registre `constats_contradicto
 dit (`en_attente_d_une_personne.constats_contradictoires_m7_a_examiner`, absent s'il n'y en a aucun). Les lignes du journal
 `charges_marketing_recues` écrites avant ce changement n'ont pas d'empreinte : elles ne sont jamais comparées. Preuve :
 `tests/test_creance_levee_paiement.py` et `tests/test_constats_contradictoires.py` du socle.
+
+**Déclenchement.** `m5_constater_depense_publicitaire` (du début du mois à aujourd'hui, comme l'étape 6 du cycle) et `m5_constater_factures_emises` sont déclarés par
+`constats_planifies` du `department.yaml` et lancés par le planificateur durable (exécuteurs `m5.constat.depense-publicitaire` et
+`m5.constat.factures-emises`, inactifs par défaut, cadence par défaut dérivée du catalogue de M8). Voir
+`docs/architecture/PLANIFICATION.md` §9.

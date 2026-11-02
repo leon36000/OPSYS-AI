@@ -5,11 +5,15 @@ fournisseur, un modèle, un réseau social, une boîte courriel, un serveur de s
 par défaut** : chaque tour est `inactif` tant qu'un admin ne l'a pas activé depuis la console. Ce document dit ce qui est branché,
 ce qui ne l'est pas et pourquoi, comment c'est gouverné, et ce qui n'est PAS prouvé.
 
+**Mise à jour (2026-11-01, constats planifiés)** : les sept constats de la phase 2 de l'entrepôt de M8 sont maintenant
+déclenchés par ce même planificateur, déclarés par les manifestes des départements (§9). Même statut : prouvé sur SQLite,
+avec une horloge injectée et des données fictives, **inactif par défaut**, rien contre PostgreSQL ni un service externe.
+
 Un système « autonome » travaille sans qu'un humain lance chaque tour. Le planificateur durable existait
 ([CABLAGE-CONNECTEURS.md](CABLAGE-CONNECTEURS.md) : modes `inactif`/`ombre`/`actif`, baux avec jeton de fencing, journal
 append-only, coupe-circuit, acteur système `opsys-systeme` à portée « planificateur ») et pilotait cinq exécuteurs
 (courriel, WordPress, réseaux sociaux). Plusieurs rapports disaient « aucun planificateur n'appelle X ». Cette tranche
-**étend le même planificateur** (aucun second cron) avec treize exécuteurs, des purges de rétention Loi 25, un inventaire
+**étend le même planificateur** (aucun second cron) avec treize exécuteurs (puis, §9, sept constats déclarés par les manifestes), des purges de rétention Loi 25, un inventaire
 exécutable et l'écran de gestion.
 
 ## 1. Ce qui est branché
@@ -183,3 +187,93 @@ La descente est refusée dès qu'une ligne existe. Aucune table existante n'est 
 | `departments/m01-front-office/src/m1_front_office/courriel_pii.py` | adresse de courriel scellée |
 | `src/opsys/console/cablage_ui.py` | écran de gestion |
 | `tests/test_planification_*.py`, `tests/fixtures/planif_qa.py` | preuves |
+| `src/opsys/connecteurs_planification/constats.py`, `departements.py` (bloc `constats_planifies`) | constats planifiés (§9) |
+| `departments/m08-analytics/src/m8_analytics/cadence_constats.py` | cadence par défaut dérivée du catalogue de M8 |
+| `tests/test_constats_planifies.py`, `tests/test_entrepot_m8_planifie.py`, `tests/fixtures/planif_m8_monde.py` | preuves des constats |
+
+## 9. Constats planifiés pour M8 : un département déclare, le planificateur déclenche
+
+**Le problème.** La phase 2 de l'entrepôt de M8 ([M8-ENTREPOT-SOURCES](M8-ENTREPOT-SOURCES.md)) a livré sept outils de constat
+(T1/N2, agent seulement, aucun droit d'appareil) : `m5_constater_depense_publicitaire`, `m5_constater_factures_emises`,
+`m7_constater_performance_signaux`, `m4_constater_capacite_equipe`, `m2_constater_pipeline`, `m6_constater_disponibilite`,
+`m1_constater_plaintes`. Rien ne les lançait : sans geste d'agent, les mesures de M8 étaient non calculables puis périmées.
+
+**Décision d'architecture : l'hôte existant convient, aucun second mécanisme.** Les constats sont des appels déterministes
+d'outils N2 : c'est ce que font déjà `m8.entrepot` et `m5.cycle`. Les `planifications:` du manifeste (cron d'un AGENT avec
+consigne) ont été écartées : elles passent par un modèle (jetons, non-déterminisme, un agent pourrait « oublier » un outil) alors
+qu'un constat n'a rien à interpréter. Le planificateur durable apporte ce qu'il faut : mode `inactif` par défaut, bail,
+réservation de créneau, journal, arrêt propre, coupe-circuit, console.
+
+**Où est la déclaration.** Dans le manifeste du département PRODUCTEUR, bloc `constats_planifies` (schéma fermé, validé à la
+lecture et par `opsys-metier verifier`). Le socle ne contient aucun horaire ni nom de département : `constats.py` lit les
+manifestes, en tire un exécuteur `<mN>.constat.<nom>` par déclaration (famille « constats », niveau N2) et le journal, la
+console et l'activation les traitent comme les autres tours.
+
+| Exécuteur | Outil appelé | Mesures de M8 alimentées | Appels par passage | Intervalle par défaut |
+|---|---|---|---|---|
+| `m5.constat.depense-publicitaire` | `m5_constater_depense_publicitaire` | dépense comptabilisée, écart avec les relevés | 1 : du début du mois à aujourd'hui | 12 h |
+| `m5.constat.factures-emises` | `m5_constater_factures_emises` | factures émises, facturation avant taxes | 1 | 12 h |
+| `m7.constat.performance-signaux` | `m7_constater_performance_signaux` | clics, impressions, visites du site | 2 : mois précédent, mois en cours | 12 h |
+| `m4.constat.capacite-equipe` | `m4_constater_capacite_equipe` | heures disponibles, heures planifiées, charge | 1 : semaine ISO en cours | 24 h (borné) |
+| `m2.constat.pipeline` | `m2_constater_pipeline` | leads ouverts, taux de conversion, valeur pondérée | 1 | 12 h |
+| `m6.constat.disponibilite` | `m6_constater_disponibilite` | ruptures, sur-réservés, réservations incomplètes | 1 | 12 h |
+| `m1.constat.plaintes` | `m1_constater_plaintes` | plaintes de la période | 1 : période par défaut de l'outil | 12 h |
+
+Les périodes sont des **mois civils entiers** pour M7 parce que M8 refuse de sommer deux résumés d'une même source qui se
+chevauchent ; M7 refait le mois précédent à chaque passage pour que sa dernière version tienne compte des faits arrivés après
+sa fin. M5 constate du début du mois à aujourd'hui, comme l'étape 6 de `m5.cycle` (qui lançait DÉJÀ ces deux constats avant ce
+chantier, à son propre intervalle) : les deux exécuteurs donnent la même période, la même version et la même `sequence`, donc
+aucun doublon si les deux tournent (prouvé) ; l'exécuteur dédié permet de n'activer que les constats, sans les brouillons ni les
+relances du cycle. M8 ne retient que le constat de plus grand `sequence`.
+
+**La cadence par défaut est dérivée, pas recopiée** (`m8_analytics.cadence_constats`). Pour un constat :
+1. chaque mesure qu'il alimente a une fenêtre de fraîcheur de producteur : `max(fenetre_s, cadence_s)` du catalogue de M8, ou ce
+   que le propriétaire a déclaré (`configuration.fraicheur_mesures_s`, `configuration.cadences_mesures_s` du manifeste de M8) ;
+2. la plus **stricte** commande ;
+3. le constat passe `PASSAGES_PAR_FENETRE` = 2 fois par fenêtre (une marge d'ingénierie, pas un rythme d'affaires : un passage
+   manqué ne périme pas la mesure ; à 1, une panne d'un passage la périmerait) ;
+4. le résultat est borné aux valeurs que le planificateur accepte (15 s à 86 400 s). La capacité d'équipe (cadence de source de
+   7 jours) est donc planifiée au jour, ce qui est plus fréquent que nécessaire, jamais moins.
+L'admin règle l'intervalle à l'activation comme pour tout tour ; une mesure ou une cadence déclarée par le propriétaire change le
+défaut au prochain tour, sans toucher au code. Une mesure inconnue du catalogue ou sans fenêtre est refusée (`verifier`).
+
+**Idempotence.** Les arguments d'un appel sont calculés sur le **créneau** : le multiple de l'intervalle, compté depuis minuit
+local (fuseau de l'entreprise), qui contient l'instant. Deux déclenchements du même créneau (redémarrage en cours de cycle,
+deuxième instance, réservation perdue) donnent donc les mêmes bornes de dates et le même instant de constat, donc le même
+identifiant d'événement déterministe de l'outil, que le bus absorbe : un seul constat publié. Le créneau suivant est un constat de
+plus, voulu (M4, M2, M6 : « un événement par constat » ; le dernier publié fait foi). Aligné sur le jour local, le créneau de 12 h
+ou de 24 h porte toujours la date du jour (la mesure n'est pas datée de la veille).
+
+**Modes.** `inactif` (défaut) : rien. `ombre` : l'exécuteur vérifie que l'outil existe et qu'il est de niveau N0 à N2, calcule les
+arguments du créneau et journalise « aurait » ; **il n'appelle aucun outil, donc ne publie rien** (l'outil publie au bus : l'ombre
+n'a pas d'effet, comme `m8.entrepot` et `m5.cycle`). `actif` : bail par exécuteur, puis l'outil, un jeu d'arguments après l'autre.
+Le mode `ombre|supervise|autonome` du département et ses niveaux d'approbation ne changent pas : tous les départements restent
+livrés en `ombre`, et un outil N3 ou plus n'est jamais appelé (liste fermée à l'outil déclaré, niveau relu avant l'appel,
+`frontiere_humaine` refusée).
+
+**Pas de rattrapage.** Le créneau est réservé par comparaison-échange à `maintenant + intervalle` ; un serveur arrêté cinq jours
+fait UN passage au redémarrage, pas dix (prouvé).
+
+**Échecs.** Un jeu d'appels qui échoue (exception, refus rendu par l'outil, département absent) n'empêche ni les jeux suivants ni
+les autres constats : le tour est « erreur » avec le code typé (`REJ-PLAN-DEFAUT-EXECUTEUR`, `REJ-PLAN-DEPARTEMENT-ABSENT`, le
+code du refus de l'outil…), visible à la console Connecteurs (dernier statut, code, échecs sur 24 h) et au journal. La mesure
+devient périmée seulement après DEUX passages manqués (prouvé) puis redevient à jour dès que le constat repasse.
+
+**Ce qui est prouvé** : `tests/test_entrepot_m8_planifie.py` (19 cas de bout en bout : vrais outils, vrai bus et répartiteur,
+vrai moteur, wallboards de la vraie console, copilote, mémoire de M10, consolidation vue par M9), `tests/test_constats_planifies.py`
+(manifeste, grammaire, créneaux, changement d'heure, garde-fous), `departments/m08-analytics/tests/test_cadence_constats.py`.
+
+**Ce qui n'est PAS prouvé, sans euphémisme.**
+- SQLite seulement : aucun de ces tests n'a tourné sur PostgreSQL (aucune migration ni table nouvelle, mais les exécuteurs et les
+  outils de constat n'y ont pas été exercés).
+- Horloge injectée : la boucle réelle du serveur (`_boucle_planificateur`, tour toutes les 15 s) n'a pas été observée sur plusieurs
+  jours ; les jours de changement d'heure ne sont éprouvés que par le calcul du créneau.
+- La péremption d'une mesure de M7 (observation du signal) et des factures (jour d'émission) suit l'âge du FAIT sous-jacent, pas
+  celui du constat : un constat qui repasse ne rend pas « fraîche » une donnée que personne n'a mise à jour. Seules les mesures de
+  M4, M2, M6 et M1 sont datées de l'instant du constat.
+- M8 somme TOUS les résumés mensuels de M7 qu'il a reçus (périodes sans chevauchement) : « clics du site » est cumulatif depuis le
+  premier constat, pas « du mois ». C'est la définition de M8 (phase 2), non modifiée ici.
+- Un événement de plus par créneau pour M2, M4 et M6 (environ cinq par jour à la cadence par défaut) : le bus et le registre de M8
+  grossissent sans purge.
+- La fenêtre de M5 (mois en cours) donne un écart avec les relevés très partiel en début de mois ; la couverture le dit.
+- Les constats ne s'activent jamais seuls : un admin doit les passer en `ombre` puis `actif` (90 jours), département par département.

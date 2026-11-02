@@ -1,6 +1,6 @@
 """Un tour du planificateur des connecteurs : borné, sous l'acteur système, un exécuteur après l'autre.
 
-Pour chaque exécuteur connu (`etat.DEFINITIONS`) :
+Pour chaque exécuteur connu (`etat.definitions()` : le socle et les constats planifiés des manifestes) :
 
 1. le mode est relu EN BASE (`inactif` par défaut, par expiration, par ligne absente ou par coupe-circuit
    `OPSYS_PLANIFICATEUR_CONNECTEURS=0`) : un exécuteur inactif ne fait rien, pas même une lecture chez un fournisseur ;
@@ -174,6 +174,7 @@ class Executeur(Protocol):
 
 
 def executeurs_par_defaut() -> list[Executeur]:
+    from . import constats
     from .exec_courriel import Envoi, Synchro
     from .exec_departements import (
         BalayagePeremptions,
@@ -190,7 +191,7 @@ def executeurs_par_defaut() -> list[Executeur]:
     return [Synchro(), Envoi(), TransmissionWordPress(), PublicationWordPress(), PublicationSociale(),
             EntrepotM8(), CycleM5(), Mnemo(), ReindexationConnaissances(), SignauxM7(), VeilleM7(), FondsStudio(),
             VerificationSauvegarde(), BalayagePeremptions(), RetentionCourriel(), RetentionCles(), RetentionTraces(),
-            EffacementsReprise()]
+            EffacementsReprise(), *constats.executeurs()]
 
 
 def _reserver_creneau(nom: str, maintenant: float) -> tuple[str, int]:

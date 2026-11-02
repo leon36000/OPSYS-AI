@@ -41,6 +41,21 @@ planifications:
       contenus de chantier en attente (m7_lister_contenus_chantier) et créneaux éditoriaux
       (m7_lister_calendrier), avis nécessitant une réponse, alertes ROI (donnees_insuffisantes par canal).
       Aucune publication, aucune nouvelle proposition.
+# Constats de routine déclenchés par le PLANIFICATEUR DURABLE (jamais par un agent) : voir M1 et PLANIFICATION.md §9.
+# Deux appels, mois civils entiers qui ne se chevauchent jamais (M8 refuse de sommer deux périodes qui se chevauchent) :
+# le mois précédent (sa dernière version tient compte des faits arrivés après sa fin) puis le mois en cours.
+constats_planifies:
+  - nom: performance-signaux
+    outil: m7_constater_performance_signaux
+    mesures: [m8_clics_recherche, m8_impressions_recherche, m8_visites_site]
+    description: Totaux de clics, d'impressions et de visites du site par source, sans requête ni page.
+    appels:
+      - debut: {calcul: debut_mois-1}
+        fin: {calcul: fin_mois-1}
+        horodatage: {calcul: instant}
+      - debut: {calcul: debut_mois}
+        fin: {calcul: fin_mois}
+        horodatage: {calcul: instant}
 budget:
   tokens_jour: 300000
   tokens_mois: 4000000

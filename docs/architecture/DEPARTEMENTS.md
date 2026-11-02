@@ -44,6 +44,12 @@ planifications:               # livrées en pause ; activées depuis le dashboar
   - nom: digest-estimations
     cron: "0 7 * * 1-5"
     consigne: "…"
+constats_planifies:           # optionnel : résumés de routine déclenchés par le PLANIFICATEUR durable (PLANIFICATION.md §9)
+  - nom: pipeline             # a-z, 0-9, tiret ; l'exécuteur s'appelle `m2.constat.pipeline`
+    outil: m2_constater_pipeline    # un outil du département, N0 à N2, agent seulement (aucun droit d'appareil)
+    mesures: [m8_pipeline_leads_ouverts]   # mesures du catalogue de M8 qu'il alimente : la cadence vient d'elles
+    appels:                   # 1 à 4 jeux d'arguments ; {calcul: …} sur le créneau, ou {valeur: …} littérale
+      - horodatage: {calcul: instant}   # instant | jour | debut_mois | fin_mois | lundi, avec décalage ±N
 budget: {tokens_jour: 300000, tokens_mois: 4000000, alerte_pct: 80}
 memoire: {lecture: [clients, chantiers], ecriture: [estimations]}
 kpis:
@@ -61,7 +67,13 @@ avatar:                       # exigé par `opsys-metier verifier` : identité p
 
 `opsys-metier verifier` (ou `opsys metier verifier` depuis le core ; `opsys` seul est le core depuis T0.7 lot 2) valide tous les manifestes, l'unicité des outils, les dépendances et la cohérence
 des événements (types déclarés au catalogue, fonction présente pour chaque type consommé, aucune
-fonction orpheline), et un avatar par département aux noms distincts ([AVATARS](AVATARS.md)). Il tourne en CI.
+fonction orpheline), les constats planifiés (outil du département, N0 à N2, agent seulement, arguments connus, mesures
+au catalogue de M8, cadence dérivable) et un avatar par département aux noms distincts ([AVATARS](AVATARS.md)). Il
+tourne en CI.
+
+`planifications` (cron d'un AGENT, avec consigne) et `constats_planifies` (appel déterministe d'un outil par le
+planificateur durable, sans modèle) sont deux choses : le second ne coûte aucun jeton et ne s'active que par un admin
+(`inactif` par défaut).
 
 ## `outils.py` : le contrat d'outil
 

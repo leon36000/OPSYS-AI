@@ -545,3 +545,7 @@ transaction). Preuve : `tests/test_outils_adequation_eta.py`, `tests/test_suivi_
 ## Capacité d'équipe publiée pour M8 — `m4_constater_capacite_equipe`
 
 (phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) calcule la capacité d'une semaine comme `m4_lire_capacite_equipe` et publie `m4.capacite_equipe_constatee` : le total des heures d'équipe DÉCLARÉES et le total des heures planifiées de la cédule appliquée. Une semaine non calculable ne porte aucun total (`null`) et dit ses causes en codes fermés, sans suffixe (ni équipe, ni date, ni nombre). Aucune équipe ni aucun membre ne part. L'identifiant porte l'instant du constat.
+
+**Déclenchement.** Ce constat est déclaré par `constats_planifies` du `department.yaml` et lancé par le planificateur durable
+(exécuteur `m4.constat.capacite-equipe`, inactif par défaut, cadence par défaut dérivée du catalogue de M8) : semaine = lundi de la semaine ISO du créneau, portée `journees_datees_seulement`. Aucun agent n'a besoin de le
+faire à la main. Voir `docs/architecture/PLANIFICATION.md` §9.

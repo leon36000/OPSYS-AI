@@ -50,6 +50,14 @@ planifications:
       Résume en 5 lignes le pipeline commercial de la veille : leads en attente par statut,
       leads orphelins sans owner depuis plus de 48 heures, doublons signalés en attente
       d'arbitrage humain. Aucune transition, aucun arbitrage, aucune donnée inventée.
+# Constats de routine déclenchés par le PLANIFICATEUR DURABLE (jamais par un agent) : voir M1 et PLANIFICATION.md §9.
+constats_planifies:
+  - nom: pipeline
+    outil: m2_constater_pipeline
+    mesures: [m8_pipeline_leads_ouverts, m8_taux_conversion_resolus_pct, m8_valeur_ponderee_pipeline_cad]
+    description: Comptes agrégés du pipeline de tous les leads, sans lead ni contact ni vendeur.
+    appels:
+      - horodatage: {calcul: instant}
 budget:
   tokens_jour: 220000
   tokens_mois: 3000000

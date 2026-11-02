@@ -68,6 +68,16 @@ planifications:
       Résume en 5 lignes le registre anti-perte de la veille : signaux reçus par canal,
       qualifications réussies vs rejetées, tentatives d'injection neutralisées, appels
       manqués ou sans consentement. Aucun nouveau traitement, aucune donnée inventée.
+# Constats de routine déclenchés par le PLANIFICATEUR DURABLE (jamais par un agent) : le socle lit ce bloc, en tire un exécuteur
+# `m1.constat.<nom>` (inactif tant qu'un admin ne l'a pas activé) et dérive la cadence de la fraîcheur des mesures de M8 listées.
+# Docs : docs/architecture/PLANIFICATION.md §9. Aucun horaire ici : seulement QUEL outil, avec quelles bornes de dates.
+constats_planifies:
+  - nom: plaintes
+    outil: m1_constater_plaintes
+    mesures: [m8_plaintes_periode]
+    description: Résumé minimal des plaintes (état et nombre seulement), sans pseudonyme ni texte.
+    appels:
+      - date_reference: {calcul: jour}   # la longueur de la période est celle par défaut de l'outil (`jours` omis)
 budget:
   tokens_jour: 200000
   tokens_mois: 2500000

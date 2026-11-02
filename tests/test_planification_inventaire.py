@@ -79,8 +79,8 @@ def test_la_verification_detecte_un_ecart(script, tmp_path, monkeypatch):
 
 def test_chaque_executeur_declare_a_une_implementation_et_chaque_irreversible_un_apercu():
     implementations = {e.nom: e for e in planificateur.executeurs_par_defaut()}
-    assert set(implementations) == set(etat.NOMS)
-    for d in etat.DEFINITIONS:
+    assert set(implementations) == set(etat.noms())
+    for d in etat.definitions():
         e = implementations[d.nom]
         for methode in ("ressources", "cle_bail", "constater", "traiter"):
             assert callable(getattr(e, methode)), (d.nom, methode)
