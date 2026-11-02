@@ -123,6 +123,12 @@ sinon « non calculable »). D7 : chaque entrée du catalogue déclare sa `caden
 wallboards de plus (`acquisition`, `ventes-clientele`, `equipes-materiel`). Détail, preuves et limites :
 [`docs/architecture/M8-ENTREPOT-SOURCES.md`](../../docs/architecture/M8-ENTREPOT-SOURCES.md).
 
+**Ces sept constats sont déclenchés par le planificateur durable** (inactifs par défaut) : chaque département PRODUCTEUR déclare le
+sien (`constats_planifies` de son `department.yaml`) en nommant les mesures de M8 qu'il alimente, et la cadence par défaut vient du
+catalogue de M8 (`src/m8_analytics/cadence_constats.py` : la fenêtre de fraîcheur la plus stricte de ces mesures, divisée par deux
+passages, selon les fenêtres et cadences que le propriétaire a déclarées dans `configuration`). M8 n'appelle toujours aucun outil de
+ses sources. Voir [`docs/architecture/PLANIFICATION.md`](../../docs/architecture/PLANIFICATION.md) §9.
+
 DuckDB/Parquet (non installé), MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).
 

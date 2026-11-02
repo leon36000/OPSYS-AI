@@ -414,3 +414,8 @@ l'analyse est marquée ESSAI/non approuvé. Architecture, outils, flux, événem
 ## Dépense publicitaire comptabilisée et factures émises publiées pour M8
 
 (phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) `m5_constater_depense_publicitaire` (T1/N2) publie `m5.depense_publicitaire_constatee` : le solde net, hors taxes, des écritures DÉFINITIVES du compte de marketing qui viennent d'un relevé de M7 (ou le contre-passent) sur une période, et ce qui attend encore sa validation (brouillons : nombre et montant). `m5_constater_factures_emises` (T1/N2) publie `m5.facture_emise_constatee` pour chaque facture que une personne a ENVOYÉE (ENVOYEE, PAYEE, ANNULEE après envoi ; jamais un brouillon) : identifiant opaque et montants, SANS client. Les deux entrent aussi dans `m5_executer_cycle_comptable`. Module pur : `constats_pour_m8.py`. À valider auprès d'un comptable (CPA) / professionnel qualifié.
+
+**Déclenchement.** `m5_constater_depense_publicitaire` (du début du mois à aujourd'hui, comme l'étape 6 du cycle) et `m5_constater_factures_emises` sont déclarés par
+`constats_planifies` du `department.yaml` et lancés par le planificateur durable (exécuteurs `m5.constat.depense-publicitaire` et
+`m5.constat.factures-emises`, inactifs par défaut, cadence par défaut dérivée du catalogue de M8). Voir
+`docs/architecture/PLANIFICATION.md` §9.

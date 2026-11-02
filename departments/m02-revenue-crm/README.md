@@ -212,3 +212,7 @@ suivantes requises. [Audit et limites](../../docs/reprise/NOTES-M2-2026-10-08/AU
 ## Résumé du pipeline publié pour M8 — `m2_constater_pipeline`
 
 (phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) établit le pipeline de TOUS les leads comme `m2_analyser_pipeline` (module pur `constat_pipeline.py`) et publie `m2.pipeline_constate` : comptes par statut, ouverts, convertis, perdus, résolus, taux de conversion des résolus et valeur pondérée DÉCLARÉE (centre de l'estimation). Un taux ou une valeur que M2 refuse d'établir part en `null`. Aucun lead, contact ni vendeur. Un vendeur n'a pas de périmètre global : refusé. L'identifiant porte l'instant du constat, de sorte qu'un retour à une version antérieure des données ne se confond pas avec la première publication.
+
+**Déclenchement.** Ce constat est déclaré par `constats_planifies` du `department.yaml` et lancé par le planificateur durable
+(exécuteur `m2.constat.pipeline`, inactif par défaut, cadence par défaut dérivée du catalogue de M8) : `horodatage` = le début du créneau. Aucun agent n'a besoin de le
+faire à la main. Voir `docs/architecture/PLANIFICATION.md` §9.

@@ -1,5 +1,7 @@
 # Entrepôt de M8 : d'où vient chaque mesure, et ce qui n'y arrive pas encore
 
+Statut (2026-11-01, constats planifiés) : les sept constats de la phase 2 sont **déclenchés par le planificateur durable** (déclarés par
+les manifestes, [PLANIFICATION §9](PLANIFICATION.md)) ; inactifs par défaut, prouvés sur SQLite avec horloge injectée, jamais sur PostgreSQL.
 Statut (2026-11-01) : **phase 1** = cartographie par lecture du code, puis branchement de tout ce qui se branche sans nouveau droit
 d'appareil, sans nouvel outil, sans migration et sans écriture dans un autre département (38 mesures). **Phase 2** = exécution des
 décisions D1 à D7 de l'architecte (r10, §5) : sept départements PUBLIENT un résumé agrégé et minimisé sur le bus et M8 le consomme
@@ -241,14 +243,28 @@ M1 par l'empreinte du contenu lu (les plaintes ne reviennent pas en arrière). C
   est celle des relevés **reçus**, jamais « la dépense ».
 - Aucune de ces mesures n'est un chiffre comptable : toutes portent « À valider auprès d'un comptable (CPA) / professionnel
   qualifié » quand elles sont financières.
-- **Phase 2 : personne ne déclenche les constats tout seul.** Les sept outils sont des gestes d'agent (T1/N2) : aucune planification
-  n'a été ajoutée (M5 les range dans `m5_executer_cycle_comptable`, étape 6 ; les cinq autres se font à la demande). Tant qu'aucun
-  constat n'est publié, la mesure est « non calculable » ; un constat ancien rend la mesure « périmée » après sa fenêtre. Le choix du
-  rythme appartient au propriétaire (`cadences_mesures_s`).
-- **Phase 2 : les producteurs réels sont prouvés dans leurs suites.** Les scénarios de M8 publient des charges conformes au catalogue
-  (`tests/fixtures/interconnexion_charges.py`) ; chaque outil de constat est prouvé séparément sur son vrai registre et sa vraie base
-  (M5 : `test_interconnexion_m5_depense_publicitaire.py` et `test_operations_outils.py` ; M7, M4, M2, M6, M1 : un fichier chacun).
-  Aucun scénario ne chaîne l'outil réel d'un producteur jusqu'au wallboard.
+- **Phase 2 : les constats sont maintenant DÉCLENCHÉS par le planificateur durable, mais ce n'est prouvé que pour ce qui suit.**
+  Chaque département déclare son constat (bloc `constats_planifies` du manifeste) et le planificateur l'appelle à une cadence dérivée
+  de la fraîcheur du catalogue de M8 ([PLANIFICATION §9](PLANIFICATION.md)). Prouvé (`tests/test_entrepot_m8_planifie.py`, SQLite, horloge
+  injectée, données fictives) : les vrais outils des six producteurs publient, les événements traversent le vrai bus et le vrai
+  répartiteur, M8 calcule les 16 mesures alimentées (valeurs recoupées avec la propre lecture de chaque département), les
+  wallboards de la vraie console les affichent, le copilote répond, M10 et M9 reçoivent le fait consolidé ; rien ne part par défaut ni
+  en ombre ; un redémarrage, une deuxième instance ou un double déclenchement ne publient pas deux fois ; une avance de plusieurs
+  cadences ne rattrape pas en rafale ; la panne d'un département n'arrête pas les autres, rend sa mesure périmée après deux passages
+  manqués puis se rétablit. **Reste vrai** : tout est **inactif par défaut** (un admin doit activer chaque constat : `ombre` puis `actif`) ;
+  **rien n'a tourné sur PostgreSQL ni sur la boucle réelle du serveur pendant des jours** ; la valeur pondérée du pipeline reste
+  non calculable tant que personne ne déclare de valeur sur les leads, et le coût par lead tant que le propriétaire ne déclare pas
+  `canaux_marketing`. Le rythme reste réglable par le propriétaire (`cadences_mesures_s`, intervalle de l'exécuteur).
+- **Phase 2 : la péremption des mesures de M7 et des factures n'est pas celle du constat.** Leur « dernier fait » est l'observation du
+  signal (M7) ou le jour d'émission (factures) : un constat qui repasse sans fait nouveau ne les rend pas « à jour ». Les mesures de
+  M4, M2, M6 et M1 sont datées de l'instant du constat, donc la planification les garde fraîches.
+- **Phase 2 : « clics, impressions, visites du site » sont cumulatifs.** M8 somme tous les résumés mensuels de M7 qu'il a reçus (périodes
+  sans chevauchement) : la mesure vaut « depuis le premier constat », pas « du mois en cours ». Définition de M8, non modifiée.
+- **Phase 2 : les producteurs réels sont prouvés dans leurs suites ET, depuis la planification, enchaînés jusqu'au wallboard.** Les
+  scénarios de `test_entrepot_m8_phase2.py` publient des charges conformes au catalogue (`tests/fixtures/interconnexion_charges.py`) ;
+  chaque outil de constat est prouvé séparément sur son vrai registre (M5 : `test_interconnexion_m5_depense_publicitaire.py` et
+  `test_operations_outils.py` ; M7, M4, M2, M6, M1 : un fichier chacun) ; `test_entrepot_m8_planifie.py` appelle les sept outils réels par
+  le planificateur et suit leurs événements jusqu'au wallboard de la console, au copilote, à M10 et à M9 (SQLite seulement).
 - **Phase 2 : seuls les relevés HORS_TAXES se comparent à la dépense comptabilisée** ; la dépense comptabilisée ne couvre que les
   écritures qui viennent d'un relevé de M7 (pas la publicité payée autrement). L'écart est donc un écart de DÉFINITION, pas une erreur.
 - **Phase 2 : la capacité est celle de la semaine la plus récente constatée** aux journées datées ; la semaine type n'est pas la
@@ -293,6 +309,18 @@ en brouillon publiée (rattrapée seulement par une seconde garde) ; un test uni
 (statut de la facture, ordre de publication) n'était tuée que par un test de bus lent : un test unitaire la tue maintenant en une
 seconde.
 
+**Constats planifiés.** Trente mutations, une à une dans un clone (témoin vert avant la série, restauration vérifiée par somme de
+contrôle) : alignement du créneau sur minuit local, arrondi à l'intervalle, `lundi`, `fin_mois`, décalage de mois et de jours,
+nombre de passages par fenêtre, mesure la plus stricte, cadence de la source et fenêtre du propriétaire dans la dérivation, borne
+de l'intervalle par défaut, jeu d'appels qui échoue, refus rendu par l'outil, `NiveauInterdit` avalé, ombre qui appelle l'outil,
+intervalle réglé par l'admin, arguments calculés sur l'horloge plutôt que sur le créneau, arrêt propre entre deux jeux, famille de la
+console, définitions dynamiques, exécuteurs absents du tour, vérificateur du dépôt et son contrôle de niveau, grammaire des calculs,
+décalage illimité, outil d'un autre département, et quatre erreurs de manifeste (mois précédent de M7, semaine de M4, période de M5,
+mesure inconnue de M6). **Une a d'abord SURVÉCU** (le cache des définitions ne voyait pas une édition sur place du manifeste de M8) ;
+un test l'a fermée, puis **30 sur 30 ont été rejouées tuées**. Rouge avant, démontré : sur la base `234bebe08`, les trois fichiers de
+preuve échouent à l'import (le module et le bloc de manifeste n'existent pas) ; sur le code livré avec les blocs
+`constats_planifies` retirés des six manifestes, 27 des 84 tests nouveaux échouent (aucun exécuteur, mesures non calculables).
+
 ## 10. Commandes
 
 ```bash
@@ -301,6 +329,8 @@ pytest departments/m08-analytics departments/m05-financecore departments/m07-mar
 pytest tests/test_entrepot_m8_garanties.py tests/test_entrepot_m8_scenarios.py tests/test_entrepot_m8_phase2.py \
        tests/test_interconnexion_m5_depense_publicitaire.py tests/test_taxonomie_canaux_marketing.py tests/test_pont_bi.py \
        tests/test_m8_memoire_m10.py
+pytest tests/test_entrepot_m8_planifie.py tests/test_constats_planifies.py \
+       departments/m08-analytics/tests/test_cadence_constats.py tests/test_planification_*.py
 python scripts/docs/interconnexion_evenements.py --verifier
 opsys-metier registre-mcp verifier
 ```

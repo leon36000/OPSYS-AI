@@ -105,11 +105,22 @@
       "docs/architecture/M8-ENTREPOT-SOURCES.md"
      ],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "tests/test_entrepot_m8_planifie.py",
+      "tests/test_constats_planifies.py",
+      "departments/m08-analytics/tests/test_cadence_constats.py"
+     ],
+     "docs": [
+      "docs/architecture/PLANIFICATION.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "d8634abf6",
    "current_status": "PARTIEL",
-   "limite": "Livré en SQLite (migration 0046, schéma en étoile dérivé des cinq registres, versionné par schéma/catalogue/empreinte des registres, fraîcheur déclarée et provenance par mesure, reconstructible, jamais source de vérité). Migration 0046 montée/descendue sur SQLite et sur PostgreSQL éphémère (Docker) ; DDL compilé pour PostgreSQL ; le CONSTRUCTEUR n'a pas été exécuté sur PostgreSQL. DuckDB non installé donc non utilisé ; Parquet absent. Depuis l'entrepôt interdépartements, les constats de M1, M3, M4, M5, M6 et M7 alimentent 38 mesures (18 + 20) par les registres de M8, la reconstruction restant par outil/planification (l'entrepôt peut être en retard, et le dit ; l'empreinte couvre les cinq registres) ; les tables de faits (chantier, lead, devis, contenus) ne portent pas ces nouvelles sources et la couverture partielle n'est qu'en texte (`detail`), pas en colonne. Données fictives seulement.",
+   "limite": "Livré en SQLite (migration 0046, schéma en étoile dérivé des cinq registres, versionné par schéma/catalogue/empreinte des registres, fraîcheur déclarée et provenance par mesure, reconstructible, jamais source de vérité). Migration 0046 montée/descendue sur SQLite et sur PostgreSQL éphémère (Docker) ; DDL compilé pour PostgreSQL ; le CONSTRUCTEUR n'a pas été exécuté sur PostgreSQL. DuckDB non installé donc non utilisé ; Parquet absent. Depuis l'entrepôt interdépartements, les constats de M1, M3, M4, M5, M6 et M7 alimentent 38 mesures (18 + 20) par les registres de M8, la reconstruction restant par outil/planification (l'entrepôt peut être en retard, et le dit ; l'empreinte couvre les cinq registres) ; les tables de faits (chantier, lead, devis, contenus) ne portent pas ces nouvelles sources et la couverture partielle n'est qu'en texte (`detail`), pas en colonne. Les sept constats de la phase 2 sont déclarés par les manifestes des départements et déclenchés par le planificateur durable (cadence dérivée du catalogue ; inactifs par défaut ; prouvé sur SQLite avec horloge injectée, jamais sur PostgreSQL ni sur la boucle réelle pendant des jours). Données fictives seulement.",
    "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {
