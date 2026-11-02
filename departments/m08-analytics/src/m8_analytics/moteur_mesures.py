@@ -93,7 +93,10 @@ def _mesures_brutes(registres: dict[str, list[dict[str, Any]]]) -> list[dict[str
         evenements = _EVENEMENTS_CONTENUS.get(mesure["metric_id"], ())
         mesure["dernier_fait_le"] = _plus_recent([instants.get(evenement) for evenement in evenements])
         brutes.append(mesure)
-    brutes.extend(synthese.mesurer(registres["chantier"], registres["cash_libre"], synthese.charger_definitions()))
+    fuseau = synthese.fuseau_declare(registres.get("declarations", []))
+    brutes.extend(
+        synthese.mesurer(registres["chantier"], registres["cash_libre"], synthese.charger_definitions(), fuseau)
+    )
     brutes.extend(mesures_interdepartements.mesurer(registres, mesures_interdepartements.charger_definitions()))
     return brutes
 

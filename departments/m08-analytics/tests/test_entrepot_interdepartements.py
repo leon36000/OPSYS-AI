@@ -180,8 +180,8 @@ def test_une_mesure_terminale_est_resserree_par_la_source_ou_l_appelant_jamais_a
 def test_les_constats_du_jour_sont_frais_le_jour_meme_et_perimes_apres_la_fenetre():
     frais = _avec_fraicheur("2026-10-30T12:00:00-04:00")
     assert frais["m8_creances_ouvertes_cad"]["fraicheur"]["statut"] == "a_jour"
-    assert frais["m8_creances_ouvertes_cad"]["dernier_fait_le"] == "2026-10-30T00:00:00+00:00"
-    # le constat est daté du DÉBUT du jour (UTC), le plus ancien possible : jamais plus récent qu'il n'est
+    assert frais["m8_creances_ouvertes_cad"]["dernier_fait_le"] == "2026-10-30T00:00:00-04:00"
+    # le constat est daté de minuit LOCAL de son jour (D0), le plus ancien possible : jamais plus récent qu'il n'est
     vieux = _avec_fraicheur("2026-11-02T12:00:00-04:00")
     assert vieux["m8_creances_ouvertes_cad"]["fraicheur"]["statut"] == "perime"
     assert vieux["m8_creances_ouvertes_cad"]["fraicheur"]["peut_etre_montree_comme_a_jour"] is False

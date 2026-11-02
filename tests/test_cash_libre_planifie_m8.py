@@ -537,10 +537,12 @@ def test_le_constat_planifie_n_ecrit_ni_mouvement_ni_facture_ni_grand_livre_ni_c
 
 # ================================================================================ 9. la fraîcheur à travers la journée
 def test_la_fraicheur_des_quatre_mesures_a_travers_deux_jours_de_passages_reguliers(monde, monkeypatch):
-    """Caractérisation (pas un souhait) : M8 date un constat de M5 du DÉBUT du jour de référence en UTC, la fenêtre
-    est de 24 h et le constat change de jour à minuit LOCAL (UTC-5 en novembre). Les mesures sont donc à jour en journée
-    et PÉRIMÉES en début de soirée locale (de 19 h à minuit), même quand tous les passages réussissent. Une fenêtre
-    déclarée par le propriétaire (48 h) supprime cet intervalle. Voir PLANIFICATION.md §9 et le document de M5."""
+    """D0 (correctif du jour local). Avant : M8 datait un constat de M5 du DÉBUT du jour de référence en UTC, la fenêtre
+    est de 24 h et le constat change de jour à minuit LOCAL (UTC-5 en novembre) : les quatre mesures étaient PÉRIMÉES de
+    19 h à minuit locales, même quand tous les passages réussissaient. Maintenant le jour d'un constat est minuit
+    LOCAL de l'entreprise (le fuseau du planificateur, celui qui a donné « aujourd'hui » à M5) : à 21 h locale, le
+    constat du matin
+    a 21 h et reste à jour jusqu'à la fin de sa fenêtre, sans aucune fenêtre déclarée par le propriétaire."""
     monde.activer("actif", noms=(CASH,))
     etats: list[tuple[str, str]] = []
     # le départ est 00:00:30 local (05:00:30 UTC) ; on observe toutes les 3 heures pendant 36 heures
@@ -555,12 +557,10 @@ def test_la_fraicheur_des_quatre_mesures_a_travers_deux_jours_de_passages_reguli
     fraicheurs = dict(etats)
     assert fraicheurs["12 00:00"] == "a_jour" and fraicheurs["12 12:00"] == "a_jour"
     assert fraicheurs["12 18:00"] == "a_jour"
-    assert fraicheurs["12 21:00"] == "perime"  # le constat du 12 novembre a plus de 24 h (début du jour UTC)
+    assert fraicheurs["12 21:00"] == "a_jour"  # le trou de 19 h à minuit (début du jour UTC) est fermé
     assert fraicheurs["13 00:00"] == "a_jour"  # le constat du 13 est publié au premier passage du nouveau jour local
-    # `m8_lire_etat_collecte` (C2) NOMME ce cas : le constat passe sans erreur, le fait publié vieillit plus vite que la
-    # fenêtre, la mesure est périmée -> « source périmée », avec la voie de sortie (fenêtre du propriétaire)
-    assert collecte_du_soir["etat_collecte"] == "source_perimee" and collecte_du_soir["fraicheur"] == "perime"
-    assert "fraicheur_mesures_s" in collecte_du_soir["action"] and CASH in collecte_du_soir["constats"]
+    assert set(fraicheurs.values()) == {"a_jour"}, fraicheurs  # sur les 36 heures observées, jamais périmée
+    assert collecte_du_soir["etat_collecte"] == "a_jour" and collecte_du_soir["fraicheur"] == "a_jour"
 
 
 def test_une_fenetre_de_48_h_declaree_par_le_proprietaire_garde_les_mesures_a_jour_toute_la_journee(monde, monkeypatch):

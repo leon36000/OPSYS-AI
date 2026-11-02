@@ -224,10 +224,10 @@ contrôle de cohérence exige T1, N0 à N2, aucun droit d'appareil). Son niveau 
 la variante `m5_constater_cash_libre_planifie` (N2, planificateur seulement, réponse sans montant, même écriture et même registre
 de constats que l'outil N3, donc jamais deux constats pour le même jour et les mêmes données). Raisons, mutations et limites :
 [M5-CASH-LIBRE-PLANIFIE](../../departments/m05-financecore/docs/M5-CASH-LIBRE-PLANIFIE.md). Le jour de référence est le jour LOCAL du
-créneau (`aujourd_hui: {calcul: jour}`). Limite de fraîcheur propre au cash libre : M8 date un constat de M5 du début du jour de
-référence en UTC et la fenêtre est de 24 h ; le constat change de jour à minuit local (UTC-5 en novembre), de sorte que les quatre
-mesures sont périmées de 19 h à minuit locales même quand tous les passages réussissent. Une fenêtre de 48 h déclarée par le
-propriétaire (`configuration.fraicheur_mesures_s` de M8) et un intervalle d'un jour supprime l'intervalle (prouvé).
+créneau (`aujourd_hui: {calcul: jour}`). Fraîcheur : M8 date le jour d'un constat de M5 à **minuit local du fuseau de l'entreprise**
+(`opsys.horloge.FUSEAU_ENTREPRISE`, celui de `Ports.fuseau`), et non à minuit UTC (correctif D0 : avant, les mesures datées par jour
+étaient périmées de 19 h à minuit locales, même quand tous les passages réussissaient). La fenêtre du catalogue (24 h) est inchangée ;
+une fenêtre de 48 h déclarée par le propriétaire (`configuration.fraicheur_mesures_s` de M8) reste possible.
 
 **Où est la déclaration.** Dans le manifeste du département PRODUCTEUR, bloc `constats_planifies` (schéma fermé, validé à la
 lecture et par `opsys-metier verifier`). Le socle ne contient aucun horaire ni nom de département : `constats.py` lit les

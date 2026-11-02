@@ -331,7 +331,7 @@ def test_la_pagination_est_bornee_et_cumulative(base, cle, horloge, client):
     page2 = client.get("/pont-bi/v1/jeux/mesures_courantes.jsonl?limite=5&depart=5", headers=_en_tete(jeton))
     ids = [json.loads(ligne)["metric_id"] for ligne in (page1.text + page2.text).splitlines()]
     assert len(ids) == 10 and len(set(ids)) == 10
-    assert page1.headers["x-opsys-total-lignes"] == "41"  # 56 mesures moins les 15 financières
+    assert page1.headers["x-opsys-total-lignes"] == "43"  # 58 mesures moins les 15 financières
     for requete in ("limite=0", "limite=5001", "limite=abc", "depart=-1", "inconnu=1", "limite=1&limite=2"):
         assert (
             client.get(f"/pont-bi/v1/jeux/mesures_courantes.csv?{requete}", headers=_en_tete(jeton)).status_code == 400
@@ -449,13 +449,13 @@ def test_le_quota_de_requetes_refuse_429_avant_toute_donnee_et_se_libere_apres_u
 
 
 def test_le_quota_de_lignes_refuse_sans_rien_remettre(base, cle, horloge, client):
-    jeton = _emettre(base, cle, horloge, jeux=["mesures_courantes"], quota_lignes_jour=45)
+    jeton = _emettre(base, cle, horloge, jeux=["mesures_courantes"], quota_lignes_jour=47)
     url = "/pont-bi/v1/jeux/mesures_courantes.csv"
-    assert client.get(url, headers=_en_tete(jeton)).status_code == 200  # 41 lignes remises (sans les financières)
-    refus = client.get(url, headers=_en_tete(jeton))  # 41 + 41 > 45
+    assert client.get(url, headers=_en_tete(jeton)).status_code == 200  # 43 lignes remises (sans les financières)
+    refus = client.get(url, headers=_en_tete(jeton))  # 43 + 43 > 47
     assert refus.status_code == 429 and refus.json()["erreur"] == "quota_lignes"
     assert "m8_leads_recus" not in refus.text
-    petit = client.get(url + "?limite=4", headers=_en_tete(jeton))  # 41 + 4 = 45 : permis, pile
+    petit = client.get(url + "?limite=4", headers=_en_tete(jeton))  # 43 + 4 = 47 : permis, pile
     assert petit.status_code == 200
     assert client.get(url + "?limite=1", headers=_en_tete(jeton)).status_code == 429  # 46 > 45
     horloge.maintenant += 86401

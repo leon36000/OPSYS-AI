@@ -60,7 +60,7 @@ from typing import Any
 
 import yaml
 
-from opsys import approbations, contexte, evenements, identite, jetons, stockage, taxonomie
+from opsys import approbations, contexte, evenements, horloge, identite, jetons, stockage, taxonomie
 from opsys.departements import charger_departements
 from opsys.evenements import constats
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
@@ -82,6 +82,7 @@ from . import (
     registre,
     registre_metriques,
     semantique,
+    synthese,
     validation,
     vue_contenus,
     vue_executive,
@@ -248,6 +249,13 @@ def _declarations_canaux() -> list[dict[str, Any]]:
     if canaux:
         return [{"type_entree": "canaux_marketing", "canaux": {c: list(sources) for c, sources in canaux.items()}}]
     return [{"type_entree": "canaux_marketing", "canaux": {}, "verdict": verdict["code"] if verdict else None}]
+
+
+def _declaration_fuseau() -> dict[str, Any]:
+    """Le fuseau de l'entreprise, déclaré aux mesures (registre `declarations`) : celui du planificateur, qui donne à M5
+    son « aujourd'hui ». M8 date le JOUR d'un constat de M5 à minuit LOCAL de ce fuseau, jamais à minuit UTC. Le fuseau
+    entre dans l'empreinte des registres : le changer reconstruit l'entrepôt dérivé."""
+    return {"type_entree": synthese.TYPE_DECLARATION_FUSEAU, "fuseau": horloge.fuseau_entreprise()}
 
 
 def _fraicheur_attendue(lecture: str) -> dict[str, Any]:
@@ -1223,7 +1231,8 @@ def outils(
         return {
             "chantier": list(faits_cible), "entonnoir": list(faits_entonnoir_cible),
             "contenus": list(faits_contenus_cible), "cash_libre": list(faits_cash_libre_cible),
-            "operations": list(faits_operations_cible), "declarations": _declarations_canaux(),
+            "operations": list(faits_operations_cible),
+            "declarations": [*_declarations_canaux(), _declaration_fuseau()],
         }
 
     outils_analytiques = analytique_outils.construire(

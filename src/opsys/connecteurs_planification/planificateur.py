@@ -43,6 +43,7 @@ from typing import Any, Protocol
 
 from sqlalchemy import select, update
 
+from .. import horloge as horloge_serveur
 from .. import service_acteur_systeme as systeme
 from .. import stockage
 from ..courriel_connecteurs.erreurs import ErreurCourriel
@@ -111,7 +112,8 @@ class Ports:
     embeddings_raccordes: Callable[[], bool] | None = None  # au moins un adaptateur d'embeddings est raccordé
     verifier_sauvegarde: Callable[[], Mapping[str, Any]] | None = None  # -> {"trouvee": bool, "age_s": int, ...}
     dossier_traces: Callable[[], Any] | None = None  # -> JournalTraces d'écriture (clé locale) ou None
-    fuseau: str = "America/Toronto"  # fuseau de la « date du jour » donnée aux outils (M5 n'a pas d'horloge)
+    # fuseau de la « date du jour » donnée aux outils (M5 n'a pas d'horloge) ET de M8 pour dater le jour d'un constat
+    fuseau: str = horloge_serveur.FUSEAU_ENTREPRISE
 
 
 @dataclasses.dataclass

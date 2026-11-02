@@ -533,7 +533,7 @@ def test_creances_reprises_telles_quelles_avec_la_tranche_90_plus(definitions):
     )
     assert m["m8_creances_ouvertes_cad"]["valeur"] == "150.00"
     assert m["m8_creances_90_jours_plus_cad"]["valeur"] == "50.00"
-    assert m["m8_creances_ouvertes_cad"]["dernier_fait_le"] == "2026-10-30T00:00:00+00:00"
+    assert m["m8_creances_ouvertes_cad"]["dernier_fait_le"] == "2026-10-30T00:00:00-04:00"
 
 
 def test_dernier_constat_par_date_de_reference_quel_que_soit_l_ordre(definitions):
@@ -559,7 +559,7 @@ def test_un_constat_incoherent_est_refuse_pas_corrige(definitions):
 
 def test_comptes_a_payer_repris_et_non_calculable_avec_plancher_dit(definitions):
     ok = _mesures(_registres(cash=[_cash("459.91")]), definitions)["m8_comptes_a_payer_cad"]
-    assert ok["valeur"] == "459.91" and ok["dernier_fait_le"] == "2026-10-29T00:00:00+00:00"
+    assert ok["valeur"] == "459.91" and ok["dernier_fait_le"] == "2026-10-29T00:00:00-04:00"
     nok = _mesures(_registres(cash=[_cash(statut="NON_CALCULABLE", plancher="300.00", manque=True)]), definitions)
     mesure = nok["m8_comptes_a_payer_cad"]
     assert mesure["statut"] == "non_calculable" and mesure["valeur"] is None
@@ -852,7 +852,7 @@ def test_une_composante_absente_du_constat_est_nommee_pas_devinee(definitions):
 
 def test_ecritures_en_attente_reprises_du_dernier_constat_comptable_et_refusees_si_illisibles(definitions):
     ok = _mesures(_registres(operations=[_comptable()]), definitions)["m8_ecritures_en_attente"]
-    assert ok["valeur"] == "4" and ok["dernier_fait_le"] == "2026-10-30T00:00:00+00:00"
+    assert ok["valeur"] == "4" and ok["dernier_fait_le"] == "2026-10-30T00:00:00-04:00"
     for illisible in (True, -1, "4", None):
         constat = _comptable()
         constat["brouillons_en_attente"] = illisible

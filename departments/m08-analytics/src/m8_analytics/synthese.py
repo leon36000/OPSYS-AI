@@ -16,8 +16,10 @@ Quatre mesures, toutes d'ENTREPRISE (aucun technicien, aucun client, aucune pers
 
 from __future__ import annotations
 
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import cash_libre, entonnoir, mesures_chantier
 
@@ -26,6 +28,14 @@ MODULE_DEFINITIONS = entonnoir.MODULE_DEFINITIONS
 _CHEMIN_METRIQUES = Path(__file__).resolve().parents[2] / "metrics" / "m8-synthese.v1.yaml"
 _REGISTRE = "de synthèse"
 _STATUT_CASH_CALCULE = "CALCULE"
+
+# Le fuseau de l'entreprise tel que le planificateur le lit (`opsys.horloge.FUSEAU_ENTREPRISE`, `Ports.fuseau`) : M5
+# date ses constats du jour LOCAL de ce fuseau. Ce module est pur (aucun import d'``opsys``) : l'adaptateur déclare le
+# fuseau dans le registre ``declarations`` (``fuseau_declare``) ; sans déclaration (appel direct, essai), c'est
+# celui-ci. Un test du socle vérifie que les deux valeurs sont les mêmes.
+FUSEAU_DEFAUT = "America/Toronto"
+TYPE_DECLARATION_FUSEAU = "fuseau_entreprise"
+
 
 Resultat = tuple[str | None, dict[str, Any], list[dict[str, str]], str | None]
 
@@ -78,14 +88,18 @@ def _plus_recent_completion(wcts: list[dict[str, Any]]) -> str | None:
     return max(lisibles, key=lambda paire: paire[0])[1] if lisibles else None
 
 
-def _chantiers_termines(faits_chantier: list[dict[str, Any]], _faits_cash: list[dict[str, Any]]) -> Resultat:
+def _chantiers_termines(
+    faits_chantier: list[dict[str, Any]], _faits_cash: list[dict[str, Any]], _fuseau: Any = FUSEAU_DEFAUT
+) -> Resultat:
     wcts = _wcts_uniques(faits_chantier)
     if not wcts:
         return None, {}, [_MANQUE_WCT], None
     return str(len(wcts)), {}, [], _plus_recent_completion(wcts)
 
 
-def _ecart_duree_equipe_pct(faits_chantier: list[dict[str, Any]], _faits_cash: list[dict[str, Any]]) -> Resultat:
+def _ecart_duree_equipe_pct(
+    faits_chantier: list[dict[str, Any]], _faits_cash: list[dict[str, Any]], _fuseau: Any = FUSEAU_DEFAUT
+) -> Resultat:
     wcts = _wcts_uniques(faits_chantier)
     if not wcts:
         return None, {}, [_MANQUE_WCT], None
@@ -99,7 +113,9 @@ def _ecart_duree_equipe_pct(faits_chantier: list[dict[str, Any]], _faits_cash: l
     return equipe["ecart_pct"], entrees, [], _plus_recent_completion(wcts)
 
 
-def _chantiers_signal_materiaux(faits_chantier: list[dict[str, Any]], _faits_cash: list[dict[str, Any]]) -> Resultat:
+def _chantiers_signal_materiaux(
+    faits_chantier: list[dict[str, Any]], _faits_cash: list[dict[str, Any]], _fuseau: Any = FUSEAU_DEFAUT
+) -> Resultat:
     wcts = _wcts_uniques(faits_chantier)
     if not wcts:
         return None, {}, [_MANQUE_WCT], None
@@ -124,19 +140,45 @@ def _chantiers_signal_materiaux(faits_chantier: list[dict[str, Any]], _faits_cas
     return str(critiques), entrees, [], _plus_recent_completion(portes)
 
 
-def _jour_en_instant(date_reference: Any) -> str | None:
-    """Le constat de M5 est daté d'un JOUR (AAAA-MM-JJ, M5 n'a pas d'horloge) : l'instant retenu est le DÉBUT de ce
-    jour (UTC), le plus ancien possible, pour ne jamais faire paraître un constat plus récent qu'il n'est."""
+def fuseau_declare(declarations: Any) -> Any:
+    """Le fuseau que l'adaptateur a déclaré dans le registre ``declarations`` (le dernier fait ``fuseau_entreprise``),
+    ou ``FUSEAU_DEFAUT`` quand rien n'est déclaré. Une valeur déclarée mais illisible est rendue telle quelle : la
+    conversion d'un jour la refuse (fraîcheur inconnue), jamais un autre fuseau à sa place."""
+    faits = [
+        f for f in (declarations if isinstance(declarations, (list, tuple)) else ())
+        if isinstance(f, dict) and f.get("type_entree") == TYPE_DECLARATION_FUSEAU
+    ]
+    return faits[-1].get("fuseau") if faits else FUSEAU_DEFAUT
+
+
+def _jour_en_instant(date_reference: Any, fuseau: Any = FUSEAU_DEFAUT) -> str | None:
+    """Le constat de M5 est daté d'un JOUR (AAAA-MM-JJ, M5 n'a pas d'horloge) : le jour du calendrier de l'entreprise,
+    dans SON fuseau (celui du planificateur qui a donné « aujourd'hui » à M5). L'instant retenu est minuit LOCAL de ce
+    jour, le plus ancien possible, pour ne jamais faire paraître un constat plus récent qu'il n'est. Minuit local, pas
+    minuit UTC : à UTC-5 le jour change à 05 h UTC, et dater du début du jour UTC (19 h la veille, heure locale) rendait
+    le constat plus vieux de 5 h qu'il n'est, donc périmé de 19 h à minuit avec la fenêtre de 24 h. Le décalage vient de
+    la base des fuseaux, jour par jour : l'heure d'été est donc juste des deux côtés de chaque changement d'heure.
+
+    Date illisible ou fuseau illisible : aucun instant (la fraîcheur sera « inconnue »), jamais un fuseau ni un jour
+    devinés."""
     if cash_libre.age_en_jours(date_reference, date_reference) is None:
-        return None  # date illisible : aucun instant, la fraîcheur sera « inconnue », jamais devinée
-    return f"{date_reference}T00:00:00+00:00"
+        return None
+    if not isinstance(fuseau, str) or not fuseau or fuseau != fuseau.strip():
+        return None
+    try:
+        zone = ZoneInfo(fuseau)
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return None
+    return datetime.combine(date.fromisoformat(date_reference), time.min, tzinfo=zone).isoformat()
 
 
-def _cash_libre_cad(_faits_chantier: list[dict[str, Any]], faits_cash: list[dict[str, Any]]) -> Resultat:
+def _cash_libre_cad(
+    _faits_chantier: list[dict[str, Any]], faits_cash: list[dict[str, Any]], fuseau: Any = FUSEAU_DEFAUT
+) -> Resultat:
     constat = cash_libre.constat_courant(faits_cash)
     if constat is None:
         return None, {}, [_MANQUE_CONSTAT], None
-    instant = _jour_en_instant(constat.get("date_reference"))
+    instant = _jour_en_instant(constat.get("date_reference"), fuseau)
     entrees = {
         "date_reference": constat.get("date_reference"),
         "sequence": constat.get("sequence"),
@@ -171,6 +213,7 @@ def mesurer(
     faits_chantier: list[dict[str, Any]],
     faits_cash_libre: list[dict[str, Any]],
     definitions: dict[str, dict[str, str]],
+    fuseau: Any = FUSEAU_DEFAUT,
 ) -> list[dict[str, Any]]:
     """Les mesures de synthèse, une par métrique du registre, dans l'ordre du registre (forme de
     ``entonnoir.construire_mesure``, plus ``dernier_fait_le`` : l'instant du fait qui porte la mesure, ``None`` si
@@ -184,7 +227,7 @@ def mesurer(
             manque = [_manque("calcul", "M8", "aucun calcul enregistré pour cette métrique")]
             instant: str | None = None
         else:
-            valeur, entrees, manque, instant = calcul(faits_chantier, faits_cash_libre)
+            valeur, entrees, manque, instant = calcul(faits_chantier, faits_cash_libre, fuseau)
         mesure = entonnoir.construire_mesure(metric_id, definition, valeur, entrees, manque)
         mesure["dernier_fait_le"] = instant
         mesures.append(mesure)
@@ -192,8 +235,11 @@ def mesurer(
 
 
 __all__ = [
+    "FUSEAU_DEFAUT",
     "MODULE_DEFINITIONS",
+    "TYPE_DECLARATION_FUSEAU",
     "charger_definitions",
+    "fuseau_declare",
     "jour_en_instant",
     "mesurer",
     "plus_recent_completion",
