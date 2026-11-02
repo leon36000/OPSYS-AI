@@ -61,7 +61,8 @@ du fichier (`segments: 5`) est remplacé par la valeur adoptée, et rendu tel qu
 | Garantie | Où c'est prouvé |
 |---|---|
 | Schéma de déclaration fermé ; propositions étiquetées, sourcées, dans leurs bornes ; M8 sans proposition | `tests/test_reglages_declaration.py` |
-| Chaîne, idempotence, version attendue, retour arrière, raison sans renseignement personnel, falsification | `tests/test_reglages_magasin.py` |
+| Chaîne, idempotence, version attendue, retour arrière, raison sans renseignement personnel, falsification (chaque contrôle isolé), maillon illisible, deux fils concurrents | `tests/test_reglages_magasin.py` |
+| Les mêmes gestes, la chaîne falsifiée, la course de deux fils, une base sans le registre et le geste complet de la console sur SQLite **et** PostgreSQL 17 éphémère | `tests/test_reglages_postgresql.py` |
 | Précédence, compatibilité avec `department.yaml`, fail-closed, état « ce qui manque » | `tests/test_reglages_lecture.py` |
 | Jamais d'auto-adoption : décision forgée (rôle, personne, niveau, outil, demande non en cours), agent, journal d'audit | `departments/m09-strategic-intelligence/tests/test_outils_reglages.py` |
 | Écran : accès (propriétaire / administrateur / employé), CSRF, champs fermés, bornes, double envoi, retour arrière, échappement | `tests/test_console_reglages.py` |

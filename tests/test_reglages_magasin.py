@@ -418,6 +418,34 @@ def test_une_ecriture_concurrente_au_meme_rang_est_refusee_sans_ecraser_le_gagna
         assert magasin.valeur_en_vigueur(magasin.chaine_verifiee()[1], CLE) == 10
 
 
+def test_deux_adoptions_simultanees_de_la_meme_valeur_n_ecrivent_qu_un_maillon(deps):
+    """Deux transactions concurrentes (deux fils) : SQLite les sérialise, la seconde relit l'état de la première."""
+    import threading
+
+    reglage = _reglage(deps, CLE)
+    barriere = threading.Barrier(2)
+    resultats, erreurs = [], []
+
+    def adopter(numero):
+        try:
+            barriere.wait(timeout=10)
+            with stockage.transaction() as cnx:
+                resultats.append(magasin.adopter(
+                    cnx, reglage, 7, par=aide.PROPRIETAIRE, role="nathan_owner", approbation_id=f"demande-{numero}",
+                    raison="Décision simultanée", quand=QUAND)["statut"])
+        except Exception as exc:  # noqa: BLE001 - consigné puis vérifié ci-dessous
+            erreurs.append(exc)
+
+    fils = [threading.Thread(target=adopter, args=(n,)) for n in (1, 2)]
+    for fil in fils:
+        fil.start()
+    for fil in fils:
+        fil.join(timeout=30)
+    assert not erreurs, erreurs
+    assert sorted(resultats) == ["adopte", "deja_adopte"]
+    assert len(aide.chaine()) == 1
+
+
 def test_la_chaine_survit_a_la_fermeture_de_la_base_et_se_rejoue_identique(deps):
     _remplir(deps)
     avant = aide.chaine()

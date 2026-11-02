@@ -111,6 +111,39 @@ def test_une_ecriture_concurrente_au_meme_rang_est_refusee_sur_les_deux_moteurs(
         assert magasin.valeur_en_vigueur(magasin.chaine_verifiee()[1], CLE) == 10
 
 
+def test_deux_adoptions_simultanees_de_la_meme_valeur_n_ecrivent_qu_un_maillon_sur_les_deux_moteurs(instance):
+    """SQLite sérialise les écrivains (la seconde voit « déjà adopté ») ; PostgreSQL les laisse courir et la clé de rang
+    refuse la seconde (`REJ-REGLAGE-CONCURRENCE`, à rejouer) : dans les deux cas un seul maillon, jamais deux."""
+    import threading
+
+    url, deps = instance
+    reglage = _reglage(deps)
+    barriere = threading.Barrier(2)
+    issues = []
+
+    def adopter(numero):
+        try:
+            barriere.wait(timeout=20)
+            with stockage.transaction(url) as cnx:
+                issues.append(magasin.adopter(
+                    cnx, reglage, 7, par=aide.PROPRIETAIRE, role="nathan_owner", approbation_id=f"d{numero}",
+                    raison="Décision simultanée", quand=QUAND)["statut"])
+        except ReglageRefuse as exc:
+            issues.append(exc.code)
+        except Exception as exc:  # noqa: BLE001 - une autre exception est une défaillance du test
+            issues.append(f"ERREUR {type(exc).__name__}: {exc}")
+
+    fils = [threading.Thread(target=adopter, args=(n,)) for n in (1, 2)]
+    for fil in fils:
+        fil.start()
+    for fil in fils:
+        fil.join(timeout=60)
+    assert issues.count("adopte") == 1, issues
+    assert all(i in {"adopte", "deja_adopte", "REJ-REGLAGE-CONCURRENCE"} for i in issues), issues
+    with stockage.transaction(url):
+        assert len(magasin.lire_chaine()) == 1
+
+
 def test_une_base_sans_le_registre_ne_casse_pas_la_transaction_sur_les_deux_moteurs(instance):
     url, _ = instance
     with stockage.transaction(url) as cnx:
