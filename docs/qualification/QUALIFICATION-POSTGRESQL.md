@@ -16,7 +16,7 @@
 
 > **Mise à jour : portage des gardes (§16).** Les §1 à §15 décrivent l'état au commit `6c6dba4e1` (91 gardes). La branche
 > `claude/portage-postgresql-gardes` a porté les consoles de saisie M1 à M7, les services M4, le cron opérateur, les grants CFO, la liaison de
-> cibles et les documents d'affaire : la même règle de recensement trouve maintenant @@ANCIEN@@ occurrences, **4 gardes réelles** subsistent
+> cibles et les documents d'affaire : la même règle de recensement trouve maintenant 9 occurrences, **4 gardes réelles** subsistent
 > (fichier SQLite par construction), les fichiers rouges de la suite telle quelle passent de **145 à 29** (16 préexistants, 3 gardes légitimes,
 > 10 tests liés à SQLite). Formule exacte autorisée après le portage : **« socle, bases de connaissances M10, graphe M10, sas d'approbation,
 > bail, créneaux, idempotence, envoi unique, consoles de saisie M1 à M7, services M4, cron opérateur éprouvés sur PostgreSQL 17 réel (par des tests
@@ -681,3 +681,201 @@ Chaque mutation est appliquée SEULE au code d'un clone du dépôt, la cible de 
 2. Faire tourner la suite ordinaire sur PostgreSQL, **avec `--redirige`**, à chaque intégration (le banc existe ; une exécution complète
    prend une heure sur cette machine) et traiter tout écart comme un défaut : trois des six défauts de ce rapport ne se voient qu'ainsi.
 3. Qualifier ce que ce banc ne couvre pas (§14) : durabilité, pool externe, charge, pgvector, multi-client.
+
+
+## 16. Portage des gardes « SQLite seulement » (branche `claude/portage-postgresql-gardes`)
+
+> **Ce que cette section dit.** Les §5, §6 et §14 ci-dessus décrivent l'état du dépôt au commit `6c6dba4e1` : 91 gardes qui
+> refusaient PostgreSQL. Ce qui suit est ce qui en a été **porté**, **prouvé** et **laissé** (état du commit de cette
+> branche, après fusion de la ligne architecte `2cbdb4a4e`, tête alembic `0058`). Le verdict reste : **PostgreSQL n'est pas encore
+> une cible complète** (4 gardes subsistent, §16.5 ; charge, durabilité, pool externe et multi-client ne sont pas prouvés, §16.9).
+
+### 16.1 Résultat chiffré
+
+Mesures du banc (`install/qualification/postgresql/banc.py`, un processus pytest par fichier, 8 travailleurs, mêmes cibles
+`tests` et `departments`), avant = `6c6dba4e1`, après = cette branche. Chaque exécution est conservée telle quelle
+(`preuves-postgresql/portage/`), rouges comprises.
+
+| | Avant (`6c6dba4e1`) | Après |
+|---|---:|---:|
+| Gardes « SQLite seulement », **même règle exacte** que la qualification initiale (`gardes.py --ancien`) | **91** dans 63 fichiers | **9** dans 8 fichiers |
+| Gardes réelles, règle affinée (`gardes.py`) : écarte les faux positifs que l'ancienne règle comptait | — | **4** dans 4 fichiers (§16.5) |
+| Points de contrôle portés (endroits qui admettent explicitement SQLite ET PostgreSQL) | 0 | **93** dans 61 fichiers, **93 prouvés** (§16.4) |
+| PostgreSQL, suite telle quelle : fichiers rouges | **145** sur 1226 | **29** sur 1263 (1234 verts) |
+| PostgreSQL, suite telle quelle : tests | 31136 réussis, 1154 échecs, 704 erreurs, 208 ignorés | 34541 réussis, 147 échecs, 87 erreurs, 220 ignorés |
+| Tests PostgreSQL qui ont réellement émis du SQL vers PostgreSQL et réussi | 2763 | 6056 |
+| SQLite (banc, même code) : fichiers rouges ; tests | **19** sur 1226 ; 32836 réussis, 92 échecs, 68 erreurs, 208 ignorés | **16** sur 1262 (après correction d'un fichier de rejeu, §16.1) ; 34462 réussis, 88 échecs, 68 erreurs, 218 ignorés |
+| Version de la tête alembic | 0056 | 0058 (0057 : garde TRUNCATE de la ligne architecte ; 0058 : voir §16.3) |
+| Mutations propres (une à la fois, dans un clone, témoin vert) | — | **38** : 38 tuées après renforcement, 7 survivantes au premier passage (§16.7) |
+
+**SQLite, sans régression.** Les 19 fichiers rouges de départ sont : les 16 fichiers de fusion PDF/AP/OCR (isolation bubblewrap absente, identiques avant et
+après), deux tests e2e à fixture périmée (`test_admin_appareil`, `test_manques_m4_appareil`) et `test_coherence_documentaire` (chiffres de la documentation, rafraîchis
+depuis). Après : les 16 de fusion/OCR, et rien d'autre, sauf un fichier de rejeu ajouté par la branche (`test_postgresql_rejeu_provenance_m8`, 40 échecs : sans
+le plugiciel du banc, le rejeu ne masquait pas la table d'index dérivée `connaissances_lexique` dans les recensements) ; corrigé, puis 13 fichiers ajoutés ou modifiés
+rejoués sur SQLite : 13 verts. Les 16 fichiers de fusion/OCR sont rouges pour la même raison, au même nombre de tests (88 échecs, 68 erreurs), avant et après.
+Deux tests sensibles à la charge (`test_cablage_m7`, `test_cablage_processus`) et `test_conformite_licences` restent des échecs préexistants connus du §8 ; verts dans cette exécution.
+
+Des 145 fichiers rouges de départ, **116 sont devenus verts** et **aucun fichier vert ne l'est devenu rouge** ; les 29 restants
+sont classés au §16.6 (16 préexistants sur SQLite aussi, 13 liés à SQLite ou gardes légitimes). Les 37 fichiers ajoutés sont
+des tests de la branche.
+
+Pourquoi « 91 → 9 » **et** « 4 » : la règle de la qualification initiale (`!=` / `not in` face à « sqlite » dans une
+condition) compte encore 9 occurrences, dont 5 qui ne sont pas des gardes « SQLite seulement » : `concurrence.verrou_consultatif` et
+`maillons._verrouiller_m2_principal` (elles ADMETTENT PostgreSQL ; leur dernier `elif` refuse un troisième moteur),
+`documents_affaire_instance.copier_registre_m10` et `evenements/bus.copier_cohorte_provenance_m5_m8` (`not in ("sqlite", "postgresql")` :
+ne refusent que les AUTRES moteurs), `exportation._verifier_base` (compare deux révisions d'un manifeste). Les deux chiffres sont publiés pour
+qu'on ne puisse pas accuser l'un de cacher l'autre ; `tests/test_banc_postgresql.py` exige que l'inventaire affiné reste inclus
+dans la liste expliquée des 4 gardes restantes : ajouter une garde sans l'expliquer fait échouer la suite.
+
+### 16.2 Mécanismes (une seule fois, réutilisés par les consoles et les services)
+
+| Mécanisme | Où | Ce qu'il fait |
+|---|---|---|
+| Aides SQL portables | `stockage/portabilite.py` | `nb_octets` (`length(CAST(x AS BLOB))` sur SQLite, `octet_length` sur PostgreSQL ; un booléen vaut 1 octet comme sur SQLite), `est_texte`, `est_entier`, `type_stockage` (`pg_typeof`) ; `typeof(NULL) = 'null'` est reproduit. Le rendu SQLite est **identique à l'octet près** à l'ancien (test de rendu). `moteur_qualifie(cnx)` : SQLite et PostgreSQL seulement, tout autre moteur reste refusé |
+| Verrous consultatifs de transaction | `stockage/concurrence.py` | `verrou_consultatif(cnx, nom)` (`pg_advisory_xact_lock`, clé SHA-256 tronquée à 64 bits, exige READ COMMITTED sans autocommit), `verrou_ecriture_console` (nom `console-ecriture`), `relire_si_conflit` (rejeu après annulation de la part perdante, un conflit d'unicité 23505, de sérialisation 40001 ou un interblocage 40P01 seulement ; une violation de CHECK n'est **jamais** rejouée ni avalée) |
+| Écriture humaine de console | `outils.executer_atomique_console` | SQLite : identique (appel direct). PostgreSQL : verrou `console-ecriture` pris avant tout point de sauvegarde (il remplace l'écrivain unique de `BEGIN IMMEDIATE`), puis rejeu après conflit pour les ports qui ne traduisent pas eux-mêmes le conflit ; les ports qui rendent un 409 explicite (import M7) gardent le verrou et pas le rejeu |
+| Exclusion d'écriture des services M4 | `stockage/exclusion.py` | remplace l'écouteur `_debuter_sqlite`. SQLite : inchangé. PostgreSQL : verrou `ecriture-instance-m4` pris à l'ouverture de la portée et **revérifié dans `pg_locks`** à chaque pas (un `ROLLBACK TO SAVEPOINT` antérieur au verrou le relâcherait : le contrôle le voit) ; identité de la base `(postgresql, nom, OID, identifiant de système)` à la place du chemin/périphérique/inode du fichier. Le protocole des services est optimiste (relectures avant/après, intention unique), ce qui justifie un verrou d'instance plutôt qu'une isolation REPEATABLE READ |
+| Cron opérateur | `agents_declencheurs`, `stockage/base_cron_operateur.py` | tourne dans la base de l'instance sous le verrou nommé `cron-operateur`, identité `(hôte:port/base)` sans compte ni mot de passe |
+| Verrous nommés ponctuels | M10 documents (`m10-documents-affaire`), M1 prise de rappel (`m1-suivi-rappel`), M6 notes (`m6-note-<fait>`) | sérialisent un lire-puis-ajouter qu'aucune clé unique ne protège |
+| Migration `0058` | `stockage/migrations/versions/0058_revisions_agents_64_bits.py` | 5 colonnes de révision de profil d'agent en `BIGINT` (PostgreSQL seulement ; sans effet sur SQLite) ; la descente **refuse** de perdre des données (valeur au-delà de 2 147 483 647) |
+
+### 16.3 Défauts latents du §5 : état final
+
+| # | État | Ce qui a été fait / constaté |
+|---|---|---|
+| L1 | **corrigé** | verrou `console-ecriture` + rejeu (`executer_atomique_console`) pour les consoles M1 à M7, pièces classées, pièces de projet, SMS, liaison de cibles ; le perdant rend le verdict de SQLite (`REVISION-PERIMEE`, `SOURCE-MODIFIEE`, rejeu identique) et jamais une exception. **Étendu** : une mise à jour perdue (deux corrections d'une fiche fournisseur acceptées) apparaissait sous READ COMMITTED sans que rien n'échoue ; le verrou la ferme (test déterministe, §16.7 F01) |
+| L2, L3, L4, L5 | **corrigés** | `nb_octets`, `est_texte`/`est_entier`/`type_stockage` à la place de `length(cast(… LargeBinary))`, `typeof` et `CAST(… AS BLOB)` partout ; le booléen de `comptes_terrain` se compare au lieu de se convertir. Une régression `typeof(NULL)` (reçu OCR) est attrapée par un test et corrigée |
+| L6 | **corrigé, énoncé initial faux** | le §5 disait « épocs en secondes, débordement en 2038 ». C'est **faux** : `epoch`, `lease_epoch`, `native_*_revision` sont des compteurs que le code borne lui-même à 2**31 - 1 ; la colonne et la borne concordent, ils restent `INTEGER`. Le vrai défaut : 5 colonnes de **révision de profil d'agent** que le code accepte jusqu'à 2**53 - 1 (migration `0058`) |
+| L7 | **porté, énoncé initial inexact** | le §5 disait « aucun équivalent PostgreSQL ». Le cron opérateur tourne maintenant dans la base de l'instance (verrou nommé), sur les deux moteurs ; la base SQLite fichier dédiée reste le mode SQLite |
+| L8 | **porté** | recalcul certifié, lectures, historique, capability, politiques, acteur système (§16.2, exclusion d'écriture). `VERROU_ECRITURE_ABSENT` est maintenant un refus **réel** sur PostgreSQL (test : portée sans verrou refusée) |
+| L9 | **inchangé, hors périmètre** | fichiers SQLite propres à un module (M4 RQA, magasin de développement M10, export) : 4 gardes restantes (§16.5) |
+| L10 | **corrigé** | verrou nommé `m6-note-<fait>` ; test en vrais processus : une référence sortante, un seul audit |
+
+**Défauts trouvés en portant** (non listés au §5 ; chacun a un test à deux moteurs qui échoue sans le correctif) :
+
+| # | Défaut | Correction |
+|---|---|---|
+| N1 | `documents_affaire_transactions` : le plafond `2**63 - 1` était lié au type `INTEGER` de la colonne ; PostgreSQL répondait « integer out of range » avant de comparer | littéral `BigInteger` ; deux corrections simultanées d'un même document sont sérialisées par un verrou nommé |
+| N2 | `evenements/bus.copier_cohorte_provenance_m5_m8` (branche PostgreSQL déjà écrite, hors garde) : mêmes bornes 64 bits liées à `INTEGER` ; la transaction PostgreSQL restait avortée et la lecture de provenance M5 vers M8 rendait `provenance_m8_indisponible` (6 tests rouges depuis le départ) | littéraux `BigInteger` |
+| N3 | validation au départ d'une écriture M5 par un administrateur d'appareil (`capacites._valider_au_depart`) : le perdant d'une course recevait `EcritureConcurrente` au lieu du refus de plafond de SQLite (`test_obligations_preparees_appareil_atomiques`, rouge depuis le départ) | `executer_atomique_console` |
+
+### 16.4 Preuve par point de contrôle
+
+Une garde n'est comptée « portée » que si **un test PostgreSQL réel a franchi son point de passage et réussi** : le plugiciel du
+banc enregistre, par test, les lignes de passage franchies (`sys.monitoring`, `suivi_gardes.py`, rien n'est instrumenté dans le
+code livré) et le nombre d'ordres SQL réellement émis vers PostgreSQL ; `matrice.py --portage` ne retient que les tests réussis
+avec au moins un ordre PostgreSQL. **93 points sur 93 sont prouvés** (liste complète, avec le nombre de tests qui l'ont franchi et un premier
+test, dans `preuves-postgresql/portage/matrice-portage.md` et `.json`). Le plus faiblement couvert l'est par 2 tests
+(`finance_snapshot_prive`), aucun par 0.
+
+La suite telle quelle en prouve **84** ; les 9 autres (coûts de marketing M5/M7, stratégie CMO, observation Growth, `_acteur` des rappels de l'appareil M1, révocation d'une politique) tournent dans des tests qui
+bâtissent leur propre base SQLite fichier : ils ne sont prouvés que par le mode **redirigé** du banc (`--redirige` : toute URL
+`sqlite:///` devient une base PostgreSQL vide). Ces tests ont été **rejoués de façon permanente** à deux moteurs
+(`tests/test_postgresql_rejeu_*.py`, option `rediriger_sqlite`) pour qu'une preuve ne dépende plus d'une exécution manuelle.
+
+Premier passage de la mesure : 12 points non prouvés ; une ligne de passage située sur un `if (` de plusieurs lignes n'émet
+aucun événement (aucune instruction machine) et faisait croire qu'une garde réellement franchie ne l'était pas : `gardes.py`
+vise maintenant la première ligne de la condition. Aucune preuve n'a été fabriquée : les points restants ont reçu un test.
+
+### 16.5 Les 4 gardes qui subsistent (et pourquoi)
+
+| Garde | Pourquoi elle reste |
+|---|---|
+| `cles_chiffrement._nettoyer_fichiers_courants` | réécrit les pages d'un FICHIER SQLite (`VACUUM`, WAL) : sans objet pour PostgreSQL (le nettoyage physique d'un serveur n'est pas une opération de l'application) |
+| `exportation._base_sqlite` | exporte le fichier SQLite de l'instance ; PostgreSQL se sauvegarde par `deploy/backup.sh` (`pg_dump`) |
+| `openclaw.configuration_cron_memoire_developpement` | le cron du magasin de développement M10 exige un fichier SQLite sans identifiants (L9) |
+| `m10_memoire.consolidation_developpement._sqlite_seulement` | consolidation du magasin de développement M10 : fichier SQLite propre au module (L9) |
+
+« Les garde-fous se resserrent, jamais l'inverse » : aucune garde n'a été retirée sans test PostgreSQL réel qui passe sans elle ; celles
+dont le code ne peut pas tourner sur PostgreSQL (fichier SQLite par construction) sont restées. Chaque refus qui demeure est typé et
+fail-closed. Les tests qui attendaient le refus PostgreSQL pour un moteur désormais qualifié ont été réécrits pour un moteur
+réellement non qualifié (MySQL), jamais supprimés.
+
+### 16.6 Les 29 fichiers encore rouges sur PostgreSQL (suite telle quelle)
+
+| Classe | Fichiers | Cause |
+|---|---:|---|
+| Préexistant, rouge aussi sur SQLite | 16 | isolation bubblewrap du worker PDF absente de cette machine : `test_fusion_pdf`, 8 fichiers `test_fusion_ap*`, 6 fichiers `test_console_fusion_*`, `test_ocr_profil` (identiques sur les deux moteurs) |
+| Garde légitime qui reste | 3 | `test_exportation` (export SQLite), `test_sauvegarde_chiffree` (sauvegarde du FICHIER SQLite de l'instance), `test_instance` (l'installateur local refuse `OPSYS_BASE_URL` : il gère la base SQLite de l'instance) |
+| Test lié à SQLite | 10 | `test_console_agents_etat` (`row_factory` du curseur `sqlite3`), `test_console_configuration` (`iterdump`), `test_console_rapprochement_bancaire` (marqueurs `?` dans le SQL du test), `test_console_temps_pointes` (les paramètres SQL sont un tuple sous SQLite, un dictionnaire sous PostgreSQL), `test_configuration_lecture` (identifiant de 65 caractères dans une colonne `varchar(64)`), `test_openclaw_sms_profile` (valeur 2,5 stockée dans un entier ; nom de contrainte propre à SQLite), `test_reception_courriel_stockage` (déclencheurs SQLite écrits dans le test), `test_stockage_home_prive` (base SQLite par défaut attendue sous `OPSYS_HOME`), `test_lecture_m4_verrou_qa` (cherche l'écouteur `_debuter_sqlite`), `test_console_memoire_jobs` (`SET actif = 0` sur un booléen ; magasin de développement M10) |
+
+Aucune cause « ? » ne reste. Ces 10 tests liés à SQLite ne disent rien d'un défaut de production ; leur code de production sous-jacent est
+couvert ailleurs (rejeux à deux moteurs).
+
+### 16.7 Mutations (38 ; une à la fois dans un clone, témoin vert avant chaque série)
+
+| # | Mutation (appliquée seule à la source) | Verdict | Premier test qui la tue |
+|---|---|---|---|
+| P01 | octets PostgreSQL : octet_length remplacé par char_length (compte des caractères) | TUÉE | `tests/test_stockage_portabilite.py::test_le_rendu_sqlite_est_celui_d_avant_et_le_rendu_postgresql_n_a_ni_blob_ni_typeof` |
+| P02 | octets SQLite : CAST AS TEXT au lieu de BLOB (caractères au lieu d'octets) | TUÉE | `tests/test_stockage_portabilite.py::test_le_rendu_sqlite_est_celui_d_avant_et_le_rendu_postgresql_n_a_ni_blob_ni_typeof` |
+| P03 | octets PostgreSQL : un booléen compte 4 octets (true) au lieu de 1 | TUÉE | `tests/test_stockage_portabilite.py::test_les_octets_comptent_l_utf8_pas_les_caracteres_sur_les_deux_moteurs[postgresql]` |
+| P04 | est_texte PostgreSQL : NULL compté comme texte | TUÉE | `tests/test_stockage_portabilite.py::test_une_valeur_null_n_est_ni_texte_ni_entier_et_son_type_est_null_sur_les_deux_moteurs[postgresql]` |
+| P05 | type_stockage PostgreSQL : NULL ne rend plus 'null' | TUÉE | `tests/test_stockage_portabilite.py::test_une_valeur_null_n_est_ni_texte_ni_entier_et_son_type_est_null_sur_les_deux_moteurs[postgresql]` |
+| C01 | relire_si_conflit : plus de rejeu sur PostgreSQL | TUÉE | `tests/test_stockage_concurrence.py::test_une_violation_d_unicite_est_rejouee_puis_le_corps_voit_l_etat_valide[postgresql]` |
+| C02 | est_conflit_rejouable : toute erreur de base est rejouable (CHECK comprise) | TUÉE | `tests/test_stockage_concurrence.py::test_une_violation_de_contrainte_check_n_est_jamais_rejouee_ni_avalee[postgresql]` |
+| C03 | relire_si_conflit : le dernier conflit est avalé | TUÉE | `tests/test_stockage_concurrence.py::test_une_violation_de_contrainte_check_n_est_jamais_rejouee_ni_avalee[postgresql]` |
+| C04 | verrou_consultatif : sans effet sur PostgreSQL | TUÉE | `tests/test_stockage_concurrence.py::test_une_lecture_de_console_ne_prend_pas_le_verrou_d_ecriture[postgresql]` |
+| C05 | verrou_consultatif : l'isolation REPEATABLE READ est acceptée | TUÉE | `tests/test_stockage_concurrence.py::test_sur_postgresql_le_verrou_consultatif_refuse_un_instantane_plus_ancien_que_l_attente[postgresql]` |
+| C06 | verrou_ecriture_console : verrou nommé différent à chaque appel (jamais partagé) | TUÉE | `tests/test_stockage_concurrence.py::test_une_lecture_de_console_ne_prend_pas_le_verrou_d_ecriture[postgresql]` |
+| O01 | executer_atomique : l'écriture de console ne prend plus le verrou d'instance | TUÉE | `tests/test_stockage_concurrence.py::test_une_lecture_de_console_ne_prend_pas_le_verrou_d_ecriture[postgresql]` |
+| O02 | executer_atomique_console : rejouer=False est ignoré (rejeu systématique) | TUÉE | `tests/test_stockage_concurrence.py::test_un_port_qui_traduit_lui_meme_le_conflit_garde_le_verrou_mais_pas_le_rejeu[postgresql]` |
+| E01 | engager : sans effet sur PostgreSQL | TUÉE | `tests/test_postgresql_portage_services_m4.py::test_l_exclusion_est_engagee_puis_verifiee_sur_les_deux_moteurs[postgresql]` |
+| E02 | exclusion_engagee : toujours vraie sur PostgreSQL | TUÉE | `tests/test_postgresql_portage_services_m4.py::test_l_exclusion_est_engagee_puis_verifiee_sur_les_deux_moteurs[postgresql]` |
+| E03 | identite_base PostgreSQL : constante (pas de nom ni d'OID) | TUÉE | `tests/test_postgresql_portage_services_m4.py::test_l_identite_de_base_est_stable_dans_la_transaction_et_distincte_entre_deux_bases[postgresql]` |
+| E04 | moteur de recalcul : engager() retiré | TUÉE | `tests/test_postgresql_portage_services_m4.py::test_le_recalcul_certifie_publie_se_rejoue_et_ne_reecrit_rien_sur_les_deux_moteurs[postgresql]` |
+| M01 | migration 0058 : la colonne profile_revision des tickets CFO n'est pas élargie | TUÉE | `tests/test_postgresql_portage_latents.py::test_une_revision_de_profil_de_2_puissance_53_est_stockee_et_relue_a_l_identique[postgresql]` |
+| M02 | migration 0058 : la descente perd des données (plus de refus) | TUÉE | `tests/test_postgresql_portage_latents.py::test_0058_descente_refusee_avec_une_valeur_64_bits_puis_permise_sans_perte_et_remontable` |
+| Y01 | cron : plus de verrou nommé | TUÉE | `tests/test_postgresql_portage_cron.py::test_n_processus_demandent_la_meme_declaration_une_intention_un_audit_des_reponses_identiques[postgresql]` |
+| Y02 | cron : l'identité PostgreSQL ignore la base | TUÉE | `tests/test_postgresql_portage_cron.py::test_l_identite_d_une_base_postgresql_ignore_le_compte_et_le_mot_de_passe_mais_pas_la_base` |
+| Y03 | cron : l'identité PostgreSQL contient le mot de passe | TUÉE | `tests/test_postgresql_portage_cron.py::test_l_identite_d_une_base_postgresql_ignore_le_compte_et_le_mot_de_passe_mais_pas_la_base` |
+| L10 | notes de commande : le verrou nommé de la publication est retiré (L10) | TUÉE | `tests/test_postgresql_rejeu_notes_commande.py::test_n_processus_publient_la_meme_reference_une_seule_sortante_un_seul_audit` |
+| G01 | grants CFO : un moteur non qualifié est accepté | TUÉE | `tests/test_agent_cfo_grants.py::test_un_moteur_non_qualifie_refuse_les_grants_et_l_interface_explique_la_limite` |
+| S01 | réception SMS : plus de rejeu après conflit | TUÉE | `tests/test_postgresql_rejeu_sms.py::test_concurrence_deux_connexions_fortes_et_rejeu` |
+| K01 | classement des pièces : ni verrou d'écriture ni rejeu | TUÉE | `tests/test_postgresql_rejeu_pieces.py::test_deux_CAS_concurrents_un_seul_classement` |
+| K02 | dépôt de pièces de projet : ni verrou d'écriture ni rejeu | TUÉE | `tests/test_postgresql_rejeu_pieces_projet.py::test_deux_depots_concurrents_meme_saisie_un_seul_recu` |
+| F01 | fournisseurs M6 : l'écriture de console ne prend plus le verrou (mise à jour perdue) | TUÉE (survivante au 1er passage) | `tests/test_postgresql_rejeu_catalogue_m6.py::test_deux_correcteurs_dont_le_second_ecrit_apres_le_commit_du_premier_une_seule_modification` |
+| N01 | mémoire apprentissage : mesure d'octets de la tête non portable (retour au texte SQLite) | TUÉE | `tests/test_postgresql_rejeu_memoire_apprentissage.py::test_get_admin_est_borne_no_store_sans_affaires_ni_ecriture` |
+| L11 | validation au départ M5 : exécution simple (ni verrou de console ni rejeu) | TUÉE (survivante au 1er passage) | `tests/test_postgresql_rejeu_obligations_m5.py::test_deux_validations_qui_se_croisent_au_point_d_ecriture_le_perdant_recoit_le_refus_et_non_une_exception` |
+| B01 | provenance M5-M8 : bornes 64 bits liées sans BigInteger (integer out of range) | TUÉE | `tests/test_postgresql_rejeu_provenance_m8.py::test_quota_reduit_refuse_sans_diagnostic_partiel_ni_artefact[40]` |
+| D01 | documents d'affaire : plafond 2**63-1 lié sans BigInteger | TUÉE (survivante au 1er passage) | `tests/test_postgresql_rejeu_documents_affaire.py::test_premier_effet_seulement_quatre_tables_et_ack_sans_corps` |
+| R01 | M7 édition de texte : le verrou d'écriture de console est retiré | TUÉE (survivante au 1er passage) | espion du verrou (`test_postgresql_rejeu_m7_marketing.py`, teardown) |
+| R02 | M7 stratégie CMO : le verrou d'écriture de console est retiré | TUÉE (survivante au 1er passage) | espion du verrou (`test_postgresql_rejeu_m7_cmo_growth.py`, teardown) |
+| R03 | M7 observation Growth : le verrou d'écriture de console est retiré | TUÉE (survivante au 1er passage) | espion du verrou (`test_postgresql_rejeu_m7_cmo_growth.py`, teardown) |
+| Q01 | M1 prise de rappel : le verrou nommé est retiré | TUÉE (survivante au 1er passage) | espion du verrou (`test_postgresql_rejeu_rappels_appareil.py`, teardown) |
+| T01 | M2 correction de contact : le verrou du registre principal est retiré | TUÉE | `tests/test_postgresql_rejeu_m2_crm.py::test_contact_deux_transactions_sqlite_ne_perdent_pas_une_correction` |
+| D02 | documents d'affaire : le verrou nommé de la correction est retiré | TUÉE | `tests/test_postgresql_rejeu_documents_affaire.py::test_concurrence_revision_unique_deux_uuid_sur_sqlite_fichier` |
+
+**Survivantes au premier passage (7) et ce qu'elles ont appris** : F01 (verrou d'écriture de console retiré : seul un test en threads, trop étroit,
+le visait → test déterministe qui retarde le second correcteur après le commit du premier) ; L11 (idem pour la validation M5 → test qui tient
+les deux appels au point d'ajout) ; D01 (la première version de la mutation était **équivalente** : SQLAlchemy type seul un littéral
+de plus de 32 bits en `BIGINT` ; la vraie mutation, le littéral nu, est tuée) ; R01, R02, R03, Q01 (verrous de
+console M7 et verrou de prise de rappel : aucun test n'échouait sans eux, car la course est trop étroite pour se produire dans un test →
+espions qui lisent `pg_locks` et exigent que le verrou soit **tenu** quand le service s'exécute). Toutes tuées ensuite. Aucune mutation
+n'a été retenue comme équivalente à la fin ; aucune ne survit.
+Limite connue de la méthode : ces espions prouvent que le verrou est tenu au bon moment, pas qu'il suffit sous charge (§16.9).
+
+### 16.8 Cas négatifs et abus
+
+- une violation de `CHECK` n'est jamais rejouée ni avalée (`relire_si_conflit`) ; un conflit qui persiste remonte après le nombre d'essais prévu ;
+  le SQLSTATE est lu derrière l'erreur SQLAlchemy ; `executer_atomique` ordinaire ne verrouille ni ne rejoue (un conflit remonte tel quel) ;
+- le verrou consultatif exige la transaction courante, un moteur qualifié et READ COMMITTED sans autocommit (un instantané plus ancien que l'attente est refusé) ;
+- une portée de service sans verrou d'écriture engagé est refusée (`VERROU_ECRITURE_ABSENT`) ; un `ROLLBACK TO SAVEPOINT` qui relâche le verrou est vu ;
+- l'identité d'une base PostgreSQL (nom, OID) est stable dans une transaction et distincte entre deux bases : une capacité ne peut pas être rejouée contre une autre base ;
+  l'identité du cron ignore compte et mot de passe, jamais la base ; une identité incomplète est refusée ;
+- un moteur non qualifié (MySQL) est refusé là où les tests l'exigent : grants CFO, cron, opérateur de politiques, inventaire de calibration, recalcul certifié ;
+- la descente de la migration `0058` est refusée en présence d'une valeur 64 bits, permise à vide, remontable sans perte ;
+- N processus en parallèle (vrais processus, pas des fils) : mêmes écrivains de console sur la même révision (un accepté, les autres `REVISION-PERIMEE`), même saisie rejouée (un seul effet),
+  cron (une intention, un audit), recalcul certifié (une publication), octroi de politique (une révision), publication de note (une référence, un audit) ;
+- octets : l'UTF-8 compte en octets (pas en caractères) sur les deux moteurs, `NULL` n'est ni texte ni entier, un booléen vaut un octet.
+
+### 16.9 Ce qui n'a PAS pu être prouvé, et pourquoi
+
+- **Charge, latence, volume, durabilité** (`fsync=off`), **pool externe** (PgBouncer), **plusieurs serveurs d'application**, **multi-client** : non testés, comme au §14.
+  Les verrous consultatifs sont nommés et à l'échelle de la base : un verrou `console-ecriture` sérialise toutes les écritures humaines de console d'une base ; c'est correct, c'est aussi un
+  plafond de débit des écritures de console qu'aucune mesure ici ne chiffre.
+- **SERIALIZABLE**, **interblocages** : non utilisés ; l'ordre des verrous (console avant nommés, instance M4 avant les registres) n'a pas été audité hors des chemins éprouvés.
+- **Isolation du worker PDF/AP/OCR** (bubblewrap) et **modèles ONNX locaux** : absents de cette machine ; 16 fichiers rouges préexistants et 2 tests qui n'ont pas tourné.
+- **Tests qui bâtissent leur propre base SQLite** : prouvés seulement par le mode redirigé ou par un rejeu permanent (`rediriger_sqlite`) ; un test qui ouvre le fichier avec `sqlite3` n'a pas sa place dans ce mode.
+- **Mode redirigé** : `tests/test_classement_variance_appareil_atomique.py` (64 erreurs, fichiers temporaires absents) et `tests/test_moteur_recalcul_m4_e2.py` (41 échecs, `sqlite_master`/`PRAGMA` dans le test) restent rouges dans ce mode seulement ; les points de contrôle qu'ils visent sont prouvés par d'autres tests.
+- **Intégration continue** : l'étape `frontiere-postgresql` (1769 cas du portage) a été exécutée ici contre le même type de conteneur, pas sur GitHub.
+- Aucun appel réseau, aucun secret, aucune donnée réelle ; toutes les données sont fictives (`@example.test`).
