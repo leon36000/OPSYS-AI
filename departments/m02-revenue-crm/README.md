@@ -128,24 +128,27 @@ fois (`liste_leads.py` ; règles des segments : `segments.py`, purs). DEFINITION
   |---|---|
   | `hot_lead` | urgence déclarée à l'ingestion, lead ouvert (`nouveau` ou `qualifie`) |
   | `estimate_ready` | `qualifie` et `readiness.evaluer` satisfaite (pas recalculée) |
+  | `quote_sent` | `qualifie` et un devis `envoye` (M2-C5 : `m3.devis_envoye`, déjà reçu ; aucun seuil) |
   | `quote_stale` | `qualifie` et un devis `envoye` sans réponse (`m3.devis_sans_reponse`) depuis au moins `jours_soumission_perimee` jours |
   | `won_pending_schedule` | `converti` (règle `planifier_chantier`) |
   | `active_job` | `cedule` ou `chantier` |
   | `invoice_pending` | `facture` ou `paiement` (paiement non confirmé) |
   | `past_customer` | le client a une opportunité VISIBLE de l'appelant au statut `avis` (chantier payé) |
+  | `referral_candidate` / `complaint_risk` | (M2-C5) le dernier chantier terminé du lead a rapporté `client_satisfait` vrai / faux (`m4.travaux_termines`, gardé au registre `satisfactions_recues` : un booléen et des identifiants, jamais un contact) |
   | `dormant_lead` | lead ouvert sans activité humaine depuis au moins `jours_inactivite_dormant` jours |
 
-  Les six autres (`needs_photos`, `quote_sent`, `high_value_customer`, `referral_candidate`, `complaint_risk`,
-  `seasonal_opportunity`) reposent sur une donnée qui n'atteint pas M2 : « non calculable, manque X », pour tous les
-  leads, jamais devinés. Un filtre sur un segment non calculable est REFUSÉ (`REJ-SEGMENT-NON-CALCULABLE`, avec ce qui
+  Les trois autres (`needs_photos`, `high_value_customer`, `seasonal_opportunity`) reposent sur une donnée qui
+  n'atteint pas M2 : « non calculable, manque X », pour tous les leads, jamais devinés. `quote_sent`,
+  `referral_candidate` et `complaint_risk` (M2-C5) sont calculables des faits déjà reçus ; leur source illisible
+  (registre absent) les rend « non calculables » comme avant, jamais « aucun lead ». Un filtre sur un segment non calculable est REFUSÉ (`REJ-SEGMENT-NON-CALCULABLE`, avec ce qui
   manque) : une liste vide se lirait « aucun lead ».
 - **Seuils** : `configuration.segments` de `department.yaml`, VIDES à dessein (patron de M8 et de M6). Sans seuil,
   `dormant_lead` et `quote_stale` sont « non calculables, seuil à configurer » ; un seuil invalide est dit « invalide ».
   Relus à chaque appel. `horodatage` (l'instant de référence) est un argument : aucune horloge dans le code.
 - **Limites** : `quote_stale` part de l'envoi que M3 publie à l'approbation (`m3.devis_envoye`, PLAN T4.9), ou, à
   défaut, du constat `m3.devis_sans_reponse` : l'envoi l'emporte, l'instant est celui de l'APPROBATION, pas de la
-  livraison au client (T2.1-c). `quote_sent` reste « non calculable » : le rendre calculable change le message que
-  l'app garde dans ses fixtures Jest, à faire avec le lot mobile. `past_customer` diffère selon l'appelant (l'admin voit
+  livraison au client (T2.1-c). Le message « non calculable » de `quote_sent`, `referral_candidate` et `complaint_risk` que l'app garde dans ses
+  fixtures Jest n'est plus rendu par M2 (M2-C5) : les fixtures mobiles sont à rafraîchir avec le lot mobile. `past_customer` diffère selon l'appelant (l'admin voit
   les opportunités de tous les vendeurs) : voulu. Un décalage est un rang : un lead qui change de statut ou de segment
   entre deux pages d'un filtre peut manquer ou se répéter.
   Preuve : `tests/test_segments.py`, `tests/test_liste_leads.py`, `tests/test_lister_leads_outil.py` et, par la vraie porte
@@ -223,6 +226,60 @@ suivantes requises. [Audit et limites](../../docs/reprise/NOTES-M2-2026-10-08/AU
 **Déclenchement.** Ce constat est déclaré par `constats_planifies` du `department.yaml` et lancé par le planificateur durable
 (exécuteur `m2.constat.pipeline`, inactif par défaut, cadence par défaut dérivée du catalogue de M8) : `horodatage` = le début du créneau. Aucun agent n'a besoin de le
 faire à la main. Voir `docs/architecture/PLANIFICATION.md` §9.
+
+## Le filet anti-perte — SLA, audit d'intégrité, plan de réparation (M2-C1)
+
+« Ne perdre aucun lead » (DEFINITION-PRODUIT §7 M2.1 et M2.13). Avant ce chantier, M2 empêchait les mauvaises écritures
+(machine à états, registre chaîné) mais ne regardait pas ce qui se perd EN SILENCE : un lead sans propriétaire, un lead chaud que
+personne n'a appelé, un devis jamais relancé. Quatre outils, sans aucun droit d'appareil (agent ou administrateur seulement : le
+filet porte sur TOUS les leads), qui LISENT les registres existants et n'écrivent rien (`filet.py`, `sla.py`, `integrite.py`,
+`reparation.py`, `constat_filet.py` : modules purs, aucune horloge ; `outils_integrite.py` : la couture) :
+
+- **`m2_scanner_sla`** (T0/N0) : sept règles déclaratives — prochaine action obligatoire, lead chaud contacté vite, photos reçues,
+  soumission relancée, plainte escaladée, lead avec propriétaire, tâche en retard. Chaque violation dit sa règle, sa raison,
+  depuis quand (`depuis`, `ecoule_heures`) et le seuil déclaré. **Les délais sont DÉCLARÉS par le propriétaire**, jamais inventés :
+  `configuration.sla` de `department.yaml` (sept clés d'heures, listées dans le manifeste), plus `jours_soumission_perimee` de
+  `configuration.segments` pour la règle de soumission. Un délai absent ou invalide rend la règle **non évaluée** : elle dit
+  quoi déclarer et ne rend aucune violation (`violations: null`, jamais un zéro) ; les règles de propriétaire et de prochaine action
+  gardent leur partie sans délai (un lead avancé sans propriétaire ni action est une incohérence immédiate) et sont alors
+  « partielles ». Le dépassement est STRICT (pile à la limite, le SLA est tenu). Les relire à chaque appel : aucun redémarrage.
+  La lecture des cinq nombres de M2 (dormance, devis périmé, fréquence de relance, SLA, bandes de valeur) passe par UNE seule fonction,
+  `outils._bloc_configuration` : le futur mécanisme de réglages de direction n'a qu'elle à brancher.
+- **`m2_auditer_integrite`** (T0/N0) : huit contrôles — leads sans statut, clients sans contact (ni téléphone ni courriel),
+  tâches sans propriétaire, soumissions orphelines, activités sans lead, leads sans client, pipeline incohérent (chaîne rompue,
+  transition illégale, converti sans devis, perdu sans motif, qualifié sans propriétaire ni action, facturé sans action),
+  doublons probables (le MÊME critère et la MÊME fenêtre de 7 jours que l'ingestion ; **lecture seule, aucune fusion**,
+  un arbitrage « distincts » les écarte). Un contrôle dont la source est illisible est « non évalué ».
+- **`m2_planifier_reparations`** (T0/N0) : le plan par cible (lead, sinon client ou devis), par urgence (plainte, lead chaud, lead
+  sans propriétaire, première action, soumission, retard, photos, intégrité). Des actions **proposées, jamais exécutées**
+  (`execute: false`) ; une action qui passe par un outil de niveau N3 (niveau relu des outils réels) dit
+  `approbation_requise: true` — une personne l'approuve dans le sas ; aucun message n'est envoyé, aucune demande
+  d'approbation n'est créée, rien n'est fusionné. La prochaine meilleure action existante (`m2_suggerer_prochaine_action`, règle citée)
+  accompagne chaque lead.
+- **`m2_constater_filet`** (T1/N2) : publie `m2.filet_anti_perte_constate` (comptes seulement : violations par règle, anomalies par
+  contrôle, règles non évaluées ; ni lead, ni client, ni contact, ni vendeur) pour M8, qui en tire `m8_violations_sla_commercial` et
+  `m8_anomalies_integrite_crm` (wallboard « ventes et clientèle »). **Déclenchement** : constat `filet` de `constats_planifies`,
+  exécuteur `m2.constat.filet` du planificateur durable (inactif par défaut, `ombre` dit « aurait » sans rien publier, un même créneau ne
+  publie rien de plus : `docs/architecture/PLANIFICATION.md` §9). Mesure des violations : **non calculable** tant qu'aucune règle
+  n'est évaluée en entier (aucun délai déclaré), couverture partielle dite quand certaines le sont.
+
+**M2-C5 (quick wins livrés avec le filet).** `client_satisfait` (reçu de M4) et `quote_sent` (reçu de M3) sont désormais gardés et
+lus : trois segments deviennent calculables (voir plus haut) et la règle « plainte escaladée » existe. Et **une relance préparée que
+personne n'a notée au dossier ne retarde plus la suivante** : M2 n'envoie rien et ne reçoit aucun accusé, le seul signe qu'une relance a
+eu lieu est la note d'une personne (`m2_enregistrer_interaction`, ce que `a_faire` demande). La fréquence part de la première note d'une
+personne postérieure à la préparation ; une relance préparée non notée reste « en attente » (`preparee_en_attente`) et n'est pas
+préparée deux fois pour le même canal (`REJ-RELANCE-DEJA-PREPAREE`). **Conséquence à connaître** : tant que personne ne note, M2 ne sait
+pas qu'un client a été relancé, donc une relance réellement faite mais non notée peut être proposée de nouveau.
+
+**Ce qui n'est PAS prouvé (sans euphémisme).** Les valeurs réelles des délais sont une décision de Nathan : aucune n'est livrée,
+les tests utilisent des valeurs de preuve. M2 n'a ni entité « tâche » ni accusé d'envoi : « contacté » et « escaladé » se lisent à la
+note d'une personne, « tâche en retard » est la prochaine action échue sans activité humaine postérieure, « photos demandées » se lit à
+l'arrivée des photos dans le profil confirmé (M2 ne sait pas si la demande a été faite). Les clients importés à l'onboarding
+(`clients_importes`) ne sont pas dans l'audit. Preuves : SQLite, données fictives, horloge injectée ; jamais PostgreSQL, jamais la boucle
+réelle du serveur pendant des jours, jamais de vraies données. Voir `docs/utilisation/LIMITES-CONNUES.md`.
+Preuve : `tests/test_sla.py`, `test_integrite.py`, `test_reparation.py`, `test_constat_filet.py`, `test_filet_outils.py`,
+`test_filet_scenario.py` (douze leads fictifs, vrais outils), `test_c5_donnees_gardees.py` et, du socle,
+`tests/test_filet_anti_perte_planifie.py` (planificateur, bus, M8, wallboard).
 
 ## Réglages de direction : les délais et les bandes se décident dans la console (CFG-1)
 

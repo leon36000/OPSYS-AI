@@ -201,6 +201,12 @@ def _preparer(deps, lead_id: str, canal: str, maintenant: str, appelant=VENDEUR_
         "lead_id": lead_id, "regle": "relance_devis_sans_reponse", "canal": canal, "horodatage": maintenant}, appelant)
 
 
+def _noter(deps, lead_id: str, instant: str, appelant=VENDEUR_UN):
+    """La personne a FAIT la relance préparée et la note au dossier (M2-C5) : seule cette note date la fréquence."""
+    return _accepte(_m2(deps, "m2_enregistrer_interaction", {
+        "lead_id": lead_id, "resume": "Relance faite.", "horodatage": instant}, appelant))
+
+
 def _consentement(deps, lead_id: str, canal: str = "sms", appelant=VENDEUR_UN, **plus):
     return _m2(deps, "m2_enregistrer_consentement_contact", {
         "lead_id": lead_id, "canal": canal, "enonce_version": "consentement-sms-v1", "source": "formulaire",
@@ -306,6 +312,7 @@ def test_de_l_envoi_du_devis_au_stop_par_le_vrai_bus(instance, capacites_m1, cap
         ("relance_devis_sans_reponse", "sms")]["texte"]
     assert "répondez STOP" in sms["texte"]
     assert sms["prochaine_date_permise"] == "2026-10-02T13:00:00+00:00"
+    _noter(deps, lead_id, "2026-09-25T09:00:00-04:00")
 
     # La fréquence : pas de seconde relance avant la prochaine date permise (elle est dite), permise pile à la date.
     trop_tot = _refuse(_preparer(deps, lead_id, "appel", "2026-10-02T12:59:59+00:00"))
@@ -445,6 +452,7 @@ def test_le_stop_d_une_personne_ferme_les_canaux_de_tous_ses_leads(instance, cap
     assert _relance_de(page, second)["canaux_permis"] == ["appel", "sms"]
     # La fréquence est celle de la personne : une relance du premier lead ferme la seconde pour sept jours.
     _accepte(_preparer(deps, premier, "appel", ECHEANCE))
+    _noter(deps, premier, ECHEANCE)
     trop_proche = _refuse(_preparer(deps, second, "appel", ECHEANCE, VENDEUR_DEUX))
     assert trop_proche["code"] == "REJ-RELANCE-TROP-PROCHE"
     assert premier not in json.dumps(trop_proche) and "vendeur.un" not in json.dumps(trop_proche)

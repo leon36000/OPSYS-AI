@@ -652,7 +652,7 @@ def test_les_regles_citees_sont_celles_de_la_page_pas_de_toutes(pipeline):
 
 
 def test_les_segments_non_calculables_sont_donnes_a_chaque_page_meme_vide(sept_leads):
-    attendus = segments.segments_non_calculables(SEUILS_OK, True)
+    attendus = segments.segments_non_calculables(SEUILS_OK, True, False)  # satisfaction non passée : illisible
     assert _lister(sept_leads)["segments_non_calculables"] == attendus
     assert _lister(sept_leads, decalage=99)["segments_non_calculables"] == attendus
     assert _lister(sept_leads, visibles=set())["segments_non_calculables"] == attendus

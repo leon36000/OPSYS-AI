@@ -285,3 +285,14 @@ def lister_signalements(registre_cible) -> list:
         for maillon in registre_cible.lire()
         if maillon.get("type_entree") == TYPE_ENTREE
     ]
+
+
+def critere_entre(contrat_a, contrat_b):
+    """L'accès public de `_critere_entre` (lecture seule) : l'audit d'intégrité (`integrite.py`) applique EXACTEMENT le
+    critère de l'ingestion, jamais une variante qui pourrait diverger."""
+    return _critere_entre(contrat_a, contrat_b)
+
+
+def dans_fenetre(horodatage_a, horodatage_b):
+    """L'accès public de `_dans_fenetre` : la même fenêtre de 7 jours calendaires que la détection."""
+    return _dans_fenetre(horodatage_a, horodatage_b)

@@ -476,6 +476,24 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
             7,
         ),
         ordonne(
+            operations_recues.TYPE_FILET,
+            {
+                "evenement_id": f"m2-filet-{jour}-fictif", "date_reference": jour, "constate_le": _instant(jour, 7),
+                "version_donnees": "99aabbccddeeff00", "leads_examines": 40,
+                "violations_par_regle": {
+                    "prochaine_action_obligatoire": 1, "lead_chaud_non_contacte": 2, "photos_non_recues": None,
+                    "soumission_non_relancee": 0, "plainte_non_escaladee": 0, "lead_sans_proprietaire": 1,
+                    "tache_en_retard": 3},
+                "violations_total": 7, "regles_non_evaluees": ["photos_non_recues"], "regles_partielles": [],
+                "anomalies_par_controle": {
+                    "lead_sans_statut": 0, "client_sans_contact": 1, "tache_sans_proprietaire": 0,
+                    "soumission_orpheline": 0, "activite_sans_lead": 0, "lead_sans_client": 0,
+                    "pipeline_incoherent": 1, "doublon_probable": 0},
+                "anomalies_total": 2, "controles_non_evalues": [],
+            },
+            7,
+        ),
+        ordonne(
             operations_recues.TYPE_PLAINTES,
             {
                 "evenement_id": f"m1-plaintes-{jour}-30-fictif", "date_reference": jour, "jours": 30, "etat": "CONNUE",

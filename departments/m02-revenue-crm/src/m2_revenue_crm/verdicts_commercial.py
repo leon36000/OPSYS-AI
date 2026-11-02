@@ -53,6 +53,10 @@ CODES_COMMERCIAL_LIST = [
     "REJ-PREV-RECU-INVALIDE",  # reçu retouché, compact ou d'un moteur inconnu
     "REJ-PREV-VALEUR-INVALIDE",  # montant déclaré mal formé
     "REJ-PREV-BUS-INDISPONIBLE",  # registres durables indisponibles
+    # -- Relances (M2-C5)
+    "REJ-RELANCE-DEJA-PREPAREE",  # déjà préparée et que personne n'a notée au dossier : pas de seconde préparation
+    # -- Filet anti-perte (M2-C1)
+    "REJ-FILET-PERIMETRE-GLOBAL",  # le filet porte sur tous les leads : agent ou admin seulement
 ]
 CODES_COMMERCIAL = frozenset(CODES_COMMERCIAL_LIST)
 

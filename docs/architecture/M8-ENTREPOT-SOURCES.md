@@ -5,7 +5,7 @@ les manifestes, [PLANIFICATION §9](PLANIFICATION.md)) ; inactifs par défaut, p
 Statut (2026-11-01) : **phase 1** = cartographie par lecture du code, puis branchement de tout ce qui se branche sans nouveau droit
 d'appareil, sans nouvel outil, sans migration et sans écriture dans un autre département (38 mesures). **Phase 2** = exécution des
 décisions D1 à D7 de l'architecte (r10, §5) : sept départements PUBLIENT un résumé agrégé et minimisé sur le bus et M8 le consomme
-(56 mesures) ; **sept outils de constat** (T1/N2, agent seulement, **aucun droit d'appareil**), **aucune migration**, aucune lecture
+(58 mesures depuis M2-C1) ; **sept outils de constat** (huit avec le filet anti-perte de M2) (T1/N2, agent seulement, **aucun droit d'appareil**), **aucune migration**, aucune lecture
 croisée. Prouvé sur le **vrai bus**, les `consommateurs()` réels et une base SQLite migrée, avec des charges conformes au catalogue
 d'événements. Rien n'a été exécuté contre PostgreSQL pour ces mesures, ni contre un service externe. Contexte : `INTERCONNEXION.md` (le
 bus), `M8-OLIVIER.md` (la couche analytique).
@@ -17,7 +17,7 @@ n'alimentaient pas l'entrepôt : ils arrivaient bien chez M8 (registre `faits_op
 `operations_recues` de la vue exécutive. Le catalogue fermé n'avait que 18 mesures, aucune ne venait de la marge, des créances, des
 comptes à payer, des relevés publicitaires, des réceptions de matériaux ni des demandes de M1.
 
-Il en a maintenant **56** (18 + 20 + 18 de la phase 2), lues par le **même moteur** (`moteur_mesures.lire`) que les wallboards, le score de santé, le
+Il en a maintenant **58** (18 + 20 + 20 de la phase 2, dont deux pour le filet anti-perte de M2), lues par le **même moteur** (`moteur_mesures.lire`) que les wallboards, le score de santé, le
 copilote, la mémoire (M10) et le pont BI : une mesure n'a qu'une valeur, qu'une provenance et qu'une fraîcheur, quelle que soit la
 surface qui la montre.
 
@@ -50,7 +50,7 @@ surface qui la montre.
    contact dans sa charge : M8 n'en garde que `lead_id`, `utm_content` et l'instant. La réception de M6 porte le fournisseur et les
    lignes de prix : M8 n'en garde que le bon de commande, le mouvement de stock, l'instant, le verdict et le statut.
 
-## 3. Matrice : les 56 mesures
+## 3. Matrice : les 58 mesures
 
 État : **branché** = alimenté par un événement réel du bus et prouvé par un test exécuté ; **non branché** = la donnée existe mais la
 mesure n'est pas faite (raison dite) ; **impossible sans décision** = aucun événement ni lecture autorisée ne porte la donnée.
@@ -107,7 +107,7 @@ Preuves : `departments/m08-analytics/tests/test_mesures_interdepartements.py` (p
 66 tests), `tests/test_entrepot_m8_scenarios.py` (bout en bout multi-départements et cas négatifs, 11 tests), plus l'ajustement des tests
 existants qui épinglaient 18 mesures, 4 registres ou 2 wallboards.
 
-### 3.3 Les 18 mesures de la phase 2 (D1 à D3, D5, D6)
+### 3.3 Les 20 mesures de la phase 2 (D1 à D3, D5, D6, puis M2-C1)
 
 Chaque ligne : un événement NOUVEAU du catalogue (le producteur le publie par un outil de constat T1/N2, agent seulement), un
 consommateur réel de M8 (registre `faits_operations`), un module pur de mesure (`mesures_constats.py`). « Fait qui fait foi » : la version
@@ -124,6 +124,8 @@ publiée en dernier (`publie_le`), sauf indication.
 | `m8_capacite_heures_disponibles`, `m8_capacite_heures_planifiees` | heures | `m4.capacite_equipe_constatee` (M4 · `m4_constater_capacite_equipe`) | heures d'équipe DÉCLARÉES, heures de cédule planifiées, semaine la plus récente aux journées datées ; semaine non calculable = causes de M4 | par semaine |
 | `m8_charge_planifiee_pct` | % | idem | planifiées / disponibles du MÊME constat ; sans heure disponible : non calculable | idem |
 | `m8_pipeline_leads_ouverts`, `m8_taux_conversion_resolus_pct`, `m8_valeur_ponderee_pipeline_cad` | leads, %, CAD | `m2.pipeline_constate` (M2 · `m2_constater_pipeline`) | tels que `m2_analyser_pipeline` les établit ; un taux ou une valeur que M2 refuse d'établir = non calculable | par jour |
+| `m8_violations_sla_commercial` | violations | `m2.filet_anti_perte_constate` (M2 · `m2_constater_filet`) | somme des violations des règles SLA que le propriétaire a DÉCLARÉES (`configuration.sla` de M2) ; une règle sans délai est non évaluée (`null`, jamais zéro) ; **non calculable tant qu'aucune règle n'est évaluée en entier**, couverture partielle dite sinon | par jour (dernière publication) |
+| `m8_anomalies_integrite_crm` | anomalies | idem | somme des anomalies de huit contrôles d'intégrité des données de M2 (aucun seuil nécessaire : zéro est un vrai zéro) ; un contrôle à source illisible = couverture partielle, nommé | idem |
 | `m8_articles_en_rupture`, `m8_articles_sur_reserves`, `m8_reservations_incompletes` | articles, réservations | `m6.disponibilite_constatee` (M6 · `m6_constater_disponibilite`) | cinq comptes, jamais un article ni une quantité ; aucun article suivi = non calculable (sauf les réservations) | par jour |
 | `m8_plaintes_periode` | plaintes | `m1.plaintes_constatees` (M1 · `m1_constater_plaintes`) | nombre SEULEMENT si l'état est CONNUE ; « aucune déclarée par la source » et « non branchée » = non calculable | par jour |
 | `m8_leads_publicitaires` | leads | `m2.client_associe` (`utm.utm_source`) + déclaration du propriétaire | leads dont la source UTM correspond à un canal déclaré ; leads sans source = couverture partielle | — |
@@ -135,7 +137,7 @@ SEPT sources de plus : 101 tests en tout), `tests/test_entrepot_m8_phase2.py` (b
 version antérieure, rejeu, fraîcheur par cadence), et un fichier par producteur (`m5` : `test_interconnexion_m5_depense_publicitaire.py`,
 `test_constats_pour_m8.py`, `test_operations_outils.py` ; `m7` : `signaux/test_constat_performance.py` ; `m4` :
 `test_constat_capacite_equipe.py` ; `m2` : `test_constat_pipeline.py` ; `m6` : `test_constat_disponibilite.py` ; `m1` :
-`test_plaintes_structurees.py`). Les sept outils sont aussi à l'audit d'interconnexion (producteur et consommateur réels, 56 types).
+`test_plaintes_structurees.py`). Les sept outils sont aussi à l'audit d'interconnexion (producteur et consommateur réels, 56 types). **M2-C1** ajoute `m2.filet_anti_perte_constate` (`test_constat_filet.py` du département M2, `tests/test_filet_anti_perte_planifie.py`) : 57 types.
 
 Wallboards : `acquisition`, `ventes-clientele`, `equipes-materiel` (six tuiles chacun). Copilote : 33 cas de plus au corpus
 (`evals/copilote.v1.yaml`, dont 14 refus), « volume de demandes » → `m8_demandes_qualifiees_m1` (D5).

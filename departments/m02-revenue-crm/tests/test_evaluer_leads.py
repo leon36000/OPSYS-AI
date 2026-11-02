@@ -97,13 +97,13 @@ DEVIS_ENVOYE = [{
 # ---------------------------------------------------------------------------------------------------------
 def test_l_evaluation_porte_les_leads_ce_qui_manque_pour_tous_et_les_opportunites_par_client(equipe):
     evaluation = _evaluer(equipe)
-    assert set(evaluation) == {"leads", "non_calculables_globaux", "opportunites_par_client"}
+    assert set(evaluation) == {"leads", "non_calculables_globaux", "opportunites_par_client", "interactions_humaines"}
     for lead in evaluation["leads"]:
         assert set(lead) == CLES_D_UN_LEAD
-    assert evaluation["non_calculables_globaux"] == segments.segments_non_calculables(SEUILS_OK, True)
+    # la satisfaction du client (M2-C5) n'est pas passée ici : sa source est illisible, jamais « aucun lead »
+    assert evaluation["non_calculables_globaux"] == segments.segments_non_calculables(SEUILS_OK, True, False)
     assert {n["segment"] for n in evaluation["non_calculables_globaux"]} >= {
-        "needs_photos", "quote_sent", "high_value_customer", "referral_candidate", "complaint_risk",
-        "seasonal_opportunity"}
+        "needs_photos", "high_value_customer", "referral_candidate", "complaint_risk", "seasonal_opportunity"}
 
 
 def test_chaque_lead_dit_son_statut_son_proprietaire_et_son_client():

@@ -12,11 +12,16 @@ quatrième :
   - **non appliqué** : le segment est calculable et la règle ne se déclenche pas ;
   - **non calculable** : « non calculable, manque X ». Aucun segment n'est deviné.
 
-Huit segments se calculent des faits que M2 tient déjà : ``hot_lead``, ``estimate_ready``, ``quote_stale``,
-``won_pending_schedule``, ``active_job``, ``invoice_pending``, ``past_customer``, ``dormant_lead``. Les six
-autres (``needs_photos``, ``quote_sent``, ``high_value_customer``, ``referral_candidate``, ``complaint_risk``,
-``seasonal_opportunity``) reposent sur une donnée qui n'atteint pas M2 : ils rendent ce qui manque, pour
-tous les leads.
+Onze segments se calculent des faits que M2 tient déjà : ``hot_lead``, ``estimate_ready``, ``quote_sent``,
+``quote_stale``, ``won_pending_schedule``, ``active_job``, ``invoice_pending``, ``past_customer``,
+``referral_candidate``, ``complaint_risk``, ``dormant_lead``. Trois (``needs_photos``, ``high_value_customer``,
+``seasonal_opportunity``) reposent sur une donnée qui n'atteint pas M2 : ils rendent ce qui manque, pour tous les
+leads.
+
+M2-C5 : ``quote_sent`` se lit des devis que M3 a envoyés (``m3.devis_envoye``, déjà reçu), ``referral_candidate`` et
+``complaint_risk`` de la satisfaction que M4 rapporte à la fin d'un chantier (``client_satisfait`` de
+``m4.travaux_termines``, désormais gardée par ``faits_interconnexion``). Tant que leur source est illisible (registre
+absent), ils sont « non calculables » comme avant, jamais « aucun lead ».
 
 Deux segments dépendent d'un SEUIL de ``department.yaml`` (``configuration.segments``) : ``dormant_lead``
 (jours d'inactivité) et ``quote_stale`` (jours depuis l'envoi d'un devis). Les seuils sont VIDES par
@@ -96,11 +101,14 @@ ETAT_SEUIL_INVALIDE = "invalide"
 _REGLE_DE_SEGMENT = {
     "hot_lead": "urgence_declaree_lead_ouvert",
     "estimate_ready": "readiness_m3_satisfaite",
+    "quote_sent": "devis_envoye_au_client",
     "quote_stale": "devis_envoye_sans_reponse_perime",
     "won_pending_schedule": "soumission_acceptee_a_planifier",
     "active_job": "chantier_cedule_ou_en_cours",
     "invoice_pending": "chantier_facture_paiement_non_confirme",
     "past_customer": "client_avec_chantier_paye",
+    "referral_candidate": "client_satisfait_signale",
+    "complaint_risk": "client_insatisfait_signale",
     "dormant_lead": "lead_ouvert_sans_activite",
 }
 REGLES = {
@@ -111,6 +119,19 @@ REGLES = {
     "readiness_m3_satisfaite": (
         "Lead qualifié dont la readiness M3 est satisfaite : owner, service (ou type de travaux) valide, "
         "ville et interaction après la qualification (readiness.evaluer)."
+    ),
+    "devis_envoye_au_client": (
+        "Lead qualifié dont un devis a été envoyé (m3.devis_envoye ou m3.devis_sans_reponse au statut envoye). "
+        "L'instant "
+        "est celui de l'approbation de l'envoi par le propriétaire, pas celui de la livraison au client."
+    ),
+    "client_satisfait_signale": (
+        "Le client a dit être satisfait à la fin du dernier chantier terminé de ce lead (client_satisfait de "
+        "m4.travaux_termines) : bon moment pour demander un avis ou une référence (le contenu relève de M7)."
+    ),
+    "client_insatisfait_signale": (
+        "Le client a dit ne PAS être satisfait à la fin du dernier chantier terminé de ce lead (client_satisfait de "
+        "m4.travaux_termines) : risque de plainte, à traiter avant toute autre relance."
     ),
     "devis_envoye_sans_reponse_perime": (
         "Lead qualifié dont un devis envoyé est resté sans réponse (m3.devis_sans_reponse, statut envoye) "
@@ -137,12 +158,7 @@ REGLES = {
 # Segments qui reposent sur une donnée que M2 n'a pas : le manque est le même pour tous les leads.
 _MANQUES_STRUCTURELS = {
     "needs_photos": "non calculable, manque l'état des photos du lead (M3 les qualifie, rien n'atteint M2)",
-    "quote_sent": "non calculable, manque le fait « devis envoyé » de M3 (m3.devis_envoye, T4.7)",
     "high_value_customer": "non calculable, manque la valeur du client (montants à M3 et à M5) et un seuil de valeur",
-    "referral_candidate": (
-        "non calculable, manque la satisfaction du client (client_satisfait de M4, non gardé par M2)"
-    ),
-    "complaint_risk": "non calculable, manque les plaintes et la satisfaction du client (M1 T4.5, M4)",
     "seasonal_opportunity": (
         "non calculable, manque le calendrier saisonnier des services et l'historique par saison"
     ),
@@ -193,9 +209,24 @@ def _manque_seuil(cle: str, seuils: dict[str, dict[str, Any]]) -> str | None:
     return f"non calculable, manque le seuil {cle} : seuil à configurer ({CHEMIN_SEUILS}, entier de jours ≥ 1)"
 
 
-def _manques_globaux(seuils: dict[str, dict[str, Any]], devis_lisibles: bool) -> dict[str, str]:
+_MANQUE_DEVIS_ILLISIBLES = (
+    "non calculable, manque la lecture des devis envoyés reçus de M3 (registres relances_devis_recues et "
+    "devis_envoyes_recus)"
+)
+_MANQUE_SATISFACTION_ILLISIBLE = (
+    "non calculable, manque la lecture de la satisfaction du client reçue de M4 (registre satisfactions_recues)"
+)
+
+
+def _manques_globaux(
+    seuils: dict[str, dict[str, Any]], devis_lisibles: bool, satisfaction_lisible: bool = True
+) -> dict[str, str]:
     """``{segment: manque}`` des segments non calculables pour TOUS les leads."""
     manques = dict(_MANQUES_STRUCTURELS)
+    if not devis_lisibles:
+        manques["quote_sent"] = _MANQUE_DEVIS_ILLISIBLES
+    if not satisfaction_lisible:
+        manques["referral_candidate"] = manques["complaint_risk"] = _MANQUE_SATISFACTION_ILLISIBLE
     manque_dormant = _manque_seuil(CLE_JOURS_DORMANT, seuils)
     if manque_dormant is not None:
         manques["dormant_lead"] = manque_dormant
@@ -210,21 +241,23 @@ def _manques_globaux(seuils: dict[str, dict[str, Any]], devis_lisibles: bool) ->
 
 
 def segments_non_calculables(
-    seuils: dict[str, dict[str, Any]], devis_lisibles: bool = True
+    seuils: dict[str, dict[str, Any]], devis_lisibles: bool = True, satisfaction_lisible: bool = True
 ) -> list[dict[str, str]]:
     """Les segments non calculables pour tous les leads, dans l'ordre de ``SEGMENTS``, chacun
-    ``{"segment", "manque"}``. Les six segments sans donnée en font toujours partie ; ``dormant_lead`` et
-    ``quote_stale`` s'y ajoutent tant que leur seuil est absent ou invalide (``quote_stale`` aussi quand les
-    devis reçus de M3 ne sont pas lisibles)."""
-    manques = _manques_globaux(seuils, devis_lisibles)
+    ``{"segment", "manque"}``. Les trois segments sans donnée en font toujours partie ; ``dormant_lead`` et
+    ``quote_stale`` s'y ajoutent tant que leur seuil est absent ou invalide (``quote_stale`` et ``quote_sent`` aussi
+    quand les devis reçus de M3 ne sont pas lisibles ; ``referral_candidate`` et ``complaint_risk`` quand la
+    satisfaction
+    reçue de M4 ne l'est pas)."""
+    manques = _manques_globaux(seuils, devis_lisibles, satisfaction_lisible)
     return [{"segment": s, "manque": manques[s]} for s in SEGMENTS if s in manques]
 
 
 def manque_du_segment(
-    segment: str, seuils: dict[str, dict[str, Any]], devis_lisibles: bool = True
+    segment: str, seuils: dict[str, dict[str, Any]], devis_lisibles: bool = True, satisfaction_lisible: bool = True
 ) -> str | None:
     """« non calculable, manque X » du segment pour tous les leads, ou ``None`` s'il est calculable."""
-    return _manques_globaux(seuils, devis_lisibles).get(segment)
+    return _manques_globaux(seuils, devis_lisibles, satisfaction_lisible).get(segment)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -284,6 +317,25 @@ def _devis_perime(
     return None, None
 
 
+def _dernier_devis_envoye(devis_du_lead: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """La donnée du devis ENVOYÉ le plus récent (instant lisible le plus tardif, puis ``devis_id``), ou ``None`` s'il
+    n'y
+    en a pas. Un horodatage illisible ne cache pas le devis : il n'est juste pas comparable."""
+    envoyes = [d for d in devis_du_lead if d.get("statut_devis") == "envoye"]
+    if not envoyes:
+        return None
+
+    def cle(devis: dict[str, Any]) -> tuple[int, float, str]:
+        try:
+            return 1, instant_utc(devis.get("horodatage_devis")).timestamp(), str(devis.get("devis_id"))
+        except (ValueError, TypeError):
+            return 0, 0.0, str(devis.get("devis_id"))
+
+    retenu = max(envoyes, key=cle)
+    return {"devis_id": str(retenu.get("devis_id")), "statut_devis": "envoye",
+            "horodatage_devis": retenu.get("horodatage_devis")}
+
+
 def segmenter(lead: dict[str, Any], faits: dict[str, Any], seuils: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Les segments d'UN lead : ``{"lead_id", "segments", "non_calculables"}``.
 
@@ -293,7 +345,8 @@ def segmenter(lead: dict[str, Any], faits: dict[str, Any], seuils: dict[str, dic
     ``faits`` : ``maintenant`` (horodatage ISO-8601 avec fuseau, obligatoire : ``ValueError`` ou ``TypeError``
     sinon),
     ``pret_pour_m3`` (booléen de ``readiness.evaluer``, lu pour un lead qualifié), ``devis_sans_reponse`` (les
-    faits de M3 de CE lead ; ``None`` : source illisible), ``opportunite_payee`` (le ``lead_id`` d'une
+    faits de M3 de CE lead ; ``None`` : source illisible), ``satisfaction`` (le dernier fait de satisfaction de CE
+    lead, ``{}`` si le client n'a rien dit, ``None`` : source illisible), ``opportunite_payee`` (le ``lead_id`` d'une
     opportunité du client au statut ``avis`` que l'appelant peut voir, sinon ``None``).
 
     ``seuils`` : ``lire_seuils(...)``.
@@ -306,7 +359,8 @@ def segmenter(lead: dict[str, Any], faits: dict[str, Any], seuils: dict[str, dic
     statut = lead["statut"]
     maintenant = instant_utc(faits["maintenant"])
     devis = faits.get("devis_sans_reponse")
-    manques = _manques_globaux(seuils, devis is not None)
+    satisfaction = faits.get("satisfaction")
+    manques = _manques_globaux(seuils, devis is not None, satisfaction is not None)
     appliques: dict[str, dict[str, Any]] = {}
 
     if lead.get("urgence_declaree") is True and statut in _STATUTS_OUVERTS:
@@ -319,6 +373,11 @@ def segmenter(lead: dict[str, Any], faits: dict[str, Any], seuils: dict[str, dic
                 "estimate_ready", {"statut": statut, "pret_pour_m3": True})
         elif pret is not False:
             manques["estimate_ready"] = "non calculable, manque l'évaluation de la readiness M3 de ce lead"
+
+    if statut == _STATUT_QUALIFIE and "quote_sent" not in manques:
+        envoye = _dernier_devis_envoye(devis or [])
+        if envoye is not None:
+            appliques["quote_sent"] = _applique("quote_sent", envoye)
 
     if statut == _STATUT_QUALIFIE and "quote_stale" not in manques:
         donnee, manque = _devis_perime(devis or [], seuils[CLE_JOURS_PERIMEE]["valeur"], maintenant)
@@ -343,6 +402,14 @@ def segmenter(lead: dict[str, Any], faits: dict[str, Any], seuils: dict[str, dic
     if payee:
         appliques["past_customer"] = _applique(
             "past_customer", {"lead_paye": payee, "statut": _STATUT_PAYE})
+
+    if satisfaction and isinstance(satisfaction.get("client_satisfait"), bool):
+        segment_satisfaction = "referral_candidate" if satisfaction["client_satisfait"] else "complaint_risk"
+        appliques[segment_satisfaction] = _applique(segment_satisfaction, {
+            "client_satisfait": satisfaction["client_satisfait"],
+            "wct_id": satisfaction.get("wct_id"),
+            "horodatage_completion": satisfaction.get("horodatage_completion"),
+        })
 
     if statut in _STATUTS_OUVERTS and "dormant_lead" not in manques:
         try:

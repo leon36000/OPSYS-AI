@@ -66,6 +66,7 @@ _SOURCE_M4 = "M4 (m4.capacite_equipe_constatee)"
 _SOURCE_M2 = "M2 (m2.pipeline_constate)"
 _SOURCE_M6 = "M6 (m6.disponibilite_constatee)"
 _SOURCE_M1 = "M1 (m1.plaintes_constatees)"
+_SOURCE_M2_FILET = "M2 (m2.filet_anti_perte_constate)"
 
 
 def _decimal(valeur: Any) -> Decimal | None:
@@ -719,6 +720,128 @@ def _valeur_ponderee_pipeline_cad(reg: dict[str, list[dict[str, Any]]]) -> Resul
 
 
 # ---------------------------------------------------------------------------
+# M2 : filet anti-perte (M2-C1) — violations SLA et anomalies d'intégrité
+# ---------------------------------------------------------------------------
+_MANQUE_FILET = manque(
+    "m2.filet_anti_perte_constate",
+    _SOURCE_M2_FILET,
+    "aucun constat du filet anti-perte reçu : M2 n'en a publié aucun (m2_constater_filet, constat planifié), ou rien "
+    "livré par le bus",
+)
+
+
+def _constat_filet(operations: list[dict[str, Any]]) -> dict[str, Any] | None:
+    constats = [
+        f
+        for f in operations
+        if f.get("type_entree") == operations_recues.TYPE_FILET and jour(f.get("date_reference")) is not None
+    ]
+    if not constats:
+        return None
+    derniere_date = max(f["date_reference"] for f in constats)
+    return dernier_par_publication([f for f in constats if f["date_reference"] == derniere_date])
+
+
+def _entrees_filet(constat: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "date_reference": constat.get("date_reference"),
+        "version_donnees": constat.get("version_donnees"),
+        "leads_examines": constat.get("leads_examines"),
+        "regles_non_evaluees": constat.get("regles_non_evaluees"),
+        "regles_partielles": constat.get("regles_partielles"),
+        "controles_non_evalues": constat.get("controles_non_evalues"),
+        "empreinte_faits": empreinte_faits([constat]),
+    }
+
+
+def _noms(valeur: Any) -> list[str]:
+    return [n for n in valeur if isinstance(n, str)] if isinstance(valeur, list) else []
+
+
+def _violations_sla_commercial(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    """Somme des violations des règles SLA de M2 que le propriétaire a DÉCLARÉES (délai présent). Une règle sans délai
+    déclaré est non évaluée : ce n'est pas zéro violation. Aucune règle évaluée EN ENTIER : non calculable. Des règles
+    évaluées en partie ou non évaluées : couverture partielle, dite."""
+    constat = _constat_filet(reg["operations"])
+    if constat is None:
+        return non_calculable([_MANQUE_FILET])
+    entrees = _entrees_filet(constat)
+    instant = constat.get("constate_le")
+    total = constat.get("violations_total")
+    par_regle = constat.get("violations_par_regle")
+    if total is None:
+        return non_calculable(
+            [
+                manque(
+                    "violations_total",
+                    _SOURCE_M2_FILET,
+                    "aucun délai de SLA n'est déclaré par le propriétaire (configuration.sla de M2) : aucune règle "
+                    "n'est évaluée, ce n'est pas zéro violation",
+                )
+            ],
+            entrees,
+            instant,
+        )
+    if type(total) is not int or total < 0 or not isinstance(par_regle, dict) or not par_regle:
+        return non_calculable([manque("violations_total", _SOURCE_M2_FILET, "le compte du constat est illisible")],
+                              entrees, instant)
+    non_evaluees, partielles = _noms(constat.get("regles_non_evaluees")), _noms(constat.get("regles_partielles"))
+    entrees = {**entrees, "violations_par_regle": {k: par_regle[k] for k in sorted(par_regle)}}
+    if len(par_regle) - len(non_evaluees) - len(partielles) <= 0:
+        return non_calculable(
+            [
+                manque(
+                    "regles_sla",
+                    _SOURCE_M2_FILET,
+                    "aucune règle SLA n'est évaluée en entier : le propriétaire n'a déclaré aucun délai "
+                    "(configuration.sla de M2) ; seules les incohérences immédiates sont comptées dans les entrées "
+                    "(ce n'est pas zéro violation)",
+                )
+            ],
+            entrees,
+            instant,
+        )
+    couverture = None
+    if non_evaluees or partielles:
+        raisons = []
+        if non_evaluees:
+            raisons.append(
+                f"{len(non_evaluees)} règle(s) non évaluée(s) faute de délai déclaré : {', '.join(non_evaluees)}"
+            )
+        if partielles:
+            raisons.append(
+                f"{len(partielles)} règle(s) évaluée(s) pour leur seule partie sans délai : {', '.join(partielles)}"
+            )
+        couverture = partielle(
+            len(par_regle) - len(non_evaluees) - len(partielles), len(par_regle), " ; ".join(raisons)
+        )
+    return str(total), entrees, [], instant, couverture, None
+
+
+def _anomalies_integrite_crm(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    """Somme des anomalies d'intégrité que M2 trouve dans ses données (huit contrôles). Les contrôles se font sans aucun
+    seuil : zéro est un vrai zéro quand tous sont évalués ; un contrôle non évalué rend la couverture partielle."""
+    constat = _constat_filet(reg["operations"])
+    if constat is None:
+        return non_calculable([_MANQUE_FILET])
+    entrees = _entrees_filet(constat)
+    instant = constat.get("constate_le")
+    total = constat.get("anomalies_total")
+    par_controle = constat.get("anomalies_par_controle")
+    if type(total) is not int or total < 0 or not isinstance(par_controle, dict) or not par_controle:
+        return non_calculable([manque("anomalies_total", _SOURCE_M2_FILET, "le compte du constat est illisible")],
+                              entrees, instant)
+    non_evalues = _noms(constat.get("controles_non_evalues"))
+    entrees = {**entrees, "anomalies_par_controle": {k: par_controle[k] for k in sorted(par_controle)}}
+    couverture = None
+    if non_evalues:
+        couverture = partielle(
+            len(par_controle) - len(non_evalues), len(par_controle),
+            f"{len(non_evalues)} contrôle(s) non évalué(s) faute de source lisible : {', '.join(non_evalues)}")
+    return str(total), entrees, [], instant, couverture, None
+
+
+# ---------------------------------------------------------------------------
 # M6 : disponibilité du matériel
 # ---------------------------------------------------------------------------
 _MANQUE_DISPONIBILITE = manque(
@@ -1095,6 +1218,8 @@ CALCULS = {
     "m8_pipeline_leads_ouverts": _pipeline_leads_ouverts,
     "m8_taux_conversion_resolus_pct": _taux_conversion_resolus_pct,
     "m8_valeur_ponderee_pipeline_cad": _valeur_ponderee_pipeline_cad,
+    "m8_violations_sla_commercial": _violations_sla_commercial,
+    "m8_anomalies_integrite_crm": _anomalies_integrite_crm,
     "m8_articles_en_rupture": _articles_en_rupture,
     "m8_articles_sur_reserves": _articles_sur_reserves,
     "m8_reservations_incompletes": _reservations_incompletes,

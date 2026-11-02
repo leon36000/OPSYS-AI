@@ -172,21 +172,22 @@ def test_les_segments_de_m2_se_calculent_apres_adoption_et_redeviennent_non_calc
         reponse = m2t._appeler(_outils_m2(), "m2_lister_leads", {"horodatage": m2t.MAINTENANT}, m2t.ADMIN)
         assert reponse["resultat"]["accepte"] is True, reponse
         page = reponse["resultat"]["resultat"]
-        par_lead = {lead["lead_id"]: [s["segment"] for s in lead["segments"]] for lead in page["leads"]}
+        par_lead = {lead["lead_id"]: sorted(s["segment"] for s in lead["segments"]) for lead in page["leads"]}
         manques = {n["segment"] for n in page["segments_non_calculables"]}
         return par_lead, manques
 
     par_lead, manques = segments()
-    assert par_lead == {"lead-dormant": [], "lead-un": []}
+    # `quote_sent` (devis envoyé) ne dépend d'aucun réglage : le filet anti-perte de M2 (M2-C5) l'a rendu calculable.
+    assert par_lead == {"lead-dormant": [], "lead-un": ["quote_sent"]}
     assert {"dormant_lead", "quote_stale"} <= manques, "sans réglage, les deux segments sont « à configurer »"
     assert _adopter(monde, "m2.jours_inactivite_dormant", "30").status_code == 303
     assert _adopter(monde, "m2.jours_soumission_perimee", "14").status_code == 303
     par_lead, manques = segments()
-    assert par_lead == {"lead-dormant": ["dormant_lead"], "lead-un": ["quote_stale"]}
+    assert par_lead == {"lead-dormant": ["dormant_lead"], "lead-un": ["quote_sent", "quote_stale"]}
     assert not {"dormant_lead", "quote_stale"} & manques
     assert _revenir(monde, "m2.jours_inactivite_dormant").status_code == 303
     par_lead, manques = segments()
-    assert par_lead == {"lead-dormant": [], "lead-un": ["quote_stale"]} and "dormant_lead" in manques
+    assert par_lead == {"lead-dormant": [], "lead-un": ["quote_sent", "quote_stale"]} and "dormant_lead" in manques
 
 
 def test_le_score_de_sante_de_m8_est_indetermine_puis_calculable_puis_de_nouveau_indetermine(monde):

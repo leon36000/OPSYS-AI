@@ -78,6 +78,8 @@ cas:
   - {id: v67, q: "leads publicitaires", attendu: {statut: repondu, mesures: [m8_leads_publicitaires]}}
   - {id: v68, q: "Quel est notre coût par lead ?", attendu: {statut: repondu, mesures: [m8_cout_par_lead_pub_cad]}}
   - {id: v69, q: "Quel est le volume de demandes ?", attendu: {statut: repondu, mesures: [m8_demandes_qualifiees_m1]}}
+  - {id: v70, q: "Combien de violations du SLA commercial ?", attendu: {statut: repondu, mesures: [m8_violations_sla_commercial]}}
+  - {id: v71, q: "anomalies d'intégrité du CRM", attendu: {statut: repondu, mesures: [m8_anomalies_integrite_crm]}}
   # -- Plusieurs mesures nommées ---------------------------------------------------------------------------------------
   - {id: m01, q: "Donne-moi le taux d'acceptation et le cash libre", attendu: {statut: repondu, mesures: [m8_cash_libre_cad, m8_taux_acceptation_pct]}}
   - {id: m02, q: "Combien de chantiers terminés, et le carnet signé ?", attendu: {statut: repondu, mesures: [m8_carnet_signe_cad, m8_chantiers_termines]}}

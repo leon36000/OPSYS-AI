@@ -38,7 +38,7 @@ import json
 import unicodedata
 from typing import Any
 
-from . import acces, clients, contrats, readiness, segments, statuts, verdicts
+from . import acces, clients, contrats, faits_interconnexion, readiness, segments, statuts, verdicts
 from . import horodatage as _horodatage
 
 __all__ = [
@@ -49,6 +49,7 @@ __all__ = [
     "evaluer",
     "fiches_des_leads",
     "identifiants_des_leads",
+    "interactions_humaines",
     "lister",
     "opportunites_par_client",
 ]
@@ -221,6 +222,7 @@ class _Contexte:
     proprietaires: dict[str, str]
     opportunites: dict[str, list[str]]
     devis_par_lead: dict[str, list[dict[str, Any]]] | None
+    satisfactions: dict[str, dict[str, Any]] | None
     visibles: set[str] | None
     seuils: dict[str, dict[str, Any]]
     maintenant: str
@@ -253,6 +255,9 @@ def _segmenter(fiche: _Fiche, contexte: _Contexte, avec_readiness: bool = True) 
             readiness.evaluer(fiche.vue, fiche.lead_id) if avec_readiness and fiche.statut == "qualifie" else None
         ),
         "devis_sans_reponse": devis,
+        "satisfaction": (
+            None if contexte.satisfactions is None else contexte.satisfactions.get(fiche.lead_id, {})
+        ),
         "opportunite_payee": _opportunite_payee(fiche, contexte),
     }
     lead = {
@@ -272,6 +277,7 @@ def _contexte_de(
     relances_devis: list[dict[str, Any]] | None,
     seuils: dict[str, dict[str, Any]],
     horodatage: str,
+    satisfactions: list[dict[str, Any]] | None = None,
 ) -> _Contexte:
     """Le contexte d'une lecture du registre : une fiche par lead, les propriétaires, les opportunités par client, les
     devis par lead (`None` : illisibles), et les segments non calculables pour tous les leads. Partagé par `lister` et
@@ -286,10 +292,11 @@ def _contexte_de(
         proprietaires=acces.proprietaires(Vue(maillons)),
         opportunites=_opportunites_par_client(maillons),
         devis_par_lead=devis_par_lead,
+        satisfactions=None if satisfactions is None else faits_interconnexion.satisfaction_par_lead(satisfactions),
         visibles=visibles,
         seuils=seuils,
         maintenant=horodatage,
-        globaux=segments.segments_non_calculables(seuils, relances_devis is not None),
+        globaux=segments.segments_non_calculables(seuils, relances_devis is not None, satisfactions is not None),
     )
 
 
@@ -301,6 +308,7 @@ def evaluer(
     seuils: dict[str, dict[str, Any]],
     horodatage: str,
     statuts_retenus: tuple[str, ...] | None = None,
+    satisfactions: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Les segments de chaque lead visible, sans page ni filtre de segment : `(evaluation, None)` ou `(None, verdict)`.
 
@@ -319,7 +327,8 @@ def evaluer(
         return None, verdicts.construire_verdict(
             "REJ-HORODATAGE-INVALIDE", detail="horodatage : ISO-8601 avec fuseau attendu")
     contexte = _contexte_de(
-        maillons, visibles=visibles, relances_devis=relances_devis, seuils=seuils, horodatage=horodatage)
+        maillons, visibles=visibles, relances_devis=relances_devis, seuils=seuils, horodatage=horodatage,
+        satisfactions=satisfactions)
     leads = []
     for fiche in sorted(contexte.fiches.values(), key=_cle_ordre):
         if visibles is not None and fiche.lead_id not in visibles:
@@ -339,7 +348,30 @@ def evaluer(
         "leads": leads,
         "non_calculables_globaux": contexte.globaux,
         "opportunites_par_client": contexte.opportunites,
+        "interactions_humaines": _interactions_humaines(contexte.fiches),
     }, None
+
+
+def _interactions_humaines(fiches: dict[str, _Fiche]) -> dict[str, list[str]]:
+    """``{lead_id: [horodatages]}`` des notes d'une PERSONNE (jamais celles du système) de TOUS les leads : seuls des
+    instants et des identifiants en sortent (une relance se mesure à la personne, visible ou non). Sert à savoir si une
+    relance préparée a été faite (`relances._confirmee`)."""
+    sortie: dict[str, list[str]] = {}
+    for lead_id, fiche in fiches.items():
+        instants = [
+            m["horodatage"] for m in fiche.vue.lire()
+            if m.get("type_entree") == _TYPE_INTERACTION and not str(m.get("auteur", "")).startswith(_AUTEUR_SYSTEME)
+            and isinstance(m.get("horodatage"), str)
+        ]
+        if instants:
+            sortie[lead_id] = instants
+    return sortie
+
+
+def interactions_humaines(fiches: dict[str, _Fiche]) -> dict[str, list[str]]:
+    """L'accès public de `_interactions_humaines` : les instants des notes de PERSONNES de chaque lead (filet
+    anti-perte)."""
+    return _interactions_humaines(fiches)
 
 
 def _travaux(contrat: dict[str, Any]) -> Any:
@@ -429,6 +461,7 @@ def lister(
     limite: int = LIMITE_DEFAUT,
     budget_caracteres: int,
     recherche: str | None = None,
+    satisfactions: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Une page de la liste des leads visibles, ``(page, None)`` ou ``(None, verdict)``.
 
@@ -458,13 +491,14 @@ def lister(
         return None, verdict
     devis_lisibles = relances_devis is not None
     if segment is not None:
-        manque = segments.manque_du_segment(segment, seuils, devis_lisibles)
+        manque = segments.manque_du_segment(segment, seuils, devis_lisibles, satisfactions is not None)
         if manque is not None:
             return None, verdicts.construire_verdict(
                 "REJ-SEGMENT-NON-CALCULABLE", detail=f"segment {segment} : {manque}")
 
     contexte = _contexte_de(
-        maillons, visibles=visibles, relances_devis=relances_devis, seuils=seuils, horodatage=horodatage)
+        maillons, visibles=visibles, relances_devis=relances_devis, seuils=seuils, horodatage=horodatage,
+        satisfactions=satisfactions)
     ordonnes = sorted(contexte.fiches.values(), key=_cle_ordre)
     candidats = [
         f for f in ordonnes

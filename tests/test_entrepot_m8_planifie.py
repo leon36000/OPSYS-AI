@@ -61,7 +61,8 @@ SANS_VALEUR = ("m8_valeur_ponderee_pipeline_cad",)
 # Le nombre d'événements que le premier tour publie, par type (M5 : une facture par état courant ; M7 : deux mois x
 # deux sources).
 PREMIER_TOUR = {
-    "m1.plaintes_constatees": 1, "m2.pipeline_constate": 1, "m4.capacite_equipe_constatee": 1,
+    "m1.plaintes_constatees": 1, "m2.pipeline_constate": 1, "m2.filet_anti_perte_constate": 1,
+    "m4.capacite_equipe_constatee": 1,
     "m5.depense_publicitaire_constatee": 1, "m5.facture_emise_constatee": 2, "m6.disponibilite_constatee": 1,
     "m7.performance_signaux_constatee": 4,
 }
@@ -358,7 +359,7 @@ def test_les_cadences_par_defaut_viennent_du_catalogue_et_la_capacite_passe_chaq
     with stockage.transaction() as cnx:
         vue = {v["executeur"]: v for v in etat.vue(cnx)}
     assert {n: vue[n]["intervalle_s"] for n in pm.CONSTATS} == {
-        "m1.constat.plaintes": INTERVALLE, "m2.constat.pipeline": INTERVALLE,
+        "m1.constat.plaintes": INTERVALLE, "m2.constat.pipeline": INTERVALLE, "m2.constat.filet": INTERVALLE,
         "m4.constat.capacite-equipe": JOUR,  # fenêtre hebdomadaire (cadence 7 j du catalogue) : borné à un jour
         "m5.constat.depense-publicitaire": INTERVALLE, "m5.constat.factures-emises": INTERVALLE,
         "m6.constat.disponibilite": INTERVALLE, "m7.constat.performance-signaux": INTERVALLE}

@@ -280,6 +280,11 @@ def test_le_vendeur_prepare_sa_relance_le_rejeu_ne_double_rien_et_l_heure_du_ser
 def test_la_frequence_est_celle_de_la_personne_et_suit_l_heure_du_serveur(moteur, equipe_de_vente):
     a = equipe_de_vente["a"]
     assert _preparer(moteur, a, "lead-a-1", "appel", "e2e-freq-1").resultat["canal"] == "appel"
+    # la relance est FAITE puis notée au dossier (M2-C5) : seule cette note date la fréquence
+    note = a.appeler(
+        "m2_enregistrer_interaction", {"lead_id": "lead-a-1", "resume": "Relance faite.", "horodatage": _hh(moteur)},
+        cle="e2e-freq-note", horodatage_appareil=_hh(moteur))
+    assert note.statut == 200 and note.metier["accepte"] is True, note.corps
 
     moteur.horloge.avancer(hours=1)
     proche = _preparer(moteur, a, "lead-a-1", "appel", "e2e-freq-2")

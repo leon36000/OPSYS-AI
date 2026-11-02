@@ -30,8 +30,8 @@ PUBLIE = "2026-10-30T07:00:00-04:00"
 
 
 # ================================================================================================ types de constats
-def test_les_sept_types_de_la_phase_2_sont_declares_avec_leur_evenement_et_leur_cle_de_contenu():
-    assert len(op.EVENEMENT_PAR_TYPE) == 15
+def test_les_huit_types_de_la_phase_2_sont_declares_avec_leur_evenement_et_leur_cle_de_contenu():
+    assert len(op.EVENEMENT_PAR_TYPE) == 16
     attendus = {
         "m5.depense_publicitaire_constatee": op.TYPE_DEPENSE_COMPTABILISEE,
         "m5.facture_emise_constatee": op.TYPE_FACTURE_EMISE,
@@ -40,6 +40,7 @@ def test_les_sept_types_de_la_phase_2_sont_declares_avec_leur_evenement_et_leur_
         "m2.pipeline_constate": op.TYPE_PIPELINE,
         "m6.disponibilite_constatee": op.TYPE_DISPONIBILITE,
         "m1.plaintes_constatees": op.TYPE_PLAINTES,
+        "m2.filet_anti_perte_constate": op.TYPE_FILET,
     }
     for evenement, type_entree in attendus.items():
         assert op.EVENEMENT_PAR_TYPE[evenement] == type_entree

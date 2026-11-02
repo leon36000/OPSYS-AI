@@ -323,6 +323,18 @@ mesures:
     sensibilite: financier
     fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["valeur pondérée du pipeline", "pipeline pondéré", "valeur du pipeline"]
+  - metric_id: m8_violations_sla_commercial
+    domaine: ventes
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["violations du SLA commercial", "leads en retard de traitement", "filet anti-perte", "leads qui risquent d'être perdus"]
+  - metric_id: m8_anomalies_integrite_crm
+    domaine: ventes
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["anomalies d'intégrité du CRM", "données du CRM incohérentes", "qualité des données commerciales"]
   - metric_id: m8_articles_en_rupture
     domaine: operations
     sens: moins_est_mieux

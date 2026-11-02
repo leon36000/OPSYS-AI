@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m2.filet_anti_perte_constate",
+  "title": "M2 — Filet anti-perte (résumé agrégé)",
+  "description": "Émis par M2 (outils_integrite.py::constater_filet, M2-C1, constat planifié `filet` de department.yaml) quand le filet anti-perte est CONSTATÉ : les comptes que le scan SLA (sept règles, délais DÉCLARÉS par le propriétaire) et l'audit d'intégrité (huit contrôles) établissent sur TOUS les leads. Aucun lead, aucun client, aucun contact, aucun vendeur, aucun devis : que des comptes et des noms de règles. Une règle SLA dont le délai n'est pas déclaré est NON ÉVALUÉE : son compte vaut null (jamais zéro) et son nom figure dans `regles_non_evaluees` ; `violations_total` est la somme des comptes des règles évaluées, en entier ou en partie (il vaut null seulement quand AUCUNE règle n'est évaluée). `regles_partielles` nomme les règles évaluées pour leur seule partie sans délai (incohérence immédiate d'un lead avancé). Un contrôle d'intégrité dont la source est illisible vaut null et figure dans `controles_non_evalues`. evenement_id déterministe m2-filet-<date_reference>-<version_donnees>-<empreinte du constate_le sur 8 hexadécimaux> ; le consommateur retient, par jour, la version publiée en dernier (`publie_le`). `constate_le` est l'instant du constat : il fait partie de l'identifiant, de sorte qu'un retour à une version antérieure des données (A, puis B, puis A) publie un événement DISTINCT ; `version_donnees` n'identifie que les données. Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "constate_le": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "version_donnees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "leads_examines": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "violations_par_regle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prochaine_action_obligatoire": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "lead_chaud_non_contacte": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "photos_non_recues": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "soumission_non_relancee": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "plainte_non_escaladee": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "lead_sans_proprietaire": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tache_en_retard": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "prochaine_action_obligatoire",
+        "lead_chaud_non_contacte",
+        "photos_non_recues",
+        "soumission_non_relancee",
+        "plainte_non_escaladee",
+        "lead_sans_proprietaire",
+        "tache_en_retard"
+      ]
+    },
+    "violations_total": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "regles_non_evaluees": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "prochaine_action_obligatoire",
+          "lead_chaud_non_contacte",
+          "photos_non_recues",
+          "soumission_non_relancee",
+          "plainte_non_escaladee",
+          "lead_sans_proprietaire",
+          "tache_en_retard"
+        ]
+      },
+      "uniqueItems": true,
+      "maxItems": 7
+    },
+    "regles_partielles": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "prochaine_action_obligatoire",
+          "lead_chaud_non_contacte",
+          "photos_non_recues",
+          "soumission_non_relancee",
+          "plainte_non_escaladee",
+          "lead_sans_proprietaire",
+          "tache_en_retard"
+        ]
+      },
+      "uniqueItems": true,
+      "maxItems": 7
+    },
+    "anomalies_par_controle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lead_sans_statut": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "client_sans_contact": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tache_sans_proprietaire": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "soumission_orpheline": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "activite_sans_lead": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "lead_sans_client": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "pipeline_incoherent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "doublon_probable": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "lead_sans_statut",
+        "client_sans_contact",
+        "tache_sans_proprietaire",
+        "soumission_orpheline",
+        "activite_sans_lead",
+        "lead_sans_client",
+        "pipeline_incoherent",
+        "doublon_probable"
+      ]
+    },
+    "anomalies_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "controles_non_evalues": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "lead_sans_statut",
+          "client_sans_contact",
+          "tache_sans_proprietaire",
+          "soumission_orpheline",
+          "activite_sans_lead",
+          "lead_sans_client",
+          "pipeline_incoherent",
+          "doublon_probable"
+        ]
+      },
+      "uniqueItems": true,
+      "maxItems": 8
+    }
+  },
+  "required": [
+    "evenement_id",
+    "date_reference",
+    "constate_le",
+    "version_donnees",
+    "leads_examines",
+    "violations_par_regle",
+    "violations_total",
+    "regles_non_evaluees",
+    "regles_partielles",
+    "anomalies_par_controle",
+    "anomalies_total",
+    "controles_non_evalues"
+  ]
+}
