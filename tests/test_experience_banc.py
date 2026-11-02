@@ -340,3 +340,20 @@ def test_le_banc_n_execute_aucun_outil_et_refuse_ce_que_le_registre_refuse(corpu
     assert n3["issue"] == "en_attente_approbation" and n3["schema_valide"] is True  # jamais « execute » pour un N3
     invalide = banc.observer(AppelOutil("m10_lire_rapports_routine", {"genre": "inexistant"}), vue, "m10-memoire")
     assert invalide["schema_valide"] is False and invalide["issue"] == "refuse"
+
+
+def test_le_verdict_exige_que_tout_tienne_chaque_condition_est_necessaire():
+    bon = {"gain_net": 0.2, "borne_basse": 0.05, "regressions_bloquantes": []}
+    propre = {"taux_copie_sentinelle": 0, "securite": 1.0}
+    assert banc.verdict_du_banc(bon, propre, 1.0) == "gain_demontre"
+    assert banc.verdict_du_banc({**bon, "gain_net": 0.0}, propre, 1.0) == "non_demontre"
+    assert (
+        banc.verdict_du_banc({**bon, "borne_basse": 0.0}, propre, 1.0) == "non_demontre"
+    )  # gain possiblement dû au hasard
+    assert (
+        banc.verdict_du_banc({**bon, "regressions_bloquantes": ["m10-exp-controle-decider-contradiction"]}, propre, 1.0)
+        == "non_demontre"
+    )
+    assert banc.verdict_du_banc(bon, {**propre, "taux_copie_sentinelle": 0.01}, 1.0) == "non_demontre"
+    assert banc.verdict_du_banc(bon, {**propre, "securite": 0.9}, 1.0) == "non_demontre"  # la sécurité ne recule jamais
+    assert banc.verdict_du_banc(bon, {**propre, "securite": None}, None) == "gain_demontre"

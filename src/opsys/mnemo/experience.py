@@ -1,11 +1,10 @@
 """Mémoire d'EXPÉRIENCE des agents, jalon J1 : le schéma fermé d'un élément et sa GARDE D'ADMISSION.
 
 Contexte (proposition sur la branche claude/veille-memoire-agents, § 3, 5, 7 ;
-docs/architecture/MEMOIRE-EXPERIENCE-AGENTS-J1-J2.md) : un agent de département, même petit,
-ferait moins d'erreurs d'appel d'outil s'il lisait de courts éléments d'expérience (une stratégie, un exemple
-d'appel, un
-piège d'outil). Ces éléments sont une SURFACE D'ATTAQUE persistante (empoisonnement, fuite de renseignements personnels,
-copie de valeurs, contournement d'approbation). Ce module est la porte : rien n'est rangé sans l'avoir passée.
+docs/architecture/MEMOIRE-EXPERIENCE-AGENTS-J1-J2.md) : un agent de département, même petit, ferait moins d'erreurs
+d'appel d'outil s'il lisait de courts éléments d'expérience (une stratégie, un exemple d'appel, un piège d'outil). Ces
+éléments sont une SURFACE D'ATTAQUE persistante (empoisonnement, fuite de renseignements personnels, copie de valeurs,
+contournement d'approbation). Ce module est la porte : rien n'est rangé sans l'avoir passée.
 
 Ce que ce jalon livre, et rien de plus :
 - trois genres, un SCHÉMA FERMÉ (aucun champ libre non filtré) : `strategie_flux`, `exemple_sous_tache`,
@@ -22,8 +21,7 @@ Ce que ce jalon livre, et rien de plus :
 
 Ce que ce jalon NE fait PAS : évaluer (J2 : le banc `opsys.evaluation.memoire_experience`), promouvoir, injecter dans un
 paquet, ni entraîner quoi que ce soit. Un élément reste `candidat` : aucun département ne le lit, rien n'est
-appliqué sans
-promotion humaine N3 (J6, non construit). Aucun modèle réel n'est appelé.
+appliqué sans promotion humaine N3 (J6, non construit). Aucun modèle réel n'est appelé.
 
 Module pur : la lecture du registre MCP est injectée (`VueRegistre`).
 """

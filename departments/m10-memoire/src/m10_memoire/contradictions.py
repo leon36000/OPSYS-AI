@@ -100,6 +100,9 @@ _IDENTIFIANT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._~-]{0,99}$")
 _ATTRIBUT = re.compile(r"^[a-z][a-z0-9_]{0,59}$")
 _VALEUR = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")
 _SUITE_CHIFFRES = re.compile(r"[0-9](?:[ .-]?[0-9]){6,}")  # un numéro (téléphone, carte) caché dans un jeton
+# Un identifiant d'affaire peut être un hexadécimal long ou numérique : seul un identifiant ENTIÈREMENT numérique de la
+# taille d'un téléphone, ou un numéro séparé, est refusé.
+_TELEPHONE_DANS_IDENTIFIANT = re.compile(r"^[0-9]{10,11}$|[0-9]{3}[-. ][0-9]{3}[-. ][0-9]{4}")
 _REF_REGISTRE = re.compile(r"^registre:(evenements|affaires):[0-9a-f]{64}$")
 _REF_PROJET = re.compile(r"^projet:[A-Za-z0-9._/~+-]{1,200}@[0-9a-f]{64}$")
 _EMETTEUR = {
@@ -150,7 +153,7 @@ def valider(champs: Mapping[str, Any], ordre: verite.OrdreVerite, canal: str) ->
     valeur = champs["valeur"]
     if not isinstance(valeur, str) or not _VALEUR.fullmatch(valeur):
         raise _refus(REJ_VALEUR, "valeur : un jeton (lettres, chiffres, . _ : -), 80 caractères au plus, sans espace")
-    if _SUITE_CHIFFRES.search(valeur) or _SUITE_CHIFFRES.search(identifiant):
+    if _SUITE_CHIFFRES.search(valeur) or _TELEPHONE_DANS_IDENTIFIANT.search(identifiant):
         raise _refus(
             REJ_DONNEE_PERSONNELLE, "une longue suite de chiffres ressemble à un numéro de téléphone ou de carte"
         )

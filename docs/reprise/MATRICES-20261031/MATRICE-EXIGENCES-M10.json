@@ -28,7 +28,8 @@
   "suite_du_departement": "departments/m10-memoire/tests rejoué le 2026-10-31 sur la base_sha : 1464 passed, 0 failed, 0 skipped",
   "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
   "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue",
-  "mnemo_m10_13_m10_17": "Branche claude/m10-self-graphe (base 5208490a4), 2026-11-01 : departments/m10-memoire/tests rejoué = 1498 passed, 0 failed ; tests/test_mnemo_*.py (306 tests, dont une variante PostgreSQL 17 éphémère exécutée localement, non rejouée en CI) + gardes d'intégration (paquets déclarés, garde-fou de texte, commande métier, packs, gabarit, registre MCP, matrices, portées d'appareil, événements, connaissances, console) = 935 passed, 0 failed. Hors périmètre, échecs préexistants constatés sur la base : tests/test_vision_migration.py (2), tests/test_openclaw_canaux.py::test_m1_declare_le_canal_sms_et_garde_son_identite (1)."
+  "mnemo_m10_13_m10_17": "Branche claude/m10-self-graphe (base 5208490a4), 2026-11-01 : departments/m10-memoire/tests rejoué = 1498 passed, 0 failed ; tests/test_mnemo_*.py (306 tests, dont une variante PostgreSQL 17 éphémère exécutée localement, non rejouée en CI) + gardes d'intégration (paquets déclarés, garde-fou de texte, commande métier, packs, gabarit, registre MCP, matrices, portées d'appareil, événements, connaissances, console) = 935 passed, 0 failed. Hors périmètre, échecs préexistants constatés sur la base : tests/test_vision_migration.py (2), tests/test_openclaw_canaux.py::test_m1_declare_le_canal_sms_et_garde_son_identite (1).",
+  "contradictions_experience_m10_03_04": "Branche claude/m10-contradictions-experience (base ea631e4bc), 2026-11-02 : departments/m10-memoire/tests rejoué = 1749 passed, 0 failed ; tests ciblés du socle (contradictions e2e, mémoire d'expérience J1 et J2, routines planifiées, gardes d'intégration) = 1112 passed (31 fichiers : gardes d'intégration, routines planifiées M1 et M10, évaluation, Mnémo, connaissances, mémoire d'expérience J1 et J2, contradictions de bout en bout). Non rejoués : PostgreSQL, Core TypeScript, Jest mobile, suite complète du socle."
  },
  "requirements": [
   {
@@ -117,11 +118,20 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_ingestion_projet.py"
+     ],
+     "docs": [
+      "docs/architecture/M10-CONTRADICTIONS.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "enregistrer_prompt avec expurgation de secrets testée (journal de développement) ; liens prompt→plan→changements partiels ; domaine développement uniquement."
+   "limite": "enregistrer_prompt avec expurgation de secrets testée (journal de développement) ; liens prompt→plan→changements partiels ; domaine développement uniquement. M10-03 (2026-11-02) : l'ingestion `ingerer-projet` range directives, ADR, règles d'agent, condensés (prompts versionnés) et matrices du dépôt, sourcés (chemin, empreinte, date), expurgés, idempotents, sans suppression ; testée sur un dépôt Git FICTIF, jamais sur le vrai dépôt ni sur PostgreSQL ; le preflight reste sans go/no-go ni enforcement."
   },
   {
    "id": "M10.4",
@@ -172,11 +182,23 @@
      ],
      "docs": [],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_verite.py",
+      "departments/m10-memoire/tests/test_contradictions.py",
+      "departments/m10-memoire/tests/test_contradictions_outils.py",
+      "tests/test_contradictions_m10_e2e.py"
+     ],
+     "docs": [
+      "docs/architecture/M10-CONTRADICTIONS.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Décisions à raison obligatoire, révision sans fusion, signaux ouvert/pris/clos par un humain (S) ; statuts stale/superseded/contradicted/archived partiellement exercés ; aucun détecteur transversal automatique de contradictions.",
+   "limite": "Décisions à raison obligatoire, révision sans fusion, signaux ouvert/pris/clos par un humain (S) ; statuts stale/superseded/contradicted/archived partiellement exercés ; M10-04 (2026-11-02) : ordre de vérité DÉCLARÉ en données (celui du condensé de Nathan ; divergence avec l'arbitrage d'architecte non tranchée), contradictions rangées (registres affirmations et contradictions, append-only chaînés), mémoires marquées jamais supprimées, critique = demande au sas N3, routine `contradictions-memoire` inactive par défaut ; le détecteur ne porte que sur les faits AFFIRMÉS À CLÉ (agent, personne, bloc de fichier), pas sur le texte libre ni sur les registres existants ; classes `rapport_valide`, `test_sonde` et `code` sans producteur ; aucun écran de revue ; prouvé sur SQLite, jamais sur PostgreSQL ni sur données réelles.",
    "ecart_analyse": "L'analyse d'écarts classait la ligne « décisions à raison obligatoire, révision sans fusion, statuts » FAIT_PROUVE ; la cible PERIMETRE M10.5 inclut les contradictions proposées et le remplacement, partiellement exercés : PARTIEL."
   },
   {
@@ -367,11 +389,21 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "tests/test_contradictions_m10_e2e.py",
+      "tests/test_routines_planifiees.py"
+     ],
+     "docs": [
+      "docs/architecture/PLANIFICATION.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Consolidation nocturne idempotente par jour (cron 0 3 * * * déclaré) ; cron natif non démarré ; détection de doublons/obsolescence/orphelins non confirmée."
+   "limite": "Consolidation nocturne idempotente par jour (cron 0 3 * * * déclaré) ; cron natif non démarré ; détection de doublons/obsolescence/orphelins non confirmée. Routine planifiée `contradictions-memoire` (détection des contradictions entre affirmations à clé ; ombre = « aurait ») ajoutée le 2026-11-02 ; doublons, obsolescence et orphelins restent non confirmés."
   },
   {
    "id": "M10.13",
@@ -468,11 +500,22 @@
      ],
      "docs": [],
      "niveau": "T+H"
+    },
+    {
+     "tests": [
+      "tests/test_experience_j1.py",
+      "tests/test_experience_banc.py",
+      "departments/m10-memoire/tests/test_experience_outils.py"
+     ],
+     "docs": [
+      "docs/architecture/MEMOIRE-EXPERIENCE-AGENTS-J1-J2.md"
+     ],
+     "niveau": "T"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Outils d'agent, console et lecture par appareil prouvés (H, porte Python) ; mobile Jest non rejoué ; aucun navigateur ni téléphone ; pas de mesure de rappel en production."
+   "limite": "Outils d'agent, console et lecture par appareil prouvés (H, porte Python) ; mobile Jest non rejoué ; aucun navigateur ni téléphone ; pas de mesure de rappel en production. Mémoire d'expérience des agents J1 (garde d'admission) et J2 (banc avec/sans mémoire, validé par un répondant double) livrés le 2026-11-02 : AUCUN modèle réel mesuré ; un élément admis reste candidat, aucun département ne le lit."
   },
   {
    "id": "M10.16",

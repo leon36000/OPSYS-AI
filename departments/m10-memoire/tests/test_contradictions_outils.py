@@ -190,6 +190,27 @@ def test_une_affirmation_sans_source_reelle_ou_avec_une_valeur_personnelle_est_r
     assert _registre("affirmations") == []
 
 
+def test_un_secret_qui_a_la_forme_d_un_jeton_n_entre_pas_au_registre(capacites):
+    secret = "sk-" + "a1b2c3d4" * 4  # valeur FACTICE construite à l'exécution
+    for surcharge in (
+        {"valeur": secret},
+        {"sujet": f"devis:{secret}"},
+        {"attribut": "jeton"} | {"valeur": f"Bearer{secret}"},
+    ):
+        reponse = _consigner(capacites, **surcharge)
+        assert reponse["resultat"]["accepte"] is False and reponse["resultat"]["verdict"]["code"] in (
+            "REJ-AFFIRMATION-SECRET",
+            "REJ-AFFIRMATION-VALEUR-INVALIDE",
+        ), surcharge
+        assert secret not in json.dumps(reponse, ensure_ascii=False)
+    assert _registre("affirmations") == []
+
+
+def test_un_identifiant_d_affaire_hexadecimal_long_n_est_pas_pris_pour_un_secret(capacites):
+    reponse = _consigner(capacites, sujet="affaire:" + "0123456789abcdef" * 2)
+    assert reponse["resultat"]["accepte"] is True
+
+
 def test_un_appel_d_appareil_est_refuse_par_chaque_outil(instance):
     employe = contexte.IdentiteAppelante("employe-fictif", "employee")
     with contexte.appele_par_appareil(employe), contexte.appeler_en_tant_que("m10-memoire"), stockage.transaction():
@@ -222,6 +243,14 @@ def test_la_declaration_d_une_autorite_haute_est_une_proposition_qu_une_personne
         entree["role"],
         entree["source_decision"],
     ) == ("decision_proprietaire", "humain:nathan", "humain", "nathan", "nathan_owner", "approbation")
+
+
+def test_la_declaration_humaine_exige_un_motif(capacites):
+    arguments = _args(classe="decision_proprietaire", sujet="regle:envoi", attribut="gate_humain", valeur="non")
+    reponse = capacites.appeler("m10_declarer_affirmation_humaine", {**arguments, "motif": "court"})
+    resultat = _approuver(capacites, reponse["demande_id"])
+    assert resultat["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-MOTIF-INVALIDE"
+    assert _registre("affirmations") == []
 
 
 def test_un_appel_direct_d_agent_sans_approbation_ne_peut_pas_declarer(instance):
@@ -492,6 +521,22 @@ def test_une_affirmation_remplacee_reste_visible_marquee_remplacee_jamais_suppri
         vue = co.lire_contradictions("affaires", "affirmations")["resultat"]
     assert [(a["valeur"], a["etat"]) for a in vue["affirmations"]] == [("accepte", "remplacee"), ("refuse", "active")]
     assert len(_registre("affirmations")) == 2  # deux maillons : l'ancien n'est ni supprimé ni modifié
+
+
+def test_la_file_par_defaut_ne_montre_que_ce_qui_attend_quelqu_un(capacites):
+    _deux_sources_non_critiques(capacites)  # D-12 : résolue automatiquement
+    _humaine("regle:envoi_courriel", "non")
+    _consigner(capacites, classe="journal", valeur="oui", sujet="regle:envoi_courriel", attribut="gate_humain")
+    _rafraichir()
+    with stockage.transaction():
+        par_defaut = co.lire_contradictions("affaires")["resultat"]
+        tout = co.lire_contradictions("affaires", "contradictions", "tous")["resultat"]
+        resolues = co.lire_contradictions("affaires", "contradictions", "resolue_auto")["resultat"]
+    assert [x["statut"] for x in par_defaut["contradictions"]] == ["en_attente_humain"] and par_defaut["total"] == 1
+    assert sorted(x["statut"] for x in tout["contradictions"]) == ["en_attente_humain", "resolue_auto"]
+    assert tout["total"] == 2
+    assert [x["statut"] for x in resolues["contradictions"]] == ["resolue_auto"]
+    assert par_defaut["compte"]["resolue_auto"] == 1  # le compte par état, lui, dit tout
 
 
 def test_aucune_donnee_personnelle_ne_sort_de_la_file(capacites):

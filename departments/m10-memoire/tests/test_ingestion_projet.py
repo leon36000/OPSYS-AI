@@ -589,6 +589,20 @@ def test_une_valeur_personnelle_dans_un_bloc_est_refusee_et_comptee(base_dev, de
     assert TELEPHONE not in json.dumps([m for m in _maillons("affirmations")])
 
 
+def test_un_secret_dans_un_bloc_d_affirmations_est_refuse_et_ne_va_pas_au_registre(base_dev, depot):
+    secret = "sk-" + "a1b2c3d4" * 4
+    _ecrire(
+        depot,
+        "docs/architecture/SECRET.md",
+        '# Secret\n\n```m10-affirmations\n'
+        f'[{{"sujet": "regle:x", "attribut": "acces", "valeur": "{secret}"}}]\n```\n',
+    )
+    _commit(depot, "secret")
+    rapport = ingerer(depot)
+    assert rapport["affirmations"]["refusees"].get("REJ-AFFIRMATION-SECRET") == 1
+    assert secret not in json.dumps(_maillons("affirmations")) and secret not in json.dumps(rapport)
+
+
 # -- 7. ligne de commande ----------------------------------------------------------------------------------------------
 def test_la_commande_ingerer_projet_authentifie_interactivement_et_rend_le_rapport(
     base_dev, depot, monkeypatch, capsys

@@ -2,8 +2,7 @@
 DÉVELOPPEMENT de M10, isolée des données d'affaires (ADR-0012).
 
 Ce que fait `ingerer(depot)` : lit les fichiers SUIVIS PAR GIT du dépôt que l'ordre de vérité
-(`contracts/ordre-verite.v1.json`)
-met dans son périmètre, et range, de façon déterministe :
+(`contracts/ordre-verite.v1.json`) met dans son périmètre, et range, de façon déterministe :
 
 - chaque fichier retenu : une source (chemin, empreinte sha256 du contenu, dernier commit et sa date, classe
   d'autorité) et son
@@ -28,10 +27,9 @@ Propriétés :
 - **Bornée.** 200 fichiers, 256 Ko par fichier, 4 Mo au total, aucun lien symbolique, aucun chemin privé.
 - **Une personne.** Comme tout le domaine développement : identité humaine authentifiée (`developpement._acteur`).
 
-Limite dite sans euphémisme : c'est un analyseur de structure (titres, en-têtes, lignes « Remplace ») sur des
-fichiers de ce
-dépôt. Il ne comprend pas le sens d'une directive ; une directive qui change de sens sans changer de section est une
-nouvelle version, pas une contradiction (seule une affirmation à clé en est une).
+Limite dite sans euphémisme : c'est un analyseur de structure (titres, en-têtes, lignes « Remplace ») sur des fichiers
+de ce dépôt. Il ne comprend pas le sens d'une directive ; une directive qui change de sens sans changer de section est
+une nouvelle version, pas une contradiction (seule une affirmation à clé en est une).
 """
 
 from __future__ import annotations
@@ -665,6 +663,9 @@ def _ranger_affirmations(
         except ValueError as exc:
             code = str(exc).partition(": ")[0]
             bilan["refusees"][code] = bilan["refusees"].get(code, 0) + 1
+            continue
+        if contradictions_outils.secret_dans(valide):
+            bilan["refusees"]["REJ-AFFIRMATION-SECRET"] = bilan["refusees"].get("REJ-AFFIRMATION-SECRET", 0) + 1
             continue
         cles_voulues.add((valide["emetteur"], contradictions.cle_de(valide)))
         try:

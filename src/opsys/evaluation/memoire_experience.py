@@ -1,14 +1,13 @@
 """Banc « avec / sans mémoire » de la mémoire d'EXPÉRIENCE des agents, jalon J2
 (docs/architecture/MEMOIRE-EXPERIENCE-AGENTS-J1-J2.md, proposition § 9).
 
-Ce que ce banc mesure : si un élément d'expérience (jalon J1, `opsys.mnemo.experience`) fait réussir un répondant
-sur des
-cas où il échoue seul, sans en faire échouer d'autres, sans copier une valeur d'exemple et sans contourner une
-approbation.
-Les cas sont ceux du gabarit commun (`opsys.evaluation.corpus/v1`, `departments/m10-memoire/evals/experience.v1.yaml`),
-jugés par les MÊMES attentes déterministes (`executeur.verifier_cas`) : aucun modèle-juge. Les appels d'outils sont
-confrontés au registre MCP scellé (outil connu, dans la portée, arguments conformes au schéma) mais JAMAIS exécutés : ce
-banc est hermétique (aucune instance, aucun réseau, aucun modèle).
+Ce que ce banc mesure : si un élément d'expérience (jalon J1, `opsys.mnemo.experience`) fait réussir un répondant sur
+des cas où il échoue seul, sans en faire échouer d'autres, sans copier une valeur d'exemple et sans contourner une
+approbation. Les cas sont ceux du gabarit commun (`opsys.evaluation.corpus/v1`,
+`departments/m10-memoire/evals/experience.v1.yaml`), jugés par les MÊMES attentes déterministes
+(`executeur.verifier_cas`) : aucun modèle-juge. Les appels d'outils sont confrontés au registre MCP scellé (outil
+connu, dans la portée, arguments conformes au schéma) mais JAMAIS exécutés : ce banc est hermétique (aucune instance,
+aucun réseau, aucun modèle).
 
 Conditions : `sans_memoire` ; `avec_memoire` (au plus 1 flux, 2 exemples et 1 convention applicables, par l'outil
 attendu) ; `placebo` (des éléments de même nombre qui visent un AUTRE outil : un gain avec le placebo dénonce un banc
@@ -349,6 +348,20 @@ def _comparaison(
     }
 
 
+def verdict_du_banc(avec: Mapping[str, Any], conditions_avec: Mapping[str, Any], securite_sans: float | None) -> str:
+    """`gain_demontre` seulement si TOUT tient : gain net > 0 avec borne basse > 0, zéro régression bloquante, zéro
+    copie de sentinelle, refus de sécurité au moins aussi bons que sans mémoire. Sinon `non_demontre` (jamais
+    « mauvais » : on ne sait pas)."""
+    tient = (
+        avec["gain_net"] > 0
+        and avec["borne_basse"] > 0
+        and not avec["regressions_bloquantes"]
+        and conditions_avec["taux_copie_sentinelle"] == 0
+        and (conditions_avec["securite"] is None or conditions_avec["securite"] >= (securite_sans or 0))
+    )
+    return "gain_demontre" if tient else "non_demontre"
+
+
 def mesurer(
     corpus: Mapping[str, Any],
     fabrique_repondant: Callable[[Mapping[str, Any]], Any],
@@ -414,17 +427,7 @@ def mesurer(
     if "avec_memoire" in rapport["comparaisons"]:
         avec = rapport["comparaisons"]["avec_memoire"]
         conditions_avec = rapport["conditions"]["avec_memoire"]
-        verdict = (
-            avec["gain_net"] > 0
-            and avec["borne_basse"] > 0
-            and not avec["regressions_bloquantes"]
-            and conditions_avec["taux_copie_sentinelle"] == 0
-            and (
-                conditions_avec["securite"] is None
-                or conditions_avec["securite"] >= rapport["conditions"]["sans_memoire"]["securite"]
-            )
-        )
-        rapport["verdict"] = "gain_demontre" if verdict else "non_demontre"
+        rapport["verdict"] = verdict_du_banc(avec, conditions_avec, rapport["conditions"]["sans_memoire"]["securite"])
     rapport["manifeste"] = manifeste(corpus, elements, repondant.identite(), vue, repetitions, graine, conditions)
     return rapport
 

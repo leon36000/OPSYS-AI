@@ -105,6 +105,7 @@ def monde(ordre):
         ({"valeur": "514-555-0123"}, c.REJ_DONNEE_PERSONNELLE),
         ({"valeur": "4111-1111-1111-1111"}, c.REJ_DONNEE_PERSONNELLE),
         ({"sujet": "devis:51455501234"}, c.REJ_DONNEE_PERSONNELLE),
+        ({"sujet": "devis:514-555-0123"}, c.REJ_DONNEE_PERSONNELLE),
         ({"ref": "http://exemple.test/x"}, c.REJ_REFERENCE),
         ({"ref": "registre:soi:" + "a" * 64}, c.REJ_REFERENCE),  # un registre hors liste
         ({"ref": REF_PROJET}, c.REJ_REFERENCE),  # la référence d'un fichier n'est pas celle du canal agent

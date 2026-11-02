@@ -24,6 +24,7 @@ par une personne authentifiée (`ingestion_projet.py`). Aucune détection ne cro
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlalchemy import func, select
@@ -33,10 +34,11 @@ from opsys import service_acteur_systeme as systeme
 from opsys.mnemo import service
 from opsys.mnemo.codes import ErreurMnemo
 from opsys.outils import Autonomie, Niveau, Outil
+from opsys.secrets_coffre import masquage
 from opsys.stockage.concurrence import verrou_consultatif
 from opsys.stockage.schema import APPROBATIONS
 
-from . import contradictions, registre, routines, validation, verite
+from . import contradictions, humain, registre, routines, validation, verite
 from . import outils as _o
 
 DEPARTEMENT = "m10-memoire"
@@ -71,6 +73,25 @@ def _refus_appareil() -> dict[str, Any] | None:
     return None
 
 
+_PREFIXE_DE_SECRET = r"(?:sk|pk|ghp|gho|ghu|ghs|ghr|xox[baprs])[-_][A-Za-z0-9_-]{12,}"
+_FORME_DE_SECRET = re.compile(_PREFIXE_DE_SECRET)
+_SUITE_ALEATOIRE = re.compile(r"[A-Za-z0-9]{32,}")
+
+
+def secret_dans(valide: dict[str, Any]) -> bool:
+    """Un jeton qui ressemble à une clé, un jeton d'accès, un en-tête d'autorisation ou (valeur, attribut) une longue
+    suite aléatoire n'entre jamais au registre : une valeur est lue par les agents et reste dans le journal chaîné. Le
+    détecteur du coffre exige une frontière de mot ; on ajoute les formes COLLÉES à un préfixe, qu'un jeton de statut
+    n'a jamais. Le sujet peut être un identifiant d'affaire (hexadécimal long) : seule la forme à préfixe le vise."""
+    for cle in ("sujet", "attribut", "valeur"):
+        texte = valide[cle]
+        if masquage.contient_secret(texte) or _FORME_DE_SECRET.search(texte):
+            return True
+        if cle != "sujet" and _SUITE_ALEATOIRE.search(texte):
+            return True
+    return False
+
+
 def _connexion_ecriture(verrou: str):
     cnx = stockage.connexion_courante()
     if cnx is None or not cnx.in_transaction():
@@ -91,6 +112,10 @@ def _ecrire_affirmation(champs: dict[str, Any], canal: str, extras: dict[str, An
         valide = contradictions.valider(champs, ordre, canal)
     except ValueError as exc:
         return _depuis_valeur_erreur(exc)
+    if secret_dans(valide):
+        return _verdict(
+            "REJ-AFFIRMATION-SECRET", "un champ ressemble à un secret (clé, jeton, en-tête) ; il n'a rien à faire ici"
+        )
     if not _reference_existe(valide["ref"]):
         return _verdict(
             "REJ-AFFIRMATION-REFERENCE-INTROUVABLE",
@@ -151,6 +176,11 @@ def declarer_affirmation_humaine(
     acteur, refus = _o._acteur_humain("m10_declarer_affirmation_humaine")
     if acteur is None:
         return refus or _verdict("REJ-HUMAIN-REQUIS", "acteur humain introuvable")
+    if not humain.motif_valide(motif):
+        return _verdict(
+            humain.REJ_HUMAIN_MOTIF_INVALIDE,
+            f"le motif est obligatoire : {humain.MOTIF_MIN_CARACTERES} à {humain.MOTIF_MAX_CARACTERES} caractères",
+        )
     return _ecrire_affirmation(
         {
             "domaine": domaine,
@@ -166,7 +196,7 @@ def declarer_affirmation_humaine(
             "par": acteur["par"],
             "role": acteur["role"],
             "source_decision": acteur["source"],
-            "motif": motif.strip()[:500],
+            "motif": motif.strip(),
         },
     )
 
@@ -364,7 +394,9 @@ def decider_contradiction(contradiction_id: str, decision: str, motif: str) -> d
 
 # -- les déclarations -----------------------------------------------------------------------------------------------
 _DOMAINE = {
-    "type": "string", "enum": list(verite.domaines()), "description": "affaires ou developpement (jamais mêlés)",
+    "type": "string",
+    "enum": list(verite.domaines()),
+    "description": "affaires ou developpement (jamais mêlés)",
 }
 _CHAMPS_AFFIRMATION = {
     "domaine": _DOMAINE,

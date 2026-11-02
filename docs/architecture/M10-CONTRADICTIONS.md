@@ -51,7 +51,7 @@ l'attribut est `gate_humain`, `regle_permanente`, `niveau_approbation` ou `confi
 Registres durables de M10 (sans migration : `stockage.maillons('m10-memoire', <nom>)`) :
 
 - **`affirmations`** : `affirmation_enregistree` (domaine, sujet « famille:identifiant » à famille fermée, attribut, **valeur = un jeton**, classe, émetteur,
-  référence **vérifiable** : `registre:<evenements|affaires>:<ligne_id>` qui existe, ou `projet:<chemin>@<sha256>`), `affirmation_retiree`. La même source
+  référence **vérifiable** : `registre:<evenements|affaires>:<ligne_id>` qui existe, ou `projet:<chemin>@<sha256>`), `affirmation_retiree`. Aucun champ libre : une valeur ne peut être ni un numéro de téléphone ou de carte, ni un courriel, ni une forme de clé ou de jeton (détecteur du coffre de secrets, plus les formes collées à un préfixe et les longues suites aléatoires). La même source
   (même clé, même classe, même émetteur) qui se réexprime *remplace* sa version précédente (supersede : l'ancienne reste au registre) ; ce n'est pas
   une contradiction.
 - **`contradictions`** : `contradiction_detectee` (les deux côtés, la proposition, l'empreinte de l'ordre), `contradiction_marque` (une par mémoire),
@@ -116,7 +116,7 @@ Les décisions et prompts ingérés portent le module `PROJET` : le **preflight 
 | Ingestion : dépôt Git fictif, idempotence, secrets et PII, versions, archives, remplacements, preflight, CLI | `departments/m10-memoire/tests/test_ingestion_projet.py` |
 | **Scénario de bout en bout** : vrai bus, vraie file d'approbation, vrai planificateur à horloge injectée, ombre puis actif, rejeu, approbation, aucun contenu personnel dans les journaux | `tests/test_contradictions_m10_e2e.py` |
 
-Limites dites sans euphémisme : SQLite seulement (le domaine développement est SQLite par conception, ADR-0012) ; horloge injectée ; aucune donnée réelle ; l'ingestion est un analyseur de structure (titres, en-têtes, ligne
+Limites dites sans euphémisme : **dans le canal agent, la classe est déclarée par l'agent parmi les quatre classes basses** (documentation, journal, mémoire ancienne, hypothèse) : l'ordre entre elles est indicatif (un agent peut en dominer un autre en choisissant une classe plus haute que sa source réelle ; la marque est informative, rien n'est supprimé), seule l'usurpation d'une classe haute est impossible, et tout ce qui touche une classe ou un attribut critique reste à une personne ; SQLite seulement (le domaine développement est SQLite par conception, ADR-0012) ; horloge injectée ; aucune donnée réelle ; l'ingestion est un analyseur de structure (titres, en-têtes, ligne
 « Remplace ») qui ne comprend pas le sens d'une directive : une directive qui change de sens sans changer de section est une nouvelle version, pas une contradiction (seule une affirmation à clé en est une) ;
 la détection ne porte que sur ce qui a été *affirmé à clé* (par un agent, une personne ou un fichier à bloc) : elle ne lit pas le texte libre des mémoires ; aucun détecteur automatique ne tire de clés des registres existants
 (événements, faits analytiques) : c'est une extension ; la console n'a pas encore d'écran de revue des contradictions (lecture par l'outil, décision par la file d'approbation) ; l'accès mobile admin n'est pas ouvert
