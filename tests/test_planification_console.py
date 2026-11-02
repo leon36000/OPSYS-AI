@@ -51,8 +51,8 @@ def test_la_page_montre_tous_les_tours_par_famille_avec_leur_etat(env):
     assert r.status_code == 200
     for nom in etat.noms():
         assert f"<code>{nom}</code>" in r.text, nom
-    for titre in ("Connecteurs (courriel", "Départements (calculs", "Constats planifiés pour M8", "Vérifications",
-                  "Rétention Loi 25"):
+    for titre in ("Connecteurs (courriel", "Départements (calculs", "Constats planifiés pour M8",
+                  "Routines internes des départements", "Vérifications", "Rétention Loi 25"):
         assert titre in r.text
     assert "En attente de transport" in r.text  # WordPress, réseaux sociaux, signaux… ne sont pas raccordés
     assert "Tours non branchés" in r.text
