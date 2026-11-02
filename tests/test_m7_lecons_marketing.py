@@ -133,7 +133,7 @@ def test_chaque_genre_d_observation_a_sa_lecon_et_son_texte(genre, canal, cle, r
 
 
 def test_les_textes_destines_a_l_agent_ne_portent_aucun_chiffre_et_aucun_nom():
-    assert set(lecons.TEXTES_MARKETING) == set(am.GENRES)
+    assert set(lecons.TEXTES_MARKETING) == set(am.genres_observation())
     for texte in lecons.TEXTES_MARKETING.values():
         assert not any(c.isdigit() for c in texte)
 

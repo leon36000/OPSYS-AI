@@ -29,6 +29,10 @@ TACHES_MAX = 5
 RECOMMANDATIONS_MAX = 12
 TYPES_SOURCE = ("mesure_m8", "contenu_m8", "observation_growth", "section_m7")
 _INSUFFISANT = ("donnees_insuffisantes", "source_absente")
+# OPPORTUNITÉ = ce qui marche et se reproduit, ou ce qui bloque la mesure (et non un point de vigilance).
+REGLES_OPPORTUNITE = frozenset(
+    {"contenu_gagnant", "action_organique", "contenus_sans_lien_de_suivi", "leads_sans_canal"}
+)
 BAISSE_PCT = -10  # une série qui baisse d'au moins 10 % entre deux observations est signalée
 
 

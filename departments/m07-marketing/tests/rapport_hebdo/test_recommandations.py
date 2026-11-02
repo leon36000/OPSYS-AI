@@ -165,3 +165,13 @@ def test_les_entrees_ne_sont_pas_modifiees(entrees):
     avant = copy.deepcopy(entrees)
     composer(entrees)
     assert entrees == avant
+
+
+def test_les_opportunites_sont_les_recommandations_de_reproduction_et_de_mesure(entrees):
+    r = composer(entrees)
+    assert r["opportunites"] and set(r["opportunites"]) <= set(ids(r))
+    assert {i.split(":")[0] for i in r["opportunites"]} <= recommandations.REGLES_OPPORTUNITE
+    assert (
+        "contenu_gagnant:facebook-aaaa" in r["opportunites"] and "avis_negatifs_sans_reponse" not in r["opportunites"]
+    )
+    assert composer({})["opportunites"] == []

@@ -4,7 +4,7 @@ Statut (2 novembre 2026, base `e0424b040`) : **prouvé en processus** sur SQLite
 M10), le vrai planificateur durable à horloge injectée et des données fictives. **Aucune preuve** contre un service externe
 réel, aucune publication réelle exécutée, **PostgreSQL non exercé** pour ces chantiers (aucune migration, aucune garde « SQLite
 seulement » ajoutée : les registres sont des maillons génériques). Les statuts des matrices restent `PARTIEL` : la validation du
-profil réel par Nathan est une décision qui n'est pas prise (voir §10).
+profil réel par Nathan est une décision qui n'est pas prise (voir §9).
 
 Trois volets, une seule règle : **le code calcule, le modèle n'invente rien, une donnée absente est dite absente.**
 
@@ -152,7 +152,60 @@ Aucune migration.
 
 ## 6. Preuve
 
-Voir le tableau des tests et des mutations au §9 ; les commandes et résultats exacts sont dans le rapport de livraison.
+**Tests nouveaux (292, tous déterministes : aucune horloge réelle, aucun hasard, aucun réseau, données fictives)** :
+
+| Fichier | Tests | Ce qu'il prouve |
+|---|---|---|
+| `departments/m07-marketing/tests/marque/test_profil_v2.py` | 33 | champs étendus bornés, une ligne, message sans la valeur, complétude sans valeur inventée, v1 inchangé |
+| `.../marque/test_conformite.py` | 79 | chaque règle (mots, messages, énoncés non validés, prix/chiffres, confidentialité, ton, longueur, style, mentions), bornes inclusives, poids, arrondi, fail-closed, corpus de 30 textes (invariants : la porte binaire est la loi, jamais un score opaque, déterminisme) |
+| `.../marque/test_guide.py` | 8 | guide généré, énoncé non validé jamais cité, injection par un champ v1 neutralisée |
+| `.../marque/test_outils_marque.py` | 16 | audit et guide par les vrais outils : lecture pure, pagination, texte hostile, aucune coordonnée répétée |
+| `.../marque/test_usine_marque.py` | 13 | la porte de marque dans l'usine : refus nommés jamais enregistrés, score rangé, mentions validées, profil durci après proposition |
+| `.../marque/test_registre_marque_v2.py` | 6 | validation signée, relecture tolérante, conservation par la console |
+| `.../rapport_hebdo/test_composition.py` | 20 | sections, jamais un zéro inventé, ROI sans ratio, seuils, source mal formée = absente |
+| `.../rapport_hebdo/test_recommandations.py` | 18 | liaison recommandation-donnée ou hypothèse, priorité, tâches, tactiques interdites refusées |
+| `.../rapport_hebdo/test_croissance.py` | 21 | plan organique dérivé ou « ce qui manque », garde de légitimité, libellé piégé |
+| `.../rapport_hebdo/test_memoire.py` | 9 | événements minimaux, identifiants déterministes, conformes au schéma du catalogue, rien de personnel |
+| `.../rapport_hebdo/test_service_rapport.py` | 14 | un rapport par semaine, tâches N1, atomicité (panne du bus = rien d'écrit), lecture gardée et bornée |
+| `departments/m10-memoire/tests/test_apprentissage_marketing.py` | 21 | liste blanche, idempotence, contradiction, regroupement en semaines distinctes |
+| `tests/test_m7_lecons_marketing.py` | 12 | leçons gouvernées : seuil, texte sans chiffre, garde réelle du gabarit de M7, décision humaine, lecture par M7 seulement |
+| `tests/test_m7_rapport_hebdo_planifie.py` | 14 | inactif par défaut, ombre sans effet, un rapport par semaine, fuseau, panne de M8, aucun envoi, liste fermée d'outils N0 |
+| `tests/test_interconnexion_consommateurs.py` (cas `m10-apprentissage-marketing`) | 5 | les cinq garanties sur le vrai bus : livré, idempotent, panne et reprise, charge hors catalogue refusée, rien de personnel |
+| `tests/test_m7_marque_rapport_bout_en_bout.py` | 3 | le scénario complet décrit ci-dessous |
+
+**Scénario de bout en bout** (`tests/test_m7_marque_rapport_bout_en_bout.py`, vrais outils M7/M8/M10, vrai bus, vrai planificateur à
+horloge injectée, SQLite ; les chantiers terminés de M4, leads de M1 et leads de M2 sont publiés avec la charge du catalogue) :
+sans profil, tout est fail-closed (aucun contenu, audit et guide refusés) ; le propriétaire déclare le profil v2 ; le contenu
+chantier est généré et reçoit son score ; un texte avec mot interdit, avec garantie non validée, avec prix inventé est refusé avec
+ses raisons et le conforme passe ; trois semaines simulées (chantier, approbation et export par le propriétaire, leads attribués par
+la clé `utm_content`, avis) ; l'exécuteur est d'abord en ombre (rien d'écrit), puis actif : un rapport par semaine, les six passages
+suivants ne refont rien ; recommandations sourcées, tâches N1 dans « À voir » ; les événements `m7.*` sont mémorisés par M10 ;
+`m10_extraire_lecons` propose les leçons ; la leçon est consultable, évaluée, promue par une PERSONNE (un agent seul reste « en attente
+d'approbation ») et lisible par M7 seulement ; aucune publication, aucun courriel, aucune dépense n'est partie.
+
+**Rouge avant** (clone `git archive` de `e0424b040`, seuls les fichiers de test posés dessus ; chaque cible lancée à part) :
+`marque/` : `ImportError` du `conftest` (`profil_v2` absent), les 155 tests ne s'exécutent pas ; `rapport_hebdo/` : 5 erreurs de collecte
+(82 tests) ; M10 `test_apprentissage_marketing.py` : 1 erreur de collecte (21 tests) ; `test_m7_lecons_marketing.py` : 1 erreur (12) ;
+`test_m7_rapport_hebdo_planifie.py` : 1 erreur (14) ; scénario de bout en bout : **3 échecs sur 3** ; manifeste de M7 (type publié) :
+**1 échec** ; garanties du consommateur de M10 (`-k apprentissage`) : **5 échecs sur 5** (type absent du catalogue). Après, sur la branche :
+155, 82, 21, 12, 14, 3, 1 et 5 tests verts (journaux : `scratchpad/m7mq-rouge-avant-final.txt`, `m7mq-vert-apres-final.txt`).
+
+**Mutations** (60, appliquées une à une dans un clone, restauration vérifiée ; script `scratchpad/mutations-m7mq.py`) : **60 tuées**.
+Trois n'ont pas été tuées au premier passage : C02 (mot interdit cherché sans bordure gauche : « départ » contenait « art » ; test de
+bordure ajouté, tuée ensuite) ; U04 et R08 (motif de mutation périmé par le reformatage ; mutation corrigée, tuée). Cibles couvertes :
+chaque règle de conformité (mots, messages, énoncés non validés, garanties à valider, ton fort/faible, mention requise, longueur
+déclarée, bornes inclusives, poids, arrondi, verdict, profil absent, porte binaire, mentions masquées, pliage des lettres imitées),
+sous-scores non évaluables, validation fail-open et validation signée par un autre, intégration usine (proposition, approbation,
+mentions), audit qui répète une coordonnée, idempotence hebdomadaire, semaine en cours, ombre qui écrit, passage qui relit M8, panne de
+M8 qui écrit un rapport dégradé, fuseau UTC, outil de décision ajouté à la liste fermée, recommandation sans source, liaison
+recommandation-donnée, garde de légitimité, priorité, nombre de tâches, ROI calculé, seuils, source mal formée traitée comme vide,
+filtre de clé de mesure des événements, texte dans l'événement, contradiction M10, liste blanche M10, seuil de semaines, consommateur
+débranché, chiffre dans un texte de leçon, semaines répétées, avis favorables comptés, décision humaine non exigée, leçon visant le
+mauvais département, plan « poursuivre la mesure » rétabli, niveau des tâches, lecture non gardée.
+
+**Contrôles de fin** : `ruff check src tests departments` propre ; `opsys-metier verifier` OK ; `registre-mcp verifier` OK (révision 14,
+639 outils exposés, 616 outils de départements, 248 déclarés aux appareils) ; `scripts/docs/*` à jour ; suite complète du département
+M7 : voir le rapport de livraison ; suite complète du socle (`src/` touché) : voir le rapport de livraison.
 
 ## 7. Ce qui est volontairement hors périmètre
 
@@ -179,3 +232,15 @@ calcul de ROI ni de marge ; pas de lecture directe d'un registre d'un autre dép
 - **Autres chemins de contenu** : `m7_proposer_contenu` (fabrique de contenu historique) n'applique pas encore la porte de marque v2 ;
   seule l'usine de chantier, l'audit et le guide l'appliquent.
 - **PostgreSQL**, un vrai service externe, une publication réelle, un vrai modèle de langage : non exercés.
+
+## 9. Décisions qui restent à Nathan (aucune n'est prise ici)
+
+- **Déclarer puis valider le profil réel** : nom commercial exact, promesse, avantages, zones, garanties que le propriétaire accepte de
+  citer, mots et messages interdits, voix (vouvoiement ou tutoiement), mentions requises. Sans cela, les dimensions de conformité qui
+  en dépendent sont « non évaluables » et seule la porte binaire s'applique. Les matrices M7 restent `PARTIEL` pour cette raison.
+- **Activer l'exécuteur** `m7.rapport-hebdo` (ombre d'abord, console Connecteurs) quand les sources de M8 sont alimentées.
+- **Déclarer la correspondance des canaux publicitaires** (`canaux_marketing`) et importer les relevés de dépense : sans eux, le coût par
+  lead du rapport est « non calculable ».
+- **Étiqueter les observations de croissance** (`format:`, `creneau:`, `serie:`) s'il veut un plan organique comparatif.
+- **Demande d'avis** : le comportement du code (tout client consentant, sans filtre de satisfaction) est l'arbitrage retenu et il est
+  conforme à la politique des plateformes ; le README de M7 le dit désormais. Aucune raison de sécurité de le changer n'a été trouvée.

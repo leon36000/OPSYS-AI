@@ -40,8 +40,8 @@ PRODUCTEUR = "m07-marketing"
 REJ_FAIT_MARKETING_CHAMP_INVALIDE = "REJ-FAIT-MARKETING-CHAMP-INVALIDE"
 REJ_FAIT_MARKETING_CONTRADICTOIRE = "REJ-FAIT-MARKETING-CONTRADICTOIRE"
 
-GENRES = ("contenu_gagnant", "contenu_faible", "objection_frequente", "avis_constate")
-CANAUX = ("facebook", "instagram", "fiche_google", "video_courte", "demande_temoignage", "avis_clients")
+_GENRES = ("contenu_gagnant", "contenu_faible", "objection_frequente", "avis_constate")
+_CANAUX = ("facebook", "instagram", "fiche_google", "video_courte", "demande_temoignage", "avis_clients")
 SEMAINES_MIN = 3  # une leçon candidate exige des observations de ce nombre de semaines distinctes
 _OBSERVATION_ID = re.compile(r"^m7-appr-[0-9a-f]{40}$")
 _JOUR = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
@@ -54,6 +54,15 @@ _CLES_RESULTAT = frozenset(
     {"leads", "devis_envoyes", "devis_acceptes", "occurrences", "avis_positifs", "avis_negatifs"}
 )
 _MAX_COMPTE = 1_000_000
+
+
+def genres_observation() -> tuple[str, ...]:
+    """Les genres d'observation que M7 annonce (liste fermée, jamais un énuméré public du paquet)."""
+    return _GENRES
+
+
+def canaux() -> tuple[str, ...]:
+    return _CANAUX
 
 
 class ChampRefuse(ValueError):
@@ -88,9 +97,9 @@ def extraire(charge: Mapping[str, Any]) -> dict[str, Any]:
     resultat = charge["resultat"]
     if not isinstance(resultat, Mapping) or set(resultat) != _CLES_RESULTAT:
         raise ChampRefuse(REJ_FAIT_MARKETING_CHAMP_INVALIDE, "resultat")
-    if charge["genre_observation"] not in GENRES:
+    if charge["genre_observation"] not in _GENRES:
         raise ChampRefuse(REJ_FAIT_MARKETING_CHAMP_INVALIDE, "genre_observation")
-    if charge["canal"] not in CANAUX:
+    if charge["canal"] not in _CANAUX:
         raise ChampRefuse(REJ_FAIT_MARKETING_CHAMP_INVALIDE, "canal")
     cle = charge["cle_mesure"]
     return {

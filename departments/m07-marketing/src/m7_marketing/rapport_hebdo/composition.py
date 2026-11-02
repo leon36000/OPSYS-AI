@@ -445,6 +445,9 @@ def composer(entrees: dict[str, Any], debut: str) -> dict[str, Any]:
         "mention": MENTION,
     }
     rapport["recommandations"] = recommandations.deriver(rapport)
+    rapport["opportunites"] = [
+        r["id"] for r in rapport["recommandations"] if r["regle"] in recommandations.REGLES_OPPORTUNITE
+    ]
     rapport["donnees_manquantes"] = _manques(rapport)
     rapport["empreinte"] = empreinte(rapport)
     return rapport
