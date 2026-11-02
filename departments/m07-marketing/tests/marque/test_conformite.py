@@ -66,6 +66,8 @@ def test_un_mot_interdit_est_cherche_comme_mot_entier(v2):
     v2["mots_interdits"] = ["art", "pas cher"]
     assert evaluer("Un artisan soigné de la région. " + BON, v2).rapport["verdict"] == "conforme"
     assert conformite.REJ_MOT_INTERDIT in codes(evaluer("De l'art de rénover. " + BON, v2))
+    # le mot n'est pas cherché au milieu d'un autre (bordure gauche) : « départ », « smart » ne contiennent pas « art »
+    assert evaluer("Un départ rapide pour un chantier smart. " + BON, v2).rapport["verdict"] == "conforme"
 
 
 def test_un_message_interdit_est_refuse_et_nomme(v2):
