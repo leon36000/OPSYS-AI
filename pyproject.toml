@@ -94,6 +94,7 @@ packages = [
     "m7_marketing.site",
     "m7_marketing.social",
     "m7_marketing.studio",
+    "m7_marketing.rapport_hebdo",
     "m7_marketing.usine",
     "m7_marketing.utm",
     "m7_marketing.veille",

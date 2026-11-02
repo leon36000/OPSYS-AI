@@ -11,6 +11,8 @@ from typing import Any
 from opsys import stockage
 from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
+from .rapport_hebdo import croissance
+
 DEPARTEMENT = "m07-marketing"
 REGISTRE = "growth"
 
@@ -86,6 +88,7 @@ def plan_30j(horizon: str) -> dict[str, Any]:
     groupes: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for obs in observations:
         groupes.setdefault((obs["plateforme"], obs["campagne"]), []).append(obs)
+    organique = croissance.analyser(observations)
     recommandations = []
     for (plateforme, campagne), items in sorted(groupes.items()):
         noms = sorted({x["metrique"] for x in items})
@@ -93,7 +96,11 @@ def plan_30j(horizon: str) -> dict[str, Any]:
             {
                 "plateforme": plateforme,
                 "campagne": campagne,
-                "action": "poursuivre la mesure avec les mêmes définitions sur les 30 prochains jours",
+                "action": (
+                    "aucune action organique dérivée pour ce groupe : voir les données manquantes "
+                    "(comparer au moins deux formats, créneaux ou séries étiquetés « format: », « creneau: » ou "
+                    "« serie: » avec chacun trois observations de la même métrique)"
+                ),
                 "observations_source": sorted(x["observation_id"] for x in items),
                 "hypotheses": ["les observations fournies décrivent la période passée, sans inférence causale"],
                 "donnees_manquantes": [
@@ -105,11 +112,25 @@ def plan_30j(horizon: str) -> dict[str, Any]:
                 "metriques_observees": noms,
             }
         )
+    for action in organique["actions"]:
+        recommandations.append(
+            {
+                "plateforme": action["plateforme"],
+                "campagne": f"{action['dimension']}:{action['gagnant']}",
+                "action": action["action"],
+                "observations_source": action["observations_source"],
+                "hypotheses": action["hypotheses"],
+                "donnees_manquantes": [],
+                "metriques_observees": [action["metrique"]],
+            }
+        )
     plan = {
         "type": "plan_growth_30j",
         "horizon_debut": horizon,
         "recommandations": recommandations,
-        "donnees_manquantes": [] if observations else ["observations sourcées de performance"],
+        "donnees_manquantes": (
+            organique["manques"] if observations else ["observations sourcées de performance"]
+        ),
         "limites": ["aucune causalité, projection de volume ni ROI calculé"],
     }
     stockage.maillons(DEPARTEMENT, REGISTRE).append(plan)

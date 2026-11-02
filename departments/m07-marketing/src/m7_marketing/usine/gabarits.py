@@ -26,6 +26,7 @@ class Matiere:
     accroche: str
     nature: str
     ville: str | None = None
+    mentions: tuple[str, ...] = ()
 
 
 def _minuscule_initiale(mots: str) -> str:
@@ -114,10 +115,17 @@ _COMPOSITEURS = {
 }
 
 
+_PRIVES = frozenset({"demande_temoignage"})
+
+
 def composer(plateforme_code: str, matiere: Matiere) -> str:
-    """Le texte du gabarit de cette plateforme ; `KeyError` si le code n'a pas de gabarit."""
+    """Le texte du gabarit de cette plateforme ; `KeyError` si le code n'a pas de gabarit. Un texte PUBLIC porte les
+    mentions requises validées du profil, en dernière ligne."""
     try:
         compositeur = _COMPOSITEURS[plateforme_code]
     except KeyError:
         raise KeyError(f"aucun gabarit pour la plateforme {plateforme_code!r}") from None
-    return compositeur(matiere)
+    texte = compositeur(matiere)
+    if matiere.mentions and plateforme_code not in _PRIVES:
+        texte += "\n\n" + " ".join(matiere.mentions)
+    return texte

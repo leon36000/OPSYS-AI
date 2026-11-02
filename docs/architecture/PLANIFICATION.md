@@ -13,7 +13,7 @@ Un système « autonome » travaille sans qu'un humain lance chaque tour. Le pla
 ([CABLAGE-CONNECTEURS.md](CABLAGE-CONNECTEURS.md) : modes `inactif`/`ombre`/`actif`, baux avec jeton de fencing, journal
 append-only, coupe-circuit, acteur système `opsys-systeme` à portée « planificateur ») et pilotait cinq exécuteurs
 (courriel, WordPress, réseaux sociaux). Plusieurs rapports disaient « aucun planificateur n'appelle X ». Cette tranche
-**étend le même planificateur** (aucun second cron) avec treize exécuteurs (puis, §9, sept constats déclarés par les manifestes), des purges de rétention Loi 25, un inventaire
+**étend le même planificateur** (aucun second cron) avec treize exécuteurs (puis, §9, sept constats déclarés par les manifestes, et §10 le rapport marketing hebdomadaire de M7), des purges de rétention Loi 25, un inventaire
 exécutable et l'écran de gestion.
 
 ## 1. Ce qui est branché
@@ -31,6 +31,7 @@ Les données vivent dans `src/opsys/connecteurs_planification/inventaire.py`.
 | `m7.signaux` | N2 | signaux | Lecture des sources déclarées (Search Console, analytique, publicité) : curseur persisté, quota par source. **Aucun transport réel : en attente de transport.** |
 | `m7.veille` | N2 | veille | Pages publiques déclarées des concurrents (robots.txt, délai par hôte). **Aucun transport réel : en attente de transport.** |
 | `m7.studio.fonds` | N2 (local) | studio | Exécute les demandes de fond dont le modèle est **local**. Un modèle par API (payant, invite hors Québec) n'est **jamais** exécuté ici. **Aucun adaptateur livré : en attente de transport.** |
+| `m7.rapport-hebdo` | N2 | aucun | Rapport marketing de la dernière semaine ISO complète (§10) : lit les mesures de M8 (N0) et le dossier de M7, écrit UN rapport par semaine, ses tâches internes de niveau bas et les observations de mémoire pour M10. Aucune publication, dépense ni envoi. |
 | `sauvegarde.verification` | N0 | sauvegarde | Authentifie en entier la plus récente archive chiffrée, dit son âge. Ne crée ni ne supprime rien. |
 | `peremptions.balayage` | N0 | aucun | Constate les sources de connaissances périmées (dont les sources fiscales) et les échéances de rétention en retard ; ne corrige rien. |
 | `retention.courriel` | N3 humain | aucun | Voir §5. |
@@ -277,3 +278,24 @@ vrai moteur, wallboards de la vraie console, copilote, mémoire de M10, consolid
   grossissent sans purge.
 - La fenêtre de M5 (mois en cours) donne un écart avec les relevés très partiel en début de mois ; la couverture le dit.
 - Les constats ne s'activent jamais seuls : un admin doit les passer en `ombre` puis `actif` (90 jours), département par département.
+
+## 10. Rapport marketing hebdomadaire de M7 : `m7.rapport-hebdo`
+
+Exécuteur dédié (`src/opsys/connecteurs_planification/exec_m7_rapport.py`), sur le modèle des constats (§9) : inactif par défaut,
+ombre d'abord, N2, acteur système, niveau relu avant chaque appel, aucun envoi externe. Ce n'est **pas** un `constats_planifies`
+déclaratif : un constat appelle UN outil de SON département pour publier un résumé à M8, alors que le rapport COMPOSE deux
+départements (les mesures de M8, le dossier de M7).
+
+- **Lectures** : `m8_lire_mesures` et `m8_lire_mesures_contenus` (N0, liste fermée de `appeler_outil`, aucune identité d'appareil,
+  aucun droit élargi) ; le dossier de M7 par `m7_marketing.rapport_hebdo.sources`. Jamais un registre d'un autre département.
+- **Semaine** : la dernière semaine ISO complète avant la date locale du jour (fuseau de l'entreprise) ; l'intervalle par défaut est
+  d'un jour (maximum du planificateur) et tous les passages d'une même semaine visent la même semaine.
+- **Idempotence** : un rapport par semaine (registre `rapports_hebdomadaires`) ; un passage de plus ne relit pas M8, n'écrit rien,
+  ne recrée aucune tâche et n'annonce rien. Les observations de mémoire ont un identifiant déterministe (le bus absorbe un rejeu).
+- **Ombre** : constate la semaine visée et si son rapport existe ; n'appelle aucun outil, n'écrit rien, ne publie rien (prouvé).
+- **Panne de M8** : le tour est en erreur typée et **rien n'est écrit** ; le rapport de la semaine reste à faire au passage
+  suivant (prouvé). Une mesure « non calculable » chez M8 est une donnée, pas une panne.
+- **Atomicité** : rapport, tâches et annonces d'apprentissage sont écrits dans la même transaction (prouvé).
+- **Preuve** : `tests/test_m7_rapport_hebdo_planifie.py` (14 tests) ; scénario de bout en bout
+  `tests/test_m7_marque_rapport_bout_en_bout.py`. Limites : SQLite, horloge injectée, aucun service externe, jamais PostgreSQL ni
+  la boucle réelle pendant des jours. Détail : [M7-MARQUE-RAPPORT](M7-MARQUE-RAPPORT.md).

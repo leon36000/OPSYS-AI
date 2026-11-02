@@ -1,0 +1,112 @@
+# CONTRAT Brand Core v2 (M7-MARQUE) — EXTENSION ADDITIVE du contrat gelé v1 (`brand-contract.v1.yaml`, D-015 : « évolution =
+# nouveau fichier v2 »). Le v1 reste intact et lisible tel quel : un profil v1 (cinq champs) est un profil v2 dont aucun champ
+# étendu n'est déclaré. Un champ absent n'est JAMAIS inventé : il est dit manquant (« à fournir par le propriétaire ») et la
+# dimension de conformité qui en dépend est « non évaluable », jamais un score par défaut.
+#
+# Tous les champs étendus sont DÉCLARÉS par le propriétaire (outil m7_configurer_profil_marque, réservé au propriétaire actif).
+# Deux familles :
+#   - `positif` : ce que la marque DIT d'elle-même (promesse, avantages, preuve sociale, valeurs, zones, objections et
+#     réponses, mentions à ajouter). Un énoncé positif n'est repris dans un guide ou ajouté à un texte que si le propriétaire l'a
+#     VALIDÉ (`validation_champs.<champ>.statut = valide`, signé par lui) ; sinon il est « à valider par Nathan » et un texte qui
+#     le cite mot pour mot est refusé (promesse non validée).
+#   - `interdit` / `regle` : ce qui RESTREINT les textes (mots et messages interdits, voix, style par plateforme, garanties
+#     à valider, mentions requises). Une restriction s'applique dès qu'elle est déclarée : la prudence n'attend pas de validation.
+#
+# `kind` : texte (ligne unique), liste_textes, objections, voix, style_plateforme, validation.
+schema_version: 2
+etend: brand-contract.v1.yaml
+champs:
+  promesse:
+    famille: positif
+    kind: texte
+    max_len: 300
+    description: La promesse de marque, en une phrase que le propriétaire assume.
+  avantages:
+    famille: positif
+    kind: liste_textes
+    max_items: 12
+    max_len: 200
+    description: Les avantages que l'entreprise accepte de citer.
+  zones_desservies:
+    famille: positif
+    kind: liste_textes
+    max_items: 40
+    max_len: 80
+    description: Villes ou régions desservies.
+  valeurs:
+    famille: positif
+    kind: liste_textes
+    max_items: 12
+    max_len: 120
+    description: Les valeurs de l'entreprise.
+  objections_frequentes:
+    famille: positif
+    kind: objections
+    max_items: 12
+    max_len_objection: 200
+    max_len_reponse: 400
+    description: Objections fréquentes des clients et la réponse que le propriétaire accepte de donner.
+  preuve_sociale:
+    famille: positif
+    kind: liste_textes
+    max_items: 12
+    max_len: 200
+    description: Énoncés de preuve sociale déclarés (jamais un nombre d'avis ou de clients inventé).
+  mentions_requises:
+    famille: positif
+    kind: liste_textes
+    max_items: 10
+    max_len: 200
+    description: Mentions que tout contenu public doit porter (ex. licence). Ajoutées par les gabarits une fois validées.
+  garanties_a_valider:
+    famille: interdit
+    kind: liste_textes
+    max_items: 32
+    max_len: 500
+    description: Garanties déclarées mais pas encore validées. Un texte ne peut les citer. Une fois validée, la garantie passe dans garanties_validees.
+  mots_interdits:
+    famille: interdit
+    kind: liste_textes
+    max_items: 100
+    max_len: 60
+    min_len: 2
+    description: Mots ou expressions que la marque ne dit jamais.
+  messages_interdits:
+    famille: interdit
+    kind: liste_textes
+    max_items: 50
+    max_len: 200
+    min_len: 4
+    description: Messages ou formules que la marque ne dit jamais.
+  voix:
+    famille: regle
+    kind: voix
+    description: "Voix déclarée : adresse (vous|tu), exclamations_max, majuscules_max_pct, emojis_max."
+  style_plateforme:
+    famille: regle
+    kind: style_plateforme
+    description: "Par plateforme : longueur_min, longueur_max, hashtags_max, emojis_max."
+  validation_champs:
+    famille: validation
+    kind: validation
+    description: "Validation par le propriétaire : {champ: {statut: valide|a_valider, par, le}}. Absent = à valider."
+# Champs étendus déjà acceptés par le registre (v1+) : garanties_validees, hashtags, mentions, heures_publication, site_url.
+champs_valides_par_proprietaire:
+  - promesse
+  - avantages
+  - zones_desservies
+  - valeurs
+  - objections_frequentes
+  - preuve_sociale
+  - mentions_requises
+plateformes: [facebook, instagram, fiche_google, video_courte, demande_temoignage]
+voix:
+  adresses: [vous, tu]
+  exclamations_max: {min: 0, max: 20}
+  majuscules_max_pct: {min: 0, max: 100}
+  emojis_max: {min: 0, max: 50}
+style:
+  longueur_min: {min: 0, max: 5000}
+  longueur_max: {min: 1, max: 5000}
+  hashtags_max: {min: 0, max: 30}
+  emojis_max: {min: 0, max: 50}

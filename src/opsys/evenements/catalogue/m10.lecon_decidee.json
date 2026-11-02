@@ -16,7 +16,8 @@
         "ecart_materiau",
         "ecart_marge",
         "refus_recurrent",
-        "rejets_soi"
+        "rejets_soi",
+        "apprentissage_marketing"
       ]
     },
     "cible": {

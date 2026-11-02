@@ -34,7 +34,7 @@ from opsys.mnemo.graphe import DemandeArete, GrapheSql, NoeudRef, alimentation, 
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage.schema import CONNAISSANCES_VERSIONS
 
-from . import classification, etapes
+from . import apprentissage_marketing, classification, etapes
 
 AGENT = "agent:m10-memoire"
 PRODUCTEUR = "m10-memoire"
@@ -574,6 +574,7 @@ def extraire_lecons() -> dict[str, Any]:
         rejets=soi.rejets_par_dimension(registres.soi()),
         par=AGENT,
         horodatage=_instant(),
+        marketing=apprentissage_marketing.groupes_pour_lecons(registres.faits_marketing().lire()),
     )
     bilan["mention"] = (
         "Des leçons PROPOSÉES, pas évaluées ni décidées : m10_evaluer_lecon, la garde du gabarit "

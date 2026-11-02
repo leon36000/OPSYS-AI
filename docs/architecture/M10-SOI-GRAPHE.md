@@ -196,9 +196,12 @@ le seul moteur. Aucune des conditions n'est vérifiée aujourd'hui.
     événements et registres de M10 ─(code déterministe)─► leçon PROPOSÉE ─► ÉVALUATION hors ligne (mesure + garde du gabarit)
         ─► décision HUMAINE (N3) : canari (1 à 50 %) ─► promotion complète │ retour arrière │ refus ─► lecture par le département visé
 
-Quatre genres, tirés de ce que M10 a déjà mémorisé, **jamais d'un modèle** : `ecart_materiau` (quantité réelle contre prévue, M6),
+Cinq genres, tirés de ce que M10 a déjà mémorisé, **jamais d'un modèle** : `ecart_materiau` (quantité réelle contre prévue, M6),
 `ecart_marge` (marge réelle contre prévue, M5), `refus_recurrent` (un outil refusé avec le même code dans ≥ 3 affaires distinctes),
-`rejets_soi` (≥ 3 propositions de la même dimension rejetées par la direction : une correction humaine). Les « résultats de
+`rejets_soi` (≥ 3 propositions de la même dimension rejetées par la direction : une correction humaine),
+`apprentissage_marketing` (M7-MEMOIRE : un contenu gagnant ou faible, un signal d'objection ou des avis défavorables qui reviennent sur ≥ 3
+**semaines distinctes**, d'après les observations minimales `m7.apprentissage_marketing_constate` rangées au registre `faits_marketing` ;
+cible `m07-marketing`, texte-gabarit sans chiffre, aucune mesure chiffrée hors ligne : dit ; voir [M7-MARQUE-RAPPORT](M7-MARQUE-RAPPORT.md) §4). Les « résultats de
 décisions » sont couverts par les refus récurrents ; l'annulation d'une décision validée n'est pas encore une source de leçon.
 
 ### 5.2 Le texte d'une leçon ne porte aucun chiffre

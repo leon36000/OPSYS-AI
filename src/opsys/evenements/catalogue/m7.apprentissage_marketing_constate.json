@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.apprentissage_marketing_constate",
+  "title": "M7 — Apprentissage marketing constaté",
+  "description": "Émis par M7 (departments/m07-marketing/src/m7_marketing/rapport_hebdo/service.py, rapport marketing hebdomadaire, M7-MEMOIRE) dans la MÊME transaction que l'écriture du rapport de la semaine : une observation MINIMALE et AGRÉGÉE que la mémoire de M10 range pour en tirer des leçons gouvernées (contenu gagnant ou faible, signal d'objection tiré des catégories d'avis, avis de la semaine). AUCUN renseignement personnel et aucun texte : ni texte de contenu, ni texte d'avis, ni nom, ni contact, ni ville, ni lead_id, ni wct_id ; seulement la semaine (lundi), le genre, le canal (liste fermée), la clé de mesure d'un contenu (`utm_content` : empreinte non réversible, déjà publique dans les liens de suivi) ou la catégorie d'avis, des comptes entiers et l'empreinte du rapport source. evenement_id déterministe (`m7-appr-` + SHA-256 de semaine|genre|canal|clé, 40 hexadécimaux) : republier la même observation rejoue la première enveloppe, jamais une seconde. Le consommateur est M10 (registre faits_marketing).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "observation_id": {"type": "string", "pattern": "^m7-appr-[0-9a-f]{40}$", "description": "Identifiant déterministe de l'observation : la clé de l'idempotence côté consommateur."},
+    "semaine": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "Le lundi de la semaine du rapport source (AAAA-MM-JJ)."},
+    "genre_observation": {"enum": ["contenu_gagnant", "contenu_faible", "objection_frequente", "avis_constate"], "description": "contenu_gagnant : au moins un lead attribué à un contenu mesurable ; contenu_faible : aucun lead longtemps après l'export ; objection_frequente : signal tiré des catégories d'avis (litige, urgence), jamais un texte de client ; avis_constate : avis de la semaine, comptes par tonalité."},
+    "canal": {"enum": ["facebook", "instagram", "fiche_google", "video_courte", "demande_temoignage", "avis_clients"], "description": "La plateforme du contenu, ou `avis_clients` pour une observation d'avis."},
+    "cle_mesure": {"type": ["string", "null"], "pattern": "^[a-z0-9_-]{1,80}$", "description": "L'`utm_content` du contenu (contenu_gagnant, contenu_faible), la catégorie d'avis (objection_frequente : litige ou urgence), `semaine` (avis_constate). Jamais un nom ni un texte."},
+    "resultat": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Comptes agrégés ; `null` quand le compte ne s'applique pas ou n'est pas connu (jamais un zéro inventé).",
+      "properties": {
+        "leads": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "devis_envoyes": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "devis_acceptes": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "occurrences": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "avis_positifs": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "avis_negatifs": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000}
+      },
+      "required": ["leads", "devis_envoyes", "devis_acceptes", "occurrences", "avis_positifs", "avis_negatifs"]
+    },
+    "rapport_empreinte": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Empreinte SHA-256 du rapport hebdomadaire d'où vient l'observation (traçabilité)."}
+  },
+  "required": ["observation_id", "semaine", "genre_observation", "canal", "cle_mesure", "resultat", "rapport_empreinte"]
+}

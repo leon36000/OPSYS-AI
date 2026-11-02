@@ -59,6 +59,7 @@ from opsys.stockage.schema import REGISTRES
 from . import (
     amont,
     analytique,
+    apprentissage_marketing,
     audit,
     catalogue_references,
     classification,
@@ -103,6 +104,13 @@ _REGISTRE_FAITS_STRATEGIQUES = registre.Registre(maillons=stockage.maillons("m10
 # hors de
 # tout paquet de contexte.
 _REGISTRE_DOSSIERS_CPA = registre.Registre(maillons=stockage.maillons("m10-memoire", "dossiers_cpa_scelles"))
+
+# M7-MEMOIRE : les observations d'apprentissage marketing annoncées par M7 (rapport hebdomadaire). Registre à part,
+# INTERNAL
+# (des comptes d'entreprise, jamais une donnée de client), hors de tout paquet de contexte ; les leçons qu'on en tire
+# sont
+# dans le registre des leçons (`opsys.mnemo.lecons`), gouvernées comme les autres.
+_REGISTRE_FAITS_MARKETING = registre.Registre(maillons=stockage.maillons("m10-memoire", "faits_marketing"))
 
 _DECISION = {
     "type": "object",
@@ -447,6 +455,30 @@ def _recevoir_dossier_cpa_scelle(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+class FaitMarketingRefuse(ValueError):
+    """Une observation de M7 est refusée par `apprentissage_marketing.memoriser` : champ absent ou hors de sa forme
+    fermée, ou
+    même observation avec un autre contenu. Le message nomme le CHAMP, jamais sa valeur ; le répartiteur réessaie puis
+    met en
+    quarantaine, visible."""
+
+
+def _recevoir_apprentissage_marketing(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m7.apprentissage_marketing_constate` (M7-MEMOIRE) : mémorise l'observation une fois par
+    `observation_id`.
+    Rien de personnel n'arrive ni n'est gardé ; ce n'est pas une leçon (voir `m10_extraire_lecons`)."""
+    resultat, verdict = apprentissage_marketing.memoriser(dict(charge), _REGISTRE_FAITS_MARKETING)
+    if resultat is None:
+        raise FaitMarketingRefuse(
+            f"{apprentissage_marketing.TYPE_EVENEMENT} : observation refusée par M10 : {verdict['code']} "
+            f"({verdict['detail']})")
+    maillon = resultat["maillon"]
+    return {
+        "memorise": True, "observation_id": maillon["observation_id"], "ligne_id": maillon["ligne_id"],
+        "producteur": apprentissage_marketing.PRODUCTEUR, "deja_memorise": resultat["deja_memorise"],
+    }
+
+
 class StrategiqueRefuse(ValueError):
     """Un fait stratégique de M9 est refusé par `strategique.memoriser` : champ absent ou hors de sa forme fermée. Le
     message nomme le CHAMP, jamais sa valeur ; le répartiteur réessaie puis met en quarantaine."""
@@ -519,6 +551,7 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         analytique.TYPE_EVENEMENT: _recevoir_faits_consolides,
         strategique.TYPE_EVENEMENT: _recevoir_faits_strategiques,
         dossiers_cpa.TYPE_EVENEMENT: _recevoir_dossier_cpa_scelle,
+        apprentissage_marketing.TYPE_EVENEMENT: _recevoir_apprentissage_marketing,
     }
 
 

@@ -138,6 +138,12 @@ TOURS: tuple[Tour, ...] = (
          "port_sans_transport_reel", "brancher_maintenant",
          "Modèle LOCAL seulement (gratuit, interne). Aucun adaptateur de génération n'est livré : « en attente de "
          "transport ».", "m7.studio.fonds"),
+    Tour("m7.rapport_hebdomadaire", "M7 : rapport marketing hebdomadaire (boucle B)",
+         "src/opsys/connecteurs_planification/exec_m7_rapport.py", "traiter", "N2",
+         "un rapport par semaine (lundi) : le redire ne relit pas M8, ne réécrit rien, ne recrée aucune tâche et "
+         "n'annonce rien de plus ; id d'observation déterministe", "aucun", "brancher_maintenant",
+         "Lit les mesures de M8 (N0) et le dossier de M7, écrit un rapport interne, des tâches de niveau bas et des "
+         "observations pour M10 : aucune publication, dépense ni envoi.", "m7.rapport-hebdo"),
     Tour("sauvegarde.verifier", "Vérification des sauvegardes chiffrées", "src/opsys/sauvegarde_chiffree.py",
     "verifier",
          "N0", "lecture seule", "local", "brancher_maintenant",

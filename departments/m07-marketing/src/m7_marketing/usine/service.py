@@ -36,10 +36,11 @@ from opsys.stockage.maillons import EcritureConcurrente
 from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 from opsys.stockage.schema import REGISTRES
 
+from ..brand import profil_v2
 from ..brand import registre as brand_registre
 from . import calendrier, chantier, mesure, paquet, plateformes, registre, retrait, verdicts
 from . import decision as regle_decision
-from .controle_texte import LIBELLES_REGLES, controler_texte
+from .controle_texte import LIBELLES_REGLES
 
 DEPARTEMENT = "m07-marketing"
 # Le seul rôle qu'`m7_decider_contenu` reconnaît à un approbateur de la file (plus strict que la politique du
@@ -996,6 +997,20 @@ def proposer_contenus_chantier(wct_id: str, textes: dict[str, str] | None = None
     return proposer_pour_charge(charge, textes_valides, origine)
 
 
+def _regles_marque(profil: dict[str, Any]) -> dict[str, Any]:
+    """Les règles du profil v2 que la rédaction doit respecter AVANT de proposer un texte (la porte qualité les
+    appliquera de toute façon). Seulement ce que le propriétaire a déclaré ; un énoncé positif non validé n'y est
+    pas."""
+    regles: dict[str, Any] = {}
+    for cle in ("mots_interdits", "messages_interdits", "voix", "style_plateforme", "garanties_a_valider"):
+        if profil.get(cle):
+            regles[cle] = profil[cle]
+    if profil.get("mentions_requises"):
+        regles["mentions_requises"] = profil["mentions_requises"]
+        regles["mentions_validees"] = profil_v2.est_valide(profil, "mentions_requises")
+    return regles
+
+
 def lire_matiere_chantier(wct_id: str) -> dict[str, Any]:
     """Outil `m7_lire_matiere_chantier` (T0) : ce dont le modèle a besoin pour rédiger, et ce qui le refusera.
     Les mêmes refus que `proposer_contenus_chantier` (inutile de rédiger pour un chantier refusé). La note du
@@ -1028,6 +1043,7 @@ def lire_matiere_chantier(wct_id: str) -> dict[str, Any]:
             "photos": len([p for p in (charge.get("photos") or []) if isinstance(p, str)]),
             "mots_clics": list(chantier.mots_clics(nature, matiere.ville, profil)),
             "garanties_validees": [g for g in (profil.get("garanties_validees") or []) if isinstance(g, str)],
+            "regles_marque": _regles_marque(profil),
         },
         "plateformes": [
             {"code": p.code, "libelle": p.libelle, "public": p.public, "longueur_max": p.longueur_max, "media": p.media}
@@ -1166,11 +1182,6 @@ def _refus_revision_remplacee(proposition: Mapping[str, Any]) -> dict[str, Any] 
     ))
 
 
-def _contexte_du_contenu(proposition: dict[str, Any], profil: dict[str, Any]) -> Any:
-    charge = wct_recu(proposition["wct_id"]) or {"wct_id": proposition["wct_id"]}
-    return chantier.contexte_controle(charge, profil, plateformes.plateforme(proposition["plateforme"]).longueur_max)
-
-
 def _refus_texte(proposition: dict[str, Any]) -> dict[str, Any] | None:
     """Le texte enregistré passe-t-il encore le contrôle ? (défense en profondeur : à l'approbation comme à
     l'export, jamais seulement à la proposition.) `None` s'il passe ; sinon le refus, qui nomme les règles."""
@@ -1178,10 +1189,13 @@ def _refus_texte(proposition: dict[str, Any]) -> dict[str, Any] | None:
     profil, motif = snapshot_marque.get("profil"), snapshot_marque.get("motif")
     if profil is None:
         return _refus(verdicts.verdict(verdicts.REJ_PROFIL_MARQUE, str(motif)))
-    violations = controler_texte(proposition["texte"], _contexte_du_contenu(proposition, profil))
-    if not violations:
+    charge = wct_recu(proposition["wct_id"]) or {"wct_id": proposition["wct_id"]}
+    evaluation = chantier.evaluer_texte(
+        proposition["texte"], charge, profil, plateformes.plateforme(proposition["plateforme"]),
+    )
+    if not evaluation.refuse:
         return _refus_marque(proposition, snapshot_marque)
-    return _refus(chantier.verdict_texte_non_conforme([v.regle for v in violations]))
+    return _refus(chantier.verdict_texte_non_conforme([v.regle for v in evaluation.violations]))
 
 
 def decider_contenu(contenu_id: str, decision: str, horodatage: str, motif: str = "") -> dict[str, Any]:

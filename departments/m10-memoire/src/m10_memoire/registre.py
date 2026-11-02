@@ -34,6 +34,7 @@ _TYPE_ENTREE_VALIDES = {
     "lecon_proposee", "lecon_evaluation", "lecon_decision",
     "fait_strategique",  # Athéna : strategique.py, décision, résultat mesuré ou leçon publiés par M9 (registre dédié)
     "dossier_cpa_scelle",  # interconnexion M5 -> M10 : dossiers_cpa.py, mémoire des périodes scellées (registre dédié)
+    "fait_marketing",  # M7-MEMOIRE : apprentissage_marketing.py, observations minimales de M7 (registre dédié)
 }
 
 
