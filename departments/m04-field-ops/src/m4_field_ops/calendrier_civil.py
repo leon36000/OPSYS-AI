@@ -104,13 +104,16 @@ def _projection(index):
                 m["type_entree"] == "assignation_technicien" or
                 (m["type_entree"] == "transition_statut" and m["statut"] in {"reportee", "annulee"})
             ) for m in maillons[rang + 1:])
-            lignes.append({"intervention_id": iid, "lead_id": info["lead_id"], "plan_id": plan,
-                           "equipe_id": route["equipe"], "technicien_actuel": info["technicien_assigne"],
-                           "debut": debut, "fin": fin, "statut": info["statut"],
-                           "validite": "a_reconfirmer" if invalide else "date_confirmee",
-                           "revision": source["revision"], "source_ligne_id": source["ligne_id"],
-                           "source_application_id": source["source_application_id"],
-                           "confirme_le": source["horodatage"]})
+            ligne = {"intervention_id": iid, "lead_id": info["lead_id"], "plan_id": plan,
+                     "equipe_id": route["equipe"], "technicien_actuel": info["technicien_assigne"],
+                     "debut": debut, "fin": fin, "statut": info["statut"],
+                     "validite": "a_reconfirmer" if invalide else "date_confirmee",
+                     "revision": source["revision"], "source_ligne_id": source["ligne_id"],
+                     "source_application_id": source["source_application_id"],
+                     "confirme_le": source["horodatage"]}
+            if "visite" in visite:  # chantier de plusieurs journées (P4-02) : une ligne par visite, rang et total dits
+                ligne["visite"], ligne["visites_total"] = visite["visite"], visite["visites_total"]
+            lignes.append(ligne)
     return sorted(lignes, key=lambda ligne: (ligne["debut"], ligne["equipe_id"], ligne["intervention_id"])), sans_date
 
 
@@ -201,9 +204,12 @@ def lire_plan(reg, plan_id):
             raisons.append("equipe_reassignee")
         bloquants.update(raisons)
         if len(visites) < 200:
-            visites.append({"intervention_id": iid, "equipe_id": route["equipe"], "jour": jour,
-                            "debut_min": visite["debut_min"], "fin_min": visite["fin_min"],
-                            "statut": info["statut"] if info else None, "bloquants": raisons})
+            ligne = {"intervention_id": iid, "equipe_id": route["equipe"], "jour": jour,
+                     "debut_min": visite["debut_min"], "fin_min": visite["fin_min"],
+                     "statut": info["statut"] if info else None, "bloquants": raisons}
+            if "visite" in visite:  # chantier de plusieurs journées (P4-02) : rang et total de la visite
+                ligne["visite"], ligne["visites_total"] = visite["visite"], visite["visites_total"]
+            visites.append(ligne)
     jours_affiches = sorted(jours)[:31]
     return {"plan_id": plan_id, "fuseau": FUSEAU, "revision": source["revision"] if source else 0,
             "calendrier": {str(j): source["calendrier"][str(j)] for j in jours_affiches

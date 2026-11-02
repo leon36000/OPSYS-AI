@@ -401,7 +401,7 @@ def _refuser_le_doublon_du_bus(registre_cible, lead_id, devis_id):
     )
 
 
-def inscrire_depuis_devis(registre_cible, devis_id, lead, sel, horodatage_arg):
+def inscrire_depuis_devis(registre_cible, devis_id, lead, sel, horodatage_arg, duree_m3=None):
     """
     Inscrit l'intervention qui naît d'un devis accepté, au statut ``a_planifier`` (PLAN T4.10-b, M4.5).
 
@@ -417,6 +417,9 @@ def inscrire_depuis_devis(registre_cible, devis_id, lead, sel, horodatage_arg):
             irrattrapable). Fourni par l'adaptateur, qui le tient du coffre du socle : une inscription née du bus
             n'a pas d'appelant qui le donne.
         horodatage_arg: heure de l'acceptation du devis (RFC 3339 avec fuseau), jamais une horloge de M4.
+        duree_m3: ce que le devis accepté dit de la durée sur site (``duree_chantier.retenir_estimation``), RETENU ici
+            une fois pour toutes et jamais recalculé (P4-01) ; ``None`` pour les appelants qui n'en ont pas (le
+            maillon garde alors ses octets d'avant).
 
     Refus, sans rien écrire (fail-closed) : frontière violée, lead qui n'est pas un v2 valide, ``devis_id`` ou
     ``sel`` absent, horodatage invalide, intervention déjà inscrite pour ce devis (REJ-TRANSITION-ILLEGALE).
@@ -474,6 +477,8 @@ def inscrire_depuis_devis(registre_cible, devis_id, lead, sel, horodatage_arg):
         "statut": "a_planifier",
         "horodatage": horodatage_arg,
     }
+    if duree_m3 is not None:
+        maillon["duree_m3"] = copy.deepcopy(duree_m3)
     ligne_id = registre_cible.ajouter(maillon)
     maillon_relu = None
     for m in registre_cible.lire():

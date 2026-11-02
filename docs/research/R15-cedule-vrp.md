@@ -125,7 +125,7 @@ Pourquoi pas OR-Tools, retenu par l'audit M4 : mêmes résultats ici, mais 30 Mo
 
 **Donnée manquante (fail-closed).** Sans coordonnées confirmées : `non_cedulees` avec « coordonnées manquantes : à confirmer » (jamais le centre de la ville). Sans durée pour le type de travaux, sans compétence connue, sans dépôt ou sans paramètres de distance : verdict qui dit quoi fournir. Les raisons de non-cédule sont calculées par notre code après la résolution (coordonnées, durée, compétence, fenêtre inatteignable depuis le dépôt, journées pleines), pas par le solveur. Un plan qui échoue au validateur est refusé.
 
-**Hors périmètre T4.1** : chantiers de plusieurs jours (visites), météo, capacités de véhicule et de matériel, ETA client.
+**Hors périmètre T4.1** (les chantiers de plusieurs jours sont traités depuis P4-02 : README de M4) : météo, capacités de véhicule et de matériel, ETA client.
 
 ### Découpage
 

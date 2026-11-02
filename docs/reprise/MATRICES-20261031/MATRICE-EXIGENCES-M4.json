@@ -172,11 +172,21 @@
      ],
      "docs": [],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "tests/test_m4_duree_multijours_bout_en_bout.py",
+      "departments/m04-field-ops/tests/test_duree_chantier_multijours.py"
+     ],
+     "docs": [
+      "departments/m04-field-ops/README.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "FAIT_PROUVE",
-   "limite": "SQLite + bus réel (S) ; idempotence et ordre inversé couverts ; ni natif, ni PostgreSQL rejoué ici."
+   "limite": "SQLite + bus réel (S) ; idempotence et ordre inversé couverts. P4-01 (vague 12) : la durée sur site de l'estimation M3 (correction apprise comprise, M3 en mode supervisé) est retenue à l'inscription et sa provenance dite ; repli explicite et « durée à déclarer » prouvés ; aucune donnée réelle ; ni natif, ni PostgreSQL rejoué ici."
   },
   {
    "id": "M4.6",
@@ -227,11 +237,22 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "tests/test_m4_duree_multijours_bout_en_bout.py",
+      "departments/m04-field-ops/tests/test_tournees_multijours.py",
+      "departments/m04-field-ops/tests/test_duree_chantier_multijours.py"
+     ],
+     "docs": [
+      "departments/m04-field-ops/README.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Cédule déterministe, aperçu mois/semaine, regroupement par tournées ; fenêtres client et contraintes véhicules non démontrées."
+   "limite": "Cédule déterministe, aperçu mois/semaine, regroupement par tournées ; fenêtres client et contraintes véhicules non démontrées. P4-02 (vague 12) : chantiers de PLUSIEURS JOURS (visites d'une même équipe sur des jours distincts, absence d'équipe respectée) au repli exact seulement (jusqu'à 12 visites, optimalité prouvée contre une énumération exhaustive) ; PyVRP ne les résout pas et n'est pas installé ici ; « même équipe » est une règle dure ; aucune date promise au client."
   },
   {
    "id": "M4.8",
@@ -519,11 +540,21 @@
      ],
      "docs": [],
      "niveau": "S+H"
+    },
+    {
+     "tests": [
+      "tests/test_m4_duree_multijours_bout_en_bout.py",
+      "departments/m04-field-ops/tests/test_terminer_avec_reserves.py"
+     ],
+     "docs": [
+      "departments/m04-field-ops/README.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "WCT, déclaration M6 et consommateurs prouvés en S/H ; le coût complet M5 n'est pas routé en production, la facture brouillon M5 automatique n'est pas prouvée comme conséquence du WCT.",
+   "limite": "WCT, déclaration M6 et consommateurs prouvés en S/H ; le coût complet M5 n'est pas routé en production, la facture brouillon M5 automatique n'est pas prouvée comme conséquence du WCT. P4-07 (vague 12) : une preuve incomplète passe en attente de revue avec ses réserves, rien n'est publié (ni facture) avant la revue humaine N4 qui publie le WCT gardé ; M5 ne reçoit pas le motif « coût provisoire ».",
    "verification": "service_recalcul_m4.py:386 et service_lecture_m4.py:499 lèvent *_NON_QUALIFIE"
   },
   {
@@ -575,11 +606,20 @@
       "docs/grs/field/M4-AUDIT-PERSISTANCE-PREUVES-COMPLETION.md"
      ],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_terminer_avec_reserves.py"
+     ],
+     "docs": [
+      "departments/m04-field-ops/README.md"
+     ],
+     "niveau": "T"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Preuves de complétion durables côté serveur ; signature client côté serveur non confirmée ; client mobile Jest seulement."
+   "limite": "Preuves de complétion durables côté serveur ; signature client côté serveur non confirmée ; client mobile Jest seulement. P4-07 (vague 12) : réserves nommées (codes fermés par catégorie) pour une preuve incomplète, preuve fausse toujours refusée ; l'écran mobile n'a pas de case « réserves »."
   },
   {
    "id": "M4.20",

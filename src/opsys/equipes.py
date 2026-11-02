@@ -19,9 +19,17 @@ avoir besoin) ::
         service_a: {duree_min: 90, competences: [service_a]}
       cedule:                         # réglages de la cédule par tournées, tous obligatoires (graine facultative)
         {facteur_detour_milliemes: 1300, vitesse_moyenne_kmh: 50, marge_par_trajet_secondes: 600,
-         iterations: 500, cout_non_cedule_m: 500000}
+         iterations: 500, cout_non_cedule_m: 500000,
+         multijours: {visite_max_minutes: 480, jours_consecutifs: false}}   # multijours : facultatif, voir plus bas
       fenetre_par_defaut:             # fenêtre offerte à un chantier dont le client n'en a donné aucune
         {jours: [0], debut_min: 480, fin_min: 1020}
+
+Chantiers de PLUSIEURS JOURS (P4-02), ``cedule.multijours`` facultatif : ``visite_max_minutes`` (durée maximale d'une
+visite, une journée de travail de l'équipe : un chantier plus long se découpe en visites presque égales) et
+``jours_consecutifs`` (les visites tombent-elles sur des jours d'activité consécutifs ?). Les deux sont obligatoires dès
+que le bloc existe ; sans le bloc, M4 ne cédule pas un chantier plus long qu'un quart et dit quoi déclarer. Un
+chantier découpé reste confié à UNE équipe (l'assignation et la date civile sont par intervention). Ce ne sont pas des
+valeurs d'OPSYS : c'est une décision de l'entreprise.
 
 Capacité des semaines futures (DECISIONS-ARCHITECTE-r1 §3, effectif planifié : r3), cinq ajouts FACULTATIFS : un profil
 qui ne les porte pas reste valide et se lit, s'écrit et s'empreinte exactement comme avant ::
@@ -119,7 +127,9 @@ CLES_SERVICE = ("duree_min", "competences")
 CLES_CEDULE_REQUISES = (
     "facteur_detour_milliemes", "vitesse_moyenne_kmh", "marge_par_trajet_secondes", "iterations", "cout_non_cedule_m",
 )
-CLES_CEDULE_OPTIONNELLES = ("graine",)
+CLE_MULTIJOURS = "multijours"
+CLES_MULTIJOURS = ("visite_max_minutes", "jours_consecutifs")
+CLES_CEDULE_OPTIONNELLES = ("graine", CLE_MULTIJOURS)
 CLES_FENETRE = ("jours", "debut_min", "fin_min")
 
 VERDICT_EQUIPES_NON_CONFIGUREES = "REJ-EQUIPES-NON-CONFIGUREES"
@@ -390,7 +400,23 @@ def _normaliser_cedule(brut: Any) -> dict[str, int]:
     }
     if "graine" in objet:
         reglages["graine"] = _entier(objet["graine"], f"{chemin}.graine", 0, GRAINE_MAX)
+    if CLE_MULTIJOURS in objet:
+        reglages[CLE_MULTIJOURS] = _normaliser_multijours(objet[CLE_MULTIJOURS], f"{chemin}.{CLE_MULTIJOURS}")
     return reglages
+
+
+def _normaliser_multijours(brut: Any, chemin: str) -> dict[str, Any]:
+    """Règles des chantiers de PLUSIEURS JOURS (P4-02), facultatives : sans elles, un chantier plus long qu'une
+    journée n'est pas cédulé et M4 le dit. Les deux clés sont obligatoires dès que le bloc existe : aucune valeur par
+    défaut n'est jamais supposée (c'est une décision de l'entreprise)."""
+    objet = _objet(brut, chemin, CLES_MULTIJOURS)
+    consecutifs = objet["jours_consecutifs"]
+    if not isinstance(consecutifs, bool):
+        raise ProfilInvalide(f"{chemin}.jours_consecutifs : un booléen est attendu (reçu {consecutifs!r})")
+    return {
+        "visite_max_minutes": _entier(objet["visite_max_minutes"], f"{chemin}.visite_max_minutes", 1, MINUTES_PAR_JOUR),
+        "jours_consecutifs": consecutifs,
+    }
 
 
 def _normaliser_fenetre(brut: Any) -> dict[str, Any]:

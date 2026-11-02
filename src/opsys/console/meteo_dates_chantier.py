@@ -39,7 +39,7 @@ def preparer(cnx, deps, session, plan_id):
             for v in vue['visites']:
                 ancre = dict(intervention_id=v['intervention_id'], plan_id=plan_id,
                     source_application_id=vue['source_application_id'], source_ligne_id=vue['source_ligne_id'])
-                preuve = annotations_calendrier._creneau(sources, ancre)
+                preuve = annotations_calendrier._creneau(sources, ancre, v.get('visite'))
                 if (any(preuve[k] != v[k] for k in ('equipe_id', 'jour', 'debut_min', 'fin_min'))
                         or preuve['revision_calendrier'] != vue['revision']
                         or preuve['source_proposition_id'] != vue['source_proposition_id']

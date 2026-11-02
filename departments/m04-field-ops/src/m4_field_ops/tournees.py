@@ -38,6 +38,17 @@ jamais une valeur par défaut. Un chantier sans coordonnées confirmées (absent
 solveur : il sort en ``non_cedulees`` avec « coordonnées manquantes : à confirmer ». Les raisons de
 non-cédule sont calculées ICI, après la résolution (``_diagnostiquer``), jamais reprises du solveur.
 
+Chantiers de PLUSIEURS VISITES (P4-02). Un chantier peut porter ``visites`` (liste de durées en minutes, déjà
+découpées par l'appelant) et ``continuite`` (``{"equipe": "unique", "jours_consecutifs": bool}``, aucune valeur par
+défaut). Chaque visite est une journée de travail : le chantier est cédulé en entier ou pas du tout, toutes ses
+visites sont confiées à LA MÊME équipe (l'assignation et la date civile d'une intervention sont par intervention : une
+équipe par chantier), sur des jours DISTINCTS et strictement croissants dans l'ordre des visites (consécutifs, au sens
+des jours où au moins une équipe a un quart, si ``jours_consecutifs``). Chaque visite respecte la fenêtre du client
+(jours permis, plage de la journée), le quart de l'équipe et les trajets, comme un chantier d'une journée. Seul le repli
+EXACT (programmation dynamique, au plus ``MAX_CHANTIERS_DP`` visites au total) les résout : PyVRP n'a pas ce modèle ici,
+et l'exiger (``moteur="pyvrp"``) est un refus nommé. Le coût de non-cédule d'un tel chantier est celui d'UN chantier
+(``cout_non_cedule_m`` x (1 + urgence)). Un chantier sans ``visites`` se comporte exactement comme avant (mêmes octets).
+
 Déterminisme : entrées triées par identifiant, entiers, aucune horloge, aucun ``random``, aucun flottant
 (gardes par analyse du code dans ``tests/test_tournees.py``). Même entrée, mêmes octets, quel que soit
 ``PYTHONHASHSEED``. Les coordonnées et les adresses ne figurent jamais dans un verdict ni dans un plan :
@@ -61,6 +72,9 @@ VERSION_PYVRP = "0.14.0"  # épinglée : l'API de PyVRP bouge d'une version à l
 SOLVEUR_DP = "dp-exact"
 VERSION_DP = "dp-exact-v1"
 MAX_CHANTIERS_DP = 12
+MIN_VISITES = 2
+MAX_VISITES = 10  # visites d'un même chantier (journées)
+MAX_COMBINAISONS_MULTIJOURS = 20_000  # placements de chantiers multi-visites explorés par le repli exact
 MOTEURS = ("auto", "pyvrp", "dp")
 
 MINUTES_PAR_JOUR = 1440
@@ -77,8 +91,10 @@ CODE_TAILLE_DP = "REJ-TOURNEES-DP-TROP-GRAND"
 CODE_CRENEAU_FIGE = "REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE"
 CODE_SOLVEUR_ECHEC = "REJ-TOURNEES-SOLVEUR-ECHEC"
 CODE_PLAN_INVALIDE = "REJ-TOURNEES-PLAN-INVALIDE"
+CODE_MULTIJOURS_MOTEUR = "REJ-TOURNEES-MULTIJOURS-MOTEUR"
 CODES_TOURNEES = (
     CODE_SOLVEUR_ABSENT, CODE_TAILLE_DP, CODE_CRENEAU_FIGE, CODE_SOLVEUR_ECHEC, CODE_PLAN_INVALIDE,
+    CODE_MULTIJOURS_MOTEUR,
 )
 
 # Raisons de non-cédule (calculées par ce module).
@@ -89,9 +105,10 @@ RAISON_FENETRE = "fenetre_inatteignable"
 RAISON_JOURNEES_PLEINES = "journees_pleines"
 RAISON_COUT = "cout_superieur_au_cout_non_cedule"
 RAISON_INSERTION = "insertion_possible_non_retenue"
+RAISON_CONTINUITE = "continuite_impossible"
 RAISONS_NON_CEDULE = (
     RAISON_COORDONNEES, RAISON_COMPETENCE, RAISON_DUREE, RAISON_FENETRE,
-    RAISON_JOURNEES_PLEINES, RAISON_COUT, RAISON_INSERTION,
+    RAISON_JOURNEES_PLEINES, RAISON_COUT, RAISON_INSERTION, RAISON_CONTINUITE,
 )
 
 TEXTE_SOLVEUR_ABSENT = "solveur de tournées non installé : installer l'extra tournees"
@@ -110,7 +127,10 @@ __all__ = [
     "CODE_CRENEAU_FIGE",
     "CODE_SOLVEUR_ECHEC",
     "CODE_PLAN_INVALIDE",
+    "CODE_MULTIJOURS_MOTEUR",
     "CODES_TOURNEES",
+    "MAX_VISITES",
+    "MAX_COMBINAISONS_MULTIJOURS",
     "RAISONS_NON_CEDULE",
     "TEXTE_SOLVEUR_ABSENT",
     "verdict_tournees",
@@ -124,6 +144,9 @@ _CLES_ENTREE = ("version", "equipes", "chantiers", "matrice", "parametres")
 _CLES_EQUIPE = ("id", "competences", "depot", "quarts")
 _CLES_QUART = ("jour", "debut_min", "fin_min")
 _CLES_CHANTIER = ("id", "duree_min", "fenetre", "competences_requises", "urgence", "creneau_fige")
+_CLES_CHANTIER_OPTIONNELLES = ("visites", "continuite")
+_CLES_CONTINUITE = ("equipe", "jours_consecutifs")
+EQUIPE_UNIQUE = "unique"
 _CLES_FENETRE = ("jours", "debut_min", "fin_min")
 _CLES_FIGE = ("equipe", "jour", "debut_min")
 _CLES_PARAMETRES = ("graine", "iterations", "cout_non_cedule_m")
@@ -156,6 +179,10 @@ _AIDE = {
     "competences_requises": "compétences requises par le chantier, liste vide s'il n'y en a aucune",
     "urgence": f"entier de {BORNE_URGENCE[0]} (normale) à {BORNE_URGENCE[1]}",
     "creneau_fige": "null, ou {equipe, jour, debut_min} si le créneau est déjà confirmé au client",
+    "visites": f"durées en minutes de chaque visite (journée) d'un chantier de plusieurs jours, de 2 à {MAX_VISITES}",
+    "continuite": "règles de continuité d'un chantier de plusieurs visites : "
+                  "{equipe: 'unique', jours_consecutifs: bool}",
+    "jours_consecutifs": "booléen : les visites doivent tomber sur des jours d'activité consécutifs",
     "equipe": "identifiant de l'équipe",
     "graine": f"entier de {BORNE_GRAINE[0]} à {BORNE_GRAINE[1]}",
     "iterations": f"nombre d'itérations du solveur, entier de {BORNE_ITERATIONS[0]} à {BORNE_ITERATIONS[1]}",
@@ -221,7 +248,7 @@ def _nom(section, indice, objet):
     return f"{section}[{indice}]"
 
 
-def _objet(valeur, chemin, cles, collecte, nullables=()):
+def _objet(valeur, chemin, cles, collecte, nullables=(), optionnelles=()):
     """L'objet si toutes ses clés sont là (sinon None) ; clés absentes et inconnues rapportées."""
     if not isinstance(valeur, dict):
         collecte.invalides.append(f"{chemin} : un objet est attendu ({', '.join(cles)})")
@@ -229,7 +256,7 @@ def _objet(valeur, chemin, cles, collecte, nullables=()):
     manquantes = [cle for cle in cles if cle not in valeur or (valeur[cle] is None and cle not in nullables)]
     for cle in manquantes:
         collecte.absents.append(f"{chemin}.{cle} manquant : {_AIDE[cle]}")
-    en_trop = sorted(str(cle) for cle in valeur if cle not in cles)
+    en_trop = sorted(str(cle) for cle in valeur if cle not in cles and cle not in optionnelles)
     if en_trop:
         collecte.invalides.append(f"{chemin} : clés inconnues : {', '.join(en_trop)}")
     return None if manquantes else valeur
@@ -368,6 +395,50 @@ def _lire_fige(brut, nom, collecte):
     return True, {"equipe": equipe, "jour": jour, "debut_min": debut}
 
 
+def _lire_visites(objet, nom, collecte):
+    """``(visites, continuite)`` d'un chantier de plusieurs visites, ``(None, None)`` s'il n'en a pas, ou
+    ``(False, False)`` si ce qui est déclaré est invalide (problème rapporté)."""
+    if "visites" not in objet and "continuite" not in objet:
+        return None, None
+    if "visites" not in objet or "continuite" not in objet:
+        collecte.invalides.append(f"{nom} : visites et continuite vont ensemble (chantier de plusieurs visites)")
+        return False, False
+    bonnes = True
+    brutes = objet["visites"]
+    visites = None
+    if not isinstance(brutes, list) or not MIN_VISITES <= len(brutes) <= MAX_VISITES:
+        collecte.invalides.append(f"{nom}.visites : liste de {MIN_VISITES} à {MAX_VISITES} durées ({_AIDE['visites']})")
+        bonnes = False
+    else:
+        lues = [_entier(duree, f"{nom}.visites", (1, MINUTES_PAR_JOUR), collecte) for duree in brutes]
+        if None in lues:
+            bonnes = False
+        else:
+            visites = lues
+    continuite = None
+    marqueur = _objet(objet["continuite"], f"{nom}.continuite", _CLES_CONTINUITE, collecte)
+    if marqueur is None:
+        bonnes = False
+    else:
+        if marqueur["equipe"] != EQUIPE_UNIQUE:
+            collecte.invalides.append(
+                f"{nom}.continuite.equipe : {EQUIPE_UNIQUE!r} attendu (une seule équipe par chantier : l'assignation "
+                "et la date civile sont par intervention)")
+            bonnes = False
+        if type(marqueur["jours_consecutifs"]) is not bool:
+            collecte.invalides.append(f"{nom}.continuite.jours_consecutifs : booléen explicite requis")
+            bonnes = False
+        if bonnes:
+            continuite = {"equipe": EQUIPE_UNIQUE, "jours_consecutifs": marqueur["jours_consecutifs"]}
+    if not bonnes:
+        return False, False
+    if sum(visites) != objet["duree_min"]:
+        collecte.invalides.append(
+            f"{nom} : duree_min ({objet['duree_min']}) doit valoir la somme des visites ({sum(visites)})")
+        return False, False
+    return visites, continuite
+
+
 def _lire_chantiers(brut, collecte):
     if not isinstance(brut, list):
         collecte.invalides.append("chantiers : une liste est attendue")
@@ -379,7 +450,8 @@ def _lire_chantiers(brut, collecte):
     vus = set()
     for position, chantier in enumerate(brut):
         nom = _nom("chantiers", position, chantier)
-        objet = _objet(chantier, nom, _CLES_CHANTIER, collecte, nullables=("creneau_fige",))
+        objet = _objet(chantier, nom, _CLES_CHANTIER, collecte, nullables=("creneau_fige",),
+                       optionnelles=_CLES_CHANTIER_OPTIONNELLES)
         if objet is None:
             continue
         identifiant = _texte(objet["id"], f"{nom}.id", collecte)
@@ -389,19 +461,35 @@ def _lire_chantiers(brut, collecte):
                 identifiant = None
             else:
                 vus.add(identifiant)
-        duree = _entier(objet["duree_min"], f"{nom}.duree_min", (1, MINUTES_PAR_JOUR), collecte)
+        multiple = "visites" in objet or "continuite" in objet
+        duree = _entier(objet["duree_min"], f"{nom}.duree_min",
+                        (1, MAX_VISITES * MINUTES_PAR_JOUR if multiple else MINUTES_PAR_JOUR), collecte)
         fenetre = _lire_fenetre(objet["fenetre"], nom, collecte)
         competences = _liste_textes(objet["competences_requises"], f"{nom}.competences_requises", collecte)
         urgence = _entier(objet["urgence"], f"{nom}.urgence", BORNE_URGENCE, collecte)
         fige_valide, fige = _lire_fige(objet["creneau_fige"], nom, collecte)
+        visites, continuite = (None, None)
+        if multiple and duree is not None:
+            visites, continuite = _lire_visites(objet, nom, collecte)
+            if visites is not False and fige is not None:
+                collecte.invalides.append(
+                    f"{nom}.creneau_fige : non pris en charge pour un chantier de plusieurs visites (un créneau "
+                    "promis au client se confirme jour par jour, par une personne)")
+                visites = False
+        elif multiple:
+            visites = False
         if (
             identifiant is not None and duree is not None and fenetre is not None
-            and competences is not None and urgence is not None and fige_valide
+            and competences is not None and urgence is not None and fige_valide and visites is not False
         ):
-            chantiers.append({
+            entree = {
                 "id": identifiant, "duree_min": duree, "fenetre": fenetre,
                 "competences_requises": competences, "urgence": urgence, "creneau_fige": fige,
-            })
+            }
+            if visites is not None:
+                entree["visites"] = visites
+                entree["continuite"] = continuite
+            chantiers.append(entree)
     return sorted(chantiers, key=lambda c: c["id"])
 
 
@@ -474,13 +562,108 @@ def _construire_probleme(equipes, chantiers, parametres, matrice):
     problem["vehicules"] = _vehicules(equipes, indice)
     problem["chantiers"] = {c["id"]: _chantier_interne(c, indice, parametres) for c in chantiers}
     problem["ids"] = [c["id"] for c in chantiers]
+    verdict = _construire_visites(problem, chantiers, indice, parametres)
+    if verdict is not None:
+        return None, verdict
     verdict = _verifier_figes(problem)
     if verdict is not None:
         return None, verdict
-    problem["admissibles"] = {
-        cid: _admissibles(problem, problem["chantiers"][cid]) for cid in problem["ids"]
-    }
+    problem["admissibles"] = {}
+    for cid in problem["ids"]:
+        chantier = problem["chantiers"][cid]
+        if chantier.get("groupe") is None:
+            problem["admissibles"][cid] = _admissibles(problem, chantier)
+        else:
+            problem["admissibles"][cid] = []  # un chantier de plusieurs visites n'est jamais routé en un bloc
+            for unite in chantier["groupe"]:
+                problem["admissibles"][unite] = _admissibles(problem, problem["chantiers"][unite])
+    for groupe in problem["groupes"].values():
+        groupe["placements"] = _placements(problem, groupe)
     return problem, None
+
+
+# ---------------------------------------------------------------------------
+# Chantiers de plusieurs visites : unités de routage, placements possibles
+# ---------------------------------------------------------------------------
+def _id_unite(identifiant, rang):
+    """Identifiant interne de la visite ``rang`` (à partir de 1) du chantier ``identifiant``."""
+    return f"{identifiant}#{rang}"
+
+
+def _construire_visites(problem, chantiers, indice, parametres):
+    """Ajoute à ``problem`` une unité de routage par visite (``problem["chantiers"]``, clé ``parent#rang``) et
+    ``problem["groupes"]`` ``{parent: {unites, consecutifs}}``. Un verdict si un identifiant de visite est déjà pris."""
+    problem["groupes"] = {}
+    pris = set(problem["chantiers"]) | set(indice)
+    collecte = _Collecte()
+    for chantier in chantiers:
+        if "visites" not in chantier:
+            continue
+        for rang in range(1, len(chantier["visites"]) + 1):
+            unite = _id_unite(chantier["id"], rang)
+            if unite in pris:
+                collecte.invalides.append(
+                    f"chantier {chantier['id']!r} : l'identifiant interne de la visite {rang} ({unite!r}) est déjà "
+                    "utilisé par un chantier ou un dépôt")
+            pris.add(unite)
+    verdict = collecte.verdict()
+    if verdict is not None:
+        return verdict
+    for chantier in chantiers:
+        if "visites" not in chantier:
+            continue
+        unites = []
+        for rang, duree in enumerate(chantier["visites"], 1):
+            unite = _id_unite(chantier["id"], rang)
+            interne = _chantier_interne({
+                "id": unite, "duree_min": duree, "fenetre": chantier["fenetre"],
+                "competences_requises": chantier["competences_requises"], "urgence": chantier["urgence"],
+                "creneau_fige": None,
+            }, indice, parametres)
+            interne["idx"] = indice.get(chantier["id"])  # le même lieu que le chantier
+            interne["parent"] = chantier["id"]
+            interne["rang"] = rang
+            problem["chantiers"][unite] = interne
+            unites.append(unite)
+        problem["chantiers"][chantier["id"]]["groupe"] = unites
+        problem["groupes"][chantier["id"]] = {
+            "unites": unites, "consecutifs": chantier["continuite"]["jours_consecutifs"],
+        }
+    return None
+
+
+def _jours_d_activite(problem):
+    """Jours où au moins une équipe a un quart, triés : ce que « consécutifs » veut dire (un week-end ou un férié
+    sans quart ne casse pas une suite de journées)."""
+    return sorted({vehicule["jour"] for vehicule in problem["vehicules"]})
+
+
+def _placements(problem, groupe):
+    """Tous les placements valides d'un chantier de plusieurs visites : tuples d'indices de véhicules, un par visite,
+    de la MÊME équipe, sur des jours strictement croissants (consécutifs si demandé), chaque visite admissible
+    (compétences, fenêtre du client, quart, trajets). Triés : l'ordre de recherche est canonique."""
+    unites = groupe["unites"]
+    vehicules = problem["vehicules"]
+    position_du_jour = {jour: rang for rang, jour in enumerate(_jours_d_activite(problem))}
+    resultats = []
+
+    def etendre(rang, prefixe):
+        if rang == len(unites):
+            resultats.append(tuple(prefixe))
+            return
+        for k in problem["admissibles"][unites[rang]]:
+            if prefixe:
+                precedent = vehicules[prefixe[-1]]
+                if vehicules[k]["equipe"] != precedent["equipe"] or vehicules[k]["jour"] <= precedent["jour"]:
+                    continue
+                if groupe["consecutifs"] and (
+                    position_du_jour[vehicules[k]["jour"]] != position_du_jour[precedent["jour"]] + 1
+                ):
+                    continue
+            etendre(rang + 1, prefixe + [k])
+
+    etendre(0, [])
+    return sorted(resultats)
 
 
 def _vehicules(equipes, indice):
@@ -780,6 +963,146 @@ def _resoudre_dp(problem, solveur_ids):
     return resultat
 
 
+def _elements_du_solveur(problem):
+    """``(identifiants routés, groupes routables)`` : les chantiers d'une journée qui ont un véhicule admissible, et,
+    pour chaque chantier de plusieurs visites dont TOUTES les visites ont un véhicule et qui a au moins un placement,
+    ses visites (``{parent, unites, placements, cout}``). Un groupe sans placement n'est pas routé : le diagnostic dit
+    pourquoi (``_raison_groupe``)."""
+    simples = [
+        cid for cid in problem["ids"]
+        if problem["chantiers"][cid].get("groupe") is None and problem["admissibles"][cid]
+    ]
+    groupes = []
+    for parent in problem["ids"]:
+        groupe = problem["groupes"].get(parent)
+        if groupe is not None and groupe["placements"]:
+            groupes.append({
+                "parent": parent, "unites": list(groupe["unites"]), "placements": groupe["placements"],
+                "cout": problem["chantiers"][parent]["cout"],
+            })
+    unites = [unite for groupe in groupes for unite in groupe["unites"]]
+    return sorted(simples + unites), groupes
+
+
+def _combiner_vehicules(problem, actifs, routes, forces, bits_groupes, figes, cout_masque, n):
+    """Meilleure combinaison de routes (une par véhicule actif) qui contient EXACTEMENT les visites ``forces[k]``
+    de chaque véhicule ``k`` parmi les chantiers de plusieurs visites, et un sous-ensemble libre des autres.
+    ``(coût sans la part des groupes, {k: ordre})`` ou ``None``. Même recurrence que ``_resoudre_dp``."""
+    tout = (1 << n) - 1
+    couches = []
+    courant = {0: (0, None, None)}
+    deja_force = 0
+    for k in actifs:
+        force = forces.get(k, 0)
+        objets = sorted(
+            (masque, valeur) for masque, valeur in routes[k].items()
+            if masque & bits_groupes == force and (not figes[k] or masque & figes[k] == figes[k])
+        )
+        suivant = {}
+        for sous, (cout, _ordre) in objets:
+            libre = tout & ~sous & ~bits_groupes
+            sous_ensemble = libre
+            while True:
+                masque = sous_ensemble | deja_force
+                precedent = courant.get(masque)
+                if precedent is not None:
+                    candidat = (precedent[0] + cout, masque, sous)
+                    fusion = masque | sous
+                    actuel = suivant.get(fusion)
+                    if actuel is None or candidat < actuel:
+                        suivant[fusion] = candidat
+                if sous_ensemble == 0:
+                    break
+                sous_ensemble = (sous_ensemble - 1) & libre
+        deja_force |= force
+        couches.append(suivant)
+        courant = suivant
+    if not courant:
+        return None
+    total_non_cedule = cout_masque[tout & ~bits_groupes]
+    meilleur_masque = min(courant, key=lambda m: (courant[m][0] + total_non_cedule - cout_masque[m & ~bits_groupes], m))
+    cout = courant[meilleur_masque][0] + total_non_cedule - cout_masque[meilleur_masque & ~bits_groupes]
+    resultat = {}
+    masque = meilleur_masque
+    for k, couche in zip(reversed(actifs), reversed(couches), strict=True):
+        _cout, precedent, sous = couche[masque]
+        if sous:
+            resultat[k] = list(routes[k][sous][1])
+        masque = precedent
+    return cout, resultat
+
+
+def _resoudre_dp_groupes(problem, solveur_ids, groupes):
+    """Optimum exact avec des chantiers de plusieurs visites : ``(routes, None)`` ou ``(None, verdict)``.
+
+    Pour chaque combinaison de placements des chantiers de plusieurs visites (ou de leur absence, au coût de
+    non-cédule d'UN chantier), les visites sont imposées à leurs véhicules et le reste est résolu comme
+    ``_resoudre_dp`` (route optimale de chaque sous-ensemble, puis répartition entre véhicules). La première
+    combinaison de coût minimal, dans l'ordre canonique des placements, l'emporte : mêmes entrées, mêmes octets."""
+    bit = {cid: position for position, cid in enumerate(solveur_ids)}
+    n = len(solveur_ids)
+    admissibles = problem["admissibles"]
+    actifs = [k for k in range(len(problem["vehicules"])) if any(k in admissibles[cid] for cid in solveur_ids)]
+    options = [[None, *groupe["placements"]] for groupe in groupes]
+    combinaisons = 1
+    for liste in options:
+        combinaisons *= len(liste)
+        if combinaisons > MAX_COMBINAISONS_MULTIJOURS:
+            return None, verdict_tournees(
+                CODE_TAILLE_DP,
+                f"plus de {MAX_COMBINAISONS_MULTIJOURS} combinaisons de journées pour les chantiers de plusieurs "
+                "visites : réduire le nombre de chantiers, d'équipes ou de jours offerts à la cédule",
+            )
+    routes = {}
+    figes = {}
+    for k in actifs:
+        candidats = [cid for cid in solveur_ids if k in admissibles[cid]]
+        routes[k] = _routes_du_vehicule(problem, k, candidats, bit)
+        figes[k] = sum(1 << bit[cid] for cid in candidats if problem["chantiers"][cid]["fige"] is not None)
+    bits_groupes = 0
+    for groupe in groupes:
+        for unite in groupe["unites"]:
+            bits_groupes |= 1 << bit[unite]
+    cout_masque = [0] * (1 << n)
+    for masque in range(1, 1 << n):
+        bas = masque & -masque
+        cid = solveur_ids[bas.bit_length() - 1]
+        cout_masque[masque] = cout_masque[masque ^ bas] + (
+            0 if bas & bits_groupes else problem["chantiers"][cid]["cout"]
+        )
+
+    meilleur = None
+    for choix in _produit(options):
+        forces = {}
+        cout_absents = 0
+        for groupe, placement in zip(groupes, choix, strict=True):
+            if placement is None:
+                cout_absents += groupe["cout"]
+                continue
+            for unite, k in zip(groupe["unites"], placement, strict=True):
+                forces[k] = forces.get(k, 0) | (1 << bit[unite])
+        resultat = _combiner_vehicules(problem, actifs, routes, forces, bits_groupes, figes, cout_masque, n)
+        if resultat is None:
+            continue
+        cout = resultat[0] + cout_absents
+        if meilleur is None or cout < meilleur[0]:
+            meilleur = (cout, resultat[1])
+    if meilleur is None:
+        return None, verdict_tournees(CODE_SOLVEUR_ECHEC, "aucun plan ne tient les créneaux figés")
+    return meilleur[1], None
+
+
+def _produit(listes):
+    """Produit cartésien en ordre lexicographique (le dernier choix varie le plus vite), sans ``itertools``."""
+    if not listes:
+        yield ()
+        return
+    premiere, *reste = listes
+    for choix in premiere:
+        for suite in _produit(reste):
+            yield (choix, *suite)
+
+
 # ---------------------------------------------------------------------------
 # Moteur PyVRP (import paresseux)
 # ---------------------------------------------------------------------------
@@ -916,10 +1239,18 @@ def _raison_statique(problem, chantier):
         )
     plus_long = max(vehicules[k]["fin"] - vehicules[k]["debut"] for k in permis)
     if chantier["duree"] > plus_long:
+        if chantier.get("parent") is not None:
+            return _raison(
+                RAISON_DUREE,
+                f"visite {chantier['rang']} de {chantier['duree']} min plus longue que tout quart admissible "
+                f"({plus_long} min)",
+                "allonger un quart, ou réduire la durée maximale d'une visite (equipes.cedule.multijours)",
+            )
         return _raison(
             RAISON_DUREE,
             f"durée de {chantier['duree']} min plus longue que tout quart admissible ({plus_long} min)",
-            "allonger un quart, ou fournir la durée par visite",
+            "allonger un quart, ou déclarer la durée maximale d'une visite pour planifier un chantier de plusieurs "
+            "jours (equipes.cedule.multijours)",
         )
     return _raison(
         RAISON_FENETRE,
@@ -928,16 +1259,82 @@ def _raison_statique(problem, chantier):
     )
 
 
+def _raison_groupe(problem, parent, ordres, horaires):
+    """Raison pour laquelle un chantier de plusieurs visites n'est pas cédulé, calculée ICI (jamais reprise du
+    solveur)."""
+    groupe = problem["groupes"][parent]
+    chantier = problem["chantiers"][parent]
+    unites = groupe["unites"]
+    for unite in unites:
+        if not problem["admissibles"][unite]:
+            raison = _raison_statique(problem, problem["chantiers"][unite])
+            return _raison(raison["code"], f"visite {problem['chantiers'][unite]['rang']}/{len(unites)} : "
+                           + raison["raison"], raison["action"])
+    if not groupe["placements"]:
+        consecutives = "consécutives " if groupe["consecutifs"] else ""
+        return _raison(
+            RAISON_CONTINUITE,
+            f"aucune équipe compétente n'a {len(unites)} journées {consecutives}distinctes permises par le client où "
+            "chaque visite tient dans son quart",
+            "ajouter des quarts à une équipe compétente, élargir les jours du client, ou ne pas exiger des journées "
+            "consécutives",
+        )
+    meilleur = None
+    for placement in groupe["placements"]:
+        ajout = 0
+        for unite, k in zip(unites, placement, strict=True):
+            ordre = ordres.get(k, [])
+            horaire = horaires.get(k)
+            base = horaire["metres"] if horaire is not None else 0
+            meilleur_unite = None
+            for position in range(len(ordre) + 1):
+                essai = _planifier(problem, k, ordre[:position] + [unite] + ordre[position:])
+                if essai is not None and (meilleur_unite is None or essai["metres"] - base < meilleur_unite):
+                    meilleur_unite = essai["metres"] - base
+            if meilleur_unite is None:
+                ajout = None
+                break
+            ajout += meilleur_unite
+        if ajout is not None and (meilleur is None or ajout < meilleur):
+            meilleur = ajout
+    if meilleur is None:
+        return _raison(
+            RAISON_JOURNEES_PLEINES,
+            "journées pleines : aucune suite de journées de la même équipe n'accepte toutes les visites sans "
+            "bousculer le plan",
+            "ajouter ou allonger un quart, ou reporter le chantier",
+        )
+    if meilleur >= chantier["cout"]:
+        return _raison(
+            RAISON_COUT,
+            f"placement valide possible (+{meilleur} m) mais au moins aussi coûteux que le coût de non-cédule "
+            f"({chantier['cout']} m)",
+            "augmenter cout_non_cedule_m, ou approuver l'ajout à la main",
+        )
+    return _raison(
+        RAISON_INSERTION,
+        f"placement valide possible (+{meilleur} m), non retenu par le solveur",
+        "approuver l'ajout à la main",
+    )
+
+
 def _diagnostiquer(problem, ordres):
     """Raison de chaque chantier absent des routes ``ordres`` (``{k: [ordre]}``), triée par identifiant.
 
     Une insertion n'est essayée qu'à l'ordre existant (aucun autre chantier déplacé) : « journées
-    pleines » veut dire aucune place SANS bousculer le plan.
+    pleines » veut dire aucune place SANS bousculer le plan. Un chantier de plusieurs visites est cédulé en entier
+    ou pas du tout ; ses visites sont des identifiants internes (``parent#rang``) dans ``ordres``.
     """
     planifies = {cid for ordre in ordres.values() for cid in ordre}
     horaires = {k: _planifier(problem, k, ordre) for k, ordre in ordres.items()}
     non_cedulees = []
     for cid in problem["ids"]:
+        groupe = problem["groupes"].get(cid)
+        if groupe is not None:
+            if all(unite in planifies for unite in groupe["unites"]):
+                continue
+            non_cedulees.append({"chantier": cid, **_raison_groupe(problem, cid, ordres, horaires)})
+            continue
         if cid in planifies:
             continue
         chantier = problem["chantiers"][cid]
@@ -991,6 +1388,19 @@ def _totaux(problem, distance_m, non_cedulees):
     }
 
 
+def _visite_de_sortie(problem, identifiant, arrivee, debut, fin):
+    """La visite telle que le plan la dit. La visite d'un chantier de plusieurs visites porte le chantier
+    (``chantier``),
+    son rang (``visite``, à partir de 1) et le nombre de visites (``visites_total``) ; les autres : comme avant."""
+    chantier = problem["chantiers"][identifiant]
+    if chantier.get("parent") is None:
+        return {"chantier": identifiant, "arrivee_min": arrivee, "debut_min": debut, "fin_min": fin}
+    return {
+        "chantier": chantier["parent"], "arrivee_min": arrivee, "debut_min": debut, "fin_min": fin,
+        "visite": chantier["rang"], "visites_total": len(problem["groupes"][chantier["parent"]]["unites"]),
+    }
+
+
 def _sortie_sans_empreinte(problem, routes, non_cedulees, moteur):
     plan = []
     distance_totale = 0
@@ -1006,8 +1416,7 @@ def _sortie_sans_empreinte(problem, routes, non_cedulees, moteur):
             "retour_min": horaire["retour"],
             "distance_m": horaire["metres"],
             "visites": [
-                {"chantier": cid, "arrivee_min": arrivee, "debut_min": debut, "fin_min": fin}
-                for cid, arrivee, debut, fin in horaire["visites"]
+                _visite_de_sortie(problem, cid, arrivee, debut, fin) for cid, arrivee, debut, fin in horaire["visites"]
             ],
         })
     matrice = problem["matrice"]
@@ -1087,6 +1496,23 @@ def _choisir_moteur(moteur, nombre):
     )
 
 
+def _choisir_moteur_groupes(moteur, nombre):
+    """Moteur d'un lot qui contient des chantiers de plusieurs visites : le repli exact seulement."""
+    if moteur == "pyvrp":
+        return None, verdict_tournees(
+            CODE_MULTIJOURS_MOTEUR,
+            "PyVRP ne résout pas les chantiers de plusieurs visites (même équipe, journées distinctes et ordonnées) : "
+            "utiliser le repli exact (moteur « dp » ou « auto »)",
+        )
+    if nombre > MAX_CHANTIERS_DP:
+        return None, verdict_tournees(
+            CODE_TAILLE_DP,
+            f"{nombre} visites et chantiers entrés au solveur avec des chantiers de plusieurs visites, le repli exact "
+            f"en accepte au plus {MAX_CHANTIERS_DP} (PyVRP ne résout pas ces chantiers)",
+        )
+    return "dp", None
+
+
 def empreinte_entree(entree):
     """Empreinte SHA-256 de l'entrée telle que le solveur la lit. Retourne (empreinte, None) ou (None, verdict).
 
@@ -1114,7 +1540,8 @@ def resoudre(entree, moteur="auto"):
     visites: [{chantier, arrivee_min, debut_min, fin_min}]}], "non_cedulees": [{chantier, code, raison,
     action}], "totaux", "meta": {solveur, version_solveur, graine, iterations, empreinte_entree,
     empreinte_sortie, mode_distance, mode_bride, empreinte_matrice}}`` : entiers, chaînes, booléens et
-    ``None`` seulement, triée (équipe, jour, heure ; chantier), donc mêmes octets pour la même entrée.
+    ``None`` seulement, triée (équipe, jour, heure ; chantier), donc mêmes octets pour la même entrée. La visite d'un
+    chantier de plusieurs visites porte en plus ``visite`` (rang à partir de 1) et ``visites_total``.
     Le plan a déjà passé ``verifier_plan`` ; sinon un verdict ``REJ-TOURNEES-PLAN-INVALIDE`` est rendu.
     """
     if moteur not in MOTEURS:
@@ -1122,15 +1549,24 @@ def resoudre(entree, moteur="auto"):
     problem, verdict = _preparer(entree)
     if verdict is not None:
         return None, verdict
-    solveur_ids = [cid for cid in problem["ids"] if problem["admissibles"][cid]]
+    solveur_ids, groupes = _elements_du_solveur(problem)
     nom = "dp"  # sans chantier à placer, la réponse (aucune route) est exacte et n'exige aucun moteur
-    if solveur_ids:
+    if groupes:
+        nom, verdict = _choisir_moteur_groupes(moteur, len(solveur_ids))
+        if verdict is not None:
+            return None, verdict
+    elif solveur_ids:
         nom, verdict = _choisir_moteur(moteur, len(solveur_ids))
         if verdict is not None:
             return None, verdict
 
     if nom == "dp":
-        routes = _resoudre_dp(problem, solveur_ids)
+        if groupes:
+            routes, verdict = _resoudre_dp_groupes(problem, solveur_ids, groupes)
+            if verdict is not None:
+                return None, verdict
+        else:
+            routes = _resoudre_dp(problem, solveur_ids)
         if routes is None:
             return None, verdict_tournees(CODE_SOLVEUR_ECHEC, "aucun plan ne tient les créneaux figés")
         meta_moteur = {"solveur": SOLVEUR_DP, "version": VERSION_DP, "graine": None, "iterations": None}
@@ -1198,7 +1634,12 @@ def _structure_sortie(sortie):
             chemin = f"plan[{position}]"
             if _controler_objet(route, chemin, _CLES_ROUTE, types_route, problemes):
                 for rang, visite in enumerate(route["visites"]):
-                    _controler_objet(visite, f"{chemin}.visites[{rang}]", _CLES_VISITE, types_visite, problemes)
+                    if isinstance(visite, dict) and "visite" in visite:  # visite d'un chantier de plusieurs visites
+                        _controler_objet(
+                            visite, f"{chemin}.visites[{rang}]", _CLES_VISITE + ("visite", "visites_total"),
+                            {**types_visite, "visite": int, "visites_total": int}, problemes)
+                    else:
+                        _controler_objet(visite, f"{chemin}.visites[{rang}]", _CLES_VISITE, types_visite, problemes)
     if not isinstance(sortie["non_cedulees"], list):
         problemes.append("sortie.non_cedulees : une liste est attendue")
     else:
@@ -1215,8 +1656,9 @@ def _structure_sortie(sortie):
     return problemes
 
 
-def _verifier_route(problem, route, chemin, violations, vues):
-    """Contrôle une route du plan contre les contraintes ; complète ``violations`` et ``vues``."""
+def _verifier_route(problem, route, chemin, violations, vues, emplacements):
+    """Contrôle une route du plan contre les contraintes ; complète ``violations``, ``vues`` (identifiant de visite ->
+    où) et ``emplacements`` (identifiant de visite -> (équipe, jour))."""
     equipes = {e["id"]: e for e in problem["entree"]["equipes"]}
     equipe = equipes.get(route["equipe"])
     if equipe is None:
@@ -1247,13 +1689,22 @@ def _verifier_route(problem, route, chemin, violations, vues):
     ordre = []
     utilisable = True
     for visite in route["visites"]:
-        cid = visite["chantier"]
+        parent = visite["chantier"]
+        rang = visite.get("visite")
+        cid = parent if rang is None else _id_unite(parent, rang)
         chantier = problem["chantiers"].get(cid)
-        nom = f"{chemin}, chantier {cid!r}"
-        if chantier is None:
+        nom = f"{chemin}, chantier {parent!r}" + ("" if rang is None else f", visite {rang}")
+        if chantier is None or (rang is not None and chantier.get("parent") != parent):
             violations.append(f"{nom} : chantier inconnu de l'entrée")
             utilisable = False
             continue
+        if rang is None and chantier.get("groupe") is not None:
+            violations.append(f"{nom} : chantier de plusieurs visites placé comme une seule visite")
+            utilisable = False
+            continue
+        if rang is not None and visite["visites_total"] != len(problem["groupes"][parent]["unites"]):
+            violations.append(
+                f"{nom} : visites_total {visite['visites_total']} différent du nombre de visites du chantier")
         if chantier["idx"] is None:
             violations.append(f"{nom} : coordonnées manquantes, le chantier ne peut pas être cédulé")
             utilisable = False
@@ -1262,6 +1713,7 @@ def _verifier_route(problem, route, chemin, violations, vues):
             violations.append(f"{nom} : visité deux fois (aussi {vues[cid]})")
             utilisable = False
         vues.setdefault(cid, f"équipe {equipe['id']!r}, jour {route['jour']}")
+        emplacements.setdefault(cid, (equipe["id"], route["jour"]))
         if not chantier["competences"] <= competences:
             violations.append(f"{nom} : l'équipe {equipe['id']!r} n'a pas toutes les compétences requises")
         if route["jour"] not in chantier["jours"]:
@@ -1316,6 +1768,7 @@ def _verifier(problem, sortie):
     if violations:
         return violations
     vues = {}
+    emplacements = {}
     ordres = {}
     routes_vues = set()
     distance_totale = 0
@@ -1328,7 +1781,7 @@ def _verifier(problem, sortie):
             tout_utilisable = False
             continue
         routes_vues.add(cle)
-        verifie = _verifier_route(problem, route, chemin, violations, vues)
+        verifie = _verifier_route(problem, route, chemin, violations, vues, emplacements)
         if verifie is None:
             tout_utilisable = False
             continue
@@ -1336,19 +1789,27 @@ def _verifier(problem, sortie):
         distance_totale += distance
         ordres[_indice_vehicule(problem, route["equipe"], route["jour"])] = ordre
 
+    _verifier_groupes(problem, vues, emplacements, violations)
+
+    def au_plan(identifiant):
+        groupe = problem["groupes"].get(identifiant)
+        if groupe is None:
+            return identifiant in vues
+        return any(unite in vues for unite in groupe["unites"])
+
     lignes = {}
     for ligne in sortie["non_cedulees"]:
         cid = ligne["chantier"]
-        if cid not in problem["chantiers"]:
+        if cid not in problem["chantiers"] or cid not in problem["ids"]:
             violations.append(f"non_cedulees : chantier {cid!r} inconnu de l'entrée")
         elif cid in lignes:
             violations.append(f"non_cedulees : chantier {cid!r} listé deux fois")
-        elif cid in vues:
+        elif au_plan(cid):
             violations.append(f"non_cedulees : chantier {cid!r} aussi présent au plan")
         lignes[cid] = ligne
     for cid in problem["ids"]:
         chantier = problem["chantiers"][cid]
-        if cid not in vues and cid not in lignes:
+        if not au_plan(cid) and cid not in lignes:
             violations.append(f"chantier {cid!r} absent du plan et des non-cédulées")
         if chantier["fige"] is not None and cid not in vues:
             violations.append(f"chantier {cid!r} : créneau figé perdu (absent du plan)")
@@ -1371,6 +1832,31 @@ def _verifier(problem, sortie):
             violations.append("totaux : différents des totaux recalculés")
     _verifier_meta(problem, sortie, violations)
     return list(dict.fromkeys(violations))
+
+
+def _verifier_groupes(problem, vues, emplacements, violations):
+    """Règles d'un chantier de plusieurs visites : tout ou rien, une seule équipe, jours distincts et croissants dans
+    l'ordre des visites, consécutifs (jours d'activité) si le chantier l'exige."""
+    position_du_jour = {jour: rang for rang, jour in enumerate(_jours_d_activite(problem))}
+    for parent, groupe in problem["groupes"].items():
+        unites = groupe["unites"]
+        placees = [unite for unite in unites if unite in vues]
+        if not placees:
+            continue
+        if len(placees) != len(unites):
+            violations.append(f"chantier {parent!r} : {len(placees)} visites sur {len(unites)} au plan (tout ou rien)")
+            continue
+        lieux = [emplacements[unite] for unite in unites]
+        if len({equipe for equipe, _jour in lieux}) != 1:
+            violations.append(f"chantier {parent!r} : les visites doivent toutes être confiées à la même équipe")
+        jours = [jour for _equipe, jour in lieux]
+        if any(suivant <= precedent for precedent, suivant in zip(jours, jours[1:], strict=False)):
+            violations.append(f"chantier {parent!r} : les visites doivent tomber sur des jours distincts et croissants")
+        elif groupe["consecutifs"] and any(
+            position_du_jour.get(suivant) != position_du_jour.get(precedent, -2) + 1
+            for precedent, suivant in zip(jours, jours[1:], strict=False)
+        ):
+            violations.append(f"chantier {parent!r} : les visites doivent tomber sur des jours d'activité consécutifs")
 
 
 def _verifier_meta(problem, sortie, violations):

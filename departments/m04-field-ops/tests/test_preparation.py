@@ -664,7 +664,8 @@ def test_le_module_est_pur_sans_opsys_ni_horloge_ni_alea():
         if isinstance(noeud, ast.ImportFrom):
             assert noeud.module in autorises or noeud.level == 1, (noeud.module, noeud.level)
             if noeud.level == 1:
-                assert {a.name for a in noeud.names} <= {"admissibilite", "etats", "materiel", "meteo", "verdicts"}
+                assert {a.name for a in noeud.names} <= {
+                    "admissibilite", "duree_chantier", "etats", "materiel", "meteo", "verdicts"}
         if isinstance(noeud, ast.Attribute):
             assert noeud.attr not in {"now", "utcnow", "today", "time", "random", "urandom", "monotonic"}
         if isinstance(noeud, ast.Name):

@@ -73,6 +73,7 @@ from . import (
     contexte_propriete,
     couleurs_calendrier,
     digest,
+    duree_chantier,
     ecarts,
     encodage,
     equipes_pointees_v3,
@@ -92,6 +93,7 @@ from . import (
     preparation,
     preuves,
     registre,
+    reserves_completion,
     retards,
     retention,
     revue_completion_sources,
@@ -851,6 +853,7 @@ def outils(
 
     def resoudre_revue_completion(
         intervention_id: str, decision: str, horodatage: str, motif: str,
+        reserves_acceptees: Any = outbox.NON_FOURNI,
     ) -> dict[str, Any]:
         # PLAN T1.3-b : niveau N4 (déclaré sur l'Outil ci-dessous) — un agent PROPOSE, la
         # signature (personne, rôle) appartient au socle (opsys.approbations.decider), jamais à
@@ -874,9 +877,36 @@ def outils(
             refus = autoriser_legacy(stockage.connexion_courante(), "m4_resoudre_revue_completion", _DEPARTEMENT)
             if refus is not None:
                 return {"accepte": False, "verdict": refus}
-        return depuis_couple(outbox.resoudre_revue_completion(
-            intervention_id, decision, horodatage, registre_courant(), motif=motif,
+        reg = registre_courant()
+        reserves_declarees = outbox.reserves_de_la_completion(reg, intervention_id)
+        reponse = depuis_couple(outbox.resoudre_revue_completion(
+            intervention_id, decision, horodatage, reg, motif=motif, reserves_acceptees=reserves_acceptees,
         ))
+        if not reponse["accepte"] or not reserves_declarees or decision != "verifiee":
+            return reponse
+        # P4-07 : la revue humaine a accepté, nommément, les réserves de cette fin de chantier : c'est maintenant (et
+        # seulement maintenant) que le WCT, gardé au registre depuis la complétion, est publié aux départements
+        # consommateurs. Même WCT, même identifiant (aucun doublon possible), dans la transaction de la revue.
+        wct = next(m[outbox.CLE_WCT] for m in reg.lire()
+                   if m.get("intervention_id") == intervention_id and outbox.CLE_WCT in m)
+        publie = stockage.connexion_courante() is not None
+        if publie:
+            evenements.publier("m4.travaux_termines", _DEPARTEMENT, wct, evenement_id=wct["wct_id"])
+        provisoire = reserves_completion.cout_provisoire(reserves_declarees)
+        reponse["resultat"]["wct_id"] = wct["wct_id"]
+        reponse["resultat"]["cascade"] = {
+            "etat": "declenchee_apres_revue" if publie else "non_publiee_registre_en_memoire",
+            "evenement_publie": publie, "departements_notifies": list(outbox.CONSOMMATEURS_CIBLES) if publie else [],
+            "cout_reel": "provisoire" if provisoire else "complet",
+            "note": (
+                "coût réel PROVISOIRE : " + reserves_completion.libelles(
+                    [c for c in reserves_declarees if reserves_completion.categorie(c)
+                     in reserves_completion.CATEGORIES_COUT_PROVISOIRE])
+                + " ; la variance de matériaux de M6 ne couvre pas ce que l'employé n'a pas documenté"
+                if provisoire else "aucune réserve ne touche le coût : la cascade est complète"
+            ),
+        }
+        return reponse
 
     def lire_dossier_revue_completion_appareil(intervention_id: str, demande_id: str | None):
         r = revue_completion_sources
@@ -980,7 +1010,13 @@ def outils(
         consentement_marketing: Any = outbox.NON_FOURNI, client_satisfait: Any = outbox.NON_FOURNI,
         consentement_demande_avis: Any = outbox.NON_FOURNI,
         consentement_version_texte: Any = outbox.NON_FOURNI,
+        reserves: Any = outbox.NON_FOURNI,
     ) -> dict[str, Any]:
+        # P4-07 : ``reserves`` NOMME ce qui manque à la preuve (``reserves_completion.py``) : la fin de chantier est
+        # alors
+        # enregistrée completed_pending_review avec ses réserves au lieu d'être refusée, et la cascade vers les
+        # départements
+        # consommateurs attend la revue humaine (voir plus bas).
         # T1.2-f : photos/description_factuelle/consentement_marketing/client_satisfait sont
         # des faits du CLIENT (Loi 25) — un agent ne peut JAMAIS les affirmer, même principe
         # que ecart_detecte déjà retiré du schéma de cet outil. Ils ne sont acceptés que
@@ -1023,13 +1059,17 @@ def outils(
         if verdict_consentement is not None:
             return _refus(verdict_consentement)
 
+        codes_reserves, verdict_reserves = reserves_completion.normaliser(
+            None if reserves is outbox.NON_FOURNI else reserves)
+        if verdict_reserves is not None:
+            return {"accepte": False, "verdict": verdict_reserves}
         # Contrat PreuvesCompletion (T1.1-b#3) : validé AVANT tout appel à
-        # l'outbox — aucune écriture si le dossier de preuves est incomplet.
-        ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise)
+        # l'outbox — aucune écriture si le dossier de preuves est incomplet (sauf manque NOMMÉ par une réserve).
+        ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise, codes_reserves)
         if not ok:
             return {"accepte": False, "verdict": verdict}
         # Geler et borner AVANT la lecture CAS : seule cette copie sera vérifiée puis archivée.
-        archive, verdict_archive = preuves.preparer_archive(preuves_completion, signature_requise)
+        archive, verdict_archive = preuves.preparer_archive(preuves_completion, signature_requise, codes_reserves)
         if verdict_archive is not None:
             return {"accepte": False, "verdict": verdict_archive}
         preuves_completion = archive["preuves"]
@@ -1078,12 +1118,25 @@ def outils(
                 photos=photos, description_factuelle=description_factuelle,
                 consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
                 consentement_demande_avis=consentement_demande_avis, registre_visites=registre_visites,
+                reserves=list(codes_reserves) if codes_reserves else outbox.NON_FOURNI,
                 **preuve_consentement,
             )
             if verdict is not None:
                 return {"accepte": False, "verdict": verdict}
             if horodatage_appareil is not None:
                 accuse["horodatage_appareil"] = horodatage_appareil
+            if codes_reserves:
+                # P4-07 : le WCT est écrit (le fait de terrain est gardé), mais RIEN n'est publié : aucun département
+                # consommateur (M6, M5, M2, M7, M8, M10, M3) ne reçoit une fin de chantier dont la preuve est incomplète
+                # avant qu'une personne ait accepté ses réserves. Aucune facture, même brouillon, n'en naît. La
+                # publication (même WCT, même identifiant) a lieu à la revue humaine « verifiee ».
+                accuse["cascade"] = {
+                    "etat": "differee_jusqu_a_la_revue", "evenement_publie": False,
+                    "departements_non_notifies": list(outbox.CONSOMMATEURS_CIBLES),
+                    "motif": "preuve incomplète : " + reserves_completion.libelles(codes_reserves),
+                    "a_faire": "revue humaine : m4_resoudre_revue_completion (reserves_acceptees nommant les réserves)",
+                }
+                return {"accepte": True, "resultat": accuse}
             # L'événement et le WCT restent dans la même transaction.
             if stockage.connexion_courante() is not None:
                 wct = next(m[outbox.CLE_WCT] for m in reg.lire() if m.get("ligne_id") == accuse["ligne_id"])
@@ -1457,6 +1510,7 @@ def outils(
         intervention_ids: list[str] | None = None, moteur: str = "auto",
         durees_par_service: dict[str, Any] | None = None,
         competences_par_service: dict[str, Any] | None = None,
+        multijours: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Propose un plan de tournées et le range au registre (maillon ``cedule_proposee``) : un brouillon,
         aucune assignation. Équipes, dépôt, quarts, durées et réglages viennent du profil des équipes de
@@ -1478,7 +1532,7 @@ def outils(
                 "competences_par_type_travaux": competences_par_type_travaux,
                 "durees_par_service": durees_par_service,
                 "competences_par_service": competences_par_service, "chantiers": chantiers,
-                "parametres": parametres, "intervention_ids": intervention_ids,
+                "parametres": parametres, "intervention_ids": intervention_ids, "multijours": multijours,
             },
             lire_localisation_confirmee, horodatage_faisant_foi,
             propose_par=None if acteur is None else acteur.personne,
@@ -2207,6 +2261,16 @@ def outils(
                             "— ce qui doit être corrigé. Jamais vide."
                         ),
                     },
+                    "reserves_acceptees": {
+                        "type": "array", "uniqueItems": True, "maxItems": len(reserves_completion.CODES),
+                        "items": {"type": "string", "enum": list(reserves_completion.CODES)},
+                        "description": (
+                            "P4-07, decision=verifiee sur une fin de chantier AVEC RÉSERVES : la liste exacte des "
+                            "réserves que la personne accepte (REJ-RESERVES-NON-ACCEPTEES sinon). C'est cette "
+                            "décision qui déclenche la cascade vers M6/M5/M2/M7/M8/M10 (publication du WCT gardé). "
+                            "Interdite pour une fin de chantier sans réserve."
+                        ),
+                    },
                 },
                 "required": ["intervention_id", "decision", "horodatage", "motif"],
                 "additionalProperties": False,
@@ -2322,12 +2386,13 @@ def outils(
                 "(checklist, photos après, notes, signature si requise, §6/§9.7) ; chaque "
                 "référence photos_apres/signature doit désigner un fichier déposé et complet "
                 "(m4_deposer_fichier), sinon REJ-PREUVE-FICHIER-INTROUVABLE. Statut toujours "
-                "completed_pending_review (vérification ensuite : variance M6, revue). "
+                "completed_pending_review. Preuve incomplète : reserves NOMME ce qui manque, "
+                "aucun département notifié avant la revue humaine. "
                 "En appel d'appareil, l'heure de réception du serveur date la complétion. Durée "
                 "réelle tirée des pointages, nette des pauses. Faits CLIENT (Loi 25) : "
-                "consentement_marketing, consentement_demande_avis, client_satisfait, photos, "
-                "description_factuelle, consentement_version_texte, acceptés SEULEMENT en appel "
-                "d'appareil (sinon REJ-CHAMPS-CLIENT-HORS-APPAREIL) ; tout consentement exige la "
+                "consentements, client_satisfait, photos, description_factuelle, "
+                "consentement_version_texte, acceptés SEULEMENT en appel d'appareil "
+                "(sinon REJ-CHAMPS-CLIENT-HORS-APPAREIL) ; tout consentement exige la "
                 "version du texte, le serveur pose seul qui l'a recueilli et quand. Un employé ne "
                 "termine que SON intervention (REJ-INTERVENTION-NON-ASSIGNEE)."
             ),
@@ -2378,6 +2443,20 @@ def outils(
                             "client. Exigé avec tout consentement, refusé sans. Qui l'a recueilli "
                             "et quand : posés par le serveur (personne authentifiée, heure de "
                             "réception), jamais fournis ici."
+                        ),
+                    },
+                    "reserves": {
+                        "type": "array", "uniqueItems": True, "maxItems": len(reserves_completion.CODES),
+                        "items": {"type": "string", "enum": list(reserves_completion.CODES)},
+                        "description": (
+                            "Terminer AVEC RÉSERVES (P4-07) : codes fermés qui NOMMENT ce qui manque à la "
+                            "preuve (liste_controle_incomplete, photos_apres_manquantes, photo_en_echec, "
+                            "signature_impossible, materiel_ecarte_non_documente). La fin de chantier est "
+                            "enregistrée completed_pending_review avec ces réserves au lieu d'être refusée ; "
+                            "AUCUN département n'est notifié (ni M5, ni aucune facture) avant la revue humaine. "
+                            "Chaque réserve doit correspondre à un manque réel, chaque manque doit avoir sa "
+                            "réserve, les notes expliquent. Une référence de photo ou de signature qui ne "
+                            "désigne aucun fichier déposé reste refusée."
                         ),
                     },
                     "client_satisfait": {
@@ -2735,14 +2814,15 @@ def outils(
             description=(
                 "Propose une cédule par tournées (PyVRP, ou repli exact jusqu'à 12 chantiers) : regroupe les "
                 "chantiers proches, respecte fenêtres du client, quarts, durées, compétences et créneaux déjà "
-                "confirmés. Range un plan PROPOSÉ : brouillon, aucune assignation. Sans argument, équipes, dépôt, "
-                "quarts, durées, compétences, réglages viennent du PROFIL DES ÉQUIPES de l'entreprise "
-                "(opsys-metier equipes declarer) ; un argument donné le REMPLACE (surcharge) et la provenance de "
-                "chaque valeur est rendue. "
-                "Lit les interventions planifiees et les a_planifier PRÊTES (m4_verifier_preparation ; les autres "
-                "sont rendues dans non_pretes), leur urgence_declaree (vrai vaut 1, sinon 0) et les coordonnées "
-                "CONFIRMÉES. Ni profil ni argument : un verdict REJ-CHAMP-MANQUANT qui dit quoi fournir et où le "
-                "déclarer, jamais une valeur par défaut. Rend plan_id, mode_bride, non_cedulees et leurs raisons. "
+                "confirmés. Durée : estimation M3 du devis (correction apprise comprise), sinon durée du service "
+                "dite REPLI, sinon « durée à déclarer » ; plus d'une visite : même équipe, jours distincts (repli "
+                "exact), aucune date promise au client. Range un plan PROPOSÉ : aucune assignation. Équipes, dépôt, "
+                "quarts, durées, compétences, réglages viennent du PROFIL DES ÉQUIPES "
+                "(opsys-metier equipes declarer) ; un argument donné le REMPLACE (provenance rendue). "
+                "Lit les interventions planifiees et les a_planifier PRÊTES (les autres "
+                "sont rendues dans non_pretes), leur urgence_declaree et les coordonnées "
+                "CONFIRMÉES. Rien de fourni : REJ-CHAMP-MANQUANT qui dit quoi fournir, "
+                "jamais une valeur par défaut. Rend plan_id, mode_bride, durees, non_cedulees et leurs raisons. "
                 "Pour appliquer : m4_appliquer_cedule."
             ),
             parametres={
@@ -2807,6 +2887,18 @@ def outils(
                             "facteur_detour_milliemes (1300 pour 1,3), vitesse_moyenne_kmh, "
                             "marge_par_trajet_secondes, iterations, cout_non_cedule_m. graine optionnelle (réglage "
                             "technique). Omis : les réglages du profil."
+                        ),
+                    },
+                    "multijours": {
+                        "type": ["object", "null"],
+                        "description": (
+                            "Surcharge du profil (equipes.cedule.multijours). Règles des chantiers de "
+                            "PLUSIEURS JOURS : "
+                            "visite_max_minutes (durée maximale d'une visite, entier) et jours_consecutifs (booléen), "
+                            "les deux obligatoires. Un chantier plus long est découpé en visites, une par journée, "
+                            "toutes confiées à la MÊME équipe, sur des jours distincts et croissants. Sans règles "
+                            "déclarées, un chantier de plus d'une journée n'est pas cédulé et le verdict le dit. "
+                            "Omis : les règles du profil."
                         ),
                     },
                     "intervention_ids": {
@@ -3670,8 +3762,11 @@ def _verifier_preuves_fichiers(preuves_completion: dict[str, Any], signature_req
         verdict = _verifier_reference_fichier(reference, _TYPES_PHOTO_APRES, f"photos_apres[{index}]")
         if verdict is not None:
             return verdict
-    if signature_requise:
-        verdict = _verifier_reference_fichier(preuves_completion["signature"], _TYPES_SIGNATURE, "signature")
+    signature = preuves_completion["signature"]
+    if signature_requise and isinstance(signature, str) and signature != "":
+        # Une signature requise mais absente a déjà été jugée par ``preuves`` (refusée, ou nommée par la réserve
+        # signature_impossible) ; une signature PRÉSENTE désigne toujours un fichier déposé et complet.
+        verdict = _verifier_reference_fichier(signature, _TYPES_SIGNATURE, "signature")
         if verdict is not None:
             return verdict
     return None
@@ -3706,6 +3801,15 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     """
     reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
     intervention_id = charge["intervention_id"]
+
+    # P4-07 : une fin de chantier avec réserves ne se vérifie JAMAIS d'elle-même, même sans dépassement de matériaux :
+    # le signal est tracé (la file du propriétaire le montre) et seule la revue humaine confirme.
+    if outbox.reserves_de_la_completion(reg, intervention_id):
+        outbox.enregistrer_signal_variance(intervention_id, charge, reg)
+        return {
+            "traite": True, "verifie": False, "intervention_id": intervention_id,
+            "raison": "reserves_en_attente_de_revue_humaine",
+        }
 
     # Seul le code décide : `evaluee` + `signal_critique` explicitement faux, rien d'autre
     # (jamais une absence de signal traitée comme faux — le schéma du catalogue impose déjà
@@ -3812,7 +3916,10 @@ def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
         }
     lead = _lead_de_la_source(lead_id)
     horodatage = charge["horodatage_acceptation"]
-    accuse, verdict = etats.inscrire_depuis_devis(reg, devis_id, lead, _sel_de_la_ville(horodatage), horodatage)
+    accuse, verdict = etats.inscrire_depuis_devis(
+        reg, devis_id, lead, _sel_de_la_ville(horodatage), horodatage,
+        duree_m3=duree_chantier.retenir_estimation(charge),
+    )
     if verdict is not None:
         raise InscriptionDevisRefusee(
             f"m3.devis_accepte : intervention refusée pour le devis {devis_id!r} : "
@@ -3973,6 +4080,10 @@ _GESTE_REVUE = (
     "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le "
     "problème)"
 )
+_GESTE_REVUE_RESERVES = (
+    "m4_resoudre_revue_completion : verifiee en nommant EXACTEMENT les réserves acceptées (reserves_acceptees ; "
+    "déclenche la cascade vers M6/M5/M2/M7/M8/M10), ou correction (nomme le problème, la cascade reste en attente)"
+)
 _GESTE_ATTENTE_FORMULAIRE = (
     "Rien à décider : la vérification suit le formulaire des matériaux de l'employé. S'il "
     "n'arrive pas : m4_resoudre_revue_completion (correction)"
@@ -4001,6 +4112,8 @@ def _attend_le_formulaire(
 
 
 def _geste_completion_en_revue(reg: registre.Registre, intervention_id: str) -> str:
+    if outbox.reserves_de_la_completion(reg, intervention_id):
+        return _GESTE_REVUE_RESERVES
     signal = outbox.dernier_signal_variance(reg, intervention_id)
     if _attend_le_formulaire(reg, intervention_id, signal):
         return _GESTE_ATTENTE_FORMULAIRE
@@ -4009,6 +4122,13 @@ def _geste_completion_en_revue(reg: registre.Registre, intervention_id: str) -> 
 
 def _resume_completion_en_revue(reg: registre.Registre, intervention_id: str) -> str:
     base = f"Complétion en revue ({intervention_id})"
+    reserves = outbox.reserves_de_la_completion(reg, intervention_id)
+    if reserves:
+        return (
+            f"Fin de chantier AVEC RÉSERVES ({intervention_id}) — {reserves_completion.libelles(reserves)} ; cascade "
+            "différée : rien n'est parti vers M6, M5, M2, M7, M8 ni M10 (aucune facture) avant votre revue"
+            + (" ; coût réel provisoire après la revue" if reserves_completion.cout_provisoire(reserves) else "")
+        )
     signal = outbox.dernier_signal_variance(reg, intervention_id)
     # Jamais « aucun écart » quand le WCT dit le contraire : le constat vient du WCT lui-même.
     constat = (

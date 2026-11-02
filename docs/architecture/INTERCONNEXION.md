@@ -273,6 +273,10 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
 
 - Les consommateurs sont prouvés sur **SQLite** avec le bus et les vrais handlers ; **PostgreSQL** n'a pas été exercé pour ces
   consommateurs.
+- **Fin de chantier avec réserves (P4-07).** `m4.travaux_termines` d'une fin dont la preuve est incomplète n'est publié QU'APRÈS
+  la revue humaine N4 de M4 (même WCT, même `evenement_id` ; les réserves n'y figurent pas) : jusque-là, M6, M5 (aucune facture),
+  M2, M7, M8, M10 et M3 ne reçoivent rien. `m3.devis_accepte` porte en plus `duree_origine` (provenance de la durée : barème ou
+  calibration appliquée), lue par M4. Prouvé dans `tests/test_m4_duree_multijours_bout_en_bout.py` (SQLite, vrai bus).
 - Les maillons amont de M7 (connecteurs publicitaires) et de M6 (réception) sont publiés avec des charges du catalogue : leurs
   producteurs réels ne sont pas relancés ici, ni aucun service externe (Google Ads, Gmail, etc.).
 - L'envoi (courriel de M1) est prouvé jusqu'au brouillon du sas et à la demande N3 ; **l'approbation humaine et l'envoi réel**

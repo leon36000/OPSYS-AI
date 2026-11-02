@@ -228,7 +228,8 @@ equipes:
     gouttieres: {duree_min: 90, competences: [gouttieres]}
   cedule:                       # réglages du solveur, tous obligatoires (graine facultative)
     {facteur_detour_milliemes: 1300, vitesse_moyenne_kmh: 50, marge_par_trajet_secondes: 600,
-     iterations: 500, cout_non_cedule_m: 500000}
+     iterations: 500, cout_non_cedule_m: 500000,
+     multijours: {visite_max_minutes: 480, jours_consecutifs: false}}   # facultatif (P4-02) : chantiers de plusieurs jours
   fenetre_par_defaut:           # offerte à un chantier a_planifier dont le client n'a donné aucune fenêtre
     {jours: [0], debut_min: 480, fin_min: 1020}
 ```

@@ -61,7 +61,7 @@ catalogue de fournisseurs : un chiffre périmé fait échouer le test.
 | Packs sectoriels | 2 |
 | Fichiers de migration | 50 |
 | Tête alembic | 0086 |
-| Révision du registre MCP | 24 |
+| Révision du registre MCP | 25 |
 | Outils scellés au registre MCP | 689 |
 | Lignes du catalogue de fournisseurs | 66 |
 <!-- chiffres:fin -->

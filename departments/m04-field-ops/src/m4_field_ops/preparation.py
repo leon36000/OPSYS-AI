@@ -43,7 +43,7 @@ Il ne lit ni ne rend aucune coordonnée, aucun contact, aucun prix.
 
 from __future__ import annotations
 
-from . import admissibilite, etats, materiel, meteo, verdicts
+from . import admissibilite, duree_chantier, etats, materiel, meteo, verdicts
 
 # « ok » et « pret » sont définis par la machine à états (`etats.py`), qui refuse un passage à planifiee sans eux :
 # une seule source pour le mot que les deux modules doivent partager.
@@ -115,19 +115,45 @@ def _volet_equipe(_registre, inscription, _lire_position, lire_equipes, _lire_me
                 "l'admissibilité d'une équipe ne se calcule pas pour un type de travaux"
             ),
         )
-    resultat, verdict = admissibilite.equipes_admissibles(profil, service)
+    # P4-01, P4-02 : la durée du chantier est celle de l'estimation M3 retenue à l'inscription (repli : la durée du
+    # service, dite telle), découpée en visites si l'entreprise a déclaré ses règles de chantiers de plusieurs jours.
+    exigences, verdict = admissibilite.exigences_du_service(profil, service)
+    if verdict is not None:
+        return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
+    cedule_profil = profil.get("cedule") if isinstance(profil.get("cedule"), dict) else {}
+    regles = cedule_profil.get("multijours")
+    duree, detail_duree = duree_chantier.resoudre(
+        inscription, exigences["duree_min"], duree_chantier.SOURCE_PROFIL, regles)
+    if duree is None:
+        return _volet(
+            STATUT_MANQUE, manque=f"durée à déclarer pour le service {service!r} : {detail_duree}",
+            detail="REJ-CHAMP-MANQUANT",
+        )
+    plus_longue_visite = max(duree["visites"]) if duree["visites"] else duree["minutes"]
+    resultat, verdict = admissibilite.equipes_admissibles(profil, service, duree_visite_min=plus_longue_visite)
     if verdict is not None:
         return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
     if not resultat["admissibles"]:
         raisons = " ; ".join(f"{ligne['equipe']} : {ligne['detail']}" for ligne in resultat["ecartees"])
+        plus_long_quart = max((q["fin_min"] - q["debut_min"] for e in profil["liste"] for q in e["quarts"]), default=0)
+        pluri_journalier = (
+            " ; la durée dépasse le plus long quart : pour planifier un chantier de plusieurs jours, déclarer ses "
+            "règles dans le profil (clé equipes.cedule.multijours : visite_max_minutes, jours_consecutifs ; "
+            "`opsys-metier equipes declarer`)"
+            if regles is None and duree["minutes"] > plus_long_quart else ""
+        )
         return _volet(
             STATUT_MANQUE,
             manque=(
                 f"aucune équipe admissible pour le service {service!r} ({raisons}) : ajuster les équipes, leurs "
-                "compétences ou leurs quarts dans le profil (`opsys-metier equipes declarer`)"
+                "compétences ou leurs quarts dans le profil (`opsys-metier equipes declarer`)" + pluri_journalier
             ),
         )
-    return _volet(STATUT_OK, detail=f"équipes admissibles pour {service} : {', '.join(resultat['admissibles'])}")
+    detail = f"équipes admissibles pour {service} : {', '.join(resultat['admissibles'])}"
+    if duree["source"] == duree_chantier.SOURCE_ESTIMATION_M3 or duree["visites"]:
+        # la durée du service du profil ne s'ajoute pas au détail : il reste celui d'avant
+        detail += f" ; durée {duree_chantier.libelle(duree)}"
+    return _volet(STATUT_OK, detail=detail)
 
 
 def _volet_materiel(registre_cible, inscription, _lire_position, _lire_equipes, _lire_meteo):

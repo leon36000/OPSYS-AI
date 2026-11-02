@@ -54,15 +54,22 @@ def appeler(cnx_factory, deps, session, nom, arguments, mutation=None):
         raise HTTPException(400, 'Annotation invalide') from None
 
 
+def lignes_a_ancre(vue):
+    """Les créneaux sur lesquels une note ou une couleur se pose. Une visite d'un chantier de plusieurs journées (P4-02)
+    n'en porte pas : l'ancre d'une note désigne une intervention à créneau unique."""
+    return [ligne for ligne in vue['interventions'] if ligne.get('visite') is None]
+
+
 def badges(cnx_factory, deps, session, vue):
-    ancres = [ancre_de(ligne) for ligne in vue['interventions']]
+    lignes = lignes_a_ancre(vue)
+    ancres = [ancre_de(ligne) for ligne in lignes]
     if not ancres:
         return
     resultat = appeler(cnx_factory, deps, session, 'm4_resumer_annotations_calendrier', {'ancres': ancres})
     items = resultat.get('annotations')
     if not isinstance(items, list) or len(items) != len(ancres):
         raise HTTPException(503, 'Annotations indisponibles')
-    for ligne, ancre, item in zip(vue['interventions'], ancres, items, strict=True):
+    for ligne, ancre, item in zip(lignes, ancres, items, strict=True):
         if (item.get('ancre') != ancre or item.get('source_courante') is not True
                 or item.get('validite') != ligne['validite']):
             raise HTTPException(409, 'La cédule a changé : recharger la semaine.')

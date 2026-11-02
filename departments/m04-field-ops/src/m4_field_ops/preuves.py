@@ -16,15 +16,24 @@ ni comme « non requis ».
 """
 from typing import Any
 
-from . import encodage, verdicts
+from . import encodage, reserves_completion, verdicts
 
 CLES_PREUVES_COMPLETION = ("checklist_complete", "photos_apres", "notes", "signature")
 
 __all__ = ["CLES_PREUVES_COMPLETION", "valider_preuves_completion"]
 
 
-def valider_preuves_completion(preuves: Any, signature_requise: bool) -> tuple[bool, dict | None]:
+def valider_preuves_completion(
+    preuves: Any, signature_requise: bool, reserves: tuple[str, ...] = (),
+) -> tuple[bool, dict | None]:
     """Valide le contrat PreuvesCompletion.
+
+    ``reserves`` (P4-07, ``reserves_completion.py``) : codes fermés que l'employé a NOMMÉS pour ce qui manque. Une
+    réserve n'assouplit QUE le manque qu'elle nomme, et seulement s'il existe : ``liste_controle_incomplete`` permet
+    ``checklist_complete`` faux, ``photos_apres_manquantes`` et ``photo_en_echec`` une liste de photos vide,
+    ``signature_impossible`` l'absence d'une signature requise. Une réserve sans manque réel est refusée, comme un
+    manque sans réserve ; toute réserve exige des notes qui l'expliquent. La structure, la forme des références et la
+    vérification de leurs fichiers ne sont jamais assouplies. Sans réserve : le contrat d'avant, mot pour mot.
 
     Args:
         preuves: dict candidat, attendu avec EXACTEMENT les clés de
@@ -69,9 +78,12 @@ def valider_preuves_completion(preuves: Any, signature_requise: bool) -> tuple[b
             "REJ-CONTRAT-INVALIDE", detail="checklist_complete doit être un booléen"
         )
     if checklist_complete is not True:
-        return False, verdicts.construire_verdict(
-            "REJ-CHAMP-VIDE", detail="checklist non terminée"
-        )
+        if reserves_completion.LISTE_CONTROLE_INCOMPLETE not in reserves:
+            return False, verdicts.construire_verdict(
+                "REJ-CHAMP-VIDE", detail="checklist non terminée"
+            )
+    elif reserves_completion.LISTE_CONTROLE_INCOMPLETE in reserves:
+        return False, _reserve_sans_manque(reserves_completion.LISTE_CONTROLE_INCOMPLETE)
 
     # 3. photos_apres : liste de chaînes non vide, non vides elles-mêmes
     photos_apres = preuves["photos_apres"]
@@ -80,9 +92,14 @@ def valider_preuves_completion(preuves: Any, signature_requise: bool) -> tuple[b
             "REJ-CONTRAT-INVALIDE", detail="photos_apres doit être une liste"
         )
     if len(photos_apres) == 0:
-        return False, verdicts.construire_verdict(
-            "REJ-CHAMP-VIDE", detail="photos_apres vide"
-        )
+        if not (
+            reserves_completion.PHOTOS_APRES_MANQUANTES in reserves or reserves_completion.PHOTO_EN_ECHEC in reserves
+        ):
+            return False, verdicts.construire_verdict(
+                "REJ-CHAMP-VIDE", detail="photos_apres vide"
+            )
+    elif reserves_completion.PHOTOS_APRES_MANQUANTES in reserves:
+        return False, _reserve_sans_manque(reserves_completion.PHOTOS_APRES_MANQUANTES)
     for photo in photos_apres:
         if not isinstance(photo, str) or photo == "":
             return False, verdicts.construire_verdict(
@@ -95,6 +112,10 @@ def valider_preuves_completion(preuves: Any, signature_requise: bool) -> tuple[b
         return False, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE", detail="notes doit être une chaîne"
         )
+    if reserves and notes.strip() == "":
+        return False, verdicts.construire_verdict(
+            "REJ-CHAMP-VIDE", detail="notes requises : toute réserve s'explique (qui, quoi, pourquoi)"
+        )
 
     # 5. signature_requise : booléen fourni par l'appelant
     if type(signature_requise) is not bool:
@@ -104,18 +125,31 @@ def valider_preuves_completion(preuves: Any, signature_requise: bool) -> tuple[b
 
     # 6. signature : exigée seulement si signature_requise
     signature = preuves["signature"]
-    if signature_requise:
-        if not isinstance(signature, str) or signature == "":
-            return False, verdicts.construire_verdict(
-                "REJ-CHAMP-MANQUANT", detail="signature requise mais absente"
-            )
-    else:
-        if signature is not None and not isinstance(signature, str):
-            return False, verdicts.construire_verdict(
-                "REJ-CONTRAT-INVALIDE", detail="signature doit être une chaîne ou null"
-            )
+    signature_absente = not isinstance(signature, str) or signature == ""
+    if signature is not None and not isinstance(signature, str):
+        # Ni chaîne ni null : jamais une « signature absente » que la réserve couvrirait. Sans réserve, les codes
+        # d'avant.
+        if signature_requise and not reserves:
+            return False, verdicts.construire_verdict("REJ-CHAMP-MANQUANT", detail="signature requise mais absente")
+        return False, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="signature doit être une chaîne ou null"
+        )
+    if reserves_completion.SIGNATURE_IMPOSSIBLE in reserves and not (signature_requise and signature_absente):
+        return False, _reserve_sans_manque(reserves_completion.SIGNATURE_IMPOSSIBLE)
+    if signature_requise and signature_absente and reserves_completion.SIGNATURE_IMPOSSIBLE not in reserves:
+        return False, verdicts.construire_verdict(
+            "REJ-CHAMP-MANQUANT", detail="signature requise mais absente"
+        )
 
     return True, None
+
+
+def _reserve_sans_manque(code: str) -> dict:
+    return verdicts.construire_verdict(
+        "REJ-CONTRAT-INVALIDE",
+        detail=(f"réserve {code!r} déclarée, mais ce qu'elle nomme n'est pas incomplet : "
+                "une réserve n'est pas un passe-droit"),
+    )
 
 
 # Borne du bloc privé archivé, indépendante des binaires CAS (jamais copiés ici).
@@ -123,8 +157,11 @@ MAX_PHOTOS_ARCHIVE = 512
 MAX_OCTETS_ARCHIVE = 65536
 
 
-def preparer_archive(preuves: Any, signature_requise: bool) -> tuple[dict | None, dict | None]:
-    """Snapshot de types fermés avant tout hash/appel au registre; aucun IO ni référence inventée."""
+def preparer_archive(
+    preuves: Any, signature_requise: bool, reserves: tuple[str, ...] = (),
+) -> tuple[dict | None, dict | None]:
+    """Snapshot de types fermés avant tout hash/appel au registre; aucun IO ni référence inventée.
+    ``reserves`` : voir ``valider_preuves_completion`` ; elles ne figurent PAS dans l'archive (bloc sœur du maillon)."""
     def refuser():
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE", detail="preuves de complétion à conserver invalides ou trop volumineuses",
@@ -150,7 +187,7 @@ def preparer_archive(preuves: Any, signature_requise: bool) -> tuple[dict | None
     except UnicodeError:
         return refuser()
     snapshot = {**preuves, "photos_apres": list(preuves["photos_apres"])}
-    valide, _ = valider_preuves_completion(snapshot, signature_requise)
+    valide, _ = valider_preuves_completion(snapshot, signature_requise, reserves)
     if not valide:
         return refuser()
     archive = dict(version_schema=1, signature_requise=signature_requise, preuves=snapshot)
@@ -159,11 +196,13 @@ def preparer_archive(preuves: Any, signature_requise: bool) -> tuple[dict | None
     return archive, None
 
 
-def archive_valide(archive: Any) -> bool:
-    """Un bloc présent est obligatoire et fermé; l'absence historique est traitée par l'outbox."""
+def archive_valide(archive: Any, reserves: tuple[str, ...] = ()) -> bool:
+    """Un bloc présent est obligatoire et fermé; l'absence historique est traitée par l'outbox. ``reserves`` : celles du
+    bloc sœur ``reserves_completion`` du même maillon (une preuve incomplète n'est valide qu'avec la réserve qui la
+    nomme)."""
     if (type(archive) is not dict or any(type(k) is not str for k in archive)
             or set(archive) != {"version_schema", "signature_requise", "preuves"}
             or type(archive["version_schema"]) is not int or archive["version_schema"] != 1):
         return False
-    _, verdict = preparer_archive(archive["preuves"], archive["signature_requise"])
+    _, verdict = preparer_archive(archive["preuves"], archive["signature_requise"], reserves)
     return verdict is None
