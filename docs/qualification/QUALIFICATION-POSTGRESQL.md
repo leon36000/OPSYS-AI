@@ -1058,6 +1058,14 @@ test ; remplacé par `test_postgresql_planification_constats`), `test_planificat
 - **Ordre des verrous** : le verrou `bus-consommateur-<id>` est le premier pris par une livraison et aucun chemin connu ne le prend après un autre ; un audit formel de tous
   les chemins (console, outils, répartiteur) n'a pas été fait. Aucun interblocage n'a été observé dans les exécutions de ces suites.
 - **Déclenchement planifié du job M10 par la Gateway sur PostgreSQL** (garde conservée, §17.4) ; la CLI et la console des jobs fonctionnent sur PostgreSQL, pas leur cron.
+- **Suite complète du socle `tests/`** (code socle modifié : répartiteur, planificateur, console du planificateur) : lancée en fin de travail, un processus pytest par
+  fichier (`banc.py sqlite`, 661 fichiers, 8 travailleurs, sans xdist), tête `3ee30b77c` : 641 fichiers verts, 20 rouges ; 14 495 réussis, 94 échecs, 19 erreurs, 64 ignorés. Les 162
+  échecs et erreurs nommés se comparent à la liste `l5-norm` de l'architecte : 156 déjà connus (fusion PDF/AP/OCR, isolation absente) et **6 de plus**, dont 4 sont les
+  préexistants que le brief cite (`test_wait_garanti…` ×2, `test_commande_reutilise_geometrie_sans_spawn`, `test_commande_preserve_confinement…`) ; les 2 autres sont deux tests de COURSE
+  entre processus sensibles à la charge de la machine (charge moyenne > 30 pendant l'exécution) : `test_postgresql_portage_concurrence::test_relire_si_conflit_rejoue_la_perdante…[postgresql]`
+  (deux « écrit » au lieu d'un : l'arbitrage par la clé du rang n'opère que si les insertions se chevauchent, c'est la même fragilité que P1) et
+  `test_postgresql_rejeu_fusion::test_concurrence_meme_revision_un_seul_gagnant…`. Rejoués seuls : 3 fois sur 3 verts. Ni l'un ni l'autre n'exécute un fichier modifié par cette branche (ni répartiteur, ni planificateur, ni M8, ni M10 écrivains) ;
+  à surveiller en CI.
 - **Les 29 fichiers rouges du §16.6** n'ont pas été rejoués (hors périmètre) ; la suite complète `tests/` n'a pas été relancée sur PostgreSQL.
 - **Intégration continue** : la nouvelle étape de la CI (commande et script d'assertion extraits tels quels de `ci.yml`) a été rejouée ici contre un conteneur local de même image : 731 réussis en 19 min 40 s, machine chargée ; elle n'a pas tourné sur GitHub (le délai du job passe de 75 à 90 minutes par prudence, non mesuré sur un runner).
 
