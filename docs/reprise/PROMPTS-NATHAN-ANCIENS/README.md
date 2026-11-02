@@ -15,6 +15,7 @@ Fichiers :
 - `M2-CRM-REVENUE.md` — condensé fonctionnel du prompt M2 (CRM, Client 360, pipeline, relances, quote-to-cash).
 - `M3-ESTIMATION-INTELLIGENCE.md` — condensé fonctionnel du prompt M3 (estimation, vision, mesure, prix, marge, apprentissage).
 - `M1-RECEPTION-FRONT-OFFICE.md` — condensé fonctionnel du prompt M1 (réception, adjointe administrative, voix, omnicanal).
+- `M6-MATERIAL-CONTROL.md` — condensé fonctionnel du prompt M6 (inventaire, achats, fournisseurs, PO, sorties terrain, variance).
 - `M7-MARKETING-CROISSANCE.md` — condensé fonctionnel du prompt M7.
 - `M8-ANALYTICS-VERITE.md` — condensé fonctionnel du prompt M8 (analytique, métriques, tableaux, alertes, copilote).
 - `M9-INTELLIGENCE-STRATEGIQUE.md` — condensé fonctionnel du prompt M9 (direction IA, décisions, scénarios, risques, occasions).
