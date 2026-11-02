@@ -260,10 +260,10 @@ def test_la_porte_qualite_refuse_mot_interdit_garantie_non_validee_et_prix_inven
     assert configure["statut"] == "configure" and configure["profil"]["mots_interdits"] == ["pas cher", "bas de gamme"]
     recevoir_chantier(monde, 1, "2026-10-13")
     cinq = contenus(1)
-    assert len(cinq) == 5 and {c["conformite"].split("/")[0] for c in cinq.values()} <= {
-        "conforme",
-        "conforme_avec_reserves",
-    }
+    assert len(cinq) == 5
+    rangees = [p for p in registre_m7("contenus_chantier") if p["wct_id"] == "wct-e2e-1"]
+    assert len(rangees) == 5 and {p["conformite"]["verdict"] for p in rangees} <= {"conforme", "conforme_avec_reserves"}
+    assert all(0 <= p["conformite"]["score_global"] <= 100 for p in rangees)  # le score est rangé avec la proposition
     cas = {
         "mot-interdit": "Du travail pas cher pour tous. Écrivez-nous pour demander une soumission, merci.",
         "garantie-non-validee": "Garantie de dix ans sur tout le revêtement. Écrivez-nous pour une soumission, merci.",
