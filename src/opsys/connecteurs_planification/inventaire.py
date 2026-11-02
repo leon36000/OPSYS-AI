@@ -240,12 +240,54 @@ TOURS: tuple[Tour, ...] = (
          "purge_id lié à la demande", "aucun", "ne_jamais_automatiser",
          "N5 : propriétaire ET attestation d'un professionnel, par personne ; hors de portée de tout acteur système.",
          None),
-    # -- à construire ------------------------------------------------------------------------------------------------
-    Tour("m10.consolider_affaire", "M10 : consolidation nocturne d'une affaire",
+    # -- routines planifiées (M1 et M10) : déclarées par les manifestes, déclenchées par le planificateur
+    # ----------------
+    Tour("m1.digest_reception", "M1 : digest quotidien de la réceptionniste (vers « À voir »)",
+         _OPS + "m01-front-office/src/m1_front_office/reception_interne_outils.py", "consigner_a_voir_reception", "N2",
+         "clé d'avis déterministe (digest|jour) : rejouer ou deuxième instance n'écrit rien de plus ; un seul "
+         "créneau par jour",
+         "aucun", "brancher_maintenant",
+         "Lit le registre de M1 et consigne un avis interne (comptes et références pseudonymes) : aucun message au "
+         "client. "
+         "Remplace le tour d'agent « digest-front-office ».", "m1.routine.digest-reception"),
+    Tour("m1.alertes_echeances", "M1 : rappels échus et conversations sans suivi (alerte interne)",
+         _OPS + "m01-front-office/src/m1_front_office/reception_interne_outils.py", "consigner_a_voir_reception", "N2",
+         "une clé par (rappel, échéance) et par (conversation, dernière ligne de suivi) : une alerte par "
+         "situation", "aucun", "brancher_maintenant",
+         "Aucun délai de service inventé : l'échéance est celle qu'une personne a choisie, la fin de fenêtre vient "
+         "du profil. "
+         "Aucun client contacté.", "m1.routine.rappels-et-suivis"),
+    Tour("m1.alertes_urgences", "M1 : urgence de sécurité non prise en charge (alerte interne)",
+         _OPS + "m01-front-office/src/m1_front_office/reception_interne_outils.py", "consigner_a_voir_reception", "N2",
+         "une clé par transfert d'urgence : une alerte par urgence", "aucun", "brancher_maintenant",
+         "Seuil = un intervalle complet de contrôle (réglé par l'administrateur). L'alerte vit tant que le transfert "
+         "est "
+         "ouvert ; seule une personne le clôt.", "m1.routine.urgences"),
+    Tour("m1.calculer_kpis", "M1 : KPI de réception du manifeste",
+         _OPS + "m01-front-office/src/m1_front_office/reception_interne_outils.py", "calculer_kpis", "N2",
+         "clé (jour, empreinte du contenu) : un calcul identique n'ajoute rien", "aucun", "brancher_maintenant",
+         "Taux de signaux qualifiés calculé ; taux d'interdits bloqués dit non calculable (rien ne le consigne).",
+         "m1.routine.kpis-reception"),
+    Tour("m10.consolider_affaire", "M10 : consolidation nocturne des affaires touchées la veille",
          _OPS + "m10-memoire/src/m10_memoire/consolidation.py", "consolider_affaire", "N2",
-         "idempotent par (affaire, jour, ensemble de sources)", "aucun", "a_construire",
-         "Dépend d'un énumérateur des affaires touchées la veille, qui n'existe pas : aujourd'hui un tour d'agent le "
-         "fait (planification `consolidation-nocturne` du manifeste, livrée en pause).", None),
+         "idempotent par (affaire, jour, ensemble de sources) ; l'énumérateur ne désigne que ce qui écrirait un "
+         "maillon",
+         "aucun", "brancher_maintenant",
+         "L'énumérateur déterministe (m10_lister_affaires_a_consolider) remplace le tour d'agent « "
+         "consolidation-nocturne ». "
+         "Un jour manqué (serveur arrêté) n'est pas rattrapé : l'audit hebdomadaire le dit.",
+         "m10.routine.consolidation-affaires"),
+    Tour("m10.audit_non_oubli", "M10 : audit hebdomadaire « non-oubli » (rapport consultable)",
+         _OPS + "m10-memoire/src/m10_memoire/routines_outils.py", "executer_audit_non_oubli", "N2",
+         "clé (genre, fin, empreinte du contenu) : un rapport identique n'ajoute rien", "aucun", "brancher_maintenant",
+         "Lecture du bus et des registres, rapport recalculé côté serveur : questions-tests déterministes avec "
+         "compte et "
+         "dénominateur, aucun score opaque.", "m10.routine.audit-non-oubli"),
+    Tour("m10.calculer_kpis", "M10 : KPI du manifeste (résultat consultable)",
+         _OPS + "m10-memoire/src/m10_memoire/routines_outils.py", "calculer_kpis", "N2",
+         "clé (jour, empreinte du contenu) : un calcul identique n'ajoute rien", "aucun", "brancher_maintenant",
+         "Deux KPI sur cinq calculables, trois dits non calculables avec ce qui manque (jamais zéro).",
+         "m10.routine.kpis-memoire"),
 )
 
 # Péremptions évaluées À LA LECTURE (rien n'écrit, donc rien à balayer ; le constat planifié est

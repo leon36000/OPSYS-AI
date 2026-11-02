@@ -201,7 +201,8 @@ def test_accueil_transferts_import_et_suivi_sont_n2_et_rien_n_est_t3_dans_m1(dep
     par_nom = {o.nom: o for o in dep.charger_outils()}
     n2 = sorted(nom for nom, o in par_nom.items() if o.niveau_effectif.value == "N2")
     assert n2 == [
-        "m1_annuler_rendez_vous", "m1_consigner_moyen_verification", "m1_consigner_suivi_rappel",
+        "m1_annuler_rendez_vous", "m1_calculer_kpis", "m1_consigner_a_voir_reception",
+        "m1_consigner_moyen_verification", "m1_consigner_suivi_rappel",
         "m1_constater_plaintes", "m1_demander_envoi_courriel", "m1_escalader_plainte", "m1_importer_appel_manuellement",
         "m1_ouvrir_verification_identite", "m1_prendre_en_charge_rappel_appareil", "m1_preparer_messages_rdv",
         "m1_preparer_reponse_courriel", "m1_proposer_amelioration", "m1_proposer_fenetres_rdv",
@@ -212,6 +213,10 @@ def test_accueil_transferts_import_et_suivi_sont_n2_et_rien_n_est_t3_dans_m1(dep
     assert par_nom["m1_emettre_notification"].niveau_effectif.value == "N4"
     assert par_nom["m1_clore_transfert"].niveau_effectif.value == "N3"
     assert par_nom["m1_lire_transfert"].niveau_effectif.value == "N0"
+    # Réception qui regarde sa propre file (routines planifiées) : lecture N0, consignation et KPI N2, agent seulement.
+    assert par_nom["m1_lire_attentes_reception"].niveau_effectif.value == "N0"
+    reception = ("m1_lire_attentes_reception", "m1_consigner_a_voir_reception", "m1_calculer_kpis")
+    assert not any(par_nom[n].roles_appareil for n in reception)
 
 
 def test_import_manuel_appel_est_expose_aux_appareils_admin_seulement(dep):

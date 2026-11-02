@@ -158,3 +158,28 @@ PREFLIGHT/POSTFLIGHT (D-014, hook applicatif) restent GATED (hors périmètre v1
 
 
 Qualification intégrée T4.25 (Toronto,7octobre2026) :3140tests mobiles/154suites,1291Python affectés/1skip, types/Ruff/vérificateur219outils/127déclarations verts ; Gateway Node réelle13phases et Core complet local construits séparément. Socle local4367P/224skips/3F conservé : deux oracles cgroup sans cpu.max ; assertion de test Hermes locale corrigée au jourUTC, puis95P/5skips voisins. CI du futur commit exact requise. Téléphone/ExpoSQLite/Hermes natifs non qualifiés. [Audit](../../docs/reprise/MEMOIRE-M10-2026-10-07/AUDIT-MEMOIRE-M10-2026-10-07-r2.md).
+
+## Consolidation nocturne d'affaires, audit « non-oubli » et KPI — routines planifiées (M10-01, 2026-11-02)
+
+(`routines.py` pur, `routines_outils.py`, exécuteurs `m10.routine.*` : `docs/architecture/PLANIFICATION.md` §10.) La consolidation
+d'affaires était un tour d'agent « à construire » (il manquait l'énumérateur), l'audit n'était pas planifié et les cinq KPI du
+manifeste n'étaient jamais calculés. Trois routines déclarées au `department.yaml`, **inactives par défaut** :
+
+- `consolidation-affaires` (suit le cron de `consolidation-nocturne`, qu'elle remplace) : `m10_lister_affaires_a_consolider`
+  désigne, pour la veille, les affaires touchées dont le fait durable manque ou ne cite pas toutes les sources — exactement celles
+  pour lesquelles `m10_consolider_affaire` écrirait un maillon (tri stable, borné ; un identifiant d'affaire forgé dans un événement
+  n'est jamais désigné, il est compté). Chaque affaire est consolidée sous son bail : l'échec de l'une n'arrête pas les autres. Un
+  événement tardif ajoute un fait qui cite toutes les sources, sans réécrire l'ancien. **Un jour manqué n'est pas rattrapé.**
+  `m10_consolider_affaire` passe de N3 à **N2** explicite (le planificateur n'appelle jamais un N3) ;
+- `audit-non-oubli` (cron déclaré, lundi 4 h 30, à valider) : `m10_executer_audit_non_oubli` relit l'ATTENDU du bus (événements
+  que M10 a reçus comme traités), et répond à cinq questions-tests par des comptes (trace des événements livrés, chaînes intactes,
+  jours consolidés, révisions en attente, âge de la dernière mémoire). Aucun score opaque ;
+- `kpis-memoire` (cron déclaré 4 h 45, à valider) : `m10_calculer_kpis`. Calculés : affaires consolidées pendant le cycle, oublis du
+  dernier audit, taux de révisions arbitrées (s'il y en a). **Dits non calculables avec ce qui manque** : le taux de préflight
+  insuffisant (seuls les refus sont tracés) et les références forgées détectées (le rejet n'est pas consigné).
+
+Résultats au registre `rapports_routine` (hash-chaîné, idempotent par genre, fin et empreinte du contenu), lus par
+`m10_lire_rapports_routine` (dernier audit, derniers KPI, faits consolidés par jour). Quatre outils de plus, tous internes, agent
+seulement. Statut : PARTIEL, prouvé sur SQLite avec horloge injectée, vrai bus et données fictives
+(`tests/test_routines_m10_e2e.py`) ; jamais sur PostgreSQL ni sur la boucle réelle pendant des jours.
+

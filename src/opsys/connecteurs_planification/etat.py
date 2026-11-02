@@ -161,12 +161,12 @@ _PAR_NOM = {d.nom: d for d in DEFINITIONS}
 
 
 def definitions() -> tuple[Definition, ...]:
-    """Tous les exécuteurs connus : ceux du socle (`DEFINITIONS`) puis les CONSTATS PLANIFIÉS que les manifestes des
-    départements déclarent (`constats.py` ; cadence par défaut dérivée du catalogue de M8, aucun horaire dans le
-    socle)."""
-    from . import constats
+    """Tous les exécuteurs connus : ceux du socle (`DEFINITIONS`), les CONSTATS PLANIFIÉS que les manifestes des
+    départements déclarent (`constats.py` ; cadence par défaut dérivée du catalogue de M8, aucun horaire dans le socle)
+    puis leurs ROUTINES PLANIFIÉES (`routines.py` ; cadence déclarée ou suivie d'une planification)."""
+    from . import constats, routines
 
-    return DEFINITIONS + constats.definitions_declarees()
+    return DEFINITIONS + constats.definitions_declarees() + routines.definitions_declarees()
 
 
 def noms() -> tuple[str, ...]:

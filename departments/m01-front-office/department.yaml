@@ -64,6 +64,9 @@ evenements:
 planifications:
   - nom: digest-front-office
     cron: "0 7 * * 1-5"
+    # Remplacée : le digest est maintenant produit de façon déterministe par la routine `digest-reception` (planificateur
+    # durable, qui reprend CE cron sans le recopier). L'agent n'est plus déclenché : jamais deux digests.
+    remplacee_par: digest-reception
     consigne: >-
       Résume en 5 lignes le registre anti-perte de la veille : signaux reçus par canal,
       qualifications réussies vs rejetées, tentatives d'injection neutralisées, appels
@@ -78,6 +81,31 @@ constats_planifies:
     description: Résumé minimal des plaintes (état et nombre seulement), sans pseudonyme ni texte.
     appels:
       - date_reference: {calcul: jour}   # la longueur de la période est celle par défaut de l'outil (`jours` omis)
+# Routines internes déclenchées par le PLANIFICATEUR DURABLE (jamais par un agent) : le socle lit ce bloc, en tire un exécuteur
+# `m1.routine.<nom>` (inactif tant qu'un admin ne l'a pas activé ; en ombre, rien n'est consigné). Docs :
+# docs/architecture/PLANIFICATION.md §10. Aucun message ne part au client : ces routines ne font que LIRE le registre et
+# consigner des avis internes (attentes « À voir »). La cadence est SUIVIE d'une planification ou DÉCLARÉE ici, jamais recopiée.
+routines_planifiees:
+  - nom: digest-reception
+    outils: [m1_lire_attentes_reception, m1_consigner_a_voir_reception]
+    cadence: {suit: digest-front-office}
+    description: >-
+      Digest quotidien de la réceptionniste vers « À voir » : à rappeler, rendez-vous à confirmer, plaintes ouvertes, urgences
+      non prises en charge, conversations sans suivi, rappels de rendez-vous dus.
+  - nom: rappels-et-suivis
+    outils: [m1_lire_attentes_reception, m1_consigner_a_voir_reception]
+    cadence: {intervalle_s: 900}
+    description: >-
+      Alerte interne quand l'échéance d'un rappel est passée ou qu'une conversation reste sans suivi à la fin de sa fenêtre.
+  - nom: urgences
+    outils: [m1_lire_attentes_reception, m1_consigner_a_voir_reception]
+    cadence: {intervalle_s: 300}
+    description: >-
+      Alerte interne quand une urgence de sécurité est encore ouverte après un intervalle complet de contrôle.
+  - nom: kpis-reception
+    outils: [m1_calculer_kpis]
+    cadence: {cron: "30 6 * * *"}   # à valider par la direction
+    description: Calcule les KPI de réception du manifeste (30 jours finissant la veille) vers un résultat consultable.
 budget:
   tokens_jour: 200000
   tokens_mois: 2500000

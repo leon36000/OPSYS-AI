@@ -112,6 +112,20 @@ def verifier_planificateur(acteur):
         raise PermissionError("acteur système hors du contexte du planificateur")
 
 
+def planificateur_en_cours():
+    """Vrai seulement pendant un tour du planificateur durable, dans son fil : l'acteur système de portée
+    `planificateur` est ouvert et n'est pas fermé. Un outil de département qui ne doit écrire que pour le planificateur
+    (ses routines internes) s'en sert pour refuser un agent, une personne ou un appareil qui l'appellerait avec un
+    instant forgé."""
+    acteur = _COURANT.get()
+    return (
+        type(acteur) is ActeurSysteme
+        and acteur.portee == "planificateur"
+        and not acteur._ferme
+        and acteur._thread == threading.get_ident()
+    )
+
+
 def verifier(cnx, acteur):
     """Garde rejouée par le moteur à chaque vérification (comme `_admin` pour une session humaine)."""
     if (

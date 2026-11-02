@@ -71,9 +71,11 @@ fonction orpheline), les constats planifiés (outil du département, N0 à N2, a
 au catalogue de M8, cadence dérivable) et un avatar par département aux noms distincts ([AVATARS](AVATARS.md)). Il
 tourne en CI.
 
-`planifications` (cron d'un AGENT, avec consigne) et `constats_planifies` (appel déterministe d'un outil par le
-planificateur durable, sans modèle) sont deux choses : le second ne coûte aucun jeton et ne s'active que par un admin
-(`inactif` par défaut).
+`planifications` (cron d'un AGENT, avec consigne), `constats_planifies` (appel déterministe d'un outil par le
+planificateur durable, sans modèle) et `routines_planifiees` (travail interne déterministe fait d'outils N0 à N2 : liste fermée,
+cadence `suit` / `cron` / `intervalle_s`, [PLANIFICATION](PLANIFICATION.md) §10) sont trois choses : les deux derniers ne coûtent
+aucun jeton et ne s'activent que par un admin (`inactif` par défaut). Une planification d'agent qu'une routine remplace porte
+`remplacee_par: <routine>` : elle n'est plus installée (jamais deux déclencheurs) et `verifier` contrôle le lien.
 
 ## `outils.py` : le contrat d'outil
 

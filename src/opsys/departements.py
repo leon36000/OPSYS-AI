@@ -7,6 +7,8 @@ Un département est un organe de l'entreprise. Il octroie à ses agents des capa
 - des planifications ;
 - des constats planifiés (résumés de routine publiés au bus par un outil N0 à N2, déclenchés par le planificateur
   durable : bloc `constats_planifies`) ;
+- des routines planifiées (travail interne déterministe fait d'outils N0 à N2 qu'un exécuteur du planificateur durable
+  enchaîne sans agent : bloc `routines_planifiees`) ;
 - des budgets de tokens et des KPIs.
 Le manifeste est la source unique : le serveur MCP, les profils Hermes et le dashboard en
 dérivent.
@@ -52,6 +54,10 @@ class Planification:
     nom: str
     cron: str
     consigne: str
+    # Nom d'une routine du MÊME département (bloc `routines_planifiees`) qui fait désormais ce travail de façon
+    # déterministe : l'agent n'est alors plus déclenché (pas de double déclenchement), et `opsys-metier verifier`
+    # contrôle que la routine existe et suit bien cette planification.
+    remplacee_par: str | None = None
 
 
 # Le calcul d'un argument d'outil d'un constat planifié (bloc `constats_planifies`), fermé : un instant du créneau, un
@@ -79,6 +85,30 @@ class ConstatPlanifie:
     outil: str
     mesures: tuple[str, ...]
     appels: tuple[tuple[tuple[str, str, Any], ...], ...]
+    description: str = ""
+
+
+_NOM_ROUTINE = re.compile(r"^[a-z][a-z0-9-]{1,23}$")
+# La cadence d'une routine est DÉCLARÉE (un cron ou un intervalle) ou SUIVIE (le cron d'une planification du même
+# département, jamais recopié). Un seul genre par routine.
+GENRES_CADENCE_ROUTINE = ("suit", "cron", "intervalle_s")
+OUTILS_PAR_ROUTINE_MAX = 4
+INTERVALLE_ROUTINE_MIN_S, INTERVALLE_ROUTINE_MAX_S = 15, 86400
+
+
+@dataclasses.dataclass(frozen=True)
+class RoutinePlanifiee:
+    """Une routine interne que le planificateur durable déclenche (docs/architecture/PLANIFICATION.md §10).
+
+    `outils` : la liste FERMÉE des outils du département que l'exécuteur peut appeler (N0 à N2, agent seulement) ; un
+    outil hors de cette liste n'est jamais appelé. `cadence` : `(genre, valeur)` où le genre est `suit` (le nom d'une
+    planification du département dont la routine reprend le cron), `cron` (un cron de 5 champs, minute et heure fixes,
+    jours de semaine seulement) ou `intervalle_s` (un entier de secondes). La routine ne porte aucun secret ni aucune
+    donnée personnelle."""
+
+    nom: str
+    outils: tuple[str, ...]
+    cadence: tuple[str, Any]
     description: str = ""
 
 
@@ -141,6 +171,8 @@ class Departement:
     avatar: Avatar | None = None
     # Constats de routine déclarés par le département et déclenchés par le planificateur durable (jamais par le socle).
     constats_planifies: tuple[ConstatPlanifie, ...] = ()
+    # Routines internes déclarées par le département et déclenchées par le planificateur durable (jamais par un agent).
+    routines_planifiees: tuple[RoutinePlanifiee, ...] = ()
 
     @property
     def prefixe_outils(self) -> str:
@@ -352,6 +384,59 @@ def _constats_planifies(donnees: Mapping[str, Any], ctx: str, code: str) -> tupl
     return tuple(constats)
 
 
+def _routines_planifiees(donnees: Mapping[str, Any], ctx: str, code: str) -> tuple[RoutinePlanifiee, ...]:
+    """`routines_planifiees:` (optionnel) : le travail interne déterministe du département que le planificateur durable
+    déclenche. Schéma fermé, fail-closed : une clé inconnue, un outil d'un autre département, une cadence double ou hors
+    forme, un doublon est un refus, jamais ignoré."""
+    brut = donnees.get("routines_planifiees")
+    if brut is None:
+        return ()
+    if not isinstance(brut, list):
+        raise ValueError(f"{ctx} : routines_planifiees doit être une liste")
+    prefixe = code.lower() + "_"
+    vus: set[str] = set()
+    routines: list[RoutinePlanifiee] = []
+    for entree in brut:
+        if not isinstance(entree, dict):
+            raise ValueError(f"{ctx} : chaque routine planifiée doit être un objet")
+        inconnues = sorted(set(entree) - {"nom", "outils", "cadence", "description"})
+        if inconnues:
+            raise ValueError(f"{ctx} : routines_planifiees : clé(s) inconnue(s) {inconnues}")
+        nom = _texte(entree, "nom", ctx)
+        if not _NOM_ROUTINE.match(nom) or nom in vus:
+            raise ValueError(f"{ctx} : routine planifiée {nom!r} : nom invalide ou en double (a-z, 0-9, tiret, 24 max)")
+        vus.add(nom)
+        outils = _liste(entree, "outils", ctx)
+        if (not outils or len(outils) > OUTILS_PAR_ROUTINE_MAX or len(set(outils)) != len(outils)
+                or not all(o.startswith(prefixe) for o in outils)):
+            raise ValueError(f"{ctx} : routine {nom!r} : 1 à {OUTILS_PAR_ROUTINE_MAX} outils distincts du département "
+                             f"(préfixe {prefixe})")
+        cadence_brute = entree.get("cadence")
+        if not isinstance(cadence_brute, dict) or len(cadence_brute) != 1:
+            raise ValueError(f"{ctx} : routine {nom!r} : cadence = un seul de {list(GENRES_CADENCE_ROUTINE)}")
+        genre, valeur = next(iter(cadence_brute.items()))
+        if genre not in GENRES_CADENCE_ROUTINE:
+            raise ValueError(
+                f"{ctx} : routine {nom!r} : cadence {genre!r} inconnue (attendu {list(GENRES_CADENCE_ROUTINE)})"
+            )
+        if genre == "intervalle_s":
+            if (isinstance(valeur, bool) or not isinstance(valeur, int)
+                    or not INTERVALLE_ROUTINE_MIN_S <= valeur <= INTERVALLE_ROUTINE_MAX_S):
+                raise ValueError(f"{ctx} : routine {nom!r} : intervalle_s de {INTERVALLE_ROUTINE_MIN_S} à "
+                                 f"{INTERVALLE_ROUTINE_MAX_S} secondes")
+        elif not isinstance(valeur, str) or not valeur.strip():
+            raise ValueError(f"{ctx} : routine {nom!r} : cadence {genre} : texte requis")
+        elif genre == "cron" and not _CRON.match(valeur.strip()):
+            raise ValueError(f"{ctx} : routine {nom!r} : expression cron invalide {valeur!r} (5 champs)")
+        description = entree.get("description", "")
+        if not isinstance(description, str) or len(description) > 400:
+            raise ValueError(f"{ctx} : routine {nom!r} : description de 400 caractères au plus")
+        routines.append(RoutinePlanifiee(nom=nom, outils=outils,
+                                         cadence=(genre, valeur if genre == "intervalle_s" else valeur.strip()),
+                                         description=" ".join(description.split())))
+    return tuple(routines)
+
+
 def _arguments_constat(appel: Mapping[str, Any], ctx: str, nom: str) -> tuple[tuple[str, str, Any], ...]:
     sortie: list[tuple[str, str, Any]] = []
     for argument in sorted(appel):
@@ -412,8 +497,12 @@ def lire_manifeste(dossier: Path) -> Departement:
         cron = _texte(brut, "cron", ctx)
         if not _CRON.match(cron):
             raise ValueError(f"{ctx} : expression cron invalide {cron!r} (5 champs)")
+        remplacee_par = brut.get("remplacee_par")
+        if remplacee_par is not None and (not isinstance(remplacee_par, str) or not _NOM_ROUTINE.match(remplacee_par)):
+            raise ValueError(f"{ctx} : planification : remplacee_par doit nommer une routine planifiée du département")
         planifications.append(
-            Planification(nom=_texte(brut, "nom", ctx), cron=cron, consigne=_texte(brut, "consigne", ctx))
+            Planification(nom=_texte(brut, "nom", ctx), cron=cron, consigne=_texte(brut, "consigne", ctx),
+                          remplacee_par=remplacee_par)
         )
 
     budget_brut = donnees.get("budget")
@@ -473,6 +562,7 @@ def lire_manifeste(dossier: Path) -> Departement:
         canaux=canaux,
         avatar=normaliser_avatar(donnees["avatar"], ctx) if "avatar" in donnees else None,
         constats_planifies=_constats_planifies(donnees, ctx, code),
+        routines_planifiees=_routines_planifiees(donnees, ctx, code),
     )
 
 

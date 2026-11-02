@@ -173,3 +173,30 @@ l'exécuteur `courriel.envoi` du planificateur, après l'approbation de la direc
 **Déclenchement.** Ce constat est déclaré par `constats_planifies` du `department.yaml` et lancé par le planificateur durable
 (exécuteur `m1.constat.plaintes`, inactif par défaut, cadence par défaut dérivée du catalogue de M8) : `date_reference` = le jour local du créneau, période par défaut de l'outil. Aucun agent n'a besoin de le
 faire à la main. Voir `docs/architecture/PLANIFICATION.md` §9.
+
+## La réception qui regarde sa propre file — routines planifiées (M1.11, 2026-11-02)
+
+(`reception_interne.py` pur, `reception_interne_outils.py`, exécuteurs `m1.routine.*` du planificateur durable : voir
+`docs/architecture/PLANIFICATION.md` §10.) Avant ce chantier, le « digest de 7 h » était un tour d'agent livré en pause et rien ne
+signalait un rappel échu, une conversation restée sans suite ni une urgence que personne n'avait prise. Quatre routines sont
+déclarées au `department.yaml` (bloc `routines_planifiees`) et déclenchées par le planificateur, **inactives par défaut** (un admin
+les passe en `ombre`, puis `actif`) :
+
+| Routine | Ce qu'elle fait | Seuil (jamais inventé) |
+|---|---|---|
+| `digest-reception` | UN digest par jour prévu (cron de `digest-front-office`, qu'elle remplace) vers « À voir » : à rappeler, rendez-vous à confirmer, plaintes ouvertes, urgences non prises, conversations sans suivi, rappels de rendez-vous dus | l'heure du cron |
+| `rappels-et-suivis` | alerte interne quand l'échéance d'un rappel est passée ou qu'une conversation reste sans suite à la fin de sa fenêtre | l'échéance qu'une PERSONNE a choisie ; la fenêtre du profil |
+| `urgences` | alerte interne quand une urgence de sécurité est encore ouverte | un intervalle complet de contrôle (réglé par l'admin) |
+| `kpis-reception` | KPI du manifeste, 30 jours finissant la veille | cron déclaré (à valider) |
+
+Trois outils, tous internes et agent seulement : `m1_lire_attentes_reception` (N0, l'état à un instant : comptes et références
+pseudonymes, jamais un contact ni un texte), `m1_consigner_a_voir_reception` (N2, écrit les avis au registre INTERNE
+`reception_interne`, idempotent par clé) et `m1_calculer_kpis` (N2). `attentes()` rend ces avis dans « À voir » tant que la
+situation est la même ; elle sort quand une personne agit (clôture, tentative consignée, nouveau message, transfert). **Rien n'est
+écrit à un client, aucune demande d'approbation n'est créée, rien n'est publié au bus.**
+
+KPI : `taux_signaux_qualifies_pct` est calculé (numérateur, dénominateur) ; `taux_interdits_bloques_pct` est dit **non calculable**
+(le garde-fou ne consigne rien). Limites : un rappel SMS déjà demandé n'est pas reconnu comme tel dans le compte des rappels de
+rendez-vous ; l'accusé de réception automatique au client n'existe pas ; rien ne pousse « À voir » vers un téléphone. Statut :
+PARTIEL, prouvé sur SQLite avec horloge injectée et données fictives (`tests/test_routines_m1_e2e.py`).
+

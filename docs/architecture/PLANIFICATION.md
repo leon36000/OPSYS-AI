@@ -9,6 +9,11 @@ ce qui ne l'est pas et pourquoi, comment c'est gouverné, et ce qui n'est PAS pr
 déclenchés par ce même planificateur, déclarés par les manifestes des départements (§9). Même statut : prouvé sur SQLite,
 avec une horloge injectée et des données fictives, **inactif par défaut**, rien contre PostgreSQL ni un service externe.
 
+**Mise à jour (2026-11-02, routines planifiées de M1 et M10)** : sept routines de plus (digest quotidien et alertes internes de
+la réception, consolidation nocturne des affaires, audit « non-oubli » hebdomadaire, calcul des KPI de M1 et de M10) sont
+déclarées par les manifestes et déclenchées par ce même planificateur (§10). Même statut : prouvé sur SQLite, avec une horloge
+injectée et des données fictives, **inactif par défaut**, rien contre PostgreSQL, aucun canal réel.
+
 Un système « autonome » travaille sans qu'un humain lance chaque tour. Le planificateur durable existait
 ([CABLAGE-CONNECTEURS.md](CABLAGE-CONNECTEURS.md) : modes `inactif`/`ombre`/`actif`, baux avec jeton de fencing, journal
 append-only, coupe-circuit, acteur système `opsys-systeme` à portée « planificateur ») et pilotait cinq exécuteurs
@@ -46,8 +51,9 @@ Décisions pour ce qui n'est pas branché (détail et justification dans l'inven
 - **À ne jamais automatiser** : le panel de moteurs d'IA de M7 (dépense par appel, hors Québec), le rafraîchissement des lectures
   de M9 (exige l'identité d'un admin humain ; un acteur système n'est pas une personne), la purge de la rétention GPS de M4
   (N5 : propriétaire **et** attestation du professionnel).
-- **À construire** : la consolidation nocturne d'une affaire de M10 (il manque l'énumérateur des affaires touchées la veille ;
-  aujourd'hui un tour d'agent le fait, livré en pause).
+- **Consolidation nocturne d'une affaire de M10** : ce tour était « à construire » (il manquait l'énumérateur des affaires
+  touchées la veille, un tour d'agent le faisait en pause). L'énumérateur existe maintenant : routine
+  `m10.routine.consolidation-affaires` (§10).
 - **Déjà périodique hors planificateur** : la purge des fragments expirés de la mémoire (PostgreSQL), par la boucle d'entretien de
   l'image.
 - **Évalué à la lecture, rien à balayer** : statut des sources fiscales M5, licences des fournisseurs, consentement de suivi M4,
@@ -190,6 +196,10 @@ La descente est refusée dès qu'une ligne existe. Aucune table existante n'est 
 | `src/opsys/connecteurs_planification/constats.py`, `departements.py` (bloc `constats_planifies`) | constats planifiés (§9) |
 | `departments/m08-analytics/src/m8_analytics/cadence_constats.py` | cadence par défaut dérivée du catalogue de M8 |
 | `tests/test_constats_planifies.py`, `tests/test_entrepot_m8_planifie.py`, `tests/fixtures/planif_m8_monde.py` | preuves des constats |
+| `src/opsys/connecteurs_planification/routines.py`, `exec_m1.py`, `exec_m10.py`, `departements.py` (blocs `routines_planifiees` et `remplacee_par`) | routines planifiées (§10) |
+| `departments/m01-front-office/src/m1_front_office/{reception_interne,reception_interne_outils}.py` | lecture, avis « À voir » et KPI de la réception |
+| `departments/m10-memoire/src/m10_memoire/{routines,routines_outils}.py` | énumérateur, audit hebdomadaire, KPI de M10 |
+| `tests/test_routines_planifiees.py`, `tests/test_routines_m1_e2e.py`, `tests/test_routines_m10_e2e.py`, `tests/fixtures/planif_routines_monde.py`, tests des deux départements | preuves des routines |
 
 ## 9. Constats planifiés pour M8 : un département déclare, le planificateur déclenche
 
@@ -277,3 +287,141 @@ vrai moteur, wallboards de la vraie console, copilote, mémoire de M10, consolid
   grossissent sans purge.
 - La fenêtre de M5 (mois en cours) donne un écart avec les relevés très partiel en début de mois ; la couverture le dit.
 - Les constats ne s'activent jamais seuls : un admin doit les passer en `ombre` puis `actif` (90 jours), département par département.
+
+## 10. Routines planifiées de M1 et de M10 : un département déclare, le planificateur déclenche
+
+**Le problème.** Les analyses d'écart des anciens prompts de Nathan (M1 « porte d'entrée », M10 « cerveau permanent ») ont montré
+que, hors les constats de M8, **rien ne tournait seul** dans ces deux départements : le digest de la réceptionniste, les rappels
+échus, les urgences non prises en charge, la consolidation nocturne des affaires et l'audit « non-oubli » étaient soit des tours
+d'agent livrés en pause, soit des outils que personne ne lançait ; les KPI déclarés aux manifestes n'étaient jamais calculés.
+
+**Décision d'architecture : même hôte, même principe que les constats (§9).** Un département déclare, dans le bloc
+`routines_planifiees` de son manifeste (schéma fermé, validé à la lecture et par `opsys-metier verifier`), une routine : un nom,
+la liste FERMÉE d'outils du département qu'elle peut appeler (N0 à N2, agent seulement, jamais une frontière humaine) et sa
+cadence. Le socle (`routines.py`) en tire un exécuteur `<mN>.routine.<nom>` (famille « routines », niveau N2, inactif par défaut,
+activé par un admin avec motif et expiration à 90 jours, comme tous les tours). Il ne contient aucun horaire, aucun nom de
+département, aucun nom d'outil ; la classe qui fait le travail est dans `exec_m1.py` ou `exec_m10.py` (`ROUTINES`), mais **une
+classe sans déclaration n'est jamais instanciée** et une déclaration sans classe est refusée par `verifier`.
+
+**La cadence est suivie ou déclarée, jamais recopiée.** `cadence` vaut un seul de :
+- `suit: <planification>` : la routine prend le cron de la planification du même département (le digest de M1 suit
+  `digest-front-office`, la consolidation de M10 suit `consolidation-nocturne`) ;
+- `cron: "30 4 * * 1"` : déclaré dans la routine (forme lue : « minute heure * * jours », heure LOCALE de l'entreprise ; toute autre
+  forme est refusée, jamais devinée) ;
+- `intervalle_s: 300` : sondage à intervalle (alertes).
+Un cron est sondé toutes les `SONDAGE_DEFAUT_S` = 900 s (réglable à l'activation comme tout intervalle) : la routine agit au
+premier sondage qui atteint l'heure déclarée, **une fois par jour prévu**. Le retard maximal est donc un intervalle de sondage ;
+c'est un choix d'ingénierie, pas un rythme d'affaires. Les heures `06:30` (KPI de M1), `04:30 lundi` (audit) et `04:45` (KPI de M10)
+sont des **valeurs déclarées à faire valider par la direction**.
+
+**Une planification d'agent remplacée n'est plus déclenchée.** `remplacee_par: <routine>` sur la planification marque qu'elle est
+remplacée : `profils.jobs_cron` et la configuration OpenClaw ne l'installent plus (jamais deux déclencheurs) et `verifier` contrôle
+que la routine existe et la suit. Remplacées : `digest-front-office` (M1) et `consolidation-nocturne` (M10). `digest-memoire` et
+`mnemo-quotidien` ne le sont pas (`m10.mnemo` reste un exécuteur séparé, hors de ce chantier).
+
+| Exécuteur | Cadence (par défaut) | Outils (liste fermée) | Ce qu'il fait quand il est actif |
+|---|---|---|---|
+| `m1.routine.digest-reception` | cron de `digest-front-office` (7 h, lundi au vendredi), sondé 15 min | `m1_lire_attentes_reception` (N0), `m1_consigner_a_voir_reception` (N2) | UN digest par jour prévu : à rappeler, rendez-vous à confirmer, plaintes ouvertes, urgences non prises en charge, conversations sans suivi, rappels de rendez-vous dus + le digest existant du registre pour les jours couverts (du digest précédent à la veille). « À voir » n'affiche que le dernier. |
+| `m1.routine.rappels-et-suivis` | 900 s | idem | Une alerte quand l'**échéance explicite** d'un rappel (choisie par une personne) est passée, ou quand la **fenêtre** d'une conversation est terminée sans que la prochaine action soit faite. |
+| `m1.routine.urgences` | 300 s | idem | Une alerte quand une urgence de sécurité est encore ouverte après **un intervalle complet de contrôle** (celui que l'admin a réglé). |
+| `m1.routine.kpis-reception` | cron déclaré 06 h 30 | `m1_calculer_kpis` (N2) | Les KPI du manifeste de M1 sur 30 jours finissant la veille. |
+| `m10.routine.consolidation-affaires` | cron de `consolidation-nocturne` (3 h), sondé 15 min | `m10_lister_affaires_a_consolider` (N0), `m10_consolider_affaire` (N2) | L'énumérateur désigne les affaires touchées la veille dont le fait durable manque ou ne cite pas toutes les sources ; chacune est consolidée sous son propre bail. |
+| `m10.routine.audit-non-oubli` | cron déclaré lundi 4 h 30 | `m10_executer_audit_non_oubli` (N2) | L'audit hebdomadaire, rapport consultable. |
+| `m10.routine.kpis-memoire` | cron déclaré 4 h 45 | `m10_calculer_kpis` (N2) | Les KPI du manifeste de M10, calculables ou dits non calculables. |
+
+**Outils ajoutés (sept, tous agent seulement, aucun droit d'appareil ; registre MCP révision 14).** Quand un outil de lecture
+existait, il a été réutilisé : le digest existant (`digest.produire_digest`) est repris tel quel pour les jours couverts,
+`m1_consigner_suivi_rappel`/`transferts.projection_suivi_rappel` fournissent l'état d'un rappel, `m10_consolider_affaire` et
+`m10_auditer_non_oubli` (`audit.py`) restent les fonctions de fond. Il manquait : une lecture que l'acteur système peut faire (les
+outils de rappels existants exigent une identité d'appareil admin), l'énumérateur, et un moyen de consigner le résultat.
+`m1_lire_attentes_reception` (N0), `m1_consigner_a_voir_reception` (N2), `m1_calculer_kpis` (N2) ; `m10_lister_affaires_a_consolider`
+(N0), `m10_executer_audit_non_oubli` (N2), `m10_calculer_kpis` (N2), `m10_lire_rapports_routine` (N0).
+**Un niveau change** : `m10_consolider_affaire` passe de N3 (défaut de T1) à **N2** explicite, parce que le planificateur
+n'appelle jamais un N3 ; l'outil est append-only, idempotent par (affaire, jour, sources) et n'engage personne (même précédent que
+`m10_deposer_faits_candidats`). Cela retire l'approbation que sa mise en attente imposait à un agent en mode `supervise` : à valider
+à la revue du registre scellé.
+
+**L'écriture est réservée au planificateur.** Les outils qui écrivent (`m1_consigner_a_voir_reception`, `m1_calculer_kpis` et
+`m10_executer_audit_non_oubli`, `m10_calculer_kpis` avec `ecrire` vrai) refusent tout appelant qui n'est pas l'acteur système
+d'un tour du planificateur : l'instant vient de l'horloge du planificateur, jamais d'un argument d'agent. Les lectures et les
+calculs à blanc restent ouverts à l'admin.
+
+**Où vont les résultats (rien d'externe).**
+- M1 : un registre INTERNE `reception_interne` (hash-chaîné, distinct du registre anti-perte) ; les avis y sont append-only. Les
+  attentes « À voir » (`attentes()` de M1) en sont dérivées : le dernier digest, et chaque alerte **tant que la situation signalée
+  est la même** (urgence encore ouverte, même échéance de rappel, même dernière ligne de suivi). Aucune heure n'y entre : une
+  alerte disparaît quand une personne agit (clôture, nouvelle tentative consignée, nouveau message du correspondant, transfert), jamais
+  par péremption. Un message n'est jamais écrit à un client ; aucune demande d'approbation n'est créée ; aucun événement n'est publié
+  au bus (prouvé).
+- M10 : un registre `rapports_routine` (hash-chaîné). `m10_lire_rapports_routine` lit le dernier audit, les derniers KPI ou les
+  faits consolidés par jour.
+
+**Aucun délai de service n'est inventé.** L'alerte d'urgence se déclenche après « un intervalle complet de contrôle » (l'intervalle
+réglé par l'admin) ; un rappel est échu à l'échéance qu'une personne a choisie ; une conversation est sans suivi à la fin de la
+fenêtre du profil de l'entreprise. Un engagement du type « toute urgence est prise en moins de X minutes » reste une décision de la
+direction (question ouverte pour Nathan).
+
+**Idempotence et reprise.**
+- Une routine à heure fixe travaille UN créneau (le jour local). Une fois fait (ligne `ressource` en succès du journal
+  append-only), les sondages suivants du jour ne font rien. Après un arrêt de plusieurs jours : UN seul passage, pour le créneau
+  courant (prouvé : vendredi midi après un arrêt depuis mardi, le digest couvre les jours manqués sans en refaire un par jour).
+- Les outils sont eux-mêmes idempotents (clé déterministe : `digest|jour`, `urgence_non_prise|transfert`,
+  `rappel_echu|transfert|échéance`, `sans_suivi|conversation|dernière ligne`, `genre|fin|empreinte du contenu`). Une deuxième instance
+  ou une réservation de créneau perdue n'écrit rien de plus (prouvé en rembobinant `prochain_passage`).
+- La consolidation désigne exactement ce que `m10_consolider_affaire` écrirait (même règle : union des sources de tous les faits de
+  la clé) : un événement arrivé tard rend l'affaire de nouveau « à consolider » et ajoute un fait qui cite toutes les sources, sans
+  jamais réécrire un maillon. **Un jour manqué (serveur arrêté toute la nuit) n'est PAS rattrapé** (pas de rafale) : l'audit
+  hebdomadaire le dit (`jours_consolides`, `plus_ancien_non_consolide`).
+- Le journal du planificateur ne porte jamais un identifiant d'affaire : la ressource est `<jour>|<empreinte>`.
+
+**Ombre.** Une routine en `ombre` n'appelle que la lecture (ou le calcul à blanc, `ecrire` faux) et journalise « aurait » **une fois
+par créneau ou par lot** ; elle n'écrit aucun avis, aucun rapport, aucun fait. Passer ensuite à `actif` le même jour fonctionne.
+
+**L'audit « non-oubli » hebdomadaire.** L'attendu est relu du BUS (événements de types audités que M10 a reçus comme **traités**),
+pas du manifeste. Un événement encore en attente de livraison, en échec ou en quarantaine est compté à part (`livraison`) : ce n'est
+pas un oubli, c'est une livraison qui n'a pas fini. Cinq questions-tests à réponse déterministe, chacune avec son compte :
+`trace_des_evenements_livres` (numérateur/dénominateur et liste compacte des oublis, 20 au plus), `chaines_intactes`,
+`jours_consolides`, `revisions_en_attente`, `fraicheur_memoire` (âge en heures). **Aucun score opaque** : des comptes, jamais une
+note composite. Le rapport est recalculé côté serveur à chaque écriture (un appelant ne peut pas y mettre son contenu).
+
+**Les KPI.** M10 : `nb_affaires_consolidees_jour` et `nb_oublis_detectes_audit` (une fois qu'un audit existe) et
+`taux_revisions_arbitrees` (s'il y a des révisions signalées) sont calculés ; `taux_preflight_insuffisant` (seuls les refus sont
+tracés : le dénominateur n'existe pas) et `nb_references_forgees_detectees` (le rejet n'est pas consigné) sont **dits non
+calculables avec ce qui manque**. M1 : `taux_signaux_qualifies_pct` est calculé (numérateur, dénominateur) ; `taux_interdits_bloques_pct`
+est dit non calculable (le garde-fou ne consigne rien : la cible de 100 % n'est pas mesurable). Jamais zéro, jamais cent par défaut.
+
+**Ce qui est prouvé** : `tests/test_routines_planifiees.py` (manifeste, cadence, cron, changement d'heure, contrôle de cohérence,
+liste fermée, remplacement de l'agent), `tests/test_routines_m1_e2e.py` (une journée de réception fictive : appel manqué, message
+sans suivi, plainte, urgence, rendez-vous ; digest et alertes aux bons créneaux, une seule fois, ombre sans écriture, redémarrage,
+absence de rattrapage, panne d'une routine, niveau N3 refusé, rien d'externe, rien de personnel), `tests/test_routines_m10_e2e.py`
+(une nuit d'affaires sur le vrai bus, le vrai répartiteur et les vrais consommateurs : énumérateur exact, consolidation, reprise d'un
+événement tardif, panne d'une affaire, audit avec un oubli injecté, KPI), tests unitaires des deux départements. Deux instances
+simultanées (deux fils, deux porteurs) ne se partagent qu'un créneau par routine. **45 mutations personnelles** appliquées une à
+une dans un clone (idempotence du créneau, heure et jour atteints, ombre, niveau N2, déclaration au manifeste, énumérateur, filtre
+« touché la veille », seuils, absence de rattrapage, écriture réservée au planificateur, absence d'envoi externe, KPI) : 44 tuées,
+une équivalente (la condition « acteur non fermé » de `planificateur_en_cours`, redondante parce que le contexte est réinitialisé
+à la sortie du tour). Deux survivantes du premier tour (un créneau en erreur compté comme fait ; le délai de contrôle de l'urgence)
+ont été fermées par un test de plus chacune.
+
+**Ce qui n'est PAS prouvé, sans euphémisme.**
+- SQLite seulement : aucun de ces tests n'a tourné sur PostgreSQL (aucune migration ni table nouvelle ; les registres sont des
+  registres de département ordinaires).
+- Horloge injectée, données fictives : la boucle réelle du serveur (tour toutes les 15 s) n'a pas été observée sur plusieurs jours ;
+  aucun essai sur un VPS ; le changement d'heure n'est éprouvé que par le calcul de l'heure atteinte.
+- Aucun canal réel : rien n'est envoyé, donc rien n'est prouvé de la livraison d'un rappel, d'un SMS ou d'un courriel. « À voir »
+  est lu par l'app admin ; rien ne **pousse** une notification (ni téléphone, ni courriel).
+- Le `maintenant` de chaque outil est un ARGUMENT : la lecture (`m1_lire_attentes_reception`, `ecrire` faux) l'accepte de tout
+  appelant admin, mais **toute écriture (avis, rapport, KPI) exige l'acteur système du planificateur en cours de tour**
+  (`service_acteur_systeme.planificateur_en_cours()` : `REJ-RECEPTION-PLANIFICATEUR-REQUIS`, `REJ-ROUTINE-PLANIFICATEUR-REQUIS`).
+  Un agent ou une personne ne peut donc pas occuper la clé d'un digest futur avec un instant forgé ; il ne peut pas non plus
+  déclencher un calcul à la demande (limite voulue). `m10_consolider_affaire`, déjà appelable par un agent, garde son
+  `horodatage` en argument (inchangé).
+- L'heure d'un événement de M10 est celle du registre (« date telle qu'écrite ») : une consolidation de la veille locale lit les
+  événements dont la date écrite est cette veille ; un écrivain en UTC décale un événement du soir d'un jour sans rien perdre.
+- Les rappels de rendez-vous « dus » ne reconnaissent pas un rappel SMS dont l'envoi est déjà demandé (seul le courriel l'est).
+- Une alerte « sans suivi » n'a pas de geste de congé propre : elle sort quand une personne a la conversation (transfert), quand le
+  correspondant réécrit ou se retire (STOP). Une conversation qui a un transfert ouvert n'est pas comptée deux fois.
+- L'accusé de réception au client (la plus grande fuite de valeur restante de M1) n'existe pas : tout message sortant exige une
+  personne ; ces routines ne le changent pas.
+- Rien ne s'active seul : un admin doit passer chaque routine en `ombre` puis `actif` (90 jours), département par département.
+

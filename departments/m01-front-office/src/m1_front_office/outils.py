@@ -2117,12 +2117,15 @@ def attentes() -> list[dict[str, Any]]:
     le reste), puis l'ancienneté (heure de réception du message déclencheur). Lecture seule : ne crée ni ne clôt rien.
     L'attente disparaît quand une personne clôt le transfert (`m1_clore_transfert`) : sans cet outil elle ne se viderait
     jamais. Sans transfert au registre, aucune attente."""
-    from . import message_client_m4
+    from . import message_client_m4, reception_interne_outils
 
     return [
         *(transferts.attente(etat) for etat in transferts.lire(_obtenir_registre().lire()) if etat.ouvert),
         # Suivi retiré chez M4 : une demande d'envoi N3 déjà ouverte à REFUSER (elle ne peut plus s'exécuter).
         *message_client_m4.attentes(),
+        # Le digest du jour et les alertes internes que l'adjointe a consignés (planificateur durable) : tant que la
+        # situation signalée est la même (reception_interne.py).
+        *reception_interne_outils.attentes_reception(),
     ]
 
 
@@ -2202,6 +2205,7 @@ def outils(lecteur_capacite_m4: Any = None) -> tuple[Outil, ...]:
         assistant_sms_outils,
         courriel_outils,
         identite_client_outils,
+        reception_interne_outils,
         rendez_vous_outils,
         tri_courriel_outils,
     )
@@ -2215,6 +2219,7 @@ def outils(lecteur_capacite_m4: Any = None) -> tuple[Outil, ...]:
         *identite_client_outils.outils_identite(),
         *assistant_sms_outils.outils_sms(),
         *rendez_vous_outils.outils_rdv(lecteur_capacite_m4),
+        *reception_interne_outils.outils_reception_interne(),
         *base[-2:],
     )
 
