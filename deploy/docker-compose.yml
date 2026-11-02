@@ -4,7 +4,8 @@
 #   openclaw-gateway : fork Core OPSYS construit depuis ../core — agents, canaux et Control UI.
 #   opsys            : NOTRE image (deploy/Dockerfile) — serveur MCP des départements (HTTP),
 #                       console OPSYS et configuration native des modèles.
-#   litellm          : profil de compatibilité opt-in (`--profile litellm` + mode explicite).
+#   litellm          : passerelle de modèles, profil PAR DÉFAUT de deploy/install.sh (`--profile litellm`). Désactivée avec
+#                       OPSYS_MODE_FOURNISSEUR=natif ou OPSYS_PASSERELLE_EXTERNE=1 (LiteLLM existant chez le client).
 #   postgres          : stockage OPSYS optionnel et plan de contrôle LiteLLM
 #                       (deux bases séparées, jamais mélangées : voir postgres-init/01-init.sh).
 #   valkey            : cache LiteLLM (protocole compatible Redis, licence BSD — jamais Redis).
@@ -133,6 +134,7 @@ services:
       FORWARDED_ALLOW_IPS: ${OPSYS_IP_CADDY:-172.30.87.10}
       OPSYS_MODE_FOURNISSEUR: ${OPSYS_MODE_FOURNISSEUR:-natif}
       OPSYS_PASSERELLE_URL: ${OPSYS_PASSERELLE_URL:-}
+      OPSYS_PASSERELLE_EXTERNE: ${OPSYS_PASSERELLE_EXTERNE:-0}
       # PostgreSQL is opt-in; unset means the durable SQLite database in opsys_data.
       OPSYS_DATABASE_URL: ${OPSYS_DATABASE_URL:-}
       # Embeddings bge-m3 : vide = recherche plein texte seule (mode explicite, signalé à l'agent).

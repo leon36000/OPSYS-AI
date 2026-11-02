@@ -13,6 +13,9 @@ import pytest
 FIXTURES = Path(__file__).parent / "fixtures"
 sys.path.insert(0, str(FIXTURES))
 
+# Fixtures de la passerelle de modèles (rôles, faux serveur LiteLLM) : partagées par tests/test_modeles_*.py.
+from modeles_aide import cle_coffre, faux, faux_local, pret  # noqa: E402,F401
+
 
 def _verifier_acces_prive(chemin: Path, *, mode: int | None = None) -> None:
     """Vérifie le mode POSIX, ou la DACL Windows effective du compte courant."""

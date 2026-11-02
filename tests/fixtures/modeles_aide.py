@@ -120,8 +120,8 @@ __all__ = ["lex"]
 
 # -- fixtures partagées (importées par les modules de test) ----------------------------------------------------------
 import pytest  # noqa: E402
-
 from faux_litellm import CLE_FICTIVE, FauxLiteLLM  # noqa: E402
+
 from opsys.secrets_coffre import cle_maitresse  # noqa: E402
 
 AMONT = {
@@ -130,8 +130,14 @@ AMONT = {
     "llm_raisonnement": {"fournisseur": "openrouter", "modele": "anthropic/claude-opus-5.5"},
     "embeddings": {"fournisseur": "openrouter", "modele": "intfloat/multilingual-e5-large"},
 }
-ALIAS = {"llm_rapide": "opsys-haiku-5-5", "llm_fort": "opsys-sonnet-5-5", "llm_raisonnement": "opsys-opus-5-5",
-         "embeddings": "opsys-embed-e5-multilingue", "vl": "opsys-vl-qwen3-30b", "reranker": "opsys-rerank-fictif"}
+ALIAS = {
+    "llm_rapide": "opsys-haiku-5-5",
+    "llm_fort": "opsys-sonnet-5-5",
+    "llm_raisonnement": "opsys-opus-5-5",
+    "embeddings": "opsys-embed-e5-multilingue",
+    "vl": "opsys-vl-qwen3-30b",
+    "reranker": "opsys-rerank-fictif",
+}
 
 
 @pytest.fixture

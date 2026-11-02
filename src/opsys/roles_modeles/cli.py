@@ -160,6 +160,16 @@ def executer(args: argparse.Namespace) -> int:
         if args.action == "economie":
             _afficher(economie.vue())
             return 0
+        if args.action == "passerelle" and args.sous_action == "config":  # aucune clé dedans : sans authentification
+            import yaml
+
+            from .. import modeles as paliers_config
+
+            with etat.session() as cnx:
+                config = generation.config_depuis_roles(cnx, paliers_config.charger_paliers())
+            args.sortie.write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            print(args.sortie)
+            return 0
         return _ecritures(args, etat)
     except (ModelesErreur, RegistreErreur, CoffreErreur) as exc:
         return _erreur(exc)
@@ -178,16 +188,6 @@ def _ecritures(args: argparse.Namespace, etat: Any) -> int:
                 | {"alias": [e["nom"] for e in resultat.get("entrees", [])]}
             )
             return 0 if resultat["statut"] == "succes" else 1
-        if sous == "config":
-            import yaml
-
-            from .. import modeles as paliers_config
-
-            with etat.session() as cnx:
-                config = generation.config_depuis_roles(cnx, paliers_config.charger_paliers())
-            args.sortie.write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
-            print(args.sortie)
-            return 0
         if sous == "ecrire-env":
             _afficher({"ok": True, "variables": generation.ecrire_env(etat.session, args.fichier)})
             return 0

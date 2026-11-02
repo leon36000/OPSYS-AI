@@ -11,6 +11,7 @@ from typing import Any
 
 from . import acces, service
 from .client import ErreurAppel, cout_par_million
+from .codes import ModelesErreur
 
 
 def _entree(modele: str, info: dict[str, Any] | None) -> dict[str, Any]:
@@ -43,9 +44,8 @@ def decouvrir(fabrique: acces.FabriqueConnexion, *, acteur: str, ouvrir=None, de
         with acces.client_passerelle(fabrique, ouvrir=ouvrir, delai_s=delai_s) as (client, _reglage):
             noms, latence = client.modeles()
             infos = client.info_modeles()
-    except ErreurAppel as exc:
-        resultat = {"statut": "echec", "code": exc.code, "detail": exc.detail[:200], "modeles": 0}
-        return resultat
+    except (ErreurAppel, ModelesErreur) as exc:
+        return {"statut": "echec", "code": exc.code, "detail": exc.detail[:200], "modeles": 0}
     par_nom = {i.get("model_name"): i for i in infos or [] if isinstance(i, dict)}
     entrees = [_entree(nom, par_nom.get(nom)) for nom in sorted(set(noms))]
     with fabrique() as cnx:

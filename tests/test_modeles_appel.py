@@ -2,28 +2,22 @@
 
 from __future__ import annotations
 
-import http.server
 import json
-import threading
 
 import pytest
-from modeles_aide import (  # noqa: F401 — fixtures importées
+from faux_litellm import CLE_FICTIVE
+from modeles_aide import (
     ALIAS,
     AMONT,
     CLE_AMONT,
     PROPRIETAIRE,
     affecter,
-    cle_coffre,
-    faux,
-    faux_local,
     fournisseur_local,
-    pret,
 )
-from faux_litellm import CLE_FICTIVE, FauxLiteLLM
 from sqlalchemy import text
 
 from opsys.fournisseurs import registre
-from opsys.roles_modeles import acces, appel, client, codes, service
+from opsys.roles_modeles import appel, client, codes, service
 from opsys.roles_modeles.appel import Escalade
 from opsys.roles_modeles.codes import ModelesErreur
 
@@ -52,8 +46,13 @@ def _regler(session, operation, **parametres):
 def avec_repli(pret, faux_local):
     """llm_rapide sur la passerelle (faux) avec un repli LOCAL (second faux serveur)."""
     local = fournisseur_local(pret, "llm.local.fictif", faux_local.url + "/v1")
-    affecter(pret, "llm_rapide", ALIAS["llm_rapide"], amont=AMONT["llm_rapide"],
-             replis=[{"fournisseur": local, "modele": "qwen-local-fictif"}])
+    affecter(
+        pret,
+        "llm_rapide",
+        ALIAS["llm_rapide"],
+        amont=AMONT["llm_rapide"],
+        replis=[{"fournisseur": local, "modele": "qwen-local-fictif"}],
+    )
     return pret
 
 
@@ -72,16 +71,22 @@ def test_panne_retentable_bascule_sur_le_repli(avec_repli, faux, faux_local, cod
 @pytest.mark.parametrize("code_http", [400, 404, 422, 401, 403])
 def test_erreur_de_requete_ou_d_authentification_ne_bascule_jamais(avec_repli, faux, faux_local, code_http):
     faux.pannes["opsys-haiku-5-5"] = code_http
-    e = _refus(codes.APPEL_REFUSE, appel.completer, avec_repli, classe="classification", messages=MESSAGES,
-               max_tokens=8)
+    e = _refus(
+        codes.APPEL_REFUSE, appel.completer, avec_repli, classe="classification", messages=MESSAGES, max_tokens=8
+    )
     assert faux_local.appels == []  # un autre fournisseur ne corrigerait pas la requête
     assert "aucun repli" in e.detail
 
 
 def test_hote_injoignable_est_retentable(avec_repli, faux, faux_local):
     with avec_repli() as cnx:  # l'URL de la passerelle pointe vers un port fermé
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_PASSERELLE_CONFIGURER, niveau_confirme="N3",
-                          parametres={"mode": "integree", "url_base": "http://127.0.0.1:9", "secret_cle": "passerelle.cle"})
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_PASSERELLE_CONFIGURER,
+            niveau_confirme="N3",
+            parametres={"mode": "integree", "url_base": "http://127.0.0.1:9", "secret_cle": "passerelle.cle"},
+        )
     r = appel.completer(avec_repli, classe="classification", messages=MESSAGES, max_tokens=8)
     assert r["repli_utilise"] is True and r["tentatives"][0]["code"] == "REJ-MODELES-APPEL-ECHEC"
     assert faux.appels == []
@@ -106,8 +111,15 @@ def test_repli_ignore_s_il_est_devenu_non_conforme_ou_inactif(avec_repli, faux, 
 def test_fournisseur_principal_non_conforme_n_est_pas_appele(avec_repli, faux, faux_local):
     with avec_repli() as cnx:  # le client passe en hébergement pour tiers : la passerelle (incertain) est refusée
         courant = registre.profil_brut(cnx)
-        registre.declarer_profil(cnx, acteur=PROPRIETAIRE, usage_commercial=True, revenu_annuel_usd=1,
-                                 territoires=["CA"], heberge_pour_tiers=True, revision_attendue=courant["revision"])
+        registre.declarer_profil(
+            cnx,
+            acteur=PROPRIETAIRE,
+            usage_commercial=True,
+            revenu_annuel_usd=1,
+            territoires=["CA"],
+            heberge_pour_tiers=True,
+            revision_attendue=courant["revision"],
+        )
     r = appel.completer(avec_repli, classe="classification", messages=MESSAGES, max_tokens=8)
     assert faux.appels_modele("opsys-haiku-5-5") == []  # jamais appelé
     # le repli local est sous licence permissive : il reste utilisable
@@ -147,8 +159,14 @@ def test_le_plafond_de_jetons_est_par_role_et_par_jour(pret, faux):
 
 
 def test_budget_du_mois_refuse_quand_depasse(pret, faux):
-    affecter(pret, "llm_rapide", ALIAS["llm_rapide"], cout_entree_par_million="1", cout_sortie_par_million="5",
-             budget_usd_mois="0.0001")  # 100 micro-USD
+    affecter(
+        pret,
+        "llm_rapide",
+        ALIAS["llm_rapide"],
+        cout_entree_par_million="1",
+        cout_sortie_par_million="5",
+        budget_usd_mois="0.0001",
+    )  # 100 micro-USD
     appel.completer(pret, classe="classification", messages=MESSAGES, max_tokens=8)  # 12 + 10 = 22 µUSD
     assert _usage(pret, "llm_rapide")["cout_micro_usd"] == 22
     _refus(codes.PLAFOND_ATTEINT, appel.completer, pret, classe="classification", messages=MESSAGES, max_tokens=64)
@@ -186,8 +204,14 @@ def test_usage_estime_quand_l_amont_ne_rapporte_rien(pret, faux):
 def test_validation_des_parametres_d_appel(pret, faux):
     affecter(pret, "llm_rapide", ALIAS["llm_rapide"])
     for max_tokens in (0, -1, 9000, 1.5, True, "8"):
-        _refus(codes.DECLARATION_INVALIDE, appel.completer, pret, classe="classification", messages=MESSAGES,
-               max_tokens=max_tokens)
+        _refus(
+            codes.DECLARATION_INVALIDE,
+            appel.completer,
+            pret,
+            classe="classification",
+            messages=MESSAGES,
+            max_tokens=max_tokens,
+        )
     for messages in ([], "texte", None, [MESSAGES[0]] * 65):
         _refus(codes.DECLARATION_INVALIDE, appel.completer, pret, classe="classification", messages=messages)
     assert faux.appels == []
@@ -197,22 +221,53 @@ def test_validation_des_parametres_d_appel(pret, faux):
 def _activer_raisonnement(session):
     affecter(session, "llm_raisonnement", ALIAS["llm_raisonnement"], amont=AMONT["llm_raisonnement"])
     with session() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_RAISONNEMENT_ACTIVER, niveau_confirme="N3",
-                          parametres={}, motif="Analyse contractuelle complexe du dossier fictif")
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_RAISONNEMENT_ACTIVER,
+            niveau_confirme="N3",
+            parametres={},
+            motif="Analyse contractuelle complexe du dossier fictif",
+        )
 
 
 def test_escalade_inactive_ou_sans_demande_valide_ne_touche_pas_le_reseau(pret, faux):
     affecter(pret, "llm_raisonnement", ALIAS["llm_raisonnement"], amont=AMONT["llm_raisonnement"])
     demande = Escalade(PROPRIETAIRE, "Analyse contractuelle complexe du dossier fictif")
-    _refus(codes.RAISONNEMENT_INACTIF, appel.completer, pret, classe="escalade_raisonnement", messages=MESSAGES,
-           escalade=demande)
+    _refus(
+        codes.RAISONNEMENT_INACTIF,
+        appel.completer,
+        pret,
+        classe="escalade_raisonnement",
+        messages=MESSAGES,
+        escalade=demande,
+    )
     with pret() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_RAISONNEMENT_ACTIVER, niveau_confirme="N3",
-                          parametres={}, motif="Analyse contractuelle complexe du dossier fictif")
-    for escalade in (None, "moi", Escalade("vendeur_fictif", demande.motif), Escalade("inconnu", demande.motif),
-                     Escalade(PROPRIETAIRE, ""), Escalade(PROPRIETAIRE, "x" * 400), Escalade(PROPRIETAIRE, 5)):
-        _refus(codes.ESCALADE_REFUSEE, appel.completer, pret, classe="escalade_raisonnement", messages=MESSAGES,
-               escalade=escalade)
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_RAISONNEMENT_ACTIVER,
+            niveau_confirme="N3",
+            parametres={},
+            motif="Analyse contractuelle complexe du dossier fictif",
+        )
+    for escalade in (
+        None,
+        "moi",
+        Escalade("vendeur_fictif", demande.motif),
+        Escalade("inconnu", demande.motif),
+        Escalade(PROPRIETAIRE, ""),
+        Escalade(PROPRIETAIRE, "x" * 400),
+        Escalade(PROPRIETAIRE, 5),
+    ):
+        _refus(
+            codes.ESCALADE_REFUSEE,
+            appel.completer,
+            pret,
+            classe="escalade_raisonnement",
+            messages=MESSAGES,
+            escalade=escalade,
+        )
     assert faux.appels == []
 
 
@@ -239,8 +294,15 @@ def test_le_raisonnement_ne_bascule_jamais_sur_un_autre_modele(pret, faux):
     affecter(pret, "llm_fort", ALIAS["llm_fort"])
     faux.pannes["opsys-opus-5-5"] = 503
     demande = Escalade(PROPRIETAIRE, "Analyse contractuelle complexe du dossier fictif")
-    _refus(codes.APPEL_ECHEC, appel.completer, pret, classe="escalade_raisonnement", messages=MESSAGES, max_tokens=8,
-           escalade=demande)
+    _refus(
+        codes.APPEL_ECHEC,
+        appel.completer,
+        pret,
+        classe="escalade_raisonnement",
+        messages=MESSAGES,
+        max_tokens=8,
+        escalade=demande,
+    )
     assert faux.appels_modele("opsys-sonnet-5-5") == []
 
 
@@ -271,10 +333,23 @@ def test_test_du_raisonnement_exige_l_activation(pret, faux):
     _refus(codes.RAISONNEMENT_INACTIF, appel.tester_role, pret, acteur=PROPRIETAIRE, role="llm_raisonnement")
     assert faux.appels == []
     with pret() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_RAISONNEMENT_ACTIVER, niveau_confirme="N3",
-                          parametres={}, motif="Analyse contractuelle complexe du dossier fictif")
-    _refus(codes.ESCALADE_REFUSEE, appel.tester_role, pret, acteur="agent:m10-memoire", role="llm_raisonnement",
-           verifier_admin=False, interdire_raisonnement=True)
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_RAISONNEMENT_ACTIVER,
+            niveau_confirme="N3",
+            parametres={},
+            motif="Analyse contractuelle complexe du dossier fictif",
+        )
+    _refus(
+        codes.ESCALADE_REFUSEE,
+        appel.tester_role,
+        pret,
+        acteur="agent:m10-memoire",
+        role="llm_raisonnement",
+        verifier_admin=False,
+        interdire_raisonnement=True,
+    )
     assert appel.tester_role(pret, acteur=PROPRIETAIRE, role="llm_raisonnement")["statut"] == "succes"
 
 
@@ -282,8 +357,15 @@ def test_test_de_connexion_refuse_une_fournisseur_non_conforme_sans_appel(pret, 
     affecter(pret, "llm_rapide", ALIAS["llm_rapide"])
     with pret() as cnx:
         courant = registre.profil_brut(cnx)
-        registre.declarer_profil(cnx, acteur=PROPRIETAIRE, usage_commercial=True, revenu_annuel_usd=1,
-                                 territoires=["CA"], heberge_pour_tiers=True, revision_attendue=courant["revision"])
+        registre.declarer_profil(
+            cnx,
+            acteur=PROPRIETAIRE,
+            usage_commercial=True,
+            revenu_annuel_usd=1,
+            territoires=["CA"],
+            heberge_pour_tiers=True,
+            revision_attendue=courant["revision"],
+        )
     m = appel.tester_role(pret, acteur=PROPRIETAIRE, role="llm_rapide")
     assert m["statut"] == "refuse_politique" and faux.appels == []
 
@@ -291,8 +373,15 @@ def test_test_de_connexion_refuse_une_fournisseur_non_conforme_sans_appel(pret, 
 def test_test_de_connexion_delai_minimal_pour_les_agents(pret, faux):
     affecter(pret, "llm_rapide", ALIAS["llm_rapide"])
     appel.tester_role(pret, acteur="agent:m10-memoire", role="llm_rapide", verifier_admin=False, delai_min_s=60)
-    _refus(codes.APPEL_REFUSE, appel.tester_role, pret, acteur="agent:m10-memoire", role="llm_rapide",
-           verifier_admin=False, delai_min_s=60)
+    _refus(
+        codes.APPEL_REFUSE,
+        appel.tester_role,
+        pret,
+        acteur="agent:m10-memoire",
+        role="llm_rapide",
+        verifier_admin=False,
+        delai_min_s=60,
+    )
     assert len(faux.appels_modele("opsys-haiku-5-5")) == 1
 
 
@@ -300,9 +389,13 @@ def test_roles_sans_appel_generique_verifient_la_presence_de_l_alias(pret, faux)
     with pret() as cnx:
         registre.configurer(cnx, acteur=PROPRIETAIRE, identifiant="ocr.tesseract-5.5.local", modifications={})
         registre.activer(cnx, acteur=PROPRIETAIRE, identifiant="ocr.tesseract-5.5.local")
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_ROLE_AFFECTER, niveau_confirme="N3",
-                          parametres={"role": "ocr", "fournisseur_id": "ocr.tesseract-5.5.local",
-                                      "modele_appel": "tesseract-5.5"})
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_ROLE_AFFECTER,
+            niveau_confirme="N3",
+            parametres={"role": "ocr", "fournisseur_id": "ocr.tesseract-5.5.local", "modele_appel": "tesseract-5.5"},
+        )
     m = appel.tester_role(pret, acteur=PROPRIETAIRE, role="ocr")
     assert m["statut"] == "non_verifiable" and faux.appels == []  # moteur local : pas d'appel réseau
 
@@ -312,8 +405,13 @@ def test_reranker_via_la_passerelle(pret, faux):
 
     ident = fournisseur_passerelle(pret, "reranker", ALIAS["reranker"])
     with pret() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_ROLE_AFFECTER, niveau_confirme="N3",
-                          parametres={"role": "reranker", "fournisseur_id": ident, "modele_appel": ALIAS["reranker"]})
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_ROLE_AFFECTER,
+            niveau_confirme="N3",
+            parametres={"role": "reranker", "fournisseur_id": ident, "modele_appel": ALIAS["reranker"]},
+        )
     assert appel.tester_role(pret, acteur=PROPRIETAIRE, role="reranker")["statut"] == "succes"
     r = appel.reclasser(pret, requete="q", passages=["a", "b", "c"])
     assert r["notes"] == [1.0, 0.5, pytest.approx(1 / 3)]
@@ -347,7 +445,14 @@ def test_la_cle_n_apparait_dans_aucune_table_ni_journal_apres_un_parcours(pret, 
     appel.tester_role(pret, acteur=PROPRIETAIRE, role="llm_rapide")
     appel.completer(pret, classe="classification", messages=MESSAGES, max_tokens=8)
     with pret() as cnx:
-        for table in ("journal", "modeles_historique", "modeles_reglages", "modeles_roles", "modeles_usage",
-                      "coffre_acces", "fournisseurs_configurations"):
+        for table in (
+            "journal",
+            "modeles_historique",
+            "modeles_reglages",
+            "modeles_roles",
+            "modeles_usage",
+            "coffre_acces",
+            "fournisseurs_configurations",
+        ):
             contenu = json.dumps([list(map(str, ligne)) for ligne in cnx.execute(text(f"SELECT * FROM {table}"))])
             assert CLE_FICTIVE not in contenu and CLE_AMONT not in contenu, table

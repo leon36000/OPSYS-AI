@@ -1,8 +1,9 @@
 #!/bin/sh
 # deploy/entrypoint.sh — point d'entrée du conteneur "opsys".
 #
-# Native provider configuration is the default. LiteLLM key/config/usage synchronization runs only
-# after an explicit `OPSYS_MODE_FOURNISSEUR=litellm` choice.
+# LiteLLM (passerelle de modèles) est le profil par défaut du déploiement : la configuration (rôles et paliers), les clés
+# virtuelles par département et la consommation sont synchronisées en mode `litellm`. Avec `OPSYS_PASSERELLE_EXTERNE=1`
+# (LiteLLM existant chez le client) la configuration n'est PAS générée : ses modèles sont ceux du client. `natif` reste possible.
 #   1. regenerates model/provider configuration after operator changes in the console;
 #   2. le serveur MCP OPSYS en HTTP streamable (`opsys-mcp --http`) ;
 #   3. la console OPSYS (`opsys-console`).
@@ -18,6 +19,7 @@ set -eu
 OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-/openclaw-config}"
 LITELLM_CONFIG_DIR="${LITELLM_CONFIG_DIR:-/shared/litellm-config}"
 MODE="${OPSYS_MODE_FOURNISSEUR:-natif}"
+EXTERNE="${OPSYS_PASSERELLE_EXTERNE:-0}"
 OPSYS_PASSERELLE_URL="${OPSYS_PASSERELLE_URL:-}"
 OPSYS_MCP_PORT="${OPSYS_MCP_PORT:-8765}"
 # Cette topologie lance elle-même le serveur opsys ci-dessous : accord exact, pas détection d’hôte.
@@ -47,10 +49,11 @@ warn() { echo "[opsys-init] $*" >&2; }
 
 # -- Configuration facultative de LiteLLM ------------------------------------------------------
 sync_litellm_config() {
+    [ "$EXTERNE" = 1 ] && return 0
     if opsys-metier passerelle config --sortie "$LITELLM_CONFIG_DIR/config.yaml"; then
         log "config LiteLLM régénérée : $LITELLM_CONFIG_DIR/config.yaml"
     else
-        warn "config LiteLLM NON régénérée — configurez au moins le palier 'standard' dans la console OPSYS (port ${OPSYS_CONSOLE_PORT:-8700}${OPSYS_CONSOLE_PREFIXE:-}), puis le prochain cycle (${SYNC_INTERVAL}s) reprendra automatiquement."
+        warn "config LiteLLM NON régénérée — affectez au moins un rôle (Plateforme → Modèles et rôles) ou configurez le palier 'standard' dans la console OPSYS (port ${OPSYS_CONSOLE_PORT:-8700}${OPSYS_CONSOLE_PREFIXE:-}), puis le prochain cycle (${SYNC_INTERVAL}s) reprendra automatiquement."
     fi
 }
 

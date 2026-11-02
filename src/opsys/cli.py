@@ -602,8 +602,14 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
         return 2
     deps = charger_departements()
     dossier = Path(args.config_dir)
+    paliers_openclaw = modeles.charger_paliers()
+    if args.mode_fournisseur == "litellm":  # les rôles de modèles fournissent aussi leurs paliers (YAML intact)
+        from .roles_modeles import generation as generation_modeles
+
+        with etat.session() as cnx_paliers:
+            paliers_openclaw = generation_modeles.paliers_effectifs(cnx_paliers, paliers_openclaw)
     try:
-        fichiers = openclaw.generer(deps, dossier, modeles.charger_paliers(), url_mcp=args.url_mcp,
+        fichiers = openclaw.generer(deps, dossier, paliers_openclaw, url_mcp=args.url_mcp,
                                     url_passerelle=args.url_passerelle, mode_fournisseur=args.mode_fournisseur,
                                     racine_espaces=args.espaces,
                                     fuseau=args.fuseau,

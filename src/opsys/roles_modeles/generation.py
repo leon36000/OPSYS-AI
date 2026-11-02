@@ -103,6 +103,33 @@ def alias_pour_cles_departements(cnx: Connection, paliers: dict[str, dict[str, s
     return sorted(noms)
 
 
+def paliers_depuis_roles(cnx: Connection) -> dict[str, dict[str, str]]:
+    """Paliers (`rapide`, `standard`, `fort`) fournis par des rôles servis par la passerelle, en paliers valides.
+
+    En mode LiteLLM, un agent ne lit que le NOM d'un palier (alias `opsys-<palier>`) : l'entrée synthétique n'a de sens
+    que pour la validation et la liste des modèles de l'agent. Rien n'est écrit dans `paliers.yaml`."""
+    reglage = service.passerelle(cnx)
+    if reglage is None:
+        return {}
+    lignes = service.toutes_les_lignes(cnx)
+    sortie: dict[str, dict[str, str]] = {}
+    for palier, role in lex.PALIER_VERS_ROLE.items():
+        ligne = lignes.get(role)
+        if ligne is None:
+            continue
+        fournisseur = registre.definition(cnx, ligne["fournisseur_id"])
+        if fournisseur is None or not (fournisseur.point_acces or "").startswith("passerelle:"):
+            continue
+        sortie[palier] = {"provider": "custom", "model": passerelle_litellm.alias_palier(palier),
+                          "base_url": reglage["url_base"]}
+    return sortie
+
+
+def paliers_effectifs(cnx: Connection, legacy: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
+    """`paliers.yaml` complété par les paliers des rôles (les rôles l'emportent, comme pour les alias)."""
+    return {**legacy, **paliers_depuis_roles(cnx)}
+
+
 def ecrire_env(fabrique: FabriqueConnexion, chemin: Path) -> list[str]:
     """Écrit `NOM=valeur` (clés d'amont et clé maîtresse) depuis le coffre dans un fichier 0600, de façon atomique.
     Rend les NOMS écrits, jamais une valeur. Refuse un chemin dans un lien symbolique ou un dossier accessible à

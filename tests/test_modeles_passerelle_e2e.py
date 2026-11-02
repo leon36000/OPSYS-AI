@@ -13,26 +13,23 @@ import json
 
 import pytest
 import yaml
-from modeles_aide import (  # noqa: F401 — fixtures importées
+from faux_litellm import CLE_FICTIVE
+from modeles_aide import (
     ALIAS,
     AMONT,
     CLE_AMONT,
     PROPRIETAIRE,
     affecter,
-    cle_coffre,
     connecter_passerelle,
     declarer_profil,
     definir_secrets,
-    faux,
-    faux_local,
     fournisseur_local,
     preparer_identites,
 )
-from faux_litellm import CLE_FICTIVE
 from sqlalchemy import text
 
 from opsys.fournisseurs import registre
-from opsys.roles_modeles import acces, appel, codes, decouverte, generation, service
+from opsys.roles_modeles import appel, codes, decouverte, generation, service
 from opsys.roles_modeles.appel import Escalade
 from opsys.roles_modeles.codes import ModelesErreur
 
@@ -66,8 +63,12 @@ def test_parcours_complet_installation_neuve_jusqu_au_retour_arriere(session, cl
     declarer_profil(session)
     definir_secrets(session, CLE_FICTIVE)
     with session() as cnx, pytest.raises(ModelesErreur) as exc:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_PASSERELLE_CONFIGURER, parametres={
-            "mode": "integree", "url_base": faux.url, "secret_cle": "passerelle.cle"})
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_PASSERELLE_CONFIGURER,
+            parametres={"mode": "integree", "url_base": faux.url, "secret_cle": "passerelle.cle"},
+        )
     assert exc.value.code == codes.CONFIRMATION_REQUISE
     connecter_passerelle(session, faux.url)
     assert faux.appels == []  # connecter ne contacte pas la passerelle
@@ -81,22 +82,33 @@ def test_parcours_complet_installation_neuve_jusqu_au_retour_arriere(session, cl
     assert par_nom["opsys-haiku-5-5"]["cout_sortie_par_million"] == "5"
     assert par_nom["opsys-embed-e5-multilingue"]["cout_entree_par_million"] is None  # 0 = non déclaré
     assert par_nom["opsys-vl-qwen3-30b"]["vision"] is True
-    assert "sk-secret-amont" not in json.dumps(r) and "interne.fictif" not in json.dumps(r)
+    assert "cle-amont-piege" not in json.dumps(r) and "interne.fictif" not in json.dumps(r)
     assert all(a["autorise"] for a in faux.appels)
     assert {a["chemin"] for a in faux.appels} == {"/v1/models", "/model/info"}
 
     # 4. Affectation des rôles.
-    affecter(session, "llm_rapide", ALIAS["llm_rapide"], amont=AMONT["llm_rapide"],
-             cout_entree_par_million="1", cout_sortie_par_million="5", cout_source="catalogue de la passerelle")
+    affecter(
+        session,
+        "llm_rapide",
+        ALIAS["llm_rapide"],
+        amont=AMONT["llm_rapide"],
+        cout_entree_par_million="1",
+        cout_sortie_par_million="5",
+        cout_source="catalogue de la passerelle",
+    )
     affecter(session, "llm_fort", ALIAS["llm_fort"], amont=AMONT["llm_fort"])
     affecter(session, "embeddings", ALIAS["embeddings"], amont=AMONT["embeddings"])
     affecter(session, "vl", ALIAS["vl"])
     with session() as cnx:  # OCR : moteur local du catalogue (worker Tesseract isolé existant)
         registre.configurer(cnx, acteur=PROPRIETAIRE, identifiant="ocr.tesseract-5.5.local", modifications={})
         assert registre.activer(cnx, acteur=PROPRIETAIRE, identifiant="ocr.tesseract-5.5.local").conforme
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_ROLE_AFFECTER, parametres={
-            "role": "ocr", "fournisseur_id": "ocr.tesseract-5.5.local", "modele_appel": "tesseract-5.5"},
-                          niveau_confirme="N3")
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_ROLE_AFFECTER,
+            parametres={"role": "ocr", "fournisseur_id": "ocr.tesseract-5.5.local", "modele_appel": "tesseract-5.5"},
+            niveau_confirme="N3",
+        )
     assert _vue(session, "ocr")["fournisseur"]["mode"] == "local"
     assert _vue(session, "llm_raisonnement")["etat"] == "inerte"
     assert _vue(session, "stt")["etat"] == "inerte"
@@ -134,10 +146,19 @@ def test_parcours_complet_installation_neuve_jusqu_au_retour_arriere(session, cl
     # 7. Plafond atteint → repli sur le modèle LOCAL (second faux serveur) ; le repli n'est pas plafonné.
     local = fournisseur_local(session, "llm.local.fictif", faux_local.url + "/v1")
     with session() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_ROLE_REPLIS, niveau_confirme="N3", parametres={
-            "role": "llm_rapide", "replis": [{"fournisseur": local, "modele": "qwen-local-fictif"}]})
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_ROLE_PLAFONDS, parametres={
-            "role": "llm_rapide", "plafond_jetons_jour": 120})
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_ROLE_REPLIS,
+            niveau_confirme="N3",
+            parametres={"role": "llm_rapide", "replis": [{"fournisseur": local, "modele": "qwen-local-fictif"}]},
+        )
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_ROLE_PLAFONDS,
+            parametres={"role": "llm_rapide", "plafond_jetons_jour": 120},
+        )
     appels_haiku = len(faux.appels_modele("opsys-haiku-5-5"))
     r3 = appel.completer(session, classe="extraction", messages=MESSAGES, max_tokens=16)
     assert r3["repli_utilise"] is False  # la marge de 120 jetons le permet encore
@@ -161,20 +182,51 @@ def test_parcours_complet_installation_neuve_jusqu_au_retour_arriere(session, cl
     # 8. Raisonnement : refusé sans approbation, à chaque étape.
     affecter(session, "llm_raisonnement", ALIAS["llm_raisonnement"], amont=AMONT["llm_raisonnement"])
     demande = Escalade(PROPRIETAIRE, "Analyse contractuelle complexe du dossier fictif")
-    _erreur(codes.RAISONNEMENT_INACTIF, appel.completer, session, classe="escalade_raisonnement", messages=MESSAGES,
-            escalade=demande)
+    _erreur(
+        codes.RAISONNEMENT_INACTIF,
+        appel.completer,
+        session,
+        classe="escalade_raisonnement",
+        messages=MESSAGES,
+        escalade=demande,
+    )
     with session() as cnx:
-        _erreur(codes.CONFIRMATION_REQUISE, service.appliquer, cnx, acteur=PROPRIETAIRE,
-                operation=service.OP_RAISONNEMENT_ACTIVER, parametres={}, motif="Analyse contractuelle complexe")
+        _erreur(
+            codes.CONFIRMATION_REQUISE,
+            service.appliquer,
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_RAISONNEMENT_ACTIVER,
+            parametres={},
+            motif="Analyse contractuelle complexe",
+        )
     assert faux.appels_modele("opsys-opus-5-5") == []
     with session() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_RAISONNEMENT_ACTIVER, parametres={},
-                          niveau_confirme="N3", motif="Analyse contractuelle complexe du dossier fictif")
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_RAISONNEMENT_ACTIVER,
+            parametres={},
+            niveau_confirme="N3",
+            motif="Analyse contractuelle complexe du dossier fictif",
+        )
     _erreur(codes.ESCALADE_REFUSEE, appel.completer, session, classe="escalade_raisonnement", messages=MESSAGES)
-    _erreur(codes.ESCALADE_REFUSEE, appel.completer, session, classe="escalade_raisonnement", messages=MESSAGES,
-            escalade=Escalade("vendeur_fictif", "Analyse contractuelle complexe du dossier fictif"))
-    _erreur(codes.ESCALADE_REFUSEE, appel.completer, session, classe="escalade_raisonnement", messages=MESSAGES,
-            escalade=Escalade(PROPRIETAIRE, "court"))
+    _erreur(
+        codes.ESCALADE_REFUSEE,
+        appel.completer,
+        session,
+        classe="escalade_raisonnement",
+        messages=MESSAGES,
+        escalade=Escalade("vendeur_fictif", "Analyse contractuelle complexe du dossier fictif"),
+    )
+    _erreur(
+        codes.ESCALADE_REFUSEE,
+        appel.completer,
+        session,
+        classe="escalade_raisonnement",
+        messages=MESSAGES,
+        escalade=Escalade(PROPRIETAIRE, "court"),
+    )
     assert faux.appels_modele("opsys-opus-5-5") == []
     for classe in ("classification", "analyse", "outil_complexe", "redaction"):  # actif ≠ par défaut
         assert appel.completer(session, classe=classe, messages=MESSAGES, max_tokens=8)["role"] != "llm_raisonnement"
@@ -188,24 +240,52 @@ def test_parcours_complet_installation_neuve_jusqu_au_retour_arriere(session, cl
 
     # 9. Retour arrière : le raisonnement redevient inactif ; le rôle fort retrouve son état antérieur.
     with session() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_REVENIR, niveau_confirme="N3",
-                          parametres={"cible": "raisonnement"})
-    _erreur(codes.RAISONNEMENT_INACTIF, appel.completer, session, classe="escalade_raisonnement", messages=MESSAGES,
-            escalade=demande)
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_REVENIR,
+            niveau_confirme="N3",
+            parametres={"cible": "raisonnement"},
+        )
+    _erreur(
+        codes.RAISONNEMENT_INACTIF,
+        appel.completer,
+        session,
+        classe="escalade_raisonnement",
+        messages=MESSAGES,
+        escalade=demande,
+    )
     ident = _vue(session, "llm_fort")["fournisseur"]["identifiant"]
     with session() as cnx:
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_ROLE_AFFECTER, niveau_confirme="N3",
-                          parametres={"role": "llm_fort", "fournisseur_id": ident, "modele_appel": "autre-modele"})
-        service.appliquer(cnx, acteur=PROPRIETAIRE, operation=service.OP_REVENIR, niveau_confirme="N3",
-                          parametres={"cible": "role:llm_fort"})
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_ROLE_AFFECTER,
+            niveau_confirme="N3",
+            parametres={"role": "llm_fort", "fournisseur_id": ident, "modele_appel": "autre-modele"},
+        )
+        service.appliquer(
+            cnx,
+            acteur=PROPRIETAIRE,
+            operation=service.OP_REVENIR,
+            niveau_confirme="N3",
+            parametres={"cible": "role:llm_fort"},
+        )
     assert _vue(session, "llm_fort")["modele_appel"] == ALIAS["llm_fort"]
 
     # 10. Configuration générée : rôles servis par la passerelle, jamais une clé, raisonnement absent (inactif).
     with session() as cnx:
         config = generation.config_depuis_roles(cnx, {})
     noms = {m["model_name"] for m in config["model_list"]}
-    assert {"opsys-haiku-5-5", "opsys-sonnet-5-5", "opsys-rapide", "opsys-standard", "opsys-fort",
-            "opsys-haiku-5-5-repli1", "opsys-embed-e5-multilingue"} <= noms
+    assert {
+        "opsys-haiku-5-5",
+        "opsys-sonnet-5-5",
+        "opsys-rapide",
+        "opsys-standard",
+        "opsys-fort",
+        "opsys-haiku-5-5-repli1",
+        "opsys-embed-e5-multilingue",
+    } <= noms
     assert "opsys-opus-5-5" not in noms
     texte = yaml.safe_dump(config)
     assert CLE_AMONT not in texte and CLE_FICTIVE not in texte and "os.environ/OPENROUTER_API_KEY" in texte

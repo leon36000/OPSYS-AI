@@ -69,7 +69,7 @@ class FauxLiteLLM:
                                     "model_name": nom,
                                     "litellm_params": {
                                         "model": f"openrouter/amont/{nom}",
-                                        "api_key": "sk-secret-amont-ne-doit-pas-sortir",
+                                        "api_key": "cle-amont-piege-ne-doit-pas-sortir",
                                         "api_base": "http://interne.fictif",
                                     },
                                     "model_info": {

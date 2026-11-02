@@ -63,7 +63,7 @@ def racine_admin(url_base: str) -> str:
     return base[:-3] if base.endswith("/v1") else base
 
 
-def _detail_amont(corps: bytes) -> str:
+def _detail_amont(corps: bytes, cle: str | None = None) -> str:
     try:
         donnees = json.loads(corps)
         message = donnees.get("error", {}).get("message") if isinstance(donnees, dict) else None
@@ -72,7 +72,10 @@ def _detail_amont(corps: bytes) -> str:
         texte = str(message) if message else ""
     except (ValueError, AttributeError):
         texte = ""
-    return masquage.masquer_texte(texte[:120].replace("\n", " "))
+    texte = texte[:120].replace("\n", " ")
+    if cle and len(cle) >= 4:  # le client connaît sa propre clé : jamais recopiée, même non enregistrée au masquage
+        texte = texte.replace(cle, masquage.MASQUE)
+    return masquage.masquer_texte(texte)
 
 
 class ClientOpenAI:
@@ -113,9 +116,11 @@ class ClientOpenAI:
         if statut in (401, 403):
             raise ErreurAppel("REJ-MODELES-APPEL-REFUSE", f"authentification refusée (HTTP {statut})", False, statut)
         if statut == 429 or statut >= 500:
-            raise ErreurAppel("REJ-MODELES-APPEL-ECHEC", f"HTTP {statut} {_detail_amont(brut)}".strip(), True, statut)
+            detail = _detail_amont(brut, self._cle)
+            raise ErreurAppel("REJ-MODELES-APPEL-ECHEC", f"HTTP {statut} {detail}".strip(), True, statut)
         if statut >= 300:
-            raise ErreurAppel("REJ-MODELES-APPEL-REFUSE", f"HTTP {statut} {_detail_amont(brut)}".strip(), False, statut)
+            detail = _detail_amont(brut, self._cle)
+            raise ErreurAppel("REJ-MODELES-APPEL-REFUSE", f"HTTP {statut} {detail}".strip(), False, statut)
         try:
             resultat = json.loads(brut or b"null")
         except ValueError:
