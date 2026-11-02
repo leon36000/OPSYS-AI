@@ -502,3 +502,22 @@ def test_l_etat_des_regles_dit_le_seuil_declare_invalide_ou_a_configurer():
     assert lignes["ALERTE-RUPTURE-MATERIEL"]["franchies"] == 1
     assert lignes["ALERTE-RUPTURE-MATERIEL"]["reglage"] == "configuration.alertes.seuils.articles_en_rupture"
     assert "seuil" not in lignes["ALERTE-QUALITE-ECHEC"]
+
+
+def test_chaque_genre_de_regle_ouvre_son_propre_type_d_alerte_et_le_bon_departement():
+    """La dimension du type : une péremption n'est pas un échec de qualité, ni l'un ni l'autre un seuil franchi."""
+    attendu = {"seuil": "METIER-SEUIL-FRANCHI", "peremption": "METIER-DONNEE-PERIMEE",
+               "qualite": "METIER-QUALITE-ECHEC"}
+    registres = copy.deepcopy(jeux_fictifs.registres_fictifs(jour="2026-11-12", avec_operations=True))
+    registres["cash_libre"][0]["en_deficit"] = True  # qualité : le cash libre est bloqué
+    bloquees = _mesures(registres)
+    vieilles = _mesures(maintenant=T0 + dt.timedelta(days=30))
+    vus = set()
+    for mesures in (_mesures(), bloquees, vieilles):
+        for entree in alertes_metier.planifier(REGLES, _verdicts(mesures), mesures, [], MAINTENANT)["ouvertures"]:
+            assert entree["type_alerte"] == attendu[entree["genre"]], entree["regle"]
+            assert entree["departement"] == ENTREES[entree["metric_id"]]["proprietaire"]
+            charge = alertes_metier.charge_evenement(entree)
+            assert charge["type_alerte"] == attendu[entree["genre"]] and charge["a_qui"] == entree["departement"]
+            vus.add(entree["genre"])
+    assert vus == {"seuil", "peremption", "qualite"}

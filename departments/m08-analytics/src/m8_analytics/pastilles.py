@@ -39,8 +39,9 @@ QUALITY_FAIL = "QUALITY_FAIL"
 GATED = "GATED"
 
 # Les états de collecte (``collecte``) où c'est une décision humaine qui retient la mesure.
-_ETATS_RETENUS_PAR_UN_GESTE = frozenset({"planificateur_coupe", "constat_expire", "constat_inactif",
-"constat_en_ombre"})
+_ETATS_RETENUS_PAR_UN_GESTE = frozenset(
+    {"planificateur_coupe", "constat_expire", "constat_inactif", "constat_en_ombre"}
+)
 
 _LIBELLES = {
     FRESH: "À jour",

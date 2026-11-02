@@ -482,6 +482,23 @@ report, échéance, résolution, rechute (épisode 2) ; valeur périmée ; retou
 - Cadence : celle du tour `m8.entrepot` (3 600 s par défaut) et seulement une fois qu'un admin l'a activé (inactif par défaut).
 - Prouvé sur SQLite, données fictives, horloge injectée ; PostgreSQL non rejoué pour ce chantier.
 
+### Mutations de D0, C4 et C3 (64, une à une, dans un clone)
+
+Chaque mutation est appliquée seule dans un CLONE du dépôt, les tests ciblés (pur + bout en bout) sont rejoués, le fichier est restauré et
+son empreinte comparée à l'original (restaurations vérifiées). Résultat : **63 tuées, 1 survivante équivalente**. Une première passe avait laissé passer une vraie
+mutation (les types d'alerte `METIER-DONNEE-PERIMEE` et `METIER-QUALITE-ECHEC` permutés ; une autre mutation était inapplicable, son texte
+ayant été reformaté) : un test (`test_chaque_genre_de_regle_ouvre_son_propre_type_d_alerte_et_le_bon_departement`) tue la première et la seconde
+est rejouée. Les mutations « mauvaise dimension » comptent :
+
+| Famille | Exemples tués |
+|---|---|
+| D0, jour local (11) | jour dans le fuseau UTC au lieu du fuseau local ; décalage fixe de cinq heures sans heure d'été ; fuseau déclaré ignoré (synthèse, interdépartements, constats : trois chemins distincts) ; fuseau illisible replié sur l'UTC ; adaptateur qui déclare l'UTC ; défaut du planificateur en UTC ; fin de journée au lieu du début ; fenêtre doublée |
+| C4, qualité et pastilles (25) | `QUALITY_FAIL` traité comme `STALE` ou comme `MISSING` ; `GATED` confondu avec `MISSING`, tout non calculable devenu `GATED`, `jamais_recue` comptée comme geste humain ; l'échec ne bloque plus la valeur ; relation à l'envers ; bornes de plage exclusives ; déficit incohérent, total des créances, total de facture, montant négatif non contrôlés ; règle en double acceptée ; copilote qui ne refuse plus ou cite la valeur ; score qui note une donnée bloquée ; tuile et bannière sans l'échec ; mémoire sans l'anomalie ou qui la double ; M10 qui refuse le nouveau type ; qualité appliquée hors du moteur ; collecte qui ne nomme plus l'échec |
+| C3, alertes (28) | frontière stricte ; sens inversé ; seuil absent valant zéro ; valeur périmée qui alerte ; déduplication retirée ; règle non évaluée qui résout ; report sans échéance ou à échéance incluse ; double accusé écrit ; report dans le passé ; alerte rangée au MAUVAIS DÉPARTEMENT ; destinataire de l'événement altéré ; action d'un autre gabarit ; types d'alerte permutés ; clé `cause` dans la vue (garde AST) ; borne d'inondation retirée ; « À voir » qui inclut les accusées ou inverse les niveaux ; rechute qui réutilise le rang 1 ; accusé qui ne lève pas le report et inversement ; tour planifié qui n'évalue pas ; ouverture sans événement ; seuil textuel accepté ; péremption évaluée sur une mesure non calculable |
+
+**Survivante équivalente** : `C4-24` (la bannière ne compte plus l'échec de qualité dans son niveau) : une tuile bloquée est aussi une tuile
+non calculable, et la règle suivante (« non calculable donne au moins attention ») redonne le même niveau ; aucun comportement observable ne change.
+
 ## 10. Commandes
 
 ```bash
