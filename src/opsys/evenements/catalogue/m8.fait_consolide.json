@@ -50,7 +50,7 @@
         "type": "object", "additionalProperties": false,
         "properties": {
           "metric_id": {"type": "string", "pattern": "^m8_[a-z0-9_]{1,76}$"},
-          "type": {"type": "string", "enum": ["devenue_non_calculable", "perimee"]}
+          "type": {"type": "string", "enum": ["devenue_non_calculable", "perimee", "echec_qualite"]}
         },
         "required": ["metric_id", "type"]
       }

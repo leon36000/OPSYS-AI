@@ -169,15 +169,19 @@
      "tests": [
       "departments/m08-analytics/tests/test_qualite.py",
       "departments/m08-analytics/tests/test_validation.py",
-      "departments/m08-analytics/tests/test_nombres.py"
+      "departments/m08-analytics/tests/test_nombres.py",
+      "departments/m08-analytics/tests/test_qualite_mesures.py",
+      "tests/test_m8_qualite_planifiee.py"
      ],
-     "docs": [],
-     "niveau": "T"
+     "docs": [
+      "docs/architecture/M8-ENTREPOT-SOURCES.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "PENDING_C4",
    "current_status": "PARTIEL",
-   "limite": "Validation d'entrée (devise CAD) et évaluation de qualité d'une métrique ; pas de suite de tests de qualité par jeu de données."
+   "limite": "Validation d'entrée (devise CAD), évaluation de qualité d'une métrique d'agent ET, depuis le chantier C4, des règles d'invariants (plage, relation, cohérence d'un fait) évaluées de façon déterministe sur les faits reçus : un échec BLOQUE la mesure (non calculable, raison nommée), la tuile (pastille QUALITY_FAIL), le copilote (refus), le score (composante indéterminée) et est mémorisé par M10 ; prouvé de bout en bout sur SQLite avec un relevé aberrant et un constat de cash libre incohérent. Non couvert : unicité, intégrité référentielle, chantier sans adresse (M8 ne reçoit pas ces champs) ; une valeur plausible mais fausse passe (le bus n'authentifie pas le producteur) ; aucun historique daté des échecs ; PostgreSQL et navigateur réel non rejoués."
   },
   {
    "id": "M8.5",
@@ -197,18 +201,22 @@
    "proofs": [
     {
      "tests": [
-      "departments/m08-analytics/tests/test_fraicheur_lectures.py"
+      "departments/m08-analytics/tests/test_fraicheur_lectures.py",
+      "departments/m08-analytics/tests/test_qualite_mesures.py",
+      "departments/m08-analytics/tests/test_jour_local.py",
+      "tests/test_m8_jour_local_planifie.py"
      ],
      "docs": [
-      "departments/m08-analytics/docs/FRAICHEUR-ATTENDUE-LECTURES.md"
+      "departments/m08-analytics/docs/FRAICHEUR-ATTENDUE-LECTURES.md",
+      "docs/architecture/M8-ENTREPOT-SOURCES.md"
      ],
-     "niveau": "T"
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "PENDING_C4",
    "current_status": "PARTIEL",
-   "limite": "Fraîcheur attendue déclarable par lecture, vide à la livraison ; « non calculable, manque X » ; aucun badge ni lignée (grep des badges : 0).",
-   "verification": "grep STALE|FRESH|LIVE|QUALITY_FAIL|GATED dans src M8 : 0"
+   "limite": "Fraîcheur attendue déclarable par lecture, vide à la livraison ; « non calculable, manque X » ; le jour d'un constat de M5 se date à minuit LOCAL de l'entreprise (correctif D0 : avant, les mesures datées par jour étaient périmées de 19 h à minuit) ; six pastilles FRESH, STALE, PARTIAL, MISSING, QUALITY_FAIL, GATED DÉRIVÉES des états existants (aucune table) et montrées sur la tuile ; LIVE abandonné par arbitrage (aucune source n'est temps réel) et ESTIMATED absent (M8 n'estime rien). Aucune lignée (graphe de parents, version de transformation), aucun score de confiance ; GATED exige l'état du planificateur (sinon MISSING).",
+   "verification": "pastilles.py : code_pastille ; tests/test_m8_qualite_planifiee.py (tuile de la vraie console)"
   },
   {
    "id": "M8.6",
@@ -311,15 +319,19 @@
     {
      "tests": [
       "departments/m08-analytics/tests/test_alertes.py",
-      "departments/m08-analytics/tests/test_evenements_alerte_proposee.py"
+      "departments/m08-analytics/tests/test_evenements_alerte_proposee.py",
+      "departments/m08-analytics/tests/test_alertes_metier.py",
+      "tests/test_m8_alertes_metier_planifiees.py"
      ],
-     "docs": [],
+     "docs": [
+      "docs/architecture/M8-ENTREPOT-SOURCES.md"
+     ],
      "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "PENDING_C3",
    "current_status": "PARTIEL",
-   "limite": "Alertes sur seuils configurés (vides par défaut) publiées en m8.alerte_proposee ; l'action proposée par alerte n'est pas confirmée."
+   "limite": "Chantier C3 : huit règles déclaratives sur le catalogue fermé (trésorerie, créances de 90 jours et plus, taux d'acceptation, soumissions sans réponse, rupture, pipeline bas, donnée périmée, qualité en échec), seuils DÉCLARÉS par la direction (six réglages N3, aucune valeur proposée ; sans seuil la règle est non évaluée et le dit), action d'un gabarit fermé, département propriétaire nommé, jamais de cause, cycle de vie ouverte / accusée / reportée / résolue en registre append-only (une alerte par épisode), proposition à M9 (m8.alerte_proposee étendu de façon additive) et section « À voir » : prouvé de bout en bout sur SQLite (vrai planificateur à horloge injectée, vrai bus, vrai sas N3). Non livré : poussée vers un téléphone ou un courriel (décision du propriétaire en attente) ; « baisse de leads » en variation (comptes cumulatifs, pas d'historique de période) ; écran d'accusé ou de report (outils d'agent seulement) ; résolution manuelle ; hystérésis ; escalade ; PostgreSQL et navigateur réel non rejoués."
   },
   {
    "id": "M8.10",
@@ -386,6 +398,8 @@
      "tests": [
       "departments/m08-analytics/tests/test_copilote.py",
       "departments/m08-analytics/tests/test_outils_analytiques.py",
+      "departments/m08-analytics/tests/test_qualite_mesures.py",
+      "tests/test_m8_qualite_planifiee.py",
       "tests/test_evaluation_gabarit.py"
      ],
      "docs": [
@@ -397,7 +411,7 @@
    ],
    "verified_commit": "d8634abf6",
    "current_status": "PARTIEL",
-   "limite": "Copilote déterministe sur catalogue FERMÉ (aucun SQL généré, aucun calcul de tête, reçu vérifiable), refus typés (injection, SQL, écriture, personnes, secrets, hors catalogue), précision demandée plutôt que deviner ; corpus propre de 82 questions (82/82) et dix cas ajoutés au gabarit commun (M8 22/22 avec le répondant de référence, 12/22 non qualifié avec le dangereux). Reconnaissance lexicale seulement (pas de modèle de langage) ; un seul auteur de corpus ; aucun modèle réel mesuré.",
+   "limite": "Copilote déterministe sur catalogue FERMÉ (aucun SQL généré, aucun calcul de tête, reçu vérifiable), refus typés (injection, SQL, écriture, personnes, secrets, hors catalogue), précision demandée plutôt que deviner ; REFUS expliqué (REJ-COPILOTE-QUALITE-ECHEC, aucun chiffre) quand le contrôle de qualité a bloqué la mesure demandée (C4, prouvé de bout en bout sur SQLite) ; corpus propre de 82 questions (82/82) et dix cas ajoutés au gabarit commun (M8 22/22 avec le répondant de référence, 12/22 non qualifié avec le dangereux). Reconnaissance lexicale seulement (pas de modèle de langage) ; un seul auteur de corpus ; aucun modèle réel mesuré.",
    "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {

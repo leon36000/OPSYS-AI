@@ -166,11 +166,14 @@ def evaluer(mesure: dict[str, Any], maintenant: datetime, fenetre: dict[str, Any
     """Le statut de fraîcheur d'UNE mesure lue (``moteur_mesures.lire``) à l'instant ``maintenant``."""
     base = {"fenetre_s": fenetre["secondes"], "origine_fenetre": fenetre["origine"], "age_s": None}
     if mesure["statut"] != entonnoir.STATUT_CALCULEE:
+        bloquee = (mesure.get("qualite") or {}).get("statut") == "echec"
         return {
             **base,
             "statut": STATUT_MANQUANT,
             "peut_etre_montree_comme_a_jour": False,
-            "motif": "mesure non calculable : aucune valeur à dater",
+            "motif": "mesure bloquée par le contrôle de qualité des données : aucune valeur à dater"
+            if bloquee
+            else "mesure non calculable : aucune valeur à dater",
         }
     instant = entonnoir.instant_lu(mesure.get("dernier_fait_le"))
     if instant is not None:

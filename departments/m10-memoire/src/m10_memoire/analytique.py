@@ -52,7 +52,7 @@ _INSTANT = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+\-Zz]{6,32}$")
 _DOMAINES = frozenset({"ventes", "marketing", "operations", "qualite", "finance", "clientele"})
 _STATUTS = frozenset({"calculee", "non_calculable"})
 _FRAICHEURS = frozenset({"a_jour", "perime", "inconnu", "manquant", "non_applicable"})
-_ANOMALIES = frozenset({"devenue_non_calculable", "perimee"})
+_ANOMALIES = frozenset({"devenue_non_calculable", "perimee", "echec_qualite"})
 _CLES_MESURE = frozenset(
     {
         "metric_id",

@@ -175,6 +175,12 @@ configuration:
   # « pire » et « cible » vont dans le sens du « mieux » du catalogue (plus_est_mieux : pire < cible). Sans bornes valides,
   # le score est INDÉTERMINÉ et dit lesquelles configurer.
   sante: {}
+  # Alertes MÉTIER (M8.9, chantier C3, definitions/m8-alertes.v1.yaml). Les SEUILS sont ceux de la direction : VIDES à dessein
+  # (aucun seuil n'est inventé). Tant qu'un seuil n'est pas déclaré, la règle correspondante est « non évaluée » et le dit
+  # (m8_lire_alertes_metier), jamais une alerte sur un seuil deviné. Ils se ADOPTENT depuis la console (« Réglages de direction »,
+  # geste N3, retour arrière possible), voir le bloc `reglages:` ci-dessous. Forme : alertes.seuils.<nom> = texte décimal ou entier.
+  alertes:
+    seuils: {}
 # Réglages de direction (CFG-1, docs/architecture/REGLAGES-DIRECTION.md) : ce que la direction décide pour M8, DÉCLARÉ ici et
 # adopté depuis la console (« Réglages de direction », geste N3 du propriétaire, retour arrière possible). Précédence de
 # lecture, réglage par réglage : valeur ADOPTÉE > valeur de `configuration` ci-dessus > absence (score INDÉTERMINÉ, comme avant).
@@ -250,6 +256,72 @@ reglages:
     niveau: N3
     debloque: >-
       Composante « Clientèle » (indicateur approché, proxy) du score de santé (m8_lire_sante_entreprise) : sans ces bornes, le score est INDÉTERMINÉ.
+  # -- Seuils des alertes métier (C3) : la valeur est la décision de la direction, aucune proposition ---------------------------
+  # Le sens est fixé par la règle (definitions/m8-alertes.v1.yaml) ; la valeur est atteinte ou franchie dans ce sens : « sous » pour
+  # le cash libre, le taux d'acceptation et le pipeline (la valeur ATTEINT ou passe sous le seuil), « au-dessus » pour les créances de
+  # 90 jours et plus, les soumissions sans réponse et les articles en rupture (la valeur ATTEINT ou dépasse le seuil). Les bornes
+  # min et max sont des bornes de SAISIE (refuser une faute de frappe), pas des seuils d'affaires.
+  - cle: m8.seuil_alerte_tresorerie_sous_seuil
+    libelle: "Alerte de trésorerie : cash libre à partir duquel alerter (en dessous ou égal)"
+    chemin: configuration.alertes.seuils.tresorerie_sous_seuil
+    type: decimal
+    unite: CAD
+    min: "-1000000000"
+    max: "1000000000"
+    niveau: N3
+    debloque: >-
+      L'alerte critique « ALERTE-TRESORERIE-SOUS-SEUIL » (m8_lire_alertes_metier, section « À voir » du propriétaire, briefing de M9) :
+      sans ce seuil, la règle est non évaluée et aucune alerte de trésorerie ne s'ouvre.
+  - cle: m8.seuil_alerte_creances_90_jours
+    libelle: "Alerte de factures en retard : créances de 90 jours et plus à partir desquelles alerter (au-dessus ou égal)"
+    chemin: configuration.alertes.seuils.creances_90_jours
+    type: decimal
+    unite: CAD
+    min: "0"
+    max: "1000000000"
+    niveau: N3
+    debloque: >-
+      L'alerte « ALERTE-CREANCES-90-JOURS » : sans ce seuil, la règle est non évaluée.
+  - cle: m8.seuil_alerte_taux_acceptation
+    libelle: "Alerte de conversion : taux d'acceptation des soumissions à partir duquel alerter (en dessous ou égal)"
+    chemin: configuration.alertes.seuils.taux_acceptation
+    type: decimal
+    unite: "%"
+    min: "0"
+    max: "100"
+    niveau: N3
+    debloque: >-
+      L'alerte « ALERTE-CONVERSION-SOUS-SEUIL » : sans ce seuil, la règle est non évaluée.
+  - cle: m8.seuil_alerte_devis_sans_reponse
+    libelle: "Alerte de soumissions sans réponse : nombre à partir duquel alerter (au-dessus ou égal)"
+    chemin: configuration.alertes.seuils.devis_sans_reponse
+    type: decimal
+    unite: devis
+    min: "0"
+    max: "100000"
+    niveau: N3
+    debloque: >-
+      L'alerte « ALERTE-DEVIS-SANS-REPONSE » : sans ce seuil, la règle est non évaluée.
+  - cle: m8.seuil_alerte_articles_en_rupture
+    libelle: "Alerte de rupture : nombre d'articles en rupture à partir duquel alerter (au-dessus ou égal)"
+    chemin: configuration.alertes.seuils.articles_en_rupture
+    type: decimal
+    unite: articles
+    min: "0"
+    max: "100000"
+    niveau: N3
+    debloque: >-
+      L'alerte « ALERTE-RUPTURE-MATERIEL » : sans ce seuil, la règle est non évaluée.
+  - cle: m8.seuil_alerte_pipeline_leads_ouverts
+    libelle: "Alerte de pipeline bas : nombre de leads ouverts à partir duquel alerter (en dessous ou égal)"
+    chemin: configuration.alertes.seuils.pipeline_leads_ouverts
+    type: decimal
+    unite: leads
+    min: "0"
+    max: "100000"
+    niveau: N3
+    debloque: >-
+      L'alerte « ALERTE-PIPELINE-BAS » (un niveau du pipeline, non une variation de leads) : sans ce seuil, la règle est non évaluée.
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).

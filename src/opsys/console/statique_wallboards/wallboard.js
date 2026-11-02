@@ -3,6 +3,8 @@
   var CLASSES_ETAT = ["etat-normal", "etat-attention", "etat-critique", "etat-indetermine", "etat-sans_seuil"];
   var CLASSES_FRAICHEUR = ["fraicheur-a_jour", "fraicheur-perime", "fraicheur-inconnu", "fraicheur-manquant",
     "fraicheur-non_applicable"];
+  var CLASSES_PASTILLE = ["pastille-FRESH", "pastille-STALE", "pastille-PARTIAL", "pastille-MISSING", "pastille-QUALITY_FAIL",
+    "pastille-GATED"];
   var CLASSES_BANNIERE = ["banniere-ok", "banniere-attention", "banniere-critique"];
   var DELAI_RECONNEXION_MS = 5000;
   var TOLERANCE_PERTE = 3;
@@ -25,9 +27,15 @@
       champ(el, "valeur").textContent = String(t.valeur_affichee);
       champ(el, "etat").textContent = String(t.libelle_fraicheur) + " · " + String(t.libelle_seuil) +
         (t.partielle === true ? " · couverture partielle" : "");
+      var pastille = champ(el, "pastille");
+      if (pastille) {
+        pastille.textContent = String(t.libelle_pastille) + " (" + String(t.pastille) + ")";
+        remplacerClasse(pastille, CLASSES_PASTILLE, "pastille-" + String(t.pastille).replace(/[^A-Z_]/g, ""));
+      }
       champ(el, "detail").textContent = t.age_affiche ? "Dernier fait il y a " + String(t.age_affiche) : "Aucun âge connu";
       remplacerClasse(el, CLASSES_ETAT, "etat-" + String(t.etat_seuil));
       remplacerClasse(el, CLASSES_FRAICHEUR, "fraicheur-" + String(t.fraicheur));
+      if (t.qualite_en_echec === true) { el.classList.add("qualite-echec"); } else { el.classList.remove("qualite-echec"); }
       el.classList.remove("deconnecte");
     }
     function appliquerBanniere(b) {

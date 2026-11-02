@@ -95,3 +95,11 @@ def test_la_pause_coupe_le_flux_et_n_alarme_pas_puis_la_reprise_rouvre(resultats
     assert resultats["pause_flux_ferme"] is True and resultats["pause_aria"] == "true"
     assert resultats["pause_texte"] == "Reprendre le rafraîchissement" and resultats["pause_sans_alarme"] is True
     assert resultats["reprise_aria"] == "false" and resultats["reprise_nouveau_flux"] is True
+
+
+def test_la_pastille_se_dit_en_toutes_lettres_et_en_classe_et_une_valeur_hostile_reste_du_texte(resultats):
+    assert resultats["pastille_texte"] == "Qualité en échec (QUALITY_FAIL)"
+    assert resultats["pastille_classes"] == ["pastille-QUALITY_FAIL"] and resultats["tuile_qualite"] is True
+    assert resultats["pastille_apres"] == ["pastille-FRESH"] and resultats["tuile_qualite_apres"] is False
+    assert resultats["pastille_hostile"] == "<script>x</script> (<img src=x>)"
+    assert resultats["pastille_hostile_classes"] == ["pastille-"], "le code est filtré (A-Z et soulignement seulement)"

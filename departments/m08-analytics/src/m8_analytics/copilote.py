@@ -37,7 +37,7 @@ import re
 import unicodedata
 from typing import Any
 
-from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, wallboards
+from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, qualite_mesures, wallboards
 
 SCHEMA_RECU = "opsys.m8.copilote.recu/v1"
 QUESTION_MIN, QUESTION_MAX = 2, 400
@@ -55,6 +55,7 @@ REJ_ACTION = "REJ-COPILOTE-ACTION-REFUSEE"
 REJ_PERSONNEL = "REJ-COPILOTE-DONNEE-PERSONNELLE"
 REJ_SECRET = "REJ-COPILOTE-SECRET-REFUSE"
 REJ_HORS_CATALOGUE = "REJ-COPILOTE-HORS-CATALOGUE"
+REJ_QUALITE_ECHEC = "REJ-COPILOTE-QUALITE-ECHEC"
 
 INTENTION_VALEUR = "valeur"
 INTENTION_FRAICHEUR = "fraicheur"
@@ -254,7 +255,18 @@ def _ligne_mesure(mesure: dict[str, Any]) -> dict[str, Any]:
         "a_jour": fraicheur["peut_etre_montree_comme_a_jour"] and mesure["statut"] == entonnoir.STATUT_CALCULEE,
         "manque": [m["champ"] for m in mesure["manque"]],
         "couverture": mesure.get("couverture") or {"etat": "complete"},
+        "qualite_en_echec": qualite_mesures.en_echec(mesure),
+        "pastille": (mesure.get("pastille") or {}).get("code"),
     }
+
+
+# La phrase d'une mesure BLOQUÉE par le contrôle de qualité : elle ne cite jamais la valeur douteuse (il n'y en a
+# aucune, le moteur l'a retenue) et ne contient aucun chiffre.
+_PHRASE_QUALITE_ECHEC = (
+    "BLOQUÉE par le contrôle de qualité des données : la donnée reçue à la source est aberrante ou incohérente. Aucune "
+    "valeur n'est donnée plutôt qu'un chiffre douteux ; le rapport de qualité nomme la règle en échec et le geste de "
+    "correction."
+)
 
 
 def _couverture_partielle(ligne: dict[str, Any]) -> bool:
@@ -283,6 +295,8 @@ def _phrase_valeur(ligne: dict[str, Any]) -> str:
 def _phrase_valeur_brute(ligne: dict[str, Any]) -> str:
     fraicheur = ligne["fraicheur"]
     nom = ligne["nom"]
+    if ligne["qualite_en_echec"]:
+        return f"{nom} : {_PHRASE_QUALITE_ECHEC}"
     age = "" if fraicheur["age_s"] is None else fraicheur_mesures.formater_duree(fraicheur["age_s"])
     if ligne["statut"] != entonnoir.STATUT_CALCULEE:
         manque = ", ".join(ligne["manque"]) or "une donnée"
@@ -304,6 +318,8 @@ def _phrase_valeur_brute(ligne: dict[str, Any]) -> str:
 
 def _phrase_fraicheur(ligne: dict[str, Any]) -> str:
     fraicheur = ligne["fraicheur"]
+    if ligne["qualite_en_echec"]:
+        return f"{ligne['nom']} : bloquée par le contrôle de qualité, donc sans valeur à dater."
     if ligne["statut"] != entonnoir.STATUT_CALCULEE:
         return f"{ligne['nom']} : non calculable, donc sans valeur à dater."
     if fraicheur["statut"] == fraicheur_mesures.STATUT_A_JOUR:
@@ -322,6 +338,8 @@ def _phrase_fraicheur(ligne: dict[str, Any]) -> str:
 
 
 def _phrase_tendance(ligne: dict[str, Any], historique: list[dict[str, Any]] | None) -> tuple[str, list[str]]:
+    if ligne["qualite_en_echec"]:
+        return f"{ligne['nom']} : bloquée par le contrôle de qualité, aucune tendance n'est donnée.", []
     if not historique:
         return f"{ligne['nom']} : aucun historique enregistré dans l'entrepôt (il n'a pas encore été construit).", []
     valeurs = [h for h in historique if h.get("valeur") is not None]
@@ -574,6 +592,27 @@ def repondre(
     if len(identifiants) > MESURES_MAX:
         return _refus(REJ_HORS_CATALOGUE, f"Au plus {MESURES_MAX} mesures par question.", **contexte)
     lignes = [_ligne_mesure(par_id[m]) for m in identifiants]
+    if all(ligne["qualite_en_echec"] for ligne in lignes):
+        # Toute la question porte sur des mesures que le contrôle de qualité a bloquées : refus expliqué, jamais un
+        # chiffre douteux (ni une valeur « de la dernière fois »).
+        noms = "; ".join(ligne["nom"] for ligne in lignes)
+        reponse = _refus(
+            REJ_QUALITE_ECHEC,
+            f"Je ne donne pas ce chiffre : {noms}. " + _PHRASE_QUALITE_ECHEC,
+            **contexte,
+        )
+        reponse["mesures"] = lignes
+        reponse["sources"] = sorted({ligne["source"] for ligne in lignes if ligne["source"]})
+        reponse["recu"] = _recu(
+            intention=INTENTION_REFUS,
+            question_normalisee=normalisee,
+            catalogue=catalogue,
+            lignes=lignes,
+            maintenant=maintenant,
+            empreinte_registres=empreinte_registres,
+            code=REJ_QUALITE_ECHEC,
+        )
+        return reponse
     mention = any(ligne["sensibilite"] == "financier" for ligne in lignes)
     if _INTENTION_TENDANCE.search(normalisee):
         phrases, chiffres = [], []
@@ -609,6 +648,7 @@ __all__ = [
     "REJ_HORS_CATALOGUE",
     "REJ_INJECTION",
     "REJ_PERSONNEL",
+    "REJ_QUALITE_ECHEC",
     "REJ_QUESTION_INVALIDE",
     "REJ_SECRET",
     "REJ_SQL",

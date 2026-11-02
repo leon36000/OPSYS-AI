@@ -28,7 +28,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import catalogue_mesures, contenus, encodage, entonnoir, mesures_interdepartements, synthese
+from . import (
+    catalogue_mesures,
+    contenus,
+    encodage,
+    entonnoir,
+    mesures_interdepartements,
+    qualite_mesures,
+    synthese,
+)
 
 _CLES_REGISTRES = ("chantier", "entonnoir", "contenus", "cash_libre", "operations")
 # Ce que le PROPRIÉTAIRE déclare et que M8 lit sans l'interpréter (D6 : la correspondance canal publicitaire -> sources
@@ -101,10 +109,28 @@ def _mesures_brutes(registres: dict[str, list[dict[str, Any]]]) -> list[dict[str
     return brutes
 
 
-def lire(registres: dict[str, Any], catalogue: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Les mesures du catalogue, dans l'ordre du catalogue, d'après les faits des registres. Lecture pure : rien n'est
-    écrit, rien n'est publié. Une mesure du catalogue qu'aucun moteur ne produit est non calculable, nommément (jamais
-    absente en silence) ; une mesure produite que le catalogue n'a pas n'est pas montrée."""
+# Les règles de qualité par défaut, validées une fois par version du catalogue (le fichier ne change pas en cours de
+# route, et une lecture de wallboard se répète toutes les quelques secondes).
+_REGLES_PAR_VERSION: dict[str, dict[str, Any]] = {}
+
+
+def regles_de_qualite(catalogue: dict[str, Any]) -> dict[str, Any]:
+    """Les règles de ``definitions/m8-qualite.v1.yaml`` validées contre ce catalogue (fail-closed : un fichier
+    refusé lève ``QualiteRefusee``, jamais « aucune règle »)."""
+    version = catalogue["version_catalogue"]
+    if version not in _REGLES_PAR_VERSION:
+        _REGLES_PAR_VERSION[version] = qualite_mesures.charger(catalogue)
+    return _REGLES_PAR_VERSION[version]
+
+
+def lire(
+    registres: dict[str, Any], catalogue: dict[str, Any] | None = None, regles: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """Les mesures du catalogue, dans l'ordre du catalogue, d'après les faits des registres, PUIS passées au contrôle
+    de qualité (``qualite_mesures``) : une mesure dont une règle échoue est bloquée (non calculable, ``qualite`` en
+    échec). Lecture pure : rien n'est écrit, rien n'est publié. Une mesure du catalogue qu'aucun moteur ne produit
+    est non calculable, nommément (jamais absente en silence) ; une mesure produite que le catalogue n'a pas n'est
+    pas montrée."""
     catalogue = catalogue if catalogue is not None else catalogue_mesures.charger()
     lus = normaliser_registres(registres)
     brutes = {mesure["metric_id"]: mesure for mesure in _mesures_brutes(lus)}
@@ -146,7 +172,7 @@ def lire(registres: dict[str, Any], catalogue: dict[str, Any] | None = None) -> 
                 "fenetre_source_s": brute.get("fenetre_source_s"),
             }
         )
-    return resultat
+    return qualite_mesures.appliquer(regles if regles is not None else regles_de_qualite(catalogue), resultat, lus)
 
 
-__all__ = ["empreinte_registres", "lire", "normaliser_registres"]
+__all__ = ["empreinte_registres", "lire", "normaliser_registres", "regles_de_qualite"]

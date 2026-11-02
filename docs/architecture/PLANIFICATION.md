@@ -32,7 +32,7 @@ Les données vivent dans `src/opsys/connecteurs_planification/inventaire.py`.
 
 | Exécuteur | Niveau | Transport | Ce qu'il fait quand il est actif |
 |---|---|---|---|
-| `m8.entrepot` | N2 | aucun | Reconstruit l'entrepôt dérivé de M8 (`inchange` si les registres n'ont pas bougé), publie les faits consolidés pour M10, enregistre la santé. Trois outils N2. |
+| `m8.entrepot` | N2 | aucun | Reconstruit l'entrepôt dérivé de M8 (`inchange` si les registres n'ont pas bougé), publie les faits consolidés pour M10, enregistre la santé et évalue les alertes métier (une ouverture par épisode, proposée à M9 ; `m8_evaluer_alertes_metier`, rien n'est poussé hors de l'application). Quatre outils N2. |
 | `m5.cycle` | N2 | aucun | Cycle d'opérations de M5 : brouillons d'écriture, relances de créances **préparées**, flux fournisseurs, préclôture du **mois écoulé**, mesures pour M8. Aucun paiement, envoi de relance ni clôture. Une politique de relance non déclarée est **dite** (`REJ-OPS-CONFIGURATION-A-DECLARER`), jamais inventée. |
 | `m10.mnemo` | N2 | aucun | Le « mnemo-quotidien » du manifeste de M10 : modèle de soi (propositions), synchronisation paginée du graphe, leçons candidates, surveillance. Rien n'est confirmé. |
 | `m10.connaissances.reindexation` | N2 | embeddings | Bascule une base dont le fournisseur d'embeddings a changé vers le nouvel espace (atomique). **Sans adaptateur d'embeddings : en attente de transport.** |

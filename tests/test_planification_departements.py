@@ -58,14 +58,14 @@ def test_cycle_complet_m8_ombre_constate_sans_agir_actif_agit_et_se_rejoue(p):
     p.activer("m8.entrepot", "ombre")
     resume = p.tour()
     assert resume["executeurs"]["m8.entrepot"]["statut"] == "ombre"
-    assert resume["executeurs"]["m8.entrepot"]["aurait"] == 3
+    assert resume["executeurs"]["m8.entrepot"]["aurait"] == 4
     assert _constructions() == 0  # l'ombre ne reconstruit rien
     assert "aurait" in {j["evenement"] for j in _journal("m8.entrepot")}
 
     p.activer("m8.entrepot", "actif")
     resume = p.tour()
     assert resume["executeurs"]["m8.entrepot"]["statut"] == "ok"
-    assert resume["executeurs"]["m8.entrepot"]["etapes"] == 3 and _constructions() == 1
+    assert resume["executeurs"]["m8.entrepot"]["etapes"] == 4 and _constructions() == 1
 
     resume = p.tour()  # rejeu : l'entrepôt est inchangé, rien de plus n'est écrit
     assert resume["executeurs"]["m8.entrepot"]["statut"] == "ok" and _constructions() == 1

@@ -28,11 +28,11 @@ modifiables pour votre entreprise (clé `avatars` du profil d'entreprise).
 | M5 | FinanceCore | Sophie | Comptabilité, facturation, rapprochements, préparation fiscale et de paie, tableau de bord du CFO. Prépare des brouillons ; ne remplace pas votre CPA. | 97 |
 | M6 | Material Control | Rosalie | Inventaire, achats, fournisseurs, sorties sur le terrain, écarts entre le prévu et l'utilisé. | 48 |
 | M7 | Marketing | Chloé | Visibilité, site, contenu, réseaux sociaux, annonces, création visuelle. Rien ne se publie sans vous. | 101 |
-| M8 | Analytics | Olivier | Mesures gouvernées, tableaux de bord, alertes, qualité des données : « peut-on se fier à ce chiffre ? » | 27 |
+| M8 | Analytics | Olivier | Mesures gouvernées, tableaux de bord, alertes, qualité des données : « peut-on se fier à ce chiffre ? » | 32 |
 | M9 | Strategic Intelligence | Athéna | Conseil de direction : scénarios, risques, priorités, suivi des décisions. Elle propose, vous décidez. | 90 |
 | M10 | Mémoire | Mnémo | Garde ce qui a été fait, décidé et appris ; base de connaissances sourcée. | 64 |
 
-Total : **655 outils** (un outil = un geste précis qu'un département sait faire). **254** de ces outils sont ouverts à un téléphone
+Total : **660 outils** (un outil = un geste précis qu'un département sait faire). **254** de ces outils sont ouverts à un téléphone
 appairé (employé, vendeur ou administrateur) ; les autres sont réservés à l'ordinateur et aux agents.
 
 Le cœur du système est **générique pour une PME**. Le vocabulaire d'un métier vient d'un « pack sectoriel » : `generique-pme` par défaut,
@@ -107,9 +107,15 @@ jamais approuver à votre place.
   consentement (SMS, appels, photos, GPS). Les outils concernés **refusent de deviner** tant que vous n'avez pas décidé. La liste complète est
   dans les [limites connues](LIMITES-CONNUES.md).
 - **Vos réglages de direction** : l'écran « Réglages de direction » de la console liste ce qui manque (délais de relance et de dormance de M2,
-  bornes du score de santé de M8), ce que chaque réglage débloque et, quand il existe, une valeur proposée « recommandation, non validée ».
+  bornes du score de santé de M8 et seuils d'alerte de M8 : cash libre, créances de 90 jours et plus, taux d'acceptation, soumissions sans
+  réponse, articles en rupture, leads ouverts), ce que chaque réglage débloque et, quand il existe, une valeur proposée « recommandation, non validée ».
   Vous adoptez (ou changez) la valeur avec une raison, en un geste de niveau N3 qui n'appartient qu'au propriétaire, et vous pouvez
   revenir en arrière en un geste. Rien ne s'applique sans vous. Voir [REGLAGES-DIRECTION](../architecture/REGLAGES-DIRECTION.md).
+- **Vos alertes** : tant que vous n'avez pas adopté un seuil, la règle d'alerte correspondante est « non évaluée » et le dit ; aucun seuil
+  n'est inventé. Une alerte ouverte apparaît dans la section « À voir » de l'application avec l'action proposée et le département concerné ;
+  rien n'est envoyé sur votre téléphone ni par courriel (c'est une décision qui vous revient). Une mesure dont la donnée est aberrante (par
+  exemple un revenu négatif) est BLOQUÉE : aucune valeur n'est affichée, la tuile le dit (« Qualité en échec ») et l'assistant refuse de la
+  citer, jusqu'à ce que la source soit corrigée. Voir [M8-ENTREPOT-SOURCES](../architecture/M8-ENTREPOT-SOURCES.md) §9 ter et §9 quater.
 - **Vos accès** (Google, Microsoft, QuickBooks, réseaux sociaux) : ils passent par le coffre de secrets, jamais en clair, jamais vus par
   les agents. Voir le [guide d'administration](GUIDE-ADMINISTRATION.md).
 - **Votre comptable (CPA) et votre avocat** : tout avis comptable, fiscal, juridique ou de placement porte la mention

@@ -591,7 +591,7 @@ def valider_m10_faits_analytiques(page: object, arguments: Mapping | None) -> li
             or not all(
                 isinstance(a, Mapping)
                 and set(a) == {"metric_id", "type"}
-                and a["type"] in ("devenue_non_calculable", "perimee")
+                and a["type"] in ("devenue_non_calculable", "perimee", "echec_qualite")
                 and _METRIQUE.fullmatch(str(a["metric_id"]))
                 for a in anomalies
             )

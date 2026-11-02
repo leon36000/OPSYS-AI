@@ -9,6 +9,7 @@ l'appelant (pour rejouer le même constat sous un autre identifiant).
 from __future__ import annotations
 
 import hashlib
+from decimal import Decimal
 from typing import Any
 
 from opsys import evenements
@@ -525,7 +526,9 @@ def facture_emise(
         "devise": "CAD",
         "montant_avant_taxes_cad": avant,
         "total_taxes_cad": "149.75",
-        "montant_apres_taxes_cad": "1149.75",
+        # le total avec taxes est le montant avant taxes plus les taxes : le contrôle de qualité de M8 (C4) bloque une
+        # facture dont le total n'est pas cette somme, et une donnée fictive incohérente serait bloquée à tort
+        "montant_apres_taxes_cad": str(Decimal(avant) + Decimal("149.75")),
     }
     charge.update(plus)
     return _valide("m5.facture_emise_constatee", charge)

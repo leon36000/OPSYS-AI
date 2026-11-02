@@ -222,7 +222,7 @@ def test_une_base_sans_le_registre_ne_sert_rien_et_ne_casse_pas_la_transaction(t
 def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_bloque(deps):
     with stockage.transaction():
         etat = lecture.etat_des_reglages(deps)
-    assert etat["total"] == 10 and etat["manquants"] == 10 and etat["chaine"]["valide"] is True
+    assert etat["total"] == 16 and etat["manquants"] == 16 and etat["chaine"]["valide"] is True
     par_cle = {r["cle"]: r for r in etat["reglages"]}
     relances = par_cle["m2.jours_entre_relances"]
     assert relances["statut"] == "vide" and relances["manque"] is True and relances["valeur"] is None
@@ -232,7 +232,10 @@ def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_b
     assert relances["bornes"] == {"min": "1", "max": "3650"} and relances["version"] == 0
     assert par_cle["m2.bandes_valeur_cents"]["proposition"] is None
     assert par_cle["m2.bandes_valeur_cents"]["bornes"]["longueur"] == 3
-    assert all("INDÉTERMINÉ" in r["debloque"] for r in etat["reglages"] if r["departement"] == "m08-analytics")
+    assert all("INDÉTERMINÉ" in r["debloque"] for r in etat["reglages"] if r["cle"].startswith("m8.bornes_"))
+    # les six seuils d'alerte métier (C3) disent ce qu'ils débloquent : sans eux, la règle est non évaluée
+    seuils = [r for r in etat["reglages"] if r["cle"].startswith("m8.seuil_alerte_")]
+    assert len(seuils) == 6 and all("non évaluée" in r["debloque"] or "ALERTE-" in r["debloque"] for r in seuils)
     assert all(r["proposition"] is None for r in etat["reglages"] if r["departement"] == "m08-analytics")
 
 

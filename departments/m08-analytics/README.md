@@ -176,3 +176,44 @@ direction » de la console (geste N3 du propriétaire, retour arrière possible)
 quoi configurer, comme avant). **Aucune borne n'est proposée** : l'analyse d'écart recommande de laisser tourner les mesures
 quatre à huit semaines avant de les fixer. Adopter les bornes ne valide pas les pondérations (`ponderations_validees_par` n'est
 pas encore un réglage). Voir `docs/architecture/REGLAGES-DIRECTION.md`.
+
+## Le jour d'un constat de M5 se date à minuit LOCAL (D0)
+
+M5 date ses constats d'un JOUR du calendrier (`aujourd_hui` dans le fuseau du planificateur) : M8 en fait **minuit local de ce
+fuseau** (`synthese.jour_en_instant`, base des fuseaux jour par jour : l'heure d'été est juste des deux côtés du changement
+d'heure), et non plus le début du jour en UTC. L'ancien choix datait un constat du 12 novembre du 11 à 19 h locale : avec la fenêtre
+de 24 h du catalogue, le cash libre, ses composantes, les créances, les écritures en attente, la dépense comptabilisée, les factures
+émises, les plaintes et la composante « finance » du score étaient périmés de 19 h à minuit, même quand tous les passages
+réussissaient. Le fuseau est UNE valeur (`opsys.horloge.FUSEAU_ENTREPRISE`, aussi le défaut de `Ports.fuseau` du planificateur) que
+l'adaptateur déclare au registre `declarations` ; un fuseau illisible donne une fraîcheur « inconnue », jamais un UTC deviné. Le
+catalogue fermé et la fenêtre de 24 h ne changent pas. Preuve : `tests/test_jour_local.py` (pur), `tests/test_m8_jour_local_planifie.py`
+du socle (vrai planificateur à horloge injectée : à 21 h locale, soit 02 h UTC le lendemain, le constat du jour est à jour ; sa fenêtre
+court depuis minuit local si le planificateur tombe).
+
+## Qualité des données branchée sur les mesures, pastilles dérivées (C4)
+
+`definitions/m8-qualite.v1.yaml` déclare des règles de QUALITÉ (invariants, jamais des seuils d'affaires) d'un ensemble fermé : `plage`
+(compte ou durée non négatif, montant d'activité non négatif, taux entre 0 et 100), `relation` (créances de 90 jours et plus ≤ total,
+clics ≤ impressions…) et `controle` (total des créances = somme de ses tranches, total d'une facture = avant taxes + taxes, drapeau de
+déficit = signe du cash libre). `qualite_mesures.py` (pur, déterministe) les évalue dans `moteur_mesures.lire`, l'UNIQUE chemin de lecture
+(wallboards, copilote, score, entrepôt, pont BI, mémoire) : une règle qui échoue **bloque** les mesures qu'elle nomme (non calculable,
+aucune valeur ni entrée conservée, `manque` = `qualite`, raison nommée) ; les faits corrigés rétablissent la mesure d'eux-mêmes (rien
+n'est rangé). Conséquences : tuile avec pastille `QUALITY_FAIL` et bannière ; copilote qui REFUSE (`REJ-COPILOTE-QUALITE-ECHEC`, explication,
+aucun chiffre) ; composante du score indéterminée pour la raison `qualite_echec` ; état de collecte `qualite_en_echec` ; anomalie
+`echec_qualite` dans `m8.fait_consolide` (M10 la mémorise ; additif) ; `m8_lire_rapport_qualite` (par département source : règle, ce
+qu'elle vérifie, geste de correction ; aucune valeur). `pastilles.py` DÉRIVE les six pastilles `FRESH`, `STALE`, `PARTIAL`, `MISSING`,
+`QUALITY_FAIL`, `GATED` des états existants (aucune table) ; pas de `LIVE` (aucune source n'est temps réel), pas d'`ESTIMATED`.
+Limites : voir `docs/architecture/M8-ENTREPOT-SOURCES.md` §9 ter.
+
+## Alertes métier : règles déclaratives, cycle de vie, action proposée (C3)
+
+`definitions/m8-alertes.v1.yaml` : huit règles sur le catalogue fermé (trésorerie sous le seuil, créances de 90 jours et plus, taux
+d'acceptation, soumissions sans réponse, rupture de matériel, pipeline bas, donnée périmée, qualité en échec). Les SEUILS sont ceux de la
+direction : six réglages de direction (`m8.seuil_alerte_*`, N3, aucune proposition, `configuration.alertes.seuils`) ; sans seuil, la règle est
+« non évaluée » et le dit. Une alerte porte la valeur courante, la référence franchie, une action d'un gabarit FERMÉ, le département
+propriétaire de la mesure (celui du catalogue) et les mesures liées : **jamais de cause**. Cycle de vie dans un registre append-only
+(`alertes_metier`) : ouverte (une seule par épisode), accusée, reportée, résolue au retour dans la cible ; un report échu redonne l'alerte sans
+rien écrire. Tour planifié `m8.entrepot` (quatrième étape `m8_evaluer_alertes_metier`) ; extension ADDITIVE de `m8.alerte_proposee`
+(`METIER-SEUIL-FRANCHI`, `METIER-DONNEE-PERIMEE`, `METIER-QUALITE-ECHEC`) ; `attentes()` met les alertes ouvertes dans « À voir ». **Aucune poussée
+vers un téléphone ou un courriel** (décision du propriétaire, en attente). Outils : `m8_lire_alertes_metier` (N0), `m8_evaluer_alertes_metier`,
+`m8_accuser_alerte`, `m8_reporter_alerte` (N2, agent seulement). Limites : voir `docs/architecture/M8-ENTREPOT-SOURCES.md` §9 quater.

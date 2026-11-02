@@ -33,7 +33,7 @@ from typing import Any
 
 import yaml
 
-from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, nombres
+from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, nombres, pastilles, qualite_mesures
 
 SCHEMA = "opsys.m8.wallboard/v1"
 _DOSSIER = Path(__file__).resolve().parents[2] / "wallboards"
@@ -296,6 +296,7 @@ _LIBELLE_FRAICHEUR = {
     fraicheur_mesures.STATUT_INCONNU: "Fraîcheur inconnue",
     fraicheur_mesures.STATUT_MANQUANT: "Non calculable",
 }
+_LIBELLE_QUALITE_ECHEC = "QUALITÉ EN ÉCHEC"
 _LIBELLE_SEUIL = {
     ETAT_NORMAL: "dans la cible",
     ETAT_ATTENTION: "à surveiller",
@@ -324,6 +325,8 @@ def evaluer(
         fraicheur = mesure["fraicheur"]
         fiable = fraicheur["peut_etre_montree_comme_a_jour"]
         etat_seuil = _etat_seuil(tuile["seuils"], mesure["valeur"], fiable)
+        qualite_en_echec = qualite_mesures.en_echec(mesure)
+        pastille = mesure.get("pastille") or pastilles.pastille(mesure)
         tuiles.append(
             {
                 "id": tuile["id"],
@@ -348,7 +351,13 @@ def evaluer(
                 "motif_fraicheur": fraicheur["motif"],
                 "perimee": fraicheur["statut"] == fraicheur_mesures.STATUT_PERIME,
                 "a_jour": fiable and mesure["statut"] == entonnoir.STATUT_CALCULEE,
-                "libelle_fraicheur": _LIBELLE_FRAICHEUR[fraicheur["statut"]],
+                "libelle_fraicheur": (
+                    _LIBELLE_QUALITE_ECHEC if qualite_en_echec else _LIBELLE_FRAICHEUR[fraicheur["statut"]]
+                ),
+                "qualite": (mesure.get("qualite") or {}).get("statut", qualite_mesures.STATUT_NON_EVALUEE),
+                "qualite_en_echec": qualite_en_echec,
+                "pastille": pastille["code"],
+                "libelle_pastille": pastille["libelle"],
                 "etat_seuil": etat_seuil,
                 "libelle_seuil": _LIBELLE_SEUIL[etat_seuil],
                 "seuils": None
@@ -383,6 +392,7 @@ def banniere(tuiles: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     manquantes = [t["id"] for t in tuiles if t["fraicheur"] == fraicheur_mesures.STATUT_MANQUANT]
     partielles = [t["id"] for t in tuiles if t.get("partielle") is True]
+    en_echec = [t["id"] for t in tuiles if t.get("qualite_en_echec") is True]
     messages = []
     if critiques:
         messages.append(f"{len(critiques)} mesure(s) en état critique.")
@@ -390,14 +400,21 @@ def banniere(tuiles: list[dict[str, Any]]) -> dict[str, Any]:
         messages.append(f"{len(attention)} mesure(s) à surveiller.")
     if perimees:
         messages.append(f"{len(perimees)} mesure(s) périmée(s) ou de fraîcheur inconnue : ne pas s'y fier.")
+    if en_echec:
+        messages.append(
+            f"{len(en_echec)} mesure(s) bloquée(s) par le contrôle de qualité des données : aucune valeur n'est "
+            "montrée, la donnée à la source est à corriger."
+        )
     if manquantes:
-        messages.append(f"{len(manquantes)} mesure(s) non calculable(s) (donnée manquante).")
+        manquantes_sans_echec = [m for m in manquantes if m not in en_echec]
+        if manquantes_sans_echec:
+            messages.append(f"{len(manquantes_sans_echec)} mesure(s) non calculable(s) (donnée manquante).")
     if partielles:
         messages.append(
             f"{len(partielles)} mesure(s) à couverture partielle : la valeur ne couvre qu'une partie de ce qu'elle "
             "devrait couvrir (voir le détail de la tuile)."
         )
-    niveau = "critique" if critiques else "attention" if (attention or perimees) else "ok"
+    niveau = "critique" if critiques else "attention" if (attention or perimees or en_echec) else "ok"
     if niveau == "ok" and (manquantes or partielles):
         niveau = "attention"
     if not messages:
@@ -410,6 +427,7 @@ def banniere(tuiles: list[dict[str, Any]]) -> dict[str, Any]:
         "perimees": perimees,
         "non_calculables": manquantes,
         "partielles": partielles,
+        "qualite_en_echec": en_echec,
     }
 
 

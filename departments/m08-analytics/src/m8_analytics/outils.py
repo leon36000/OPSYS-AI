@@ -68,6 +68,7 @@ from opsys.reglages import lecture as reglages_lecture
 
 from . import (
     alertes,
+    alertes_metier,
     analytique_outils,
     cash_libre,
     contenus,
@@ -806,6 +807,14 @@ def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_
     )
 
 
+def attentes() -> list[dict[str, Any]]:
+    """La section « À voir » du propriétaire (ADR-0009 §5) : les alertes métier OUVERTES (ni accusées, ni reportées, ni
+    résolues). Le registre append-only du cycle de vie est lu à l'instant du serveur (``opsys.horloge``) : un report
+    échu redonne l'alerte. Rien ne sort de l'application (aucune poussée vers un téléphone ou un courriel)."""
+    registre = list(stockage.maillons(_DEPARTEMENT, alertes_metier.NOM_REGISTRE))
+    return alertes_metier.attentes(registre, horloge.maintenant().isoformat())
+
+
 def outils(
     registre_cible: registre.RegistreSnapshots | None = None,
     definitions_cible: Any = None,
@@ -817,6 +826,7 @@ def outils(
     historique_sante_cible: Any = None,
     publications_cible: Any = None,
     recherche_connaissances: Any = None,
+    alertes_metier_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -878,6 +888,8 @@ def outils(
         [] if operations_en_memoire else stockage.maillons(_DEPARTEMENT, constats.REGISTRE))
     if historique_sante_cible is None:
         historique_sante_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_HISTORIQUE_SANTE)
+    if alertes_metier_cible is None:
+        alertes_metier_cible = stockage.maillons(_DEPARTEMENT, alertes_metier.NOM_REGISTRE)
     if publications_cible is None:
         publications_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_PUBLICATIONS)
     if recherche_connaissances is None:
@@ -1240,6 +1252,7 @@ def outils(
         historique_sante_cible=historique_sante_cible, publications_cible=publications_cible,
         budget_sortie=BUDGET_SORTIE, recherche_connaissances=recherche_connaissances,
         etat_planificateur=_etat_planificateur,
+        alertes_cible=alertes_metier_cible,
     )
 
     outils_existants = (

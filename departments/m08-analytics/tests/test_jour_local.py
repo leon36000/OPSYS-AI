@@ -121,17 +121,18 @@ def _avec_fuseau(registres: dict, fuseau: str) -> dict:
     return copie
 
 
-def test_une_declaration_de_fuseau_change_l_instant_des_mesures_et_l_empreinte_des_registres():
+def test_une_declaration_de_fuseau_change_l_instant_de_TOUTES_les_mesures_datees_par_jour_et_l_empreinte():
+    """Le fuseau déclaré traverse chaque chemin de calcul (synthèse, interdépartements, constats)."""
     registres = jeux_fictifs.registres_fictifs(jour="2026-11-12", avec_operations=True)
     halifax = _avec_fuseau(registres, "America/Halifax")
     par_defaut = {m["metric_id"]: m for m in moteur_mesures.lire(registres, CATALOGUE)}
     declare = {m["metric_id"]: m for m in moteur_mesures.lire(halifax, CATALOGUE)}
-    assert dt.datetime.fromisoformat(par_defaut["m8_cash_libre_cad"]["dernier_fait_le"]) == dt.datetime(
-        2026, 11, 12, 5, 0, tzinfo=UTC
-    )
-    assert dt.datetime.fromisoformat(declare["m8_cash_libre_cad"]["dernier_fait_le"]) == dt.datetime(
-        2026, 11, 12, 4, 0, tzinfo=UTC
-    )
+    for metric_id in MESURES_DATEES_PAR_JOUR_DE_REFERENCE + MESURES_DATEES_PAR_JOUR_D_EMISSION:
+        jour = (11 if metric_id in MESURES_DATEES_PAR_JOUR_D_EMISSION else 12)
+        assert dt.datetime.fromisoformat(par_defaut[metric_id]["dernier_fait_le"]) == dt.datetime(
+            2026, 11, jour, 5, 0, tzinfo=UTC), metric_id  # Toronto : UTC-5
+        assert dt.datetime.fromisoformat(declare[metric_id]["dernier_fait_le"]) == dt.datetime(
+            2026, 11, jour, 4, 0, tzinfo=UTC), metric_id  # Halifax : UTC-4
     assert moteur_mesures.empreinte_registres(registres) != moteur_mesures.empreinte_registres(halifax)
 
 

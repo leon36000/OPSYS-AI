@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import encodage, entonnoir, fraicheur_mesures
+from . import encodage, entonnoir, fraicheur_mesures, qualite_mesures
 
 TYPE_EVENEMENT = "m8.fait_consolide"
 MENTION = (
@@ -38,6 +38,7 @@ MENTION = (
 )
 ANOMALIE_DEVENUE_NON_CALCULABLE = "devenue_non_calculable"
 ANOMALIE_PERIMEE = "perimee"
+ANOMALIE_ECHEC_QUALITE = "echec_qualite"
 PASSAGE_MAX = 280
 PASSAGES_MAX = 3
 MESURES_MAX = 80
@@ -95,6 +96,7 @@ def consolider(
         raise ValueError(f"{fraicheur_mesures.REJ_MAINTENANT_INVALIDE} : maintenant illisible ({maintenant!r})")
     if not isinstance(empreinte_registres, str) or len(empreinte_registres) != 64:
         raise ValueError("REJ-MEMOIRE-EMPREINTE-INVALIDE : l'empreinte des registres est un sha256 hexadécimal")
+    en_echec = {m["metric_id"] for m in mesures if qualite_mesures.en_echec(m)}
     publiees = [_mesure_publiee(m) for m in mesures]
     if not 1 <= len(publiees) <= MESURES_MAX:
         raise ValueError(f"REJ-MEMOIRE-MESURES : 1 à {MESURES_MAX} mesures attendues")
@@ -110,8 +112,13 @@ def consolider(
             if (
                 precedente["statuts"].get(mesure["metric_id"]) == entonnoir.STATUT_CALCULEE
                 and mesure["statut"] == entonnoir.STATUT_NON_CALCULABLE
+                and mesure["metric_id"] not in en_echec
             ):
                 anomalies.append({"metric_id": mesure["metric_id"], "type": ANOMALIE_DEVENUE_NON_CALCULABLE})
+        if mesure["metric_id"] in en_echec:
+            # L'ÉCHEC de qualité est mémorisé à chaque consolidation où il dure, sous son propre type : ce n'est ni une
+            # mesure devenue non calculable (la cause est connue : une donnée fausse), ni une mesure périmée.
+            anomalies.append({"metric_id": mesure["metric_id"], "type": ANOMALIE_ECHEC_QUALITE})
         if mesure["fraicheur"] == fraicheur_mesures.STATUT_PERIME:
             anomalies.append({"metric_id": mesure["metric_id"], "type": ANOMALIE_PERIMEE})
     return {
@@ -198,6 +205,7 @@ def contextualiser(
 
 __all__ = [
     "ANOMALIE_DEVENUE_NON_CALCULABLE",
+    "ANOMALIE_ECHEC_QUALITE",
     "ANOMALIE_PERIMEE",
     "MENTION",
     "TYPE_EVENEMENT",
