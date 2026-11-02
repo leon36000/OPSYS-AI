@@ -1,0 +1,21 @@
+FAILED departments/m10-memoire/tests/test_strategique.py::test_un_risque_critique_du_radar_de_m9_est_memorise_sans_lecon_sans_attendus_sans_signataire
+FAILED departments/m10-memoire/tests/test_strategique.py::test_un_risque_hors_de_sa_forme_est_refuse[surcharge0-risque : texte seul (ni le\xe7on, ni attendus, ni signataire)]
+FAILED departments/m10-memoire/tests/test_strategique.py::test_un_risque_hors_de_sa_forme_est_refuse[surcharge1-risque : texte seul (ni le\xe7on, ni attendus, ni signataire)]
+FAILED departments/m10-memoire/tests/test_strategique.py::test_un_risque_hors_de_sa_forme_est_refuse[surcharge2-risque : texte seul (ni le\xe7on, ni attendus, ni signataire)]
+FAILED departments/m10-memoire/tests/test_strategique.py::test_un_risque_hors_de_sa_forme_est_refuse[surcharge3-risque : texte seul (ni le\xe7on, ni attendus, ni signataire)]
+FAILED departments/m10-memoire/tests/test_strategique.py::test_un_risque_hors_de_sa_forme_est_refuse[surcharge4-risque : texte seul (ni le\xe7on, ni attendus, ni signataire)]
+FAILED departments/m09-strategic-intelligence/tests/test_playbooks.py::test_les_regles_de_plaintes_declenchent_le_livre_de_jeu_et_une_regle_non_evaluee_laisse_la_personne_declarer
+FAILED tests/test_m9_radars_integre.py::test_radars_sur_le_monde_reel_materiau_en_rupture
+FAILED tests/test_m9_e2e_cahier.py::test_parcours_6_risque_de_reputation
+ERROR departments/m09-strategic-intelligence/tests/test_risques_regles.py
+ERROR departments/m09-strategic-intelligence/tests/test_reglages_radar.py
+ERROR departments/m09-strategic-intelligence/tests/test_escalade_risques.py
+ERROR departments/m09-strategic-intelligence/tests/test_scenarios_chiffres.py
+ERROR departments/m04-field-ops/tests/test_capacite_hypothese.py
+ERROR tests/test_m9_scenarios_chiffres_integre.py
+ERROR tests/test_m9_radar_scenarios_e2e.py::test_un_mois_fictif_le_radar_sort_exactement_les_risques_attendus_et_aucun_sur_les_indicateurs_sains
+ERROR tests/test_m9_radar_scenarios_e2e.py::test_un_risque_critique_cree_un_avis_une_tache_et_une_memoire_et_rien_d_externe
+ERROR tests/test_m9_radar_scenarios_e2e.py::test_l_escalade_n_est_pas_un_geste_d_agent_ni_d_appareil_et_ne_voit_que_des_critiques_actifs
+ERROR tests/test_m9_radar_scenarios_e2e.py::test_seuils_non_declares_les_regles_ne_sont_pas_evaluees_et_disent_quoi_declarer_jamais_aucun_risque
+9 failed, 88 passed, 10 errors in 15.09s
+Tests M9-C posés sur la base ea631e4bc, commande: pytest (dossiers M9, M4 capacite_hypothese, M10 strategique, tests/ e2e + integre + radars + e2e_cahier) --continue-on-collection-errors

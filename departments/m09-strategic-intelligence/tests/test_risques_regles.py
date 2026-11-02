@@ -244,6 +244,22 @@ def test_retard_prolonge_au_nombre_de_jours_declare():
     assert _seule(critique, "chantier_retard_prolonge")["gravite"] == "CRITIQUE"
 
 
+def test_retard_tres_au_dessus_du_seuil_reste_eleve_tant_que_le_multiple_critique_n_est_pas_declare():
+    sans = {k: v for k, v in S.items() if k != "multiple_seuil_critique"}
+    page = A.page_retards(reports=[("I1", "meteo", "2026-10-01T12:00:00Z")])
+    res = _un("m4.retards_incidents", page, seuils=sans)
+    r = _seule(res, "chantier_retard_prolonge")
+    assert r["gravite"] == "ELEVE" and r["seuil"]["critique_si_au_moins"] is None
+    assert not [x for x in res["risques"] if x["gravite"] == "CRITIQUE"]
+
+
+def test_une_regle_sla_dite_non_evaluee_par_m2_ne_compte_jamais_de_violation_meme_si_un_nombre_y_figure():
+    ligne = {"regle": "photos_non_recues", "etat": "non_evaluee", "manque": "délai à déclarer", "violations": 2}
+    assert rk._signal_sla(ligne, rk.Contexte({}, None, None)) is None
+    evaluee = dict(ligne, etat="evaluee")
+    assert rk._signal_sla(evaluee, rk.Contexte({}, None, None)).mesure["valeur"] == "2"
+
+
 # ----------------------------------------------------------------------------------------------- cash libre (M5/M8)
 def test_cash_libre_negatif_est_critique_sans_aucun_reglage():
     res = _un("m8.vue_executive", A.page_cash_libre("-120.00"), seuils={})
@@ -258,6 +274,12 @@ def test_cash_libre_sous_le_plancher_declare_mais_positif_est_eleve():
     r = _seule(res, "cash_libre_sous_plancher")
     assert (r["gravite"], r["seuil"]["valeur"]) == ("ELEVE", "5000")
     assert not _un("m8.vue_executive", A.page_cash_libre("5000.00"))["risques"]
+
+
+def test_cash_libre_exactement_nul_n_est_pas_un_deficit_mais_reste_sous_le_plancher_declare():
+    res = _un("m8.vue_executive", A.page_cash_libre("0.00"))
+    assert not [r for r in res["risques"] if r["regle"] == "cash_libre_deficit"]
+    assert _seule(res, "cash_libre_sous_plancher")["gravite"] == "ELEVE"
 
 
 def test_cash_libre_non_calculable_ou_sans_constat_est_inconnu_pas_nul():

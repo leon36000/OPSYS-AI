@@ -143,6 +143,8 @@ def test_un_risque_critique_du_radar_de_m9_est_memorise_sans_lecon_sans_attendus
         ({"concordance": "CONCORDE"}, "risque : texte seul (ni leçon, ni attendus, ni signataire)"),
         ({"statut": "declaree_par_la_direction"}, "genre/statut"),
         ({"statut": "validee_par_la_direction"}, "genre/statut"),
+        ({"statut": "proposee_non_validee"}, "genre/statut"),
+        ({"statut": "observe_par_mesure"}, "genre/statut"),
     ],
 )
 def test_un_risque_hors_de_sa_forme_est_refuse(surcharge, champ):

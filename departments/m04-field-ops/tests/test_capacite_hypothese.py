@@ -90,6 +90,17 @@ def test_deux_employes_absents_trois_jours_font_basculer_l_equipe_en_surcharge()
     assert r["equipes_en_surcharge"] == ["eq-a"]
 
 
+def test_planifie_egal_au_disponible_projete_n_est_pas_une_surcharge_et_un_minute_de_plus_en_est_une():
+    egal = ch.appliquer(_base(), {"hausse_demande_pct": "100"})  # eq-a : 2400 min planifiées = 2400 disponibles
+    a = _lignes(egal)["eq-a"]
+    assert a["solde_heures"] == "0.00" and a["statut"] == "SUFFISANTE" and a["utilisation_pct"] == "100.0"
+    assert "eq-a" not in egal["equipes_en_surcharge"]
+    base = _base()
+    base["equipes"][0]["minutes_planifiees"] = 1201
+    plus = ch.appliquer(base, {"hausse_demande_pct": "100"})
+    assert _lignes(plus)["eq-a"]["statut"] == "SURCHARGE" and "eq-a" in plus["equipes_en_surcharge"]
+
+
 def test_jours_bloques_retirent_les_heures_de_chaque_equipe_et_la_hausse_les_planifiees():
     r = ch.appliquer(_base(), {"jours_bloques": ["2030-06-11"], "hausse_demande_pct": "10.5"})
     a, b = _lignes(r)["eq-a"], _lignes(r)["eq-b"]

@@ -1,0 +1,310 @@
+{
+ "base": "282d53200",
+ "mutants": 59,
+ "survivants_au_premier_passage": [
+  "M15 borne : cash libre nul compté en déficit",
+  "M20 critique : sans multiple déclaré tout est critique (retard)",
+  "M28 SLA : règle non évaluée comptée comme violation",
+  "M46 scénario : texte d'erreur du propriétaire recopié",
+  "M55 M4 : surcharge à égalité",
+  "M59 M10 : statut quelconque admis pour un risque"
+ ],
+ "note": "M59 reformulé : le premier mutant ajoutait des statuts hors de la liste globale (défense en profondeur équivalente) ; remplacé par un statut réel mal rangé. Les mutants tués au premier passage n'ont pas été rejoués après l'ajout de tests (ils ne peuvent que mieux tuer).",
+ "resultats": [
+  {
+   "mutation": "M01 dimension : surcharge de capacité classée cash",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M02 dimension : afflux de plaintes classé marketing",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M03 dimension : retard de chantier classé cash",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M04 dimension : dépense marketing classée capacité",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M05 dimension : déficit de cash libre classé plaintes",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M06 seuil : surcharge lit le seuil des plaintes",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M07 seuil : règle de surcharge exige le réglage d'un autre domaine",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M08 seuil : bloc de réglage lu dans la mauvaise section",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M09 seuil : valeur adoptée ignorée (fichier seul)",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M10 borne : plaintes strictement au-dessus",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M11 borne : capacité strictement au-dessus",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M12 borne : dépense au plafond comptée",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M13 borne : retard strictement au-dessus",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M14 borne : écart d'estimation strictement au-dessus",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M15 borne : cash libre nul compté en déficit",
+   "premier_passage": "SURVIT",
+   "apres_correctif_des_tests": "TUE(unit)"
+  },
+  {
+   "mutation": "M16 borne : plancher de cash libre atteint compté",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M17 borne : leads au plancher comptés",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M18 critique : multiple ignoré (plaintes)",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M19 critique : comparaison inversée (capacité)",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M20 critique : sans multiple déclaré tout est critique (retard)",
+   "premier_passage": "SURVIT",
+   "apres_correctif_des_tests": "TUE(unit)"
+  },
+  {
+   "mutation": "M21 critique : déficit de cash libre rétrogradé",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M22 seuil manquant : règle silencieuse (ni évaluée ni dite)",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M23 levé : signal disparu jamais levé",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M24 péremption : âge déclaré ignoré",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M25 péremption : périmé reste actif",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M26 lecture partielle utilisée",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M27 groupe : argument de référence conservé",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M28 SLA : règle non évaluée comptée comme violation",
+   "premier_passage": "SURVIT",
+   "apres_correctif_des_tests": "TUE(unit)"
+  },
+  {
+   "mutation": "M29 SLA : zéro violation signalé",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M30 plainte sensible : catégorie sécurité oubliée",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M31 escalade : un risque élevé est escaladé",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M32 escalade : un risque levé est escaladé",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M33 escalade : avis non dédoublonné",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M34 escalade : avis marqué externe",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M35 escalade : cause prétendue établie",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M36 escalade : tâche toujours doublée",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M37 escalade : mémoire jamais publiée",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M38 escalade : tâche sans porteur direction",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M39 escalade : genre de mémoire hors catalogue",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M40 scénario : probabilité de retard complémentée",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M41 scénario : hausse de coût appliquée en baisse",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M42 scénario : bornes de baisse non inversées",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M43 scénario : vérification de M5 présumée identique",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M44 scénario : chiffré même sans moteur",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M45 scénario : manque effacé quand non chiffré",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M46 scénario : texte d'erreur du propriétaire recopié",
+   "premier_passage": "SURVIT",
+   "apres_correctif_des_tests": "TUE(unit)"
+  },
+  {
+   "mutation": "M47 scénario : réponse non ok admise",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M48 scénario : refus du moteur admis",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M49 scénario : M9 recalcule le plus bas du chemin",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M50 scénario : M4 non calculable présenté chiffré",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M51 scénario : position du niveau au bas de l'intervalle",
+   "premier_passage": "TUE(unit)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M52 port : rejeu du reçu M5 retiré de la liste blanche",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M53 port : moteur M4 retiré de la liste blanche",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M54 M4 : perte d'absence sans effectif",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M55 M4 : surcharge à égalité",
+   "premier_passage": "SURVIT",
+   "apres_correctif_des_tests": "TUE(proprio)"
+  },
+  {
+   "mutation": "M56 M4 : hausse de demande en baisse",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M57 M4 : durée de jour-personne manquante ignorée",
+   "premier_passage": "TUE(proprio)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M58 M10 : genre risque hors des genres admis",
+   "premier_passage": "TUE(integ)",
+   "apres_correctif_des_tests": null
+  },
+  {
+   "mutation": "M59 M10 : statut quelconque admis pour un risque",
+   "premier_passage": "SURVIT",
+   "apres_correctif_des_tests": "TUE(proprio)"
+  }
+ ]
+}
