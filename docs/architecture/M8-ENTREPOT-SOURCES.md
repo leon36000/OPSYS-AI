@@ -75,7 +75,7 @@ mesure n'est pas faite (raison dite) ; **impossible sans décision** = aucun év
 | `m8_chantiers_termines` | M4 `m4.travaux_termines` | branché | |
 | `m8_ecart_duree_equipe_pct` | M4 durée réelle + M3 `duree_estimee_minutes` | branché | agrégat d'équipe, jamais par technicien |
 | `m8_chantiers_signal_materiaux` | M6 `m6.variance_chantier` + M4 | branché | verdict de M6 repris |
-| `m8_cash_libre_cad` | M5 `m5.cash_libre_constate` | branché | n'existe que si l'admin fait constater M5 (le digest de 7 h ne le fait pas) |
+| `m8_cash_libre_cad` | M5 `m5.cash_libre_constate` | branché | à la demande de l'admin (`m5_constater_cash_libre`, N3) ou par le constat planifié `m5.constat.cash-libre` (inactif par défaut, variante N2 : voir PLANIFICATION §9) ; le digest de 7 h ne le fait pas |
 
 ### 3.2 Les 20 mesures interdépartements (cette tranche)
 

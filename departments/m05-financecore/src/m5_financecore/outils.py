@@ -208,7 +208,7 @@ from typing import Any
 
 import yaml
 
-from opsys import approbations, contexte, evenements, identite, jetons, stockage
+from opsys import approbations, contexte, evenements, identite, jetons, service_acteur_systeme, stockage
 from opsys.evenements import constats
 from opsys.evenements.repartiteur import instant_publication_livre
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
@@ -251,6 +251,7 @@ from . import (
     variance_recus,
     verdicts_calcul,
     verdicts_grand_livre,
+    verdicts_operations,
     wct_recus,
 )
 from . import registre as registre_module
@@ -3559,6 +3560,67 @@ def constater_cash_libre(
     return {"accepte": True, "resultat": analyse.avec_mention({"role": vue["role"], **constat})}
 
 
+def constater_cash_libre_planifie(aujourd_hui: str) -> dict[str, Any]:
+    """L'outil `m5_constater_cash_libre_planifie` (T1, N2, agent seulement) : la variante PLANIFIÉE du constat du cash
+    libre. Le planificateur durable la déclenche (bloc `constats_planifies` du manifeste, PLANIFICATION.md §9) pour que
+    les mesures financières de M8 (cash libre, solde, comptes à payer, taxes à remettre) et la composante « finance »
+    du score de santé se remplissent sans qu'un humain ait à y penser.
+
+    POURQUOI UNE VARIANTE, et pourquoi N2 ici alors que `m5_constater_cash_libre` reste N3. Le calcul et la
+    publication sont les MÊMES (`_constater_cash_libre` : un seul code écrit la trace et l'événement, donc un seul
+    registre de constats, un seul rang, une seule règle « un constat par jour et par version » : l'admin qui touche
+    « constater » sur son téléphone et le planificateur ne publient jamais deux fois la même chose). Ce qui diffère est
+    ce que le N3 PROTÈGE : (1) l'outil N3 rend les MONTANTS à l'appelant et accepte une identité d'appareil, donc il
+    exige le droit de voir les coûts et la validation humaine « au départ » quand c'est un agent qui le demande ; (2)
+    ici, la validation humaine est l'activation du constat par un admin (ombre puis actif, motif, 90 jours, consignés
+    à `planificateur_executeurs` et au journal), l'appel vient de l'identité SYSTÈME du planificateur, et la réponse
+    ne porte AUCUN montant (`constat_cash_libre.entete`) : rien de plus que ce que le bus reçoit déjà ne sort de M5.
+    Aucune écriture comptable, aucun mouvement, aucun paiement, aucune remise, aucune sortie externe : une trace
+    dérivée et un événement interne.
+
+    Seul le planificateur la déclenche : `service_acteur_systeme.planificateur_en_cours` (acteur système opaque, de
+    portée `planificateur`, dans le fil du tour, hors requête HTTP/MCP et hors identité d'appel). Un agent par le MCP,
+    la console ou un appareil est refusé (`REJ-CONSTAT-PLANIFICATEUR-SEULEMENT`) AVANT la lecture du moindre registre :
+    la variante n'est donc pas une porte dérobée pour contourner la validation humaine du N3. Le droit de voir les
+    coûts de l'acteur système est celui de sa fonction (publier les montants au bus pour M8) ; il est vrai ici, jamais
+    un argument que l'appelant pourrait écrire (la grammaire du manifeste ne porte d'ailleurs aucun booléen).
+
+    `aujourd_hui` (`AAAA-MM-JJ`) est requis : M5 n'a pas d'horloge ; le planificateur le calcule sur le CRÉNEAU (jour
+    local), donc deux déclenchements du même créneau donnent le même jour et, si les données n'ont pas changé, le même
+    constat (`deja_constate`, rien n'est publié). Hors du stockage durable : refusé, jamais un constat sur un registre
+    qui n'a pas été lu."""
+    if not service_acteur_systeme.planificateur_en_cours():
+        return _refus(
+            verdicts_operations.construire_verdict(
+                "REJ-CONSTAT-PLANIFICATEUR-SEULEMENT",
+                detail="cette variante n'est déclenchée que par le planificateur durable ; pour un constat à la "
+                "demande, m5_constater_cash_libre",
+            )
+        )
+    jour, verdict = constat_cash_libre.lire_jour(aujourd_hui)
+    if verdict is not None:
+        return _refus(verdict)
+    if not _stockage_durable_actif:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-CONSTAT-STOCKAGE-NON-DURABLE",
+                detail="le registre des mouvements n'est pas adossé au stockage durable : aucun registre réel à "
+                "constater, aucun bus où publier",
+            )
+        )
+    constat = _constater_cash_libre(_registre_mouvements(None), jour)
+    return {
+        "accepte": True,
+        "resultat": analyse.avec_mention(
+            {
+                "deja_constate": constat["deja_constate"],
+                "publie": constat["publie"],
+                "constat": constat_cash_libre.entete(constat["constat"]),
+            }
+        ),
+    }
+
+
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m6.variance_chantier` (PLAN T1.3-c point 4, catalogue existant, M6 en est
     propriétaire) : garde le DERNIER signal connu par wct_id (`variance_recus.py`) — jamais un
@@ -5364,14 +5426,46 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                 "additionalProperties": False,
             },
             fonction=constater_cash_libre,
-            # T1 -> N3 (par défaut) : écriture interne non finale, sur un registre dérivé et au bus ; ne touche
-            # jamais les mouvements. Un appel d'appareil `admin` confirmé en base s'exécute (validation humaine au
-            # départ, ADR-0009 §4) ; un appel d'agent part en file d'approbation en mode `ombre` (`n3` : finance ou
-            # propriétaire).
+            # T1 -> N3 (par défaut, jamais posé à la main ici, là où les constats frères posent N2) : écriture interne
+            # non finale, sur un registre dérivé et au bus ; ne touche jamais les mouvements. Un appel d'appareil
+            # `admin` confirmé en base s'exécute (validation humaine au départ, ADR-0009 §4) ; un appel d'agent part
+            # en file d'approbation en mode `ombre` (`n3` : finance ou propriétaire). NIVEAU CONSERVÉ après examen
+            # (docs/M5-CASH-LIBRE-PLANIFIE.md) : cet outil rend les MONTANTS à son appelant et accepte une identité
+            # d'appareil, ce que le N3 encadre ; le rafraîchissement automatique passe par la variante N2
+            # `m5_constater_cash_libre_planifie` (planificateur seulement, réponse sans montant).
             autonomie=Autonomie.T1,
             # §9.5 M5 (trésorerie et cash libre réel) : l'admin seul, comme le cash libre lu. Identité confirmée en
             # base.
             roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_constater_cash_libre_planifie",
+            description=(
+                "Variante PLANIFIÉE de m5_constater_cash_libre : le planificateur durable (jamais un agent, jamais un "
+                "appareil) la déclenche pour que les mesures financières de M8 (cash libre, solde, comptes à payer, "
+                "taxes à remettre) et le score de santé se rafraîchissent. Même calcul, même constat, même événement "
+                "(m5.cash_libre_constate), même règle : un constat par jour de référence et par version des données "
+                "(deja_constate sinon). La réponse ne porte AUCUN montant : l'en-tête, le statut et les codes de ce "
+                "qui manque. Aucun paiement, aucune remise, aucune écriture aux mouvements. aujourd_hui (AAAA-MM-JJ) "
+                "est requis. Analyse préparatoire : mention obligatoire."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "description": "Jour de référence du constat, AAAA-MM-JJ (calculé sur le créneau).",
+                    },
+                },
+                "required": ["aujourd_hui"],
+                "additionalProperties": False,
+            },
+            fonction=constater_cash_libre_planifie,
+            # N2 (tâche interne, automatique) : une trace dérivée et un événement interne, comme les trois constats
+            # frères de M5. Agent seulement : AUCUN droit d'appareil (le téléphone de l'admin garde
+            # m5_constater_cash_libre, N3) ; et le corps refuse tout appelant qui n'est pas le planificateur.
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m5_envoyer_facture",

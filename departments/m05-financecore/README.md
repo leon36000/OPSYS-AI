@@ -6,7 +6,7 @@ Statut au 1er octobre 2026 : **PARTIEL — consolidation requise**. Les opérati
 rapports préparatoires sont raccordés, mais le périmètre CFO complet n'est pas livré. Le comptage
 historique au commit `2e56c0d` (17 outils) et le constat initial DEP-001 ne décrivent plus l'arbre
 courant : DEP-001 est corrigé localement, avec régression en mémoire et sur stockage durable
-(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**89 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
+(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**90 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
 `opsys-metier verifier` confirme les nombres de départements, outils et portées d'appareil dans sa preuve de cette tranche. Voir le [périmètre cible](../../docs/produit/PERIMETRE-MODULES.md), la
 [recherche actuelle](../../docs/research/R16-2026-09-30/recherche-m5.md) et le
 [bilan intégré](../../docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md).
@@ -313,6 +313,16 @@ ni un fournisseur. Le schéma du catalogue est fermé : un champ de plus est ref
 lecture des registres : `REJ-CONSTAT-DATE-INVALIDE`, `REJ-CONSTAT-COUTS-REQUIS` (le droit de voir les coûts), et
 `REJ-CONSTAT-STOCKAGE-NON-DURABLE` (sans registres durables, il n'y a ni registre réel ni bus). Aucun paiement, aucune remise,
 aucune écriture aux mouvements : `conformite.verifier_aucun_decaissement` couvre le module et les deux fonctions d'`outils.py`.
+
+Rafraîchissement automatique (chantier C1 de l'analyse M8, `m5_constater_cash_libre_planifie`, `docs/M5-CASH-LIBRE-PLANIFIE.md`) :
+l'outil ci-dessus est N3 et porte le droit d'appareil de l'admin, donc le planificateur durable ne peut ni l'appeler ni le déclarer.
+Son niveau a été examiné et conservé. Le constat planifié `cash-libre` (bloc `constats_planifies` du manifeste, inactif par défaut,
+cadence dérivée du catalogue de M8 : 12 h) appelle une VARIANTE T1/N2 sans droit d'appareil, que seul le planificateur peut
+déclencher (`REJ-CONSTAT-PLANIFICATEUR-SEULEMENT` pour tout autre appelant), dont la réponse ne porte aucun montant, et qui partage
+l'écriture de l'outil N3 (`_constater_cash_libre`) : même registre, même rang, même règle « un constat par jour et par version ».
+Elle alimente `m8_cash_libre_cad`, `m8_solde_tresorerie_cad`, `m8_comptes_a_payer_cad` et `m8_taxes_a_remettre_cad`. Limite dite : la
+fraîcheur de ces mesures (voir le document) est périmée environ de 19 h à minuit, heure locale, tant que le propriétaire n'a pas
+déclaré une fenêtre de 48 h.
 
 Limites : (1) personne ne déclenche le constat seul : le digest de 7 h ne l'appelle pas (GATE NATHAN : qui le déclenche, à
 quelle fréquence, un bouton du profil admin ?) ; (2) la date de référence est celle de l'appelant, et un agent en mode

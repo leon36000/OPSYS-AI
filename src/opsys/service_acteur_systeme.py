@@ -112,6 +112,19 @@ def verifier_planificateur(acteur):
         raise PermissionError("acteur système hors du contexte du planificateur")
 
 
+def planificateur_en_cours():
+    """Vrai SEULEMENT pendant un tour du planificateur des connecteurs, dans le fil qui l'a ouvert : la même garde que
+    `verifier_planificateur` (acteur courant, de portée `planificateur`, non fermé, hors requête HTTP/MCP, hors
+    identité d'appel), rendue en booléen au lieu d'une exception. Un outil de département déclaré « constat planifié »
+    s'en sert pour refuser un appelant qui n'est pas le planificateur (un agent par le MCP, la console, un appareil) :
+    c'est l'identité système, jamais un argument de l'appelant, qui dit qui déclenche."""
+    try:
+        verifier_planificateur(_COURANT.get())
+    except PermissionError:
+        return False
+    return True
+
+
 def verifier(cnx, acteur):
     """Garde rejouée par le moteur à chaque vérification (comme `_admin` pour une session humaine)."""
     if (

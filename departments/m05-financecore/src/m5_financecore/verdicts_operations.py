@@ -66,6 +66,9 @@ CODES_OPERATIONS = [
     "REJ-CONSEIL-SCENARIO-TROP-NOMBREUX",  # plus de scénarios que la borne
     "REJ-CONSEIL-RECOMMANDATION-TITRES",  # demande de recommandation de titres : refusée (NC 31-103)
     "REJ-CONSEIL-REGLE-NON-RENSEIGNEE",  # règle fiscale non renseignée : source officielle requise
+    # variante planifiée du constat du cash libre (m5_constater_cash_libre_planifie) : seul le planificateur la
+    # déclenche (à part de `validation.py`, épinglé par empreinte avec le code de paie)
+    "REJ-CONSTAT-PLANIFICATEUR-SEULEMENT",
     "REJ-CONSEIL-SUJET-INCONNU",  # sujet hors du catalogue des analyses
     "REJ-CONSEIL-MODE-INVALIDE",  # mode absent ou hors de {officiel, essai}
     "REJ-CONSEIL-DONNEE-MANQUANTE",  # donnée de l'entreprise absente : le refus dit laquelle

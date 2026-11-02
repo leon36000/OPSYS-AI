@@ -180,6 +180,13 @@ TOURS: tuple[Tour, ...] = (
          "brancher_maintenant",
          "Publie un résumé par facture envoyée, sans client ; ne crée ni n'envoie aucune facture.",
          "m5.constat.factures-emises"),
+    Tour("m5.constater_cash_libre", "M5 : cash libre, solde, comptes à payer, taxes à remettre (constat pour M8)",
+         _OPS + "m05-financecore/src/m5_financecore/outils.py", "constater_cash_libre_planifie", "N2",
+         "un constat par jour de référence et par version des données, registre PARTAGÉ avec l'outil N3 à la "
+         "demande de l'admin : le redire à l'identique ne publie rien", "aucun", "brancher_maintenant",
+         "Variante planifiée (planificateur seulement, sans droit d'appareil, réponse sans montant) ; l'outil N3 "
+         "m5_constater_cash_libre reste celui de l'admin. Aucun mouvement, paiement ni écriture comptable. "
+         "À valider auprès d'un comptable (CPA) / professionnel qualifié.", "m5.constat.cash-libre"),
     Tour("m7.constater_performance_signaux", "M7 : performance des signaux (constat pour M8)",
          _OPS + "m07-marketing/src/m7_marketing/signaux_outils.py", "constater_performance_signaux", "N2",
          "identifiant fondé sur la version des données : le redire à l'identique ne publie rien", "aucun",

@@ -226,6 +226,7 @@
      "tests": [
       "departments/m08-analytics/tests/test_vue_executive.py",
       "departments/m08-analytics/tests/test_vue_executive_cash_libre.py",
+      "tests/test_cash_libre_planifie_m8.py",
       "mobile/src/m8/vueExecutive.test.ts"
      ],
      "docs": [],
@@ -234,7 +235,7 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Vue exécutive admin ; aucun parcours navigateur (B) ; mobile Jest non rejoué."
+   "limite": "Vue exécutive admin ; aucun parcours navigateur (B) ; mobile Jest non rejoué. Le cash libre se rafraîchit par le constat planifié m5.constat.cash-libre (variante N2, inactif par défaut, SQLite, horloge injectée) ; périmé de 19 h à minuit locales avec la fenêtre de 24 h du catalogue."
   },
   {
    "id": "M8.7",
