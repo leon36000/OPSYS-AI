@@ -250,7 +250,7 @@ Les pourcentages et performances publiés par un projet tiers ne sont pas des r�
 | **Honcho** (Plastic Labs) | Serveur : AGPL-3.0 · SDKs client : Apache-2.0 | Modélisation utilisateur cross-session (M1/M2), pertinent pour un profil client enrichi | **Service séparé uniquement** (cloud ou conteneur non modifié) ; seul le SDK Apache-2.0 est vendorisable | Phase 2 (optionnel, niveau 2) | R4 |
 | **Weaviate** | BSD-3-Clause (module `wl/` en licence propriétaire séparée, à revérifier avant usage) | Fusion BM25+dense native « out of the box », multi-tenance physique forte | Service sidecar docker | Phase 2 (optionnel, niveau 2) | R4 |
 | **Cohere Rerank** / API embeddings cloud | Propriétaire (service) | Secours cloud si la qualité self-host plafonne, jamais par défaut | Appel API | Phase 2 (optionnel, niveau 2) | R4 |
-| **Letta** (ex-MemGPT) | Apache-2.0 | Patron d'architecture (mémoire hiérarchique auto-éditée par le modèle) — pas un composant à faire tourner tel quel | Lecture/inspiration seulement | Référence | R4 |
+| **Letta** (ex-MemGPT) | Apache-2.0 | Patron d'architecture (mémoire hiérarchique auto-éditée par le modèle) — pas un composant à faire tourner tel quel ; **le serveur V1 est archivé** (2026-08), code actif = `letta-ai/letta-code`, voir la section du 2 novembre 2026 en fin de fichier | Lecture/inspiration seulement | Référence | R4 |
 | **R2R** (SciPhi-AI) | MIT | Patron « exposer le RAG en API interne », recouvre ce que le port M10 doit de toute façon exposer | Lecture/inspiration seulement | Référence | R4 |
 
 *(M10 — voir aussi le domaine ci-dessus : le port mémoire M10 EST cette liste, cf. §« M10 » plus bas.)*
@@ -772,3 +772,28 @@ disparaissent. Le Core n'en importe que `minimatch`, `Minimatch` et `escape` (16
 subsistent, mais un changement de comportement d'appariement et une exception au délai strict
 sur une majeure toute neuve sont un arbitrage séparé : l'avis n'est pas corrigé ici et reste suivi
 séparément. Le niveau d'audit n'est pas abaissé et aucun avis n'est ignoré.
+
+## Mémoire d'expérience des agents — veille du 2 novembre 2026
+
+Veille complète, niveaux de preuve et limites : [VEILLE-MEMOIRE-EXPERIENCE-AGENTS-2026-11](VEILLE-MEMOIRE-EXPERIENCE-AGENTS-2026-11.md) ; relevé des licences lues (empreintes SHA-256 des fichiers `LICENSE`) :
+[`licences-verifiees.tsv`](VEILLE-MEMOIRE-EXPERIENCE-2026-11/licences-verifiees.tsv) ; conception : [MEMOIRE-EXPERIENCE-AGENTS-PROPOSITION](../architecture/MEMOIRE-EXPERIENCE-AGENTS-PROPOSITION.md).
+**Rien ci-dessous n'est installé, importé ni exécuté.** Section ajoutée en fin de fichier pour ne décaler aucune ligne citée par `tests/test_conformite_licences.py` ; le décompte global ci-dessus n'est pas modifié.
+Cette section compte **6 lignes retenues** (4 références, 1 candidate à pilote conditionnel, 1 candidate hors ligne couvrant deux bibliothèques) et **3 refusées**.
+
+| Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
+|---|---|---|---|---|---|
+| **ReasoningBank** (google-research/reasoning-bank, commit `ed80611`, 2026-05-19 ; arXiv 2509.25140) | Apache-2.0 (`LICENSE` lu, 11 357 octets) | Patron : éléments {titre, description, contenu} tirés de réussites **et** d'échecs, récupération k=1 | **Idée seulement** : code de démonstration (README), sans test, gains **non reproduits par trois tiers** (issues #2, #6, #11 ouvertes), trajectoires brutes stockées, MaTTS inapplicable en production | Référence | Veille 2026-11 § 4 |
+| **Agent Memory Distillation (AMD)** (arXiv 2608.07169 v1, 2026-08-07, « Under review » ; CC BY 4.0 pour le texte) | Article CC BY 4.0 ; **code `taeilkim2465/agentic_memory_distillation` : aucune licence** (tous droits réservés par défaut) | Patron : mémoire en trois niveaux (flux / sous-tâche / fonction) construite par un fort, lue par un petit, injection au début et sur erreur d'outil | **Idée seulement** ; code **non réutilisable** ; gains réduits de 3 à 8 points en évaluation disjointe (annexe B.3) ; anglais, bancs d'outils non MCP | Référence | Veille 2026-11 § 5 |
+| **ACE, Agentic Context Engineering** (ace-agent/ace, commit `82709de`, 2026-08-24 ; arXiv 2510.04618) | Apache-2.0 (`LICENSE.txt` lu) | Patron : playbook de puces à compteurs utile/nuisible, mises à jour par deltas, fusion déterministe, budget | Idée seulement ; aucun test dans le dépôt ; playbook non borné (issues #11, #26) ; les compteurs viendront chez nous de signaux déterministes | Référence | Veille 2026-11 § 3.2 |
+| **Invariants du « curateur » de Hermes Agent** (NousResearch/hermes-agent, commit `f45d3aa`, 2026-11-02, `agent/curator.py`) | MIT (déjà inscrit plus haut) | Principes : ne jamais supprimer (archiver), compétences épinglées intouchables, consolidation par LLM facultative et désactivée par défaut | Idée reprise dans la conception (états *archivé*/*révoqué*) ; code non importé | Référence | Veille 2026-11 § 3.3 |
+| **MemOS — plugin local `apps/memos-local-plugin`** (MemTensor/MemOS, commit `64388b5`, 2026-10-29, v2.0.34) | Apache-2.0 (racine ; `apps/MemOS-Cloud-OpenClaw-Plugin` Apache-2.0 ; `apps/openwork-memos-integration` MIT, premières lignes lues) | Mémoire locale (SQLite, FTS5 + vecteurs) à couches trace / politique / modèle du monde / compétences, adaptateur OpenClaw | **Pilote conditionnel en bac à sable OpenClaw fictif** (jalon J8 de la proposition) ; Node ≥ 22 ; stocke action + observation (PII) ; récompense par LLM ; compatibilité avec notre fork du Core **non testée** | Candidate (non installée) | Veille 2026-11 § 3.3 |
+| **DSPy** (stanfordnlp/dspy, 3.4.1) et **GEPA** (gepa-ai/gepa, 0.1.4) | MIT et MIT (fichiers `LICENSE` lus) | Optimisation de prompts **hors ligne** (décision r2, E6) ; ne remplace pas une mémoire d'éléments | Non installés ici ; à mesurer sur nos corpus avant toute qualification | Candidate hors ligne | R6 · veille 2026-11 § 3.4 |
+
+Autres lectures de la veille, **non retenues** (voir le tableau de la veille pour le détail) : AWM, Reflexion, Voyager, ExpeL, Memp, SkillWeaver, Dynamic Cheatsheet (idées seulement, dépôts gelés ou de recherche) ;
+Mem0, Graphiti/Zep, Hindsight, TencentDB Agent Memory (à surveiller) ; A-MEM, LangMem, Cognee (écartés).
+
+| Brique refusée | Domaine | Raison | Rapport source |
+|---|---|---|---|
+| OpenViking (volcengine/OpenViking) | M10 | **AGPL-3.0** (`LICENSE` lu, 34 568 octets) : service séparé non modifié seulement ; aucun besoin | Veille 2026-11 |
+| Code de `taeilkim2465/agentic_memory_distillation` | M10 | Aucune licence : tous droits réservés par défaut | Veille 2026-11 |
+| `Lanerra/reasoning-bank-slm` | M10 | README annonce MIT mais **aucun fichier `LICENSE`** dans l'arbre ; expérience à résultat non significatif | Veille 2026-11 |
