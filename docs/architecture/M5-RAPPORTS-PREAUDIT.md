@@ -138,7 +138,111 @@ Sur le modèle de la vague 7 (`M5-CASH-LIBRE-PLANIFIE.md`, `M2-VICTOR.md`) :
 
 ## Preuves
 
-{{PREUVES}}
+### Comptes avant -> après (même machine, sans xdist)
+
+| Suite | Avant (`ea631e4bc`, copie propre) | Après |
+|---|---|---|
+| `departments/m05-financecore/tests` | 4 125 passés, 1 sauté, 0 échec | **4 240 passés, 1 sauté, 0 échec** (+115 ; le sauté est la garde « en CI » de `test_facture_pdf.py`) |
+| `departments/m08-analytics/tests` | 1 666 passés | **1 677 passés** |
+| Socle ciblé (gardes d'intégration, interconnexion, réglages, planificateur, entrepôt M8, cash libre planifié, facturation par jalons, bout en bout) | — | **1 117 passés, 0 échec** (34 fichiers) |
+| Outils exposés (registre MCP) | 678, révision 22 | **688, révision 23** (10 ajoutés, 0 modifié, 0 niveau changé) ; 665 outils de départements, 254 ouverts aux appareils (inchangé) |
+| Catalogue M8 | 58 mesures | **59** (`m8_constats_preaudit`, extension additive) |
+| Types d'événements au catalogue | 59 | **60** (`m5.preaudit_constate`, un consommateur réel : M8) |
+| Réglages de direction | 10 | **13** (les trois seuils du pré-audit, aucune proposition) |
+
+Les 19 erreurs de fixture de `test_fusion_ap_m5*` (isolation PDF absente) annoncées pour cette machine ne sont **pas apparues** sur cette copie : 0 erreur, avant comme après.
+
+### Rouge avant
+
+Les tests du chantier (fichiers nouveaux ou modifiés, 27) posés sur une copie propre de `ea631e4bc` : **111 échecs et 3 erreurs de collecte**
+(`test_rapports_financiers.py`, `test_controleur_preaudit.py` et `test_analyse_mention.py` ne s'importent pas ; 21 des 22 tests d'outils, 17 des 17
+du scénario de bout en bout, les tests de M8 et du planificateur qui comptent 59 mesures ou connaissent le constat). Journal conservé :
+`scratchpad/rouge-avant-m5r-b-20261102T081418.txt` (le premier essai, interrompu par les erreurs de collecte, est gardé à côté). Après : tout au vert.
+
+### Tests du chantier (noms et rôle)
+
+| Fichier | Prouve |
+|---|---|
+| `departments/m05-financecore/tests/test_rapports_financiers.py` (pur, grand livre réel en mémoire) | état des résultats et bilan aux chiffres calculés à la main, brouillon compté jamais additionné, bornes de période exactes et période non décalée, produit non rangé en charge, taxe à percevoir jamais un produit, marge brute fail-closed, pourcentage ROUND_HALF_UP, compte hors plan et chaîne altérée refusés, bilan déséquilibré dit, budget contre réel (écarts, sens, non budgétés, mois sans budget), refus du budget (chaque code), versions, motif, idempotence, altération, rentabilité par axe (regroupement, exclusions, dimension absente), reçus rejouables et retouches refusées, sources citées, budget démesuré |
+| `departments/m05-financecore/tests/test_controleur_preaudit.py` (pur) | un dossier PROPRE ne sort aucun constat ; chaque règle, cas positif et négatif (échéance stricte, fenêtre exacte, seuil inclusif, historique, contre-passation, annulation) ; seuils absents ou mal formés = règle non évaluée ; grand livre altéré ; les trois anomalies exactes ; clés de constat stables ; reçu rejouable ; charge de l'événement sans aucun identifiant |
+| `departments/m05-financecore/tests/test_rapports_outils.py` (vrai socle) | niveaux et portée fermée des dix outils, refus d'un appareil, garde anti-décaissement étendue, modules purs sans E/S ni flottant ni horloge (AST), manifeste (constat, trois réglages, aucune valeur livrée), mentions sur toute sortie acceptée, chiffres du grand livre, pagination bornée, dates invalides, grand livre ou budget **altéré** (rapports refusés, pré-audit non évalué), budget N3 (agent seul refusé, refus de la personne, double soumission), champs hostiles, libellé HTML inerte, schéma du catalogue (propriétés en trop refusées), constat publié une fois par instant et rien de personnel, texte saisi assaini, dimensions de M4 gardées, traces de la voie console exclues |
+| `tests/test_rapports_preaudit_bout_en_bout.py` (vrais départements, bus, sas N3/N4/N5, planificateur à horloge injectée, M8) | **l'exercice fictif de trois mois** : états par mois et sur le trimestre aux soldes exacts recoupés par la balance et le grand livre d'un compte ; bilan équilibré à 0,00 $ ; budget déclaré par une personne puis comparé au réel (le doublon pèse sur les matériaux : +100 %) ; **le pré-audit sort EXACTEMENT les trois anomalies injectées** (doublon, dépense sans reçu, facture sans paiement), zéro fausse alerte, avant et après la déclaration des seuils ; les anomalies se lèvent quand la cause est corrigée (reçu lié, doublon annulé puis contre-passé, facture payée) ; **données déclarées absentes en fail-closed** (budget, coûts directs, dimension, seuils) ; constat planifié inactif par défaut, ombre = « aurait », actif = un événement, idempotence par créneau, M8 le montre (valeur, couverture partielle puis complète), panne comptée sans arrêter le tour ; rapport mensuel (faits, hypothèses, données manquantes, un reçu par section) ; rentabilité par ville et par service ; **aucun registre ne bouge** (tailles et têtes identiques, aucun mouvement d'argent, aucune période close) ; chaque rapport cite la tête des registres lus |
+| `tests/test_entrepot_m8_garanties.py` (source `preaudit`) | les cinq garanties de l'interconnexion pour `m5.preaudit_constate` (livré, idempotent par clé de contenu, panne puis reprise, charge hors catalogue refusée, rien de personnel) |
+| `departments/m08-analytics/tests/test_mesures_constats.py` (+11) | `m8_constats_preaudit` : total, vrai zéro, couverture partielle nommée, total nul = non calculable, dernier publié du jour le plus récent, constat illisible, propriétés en trop écartées |
+| Tests modifiés | comptes de mesures (59), types (17 d'`operations_recues`), constat `m5.constat.preaudit` aux fixtures du planificateur, 13 réglages, événements publiés par M5, garde anti-décaissement et mentions pour les nouveaux modules |
+
+### Mutations (une à une dans un CLONE, restauration vérifiée par empreinte ; 48, 5 survivantes d'abord, toutes fermées)
+
+Première passe : 47 mutations, 44 tuées, **3 survivantes** (C07, C11, A01) ; deux « tuées » étaient fausses (le jeu de tests de M8 n'était pas lancé : une erreur
+du banc, découverte à la lecture du détail) : une fois corrigé, M01 et M02 **survivaient aussi** (aucun test unitaire de la mesure M8). Fermées :
+C07 était **équivalente** (la sémantique des tranches négatives de Python rendait la garde redondante) : code réécrit, longueur de l'historique testée
+explicitement ; C11 : test de la contre-passation d'un remboursement ; A01 : la branche des taxes à percevoir n'était atteignable que par un test
+unitaire de `_ecarts_taxes` ; M01 et M02 : onze tests de M8. Dernière passe : **48 / 48 tuées, 48 / 48 restaurées à l'identique**. Dimensions : mauvaise
+dimension (produit rangé en charge, passif compté en résultat, service permuté avec ville, ville rangée sous le service, compte non budgétable, pièce d'une autre
+cible, doublon sans fournisseur), taxe rangée dans le mauvais compte (deux), période décalée (deux), signe, comparaison, garde retirée, fail-closed retiré, zéro inventé, niveau.
+
+| # | Mutation | Dimension | Tuée par | Statut |
+|---|---|---|---|---|
+| R01 | produit net = débit − crédit (produit rangé en charge) | mauvaise dimension | tests purs et d'outils | tuée |
+| R02 | un compte de produits est additionné aux charges | mauvaise dimension | tests purs et d'outils | tuée |
+| R03 | les comptes de passif (taxes à percevoir) comptent comme résultat | mauvaise dimension | tests purs et d'outils | tuée |
+| R04 | un brouillon est additionné comme une écriture définitive | garde retirée | tests purs et d'outils | tuée |
+| R05 | la fin de période exclut le dernier jour (jour > fin devient >=) | comparaison inversée | tests purs et d'outils | tuée |
+| R06 | le début de période exclut le premier jour (jour < debut devient <=) | comparaison inversée | tests purs et d'outils | tuée |
+| R07 | période décalée d'un mois (fin_de_mois rend le 1er du mois suivant) | période décalée | scénario de bout en bout | tuée |
+| R08 | résultat cumulé du bilan à l'envers | signe inversé | tests purs et d'outils | tuée |
+| R09 | le bilan se dit toujours équilibré | garde retirée | tests purs et d'outils | tuée |
+| R10 | marge brute calculée sans comptes de coûts directs déclarés | fail-closed retiré | tests purs et d'outils | tuée |
+| R11 | budget : écart = budget − réel | signe inversé | tests purs et d'outils | tuée |
+| R12 | budget : charges sous le budget jugées défavorables | sens inversé | tests purs et d'outils | tuée |
+| R13 | budget : un mois sans budget est comparé comme un mois budgété à zéro | fail-closed retiré | tests purs et d'outils | tuée |
+| R14 | budget : le réel sans ligne de budget est absorbé | garde retirée | tests purs et d'outils | tuée |
+| R15 | rentabilité : un coût partiel est regroupé | garde retirée | tests purs et d'outils | tuée |
+| R16 | rentabilité : un prix provisoire est regroupé | garde retirée | tests purs et d'outils | tuée |
+| R17 | rentabilité : dimension absente partout donne un tableau vide « calculé » | fail-closed retiré | tests purs et d'outils | tuée |
+| R18 | rejeu : l'empreinte n'est plus comparée | garde retirée | tests purs et d'outils | tuée |
+| B01 | budget : un compte de bilan est budgétable | mauvaise dimension | tests purs et d'outils | tuée |
+| B02 | budget : un montant à trois décimales est accepté (arrondi caché) | validation retirée | tests purs et d'outils | tuée |
+| B03 | budget : redéclarer le même contenu écrit une version de plus | idempotence retirée | tests purs et d'outils | tuée |
+| B04 | budget : remplacer une version sans motif | validation retirée | tests purs et d'outils | tuée |
+| C01 | pré-audit : « en retard » dès le jour de l'échéance | comparaison inversée | tests purs et d'outils | tuée |
+| C02 | pré-audit : la pièce d'une autre cible justifie la dépense | mauvaise dimension | tests purs et d'outils | tuée |
+| C03 | pré-audit : fenêtre de doublon non déclarée = 365 jours | fail-closed retiré | tests purs et d'outils | tuée |
+| C04 | pré-audit : le doublon ignore le fournisseur | mauvaise dimension | tests purs et d'outils | tuée |
+| C05 | pré-audit : le seuil hors norme est exclusif | comparaison inversée | tests purs et d'outils | tuée |
+| C06 | pré-audit : sans seuil déclaré la règle hors norme est évaluée avec un seuil nul | fail-closed retiré | tests purs et d'outils | tuée |
+| C07 | pré-audit : changement de compte dès la première facture | garde retirée | tests purs et d'outils | survivante, fermée |
+| C08 | pré-audit : grand livre altéré n'invalide plus les règles | fail-closed retiré | tests purs et d'outils | tuée |
+| C09 | pré-audit : une règle non évaluée compte zéro | zéro inventé | tests purs et d'outils | tuée |
+| C10 | pré-audit : taxes non comparables = aucun écart | fail-closed retiré | tests purs et d'outils | tuée |
+| C11 | pré-audit : une contre-passation de paiement est un paiement sans facture | faux positif | tests purs et d'outils | survivante, fermée |
+| C12 | pré-audit : une facture annulée dont l'écriture est contre-passée reste signalée | garde retirée | tests purs et d'outils | tuée |
+| C13 | événement : aucun compte évalué donne un total de zéro | zéro inventé | tests purs et d'outils | tuée |
+| A01 | adaptateur : écart de taxe à percevoir à net nul gardé (fausse alerte après contre-passation) | faux positif | tests purs et d'outils | survivante, fermée |
+| A01b | adaptateur : écart de taxe sur intrants à net nul gardé (fausse alerte après contre-passation) | faux positif | tests purs et d'outils | tuée |
+| A02 | adaptateur : service et ville permutés | mauvaise dimension | scénario de bout en bout | tuée |
+| A03 | adaptateur : les traces de la voie console comptent | garde retirée | tests purs et d'outils | tuée |
+| A04 | adaptateur : déclarer un budget sans personne (N3 retiré) | niveau abaissé | tests purs et d'outils | tuée |
+| A05 | adaptateur : le constat est publié à un niveau N3 | niveau relevé | tests purs et d'outils | tuée |
+| A06 | adaptateur : la lecture du budget s'ouvre à un appareil | portée élargie | tests purs et d'outils | tuée |
+| G01 | grand livre : la TPS facturée est rangée au compte de TVQ à percevoir (et inversement) | taxe dans le mauvais compte | scénario de bout en bout | tuée |
+| G02 | plan comptable : les comptes de TPS et de TVQ à percevoir sont permutés | taxe dans le mauvais compte | scénario de bout en bout | tuée |
+| R19 | réel du budget : le début de chaque mois est décalé au 15 | période décalée | tests purs et d'outils | tuée |
+| W01 | M4 : la ville est rangée sous le service au stockage du WCT | mauvaise dimension | tests purs et d'outils | tuée |
+| M01 | M8 : aucune règle évaluée est lue comme zéro constat | zéro inventé | tests de M8 | survivante, fermée |
+| M02 | M8 : la couverture ignore les règles non évaluées | garde retirée | tests de M8 | survivante, fermée |
+
+Banc : `scratchpad/mut_m5r.py`, résultats `scratchpad/mutations-m5r-2026*.json` (conservés, jamais écrasés).
+
+### Commandes
+
+```
+pytest departments/m05-financecore/tests/test_rapports_financiers.py departments/m05-financecore/tests/test_controleur_preaudit.py \
+       departments/m05-financecore/tests/test_rapports_outils.py tests/test_rapports_preaudit_bout_en_bout.py
+pytest tests/test_entrepot_m8_garanties.py departments/m08-analytics/tests/test_mesures_constats.py
+opsys-metier registre-mcp verifier        # révision 23
+```
+
 
 ## Limites (sans euphémisme)
 
