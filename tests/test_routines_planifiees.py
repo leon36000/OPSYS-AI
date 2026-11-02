@@ -38,6 +38,7 @@ ATTENDUES = {
     ),
     "m10.routine.audit-non-oubli": ("m10", ("m10_executer_audit_non_oubli",), ("cron", "30 4 * * 1"), 900),
     "m10.routine.kpis-memoire": ("m10", ("m10_calculer_kpis",), ("cron", "45 4 * * *"), 900),
+    "m10.routine.contradictions-memoire": ("m10", ("m10_rafraichir_contradictions",), ("cron", "10 4 * * *"), 900),
 }
 
 

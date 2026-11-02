@@ -282,3 +282,10 @@ est couvert par leurs propres tests.
   sensibles à la négation (« pas une affaire sans histoire » déclenche un motif interdit) — à affiner avec le corpus.
 - **Instance vide** : les outils qui exigent une identité humaine ou une configuration le refusent ; les cas l'assument
   (le refus réel fait partie de l'attente).
+
+## Banc « avec / sans mémoire » d'expérience des agents (jalon J2, 2026-11-02)
+
+`src/opsys/evaluation/memoire_experience.py` réutilise les attentes déterministes de ce gabarit (`executeur.verifier_cas`) sur une famille de cas à part
+(`departments/m10-memoire/evals/experience.v1.yaml`, même format, 15 cas) pour comparer un répondant sans mémoire, avec un élément d'expérience et avec un placebo, sans
+exécuter aucun outil (registre MCP scellé et schéma seulement). Le banc est validé par un répondant double sensible à la mémoire. Détail et limites :
+[MEMOIRE-EXPERIENCE-AGENTS-J1-J2](MEMOIRE-EXPERIENCE-AGENTS-J1-J2.md). **Aucun vrai modèle n'a été mesuré.**

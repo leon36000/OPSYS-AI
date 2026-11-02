@@ -1666,13 +1666,15 @@ _OUTILS_AVANT_LECTURE_DOCUMENTAIRE = outils
 
 def outils() -> tuple[Outil, ...]:
     """Conserve les déclarations historiques, ajoute les deux lecteurs T0 et les outils de connaissances."""
-    from . import routines_outils
+    from . import contradictions_outils, experience_outils, routines_outils
 
     return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
         *connaissances.outils_connaissances(),
         *modeles_roles.outils_modeles(),
         *soi_graphe.outils_mnemo(),
         *routines_outils.outils_routines(),
+        *contradictions_outils.outils_contradictions(),
+        *experience_outils.outils_experience(),
         Outil(
             nom="m10_lire_faits_analytiques",
             description=(

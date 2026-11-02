@@ -16,6 +16,7 @@ from typing import Any
 
 from m10_memoire import consolidation_developpement as consolidation
 from m10_memoire import developpement as memoire
+from m10_memoire import ingestion_projet
 
 from opsys import contexte, identite, stockage
 
@@ -73,6 +74,11 @@ def _commande_scanner(args: argparse.Namespace) -> int:
             horodatage=_horodatage_serveur(),
         )
     )
+    return 0
+
+
+def _commande_ingerer_projet(args: argparse.Namespace) -> int:
+    _afficher(ingestion_projet.ingerer(args.depot, horodatage=_horodatage_serveur()))
     return 0
 
 
@@ -219,6 +225,12 @@ def ajouter_commandes(sous_commandes: Any) -> None:
     scanner.add_argument("--max-bytes", type=int, default=256_000)
     scanner.add_argument("--max-total-bytes", type=int, default=8_000_000)
     scanner.set_defaults(fn=_commande_scanner)
+    ingerer = actions.add_parser(
+        "ingerer-projet",
+        help="ingérer directives, ADR, règles d'agent, condensés et matrices du dépôt (idempotent, sourcé, expurgé)",
+    )
+    ingerer.add_argument("--depot", required=True, help="racine du dépôt Git autorisé à lire")
+    ingerer.set_defaults(fn=_commande_ingerer_projet)
     pre = actions.add_parser("preflight", help="récupérer le contexte sourcé avant un changement")
     pre.add_argument("--module", required=True)
     pre.add_argument("--tache", required=True)
