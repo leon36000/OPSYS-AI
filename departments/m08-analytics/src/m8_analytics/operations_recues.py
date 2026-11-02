@@ -5,7 +5,7 @@ Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge (« aujourd'hui
 seul point de contact avec le socle, reçoit les événements, range les faits au registre ``faits_operations`` et lit ce
 registre pour la section « operations_recues » de la vue exécutive.
 
-Quinze types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
+Seize types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
 
 - ``m7.signaux_marketing_constates`` : quelle source de données propres a été lue, sur quelle période, avec quelle
   fraîcheur (aucune valeur de mesure : les faits eux-mêmes se lisent chez M7) ;
@@ -22,7 +22,7 @@ action) ;
 - ``m1.commande_courriel_envoyee`` : le courriel d'un bon de commande de M6 est parti (après l'approbation humaine du
   sas de M1) : le bon de commande et l'instant, ni le brouillon ni l'adresse.
 
-Sept types de la phase 2 (D1 à D3 de ``docs/architecture/M8-ENTREPOT-SOURCES.md`` : les producteurs publient des RÉSUMÉS
+Huit types de la phase 2 (D1 à D3 de ``docs/architecture/M8-ENTREPOT-SOURCES.md`` : les producteurs publient des RÉSUMÉS
 agrégés, M8 n'appelle aucun de leurs outils et n'a obtenu aucun droit nouveau) :
 
 - ``m5.depense_publicitaire_constatee`` (D1) : ce que le grand livre de M5 a COMPTABILISÉ des dépenses publicitaires
@@ -34,8 +34,11 @@ agrégés, M8 n'appelle aucun de leurs outils et n'a obtenu aucun droit nouveau)
 - ``m4.capacite_equipe_constatee`` : les heures d'équipe DÉCLARÉES et les heures de cédule planifiées d'une semaine ;
 - ``m2.pipeline_constate`` : les comptes du pipeline commercial, le taux de conversion des résolus, la valeur pondérée ;
 - ``m6.disponibilite_constatee`` : cinq comptes de disponibilité du matériel ;
-- ``m1.plaintes_constatees`` : l'ÉTAT de la lecture des plaintes et leur nombre seulement s'il est CONNUE.
-Pour ces sept types, la version qui fait foi est celle de la publication la plus récente (``publie_le``, donné par le
+- ``m1.plaintes_constatees`` : l'ÉTAT de la lecture des plaintes et leur nombre seulement s'il est CONNUE ;
+- ``m2.filet_anti_perte_constate`` (M2-C1) : les comptes du filet anti-perte de M2 — violations par règle SLA (``null``
+pour
+  une règle non évaluée faute de délai déclaré), anomalies par contrôle d'intégrité des données.
+Pour ces huit types, la version qui fait foi est celle de la publication la plus récente (``publie_le``, donné par le
 bus) : l'ordre de livraison n'est pas garanti. Aucun n'entre dans la section « operations_recues » de la vue exécutive ;
 ils se lisent par leurs mesures du catalogue.
 
@@ -85,6 +88,7 @@ TYPE_CAPACITE = "capacite_equipe"
 TYPE_PIPELINE = "pipeline_commercial"
 TYPE_DISPONIBILITE = "disponibilite_materiel"
 TYPE_PLAINTES = "plaintes_constatees"
+TYPE_FILET = "filet_anti_perte"
 
 EVENEMENT_PAR_TYPE = {
     "m7.signaux_marketing_constates": TYPE_SIGNAUX,
@@ -102,6 +106,7 @@ EVENEMENT_PAR_TYPE = {
     "m2.pipeline_constate": TYPE_PIPELINE,
     "m6.disponibilite_constatee": TYPE_DISPONIBILITE,
     "m1.plaintes_constatees": TYPE_PLAINTES,
+    "m2.filet_anti_perte_constate": TYPE_FILET,
 }
 _EVENEMENT_DU_TYPE = {type_entree: evenement for evenement, type_entree in EVENEMENT_PAR_TYPE.items()}
 
@@ -132,6 +137,7 @@ _CLES_UNICITE = {
     TYPE_PIPELINE: ("date_reference", "version_donnees", "constate_le"),
     TYPE_DISPONIBILITE: ("date_reference", "version_donnees", "constate_le"),
     TYPE_PLAINTES: ("date_reference", "jours", "empreinte_contenu"),
+    TYPE_FILET: ("date_reference", "version_donnees", "constate_le"),
 }
 # Les types dont deux versions du même objet ne s'ordonnent que par l'instant de PUBLICATION donné par le bus
 # (`publie_le`).
@@ -145,6 +151,7 @@ _TYPES_ORDONNES_PAR_PUBLICATION = frozenset(
         TYPE_PIPELINE,
         TYPE_DISPONIBILITE,
         TYPE_PLAINTES,
+        TYPE_FILET,
     }
 )
 # Phase 2 : ce que M8 garde de chaque résumé, exactement les propriétés fermées du catalogue d'événements (une propriété
@@ -221,6 +228,19 @@ _CLES_PHASE_2 = {
         "reservations_incompletes",
     ),
     TYPE_PLAINTES: ("date_reference", "jours", "etat", "nombre", "empreinte_contenu"),
+    TYPE_FILET: (
+        "date_reference",
+        "constate_le",
+        "version_donnees",
+        "leads_examines",
+        "violations_par_regle",
+        "violations_total",
+        "regles_non_evaluees",
+        "regles_partielles",
+        "anomalies_par_controle",
+        "anomalies_total",
+        "controles_non_evalues",
+    ),
 }
 # Ce que M8 garde d'une mesure de vision : ni la photo, ni le modèle, ni l'empreinte de décision.
 _CLES_VISION = (
@@ -563,6 +583,7 @@ __all__ = [
     "TYPE_PERFORMANCE",
     "TYPE_PIPELINE",
     "TYPE_PLAINTES",
+    "TYPE_FILET",
     "TYPE_RECEPTION",
     "TYPE_SIGNAUX",
     "TYPES_PHASE_2",

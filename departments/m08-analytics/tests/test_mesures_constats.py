@@ -610,6 +610,137 @@ def test_aucun_constat_du_pipeline_les_trois_mesures_sont_non_calculables(defini
         _non_calculable(_op(definitions, metric_id), "m2.pipeline_constate")
 
 
+# ================================================================================================ M2 : filet anti-perte
+REGLES_SLA = (
+    "prochaine_action_obligatoire", "lead_chaud_non_contacte", "photos_non_recues", "soumission_non_relancee",
+    "plainte_non_escaladee", "lead_sans_proprietaire", "tache_en_retard",
+)
+CONTROLES_INTEGRITE = (
+    "lead_sans_statut", "client_sans_contact", "tache_sans_proprietaire", "soumission_orpheline", "activite_sans_lead",
+    "lead_sans_client", "pipeline_incoherent", "doublon_probable",
+)
+
+
+def _filet(
+    date=JOUR, violations=None, non_evaluees=(), partielles=(), anomalies=None, non_evalues=(), version="e" * 16,
+    heure=7, leads=40,
+):
+    violations = violations or {}
+    par_regle = {r: None if r in non_evaluees else violations.get(r, 0) for r in REGLES_SLA}
+    evaluees = [n for n in par_regle.values() if n is not None]
+    anomalies = anomalies or {}
+    par_controle = {c: None if c in non_evalues else anomalies.get(c, 0) for c in CONTROLES_INTEGRITE}
+    return _fait(
+        op.TYPE_FILET,
+        "m2.filet_anti_perte_constate",
+        {
+            "evenement_id": f"m2-filet-{date}-{version}-{heure}",
+            "date_reference": date,
+            "constate_le": f"{date}T07:00:00-04:00",
+            "version_donnees": version,
+            "leads_examines": leads,
+            "violations_par_regle": par_regle,
+            "violations_total": sum(evaluees) if evaluees else None,
+            "regles_non_evaluees": list(non_evaluees),
+            "regles_partielles": list(partielles),
+            "anomalies_par_controle": par_controle,
+            "anomalies_total": sum(n for n in par_controle.values() if n is not None),
+            "controles_non_evalues": list(non_evalues),
+        },
+        heure,
+    )
+
+
+def test_le_filet_complet_donne_les_deux_mesures_reprises_telles_quelles_a_couverture_complete(definitions):
+    f = _filet(violations={"lead_chaud_non_contacte": 3, "tache_en_retard": 2}, anomalies={"pipeline_incoherent": 4})
+    v = _op(definitions, "m8_violations_sla_commercial", f)
+    assert v["statut"] == "calculee" and v["valeur"] == "5" and v["couverture"] == {"etat": "complete"}
+    assert v["entrees"]["violations_par_regle"]["lead_chaud_non_contacte"] == 3
+    assert v["entrees"]["leads_examines"] == 40 and v["dernier_fait_le"] == f"{JOUR}T07:00:00-04:00"
+    a = _op(definitions, "m8_anomalies_integrite_crm", f)
+    assert a["statut"] == "calculee" and a["valeur"] == "4" and a["couverture"] == {"etat": "complete"}
+    assert a["entrees"]["anomalies_par_controle"]["pipeline_incoherent"] == 4
+
+
+def test_zero_violation_avec_toutes_les_regles_evaluees_est_un_vrai_zero(definitions):
+    f = _filet()
+    assert _op(definitions, "m8_violations_sla_commercial", f)["valeur"] == "0"
+    assert _op(definitions, "m8_anomalies_integrite_crm", f)["valeur"] == "0"
+
+
+def test_aucun_delai_declare_la_mesure_des_violations_est_non_calculable_pas_zero_l_audit_se_calcule(definitions):
+    sans_delai = _filet(
+        non_evaluees=(*REGLES_SLA[1:5], REGLES_SLA[6]), partielles=(REGLES_SLA[0], REGLES_SLA[5]), version="f" * 16
+    )
+    m = _op(definitions, "m8_violations_sla_commercial", sans_delai)
+    _non_calculable(m, "regles_sla")
+    assert "aucune règle SLA n'est évaluée en entier" in m["manque"][0]["raison"] and "zéro" in m["manque"][0]["raison"]
+    assert _op(definitions, "m8_anomalies_integrite_crm", sans_delai)["statut"] == "calculee"
+    # une seule règle évaluée en entier suffit pour que la mesure existe (couverture partielle, dite)
+    une = _filet(non_evaluees=REGLES_SLA[1:5], partielles=(REGLES_SLA[0], REGLES_SLA[5]), version="a" * 16)
+    assert _op(definitions, "m8_violations_sla_commercial", une)["statut"] == "calculee"
+
+
+def test_des_regles_non_evaluees_ou_partielles_rendent_la_couverture_partielle_et_la_disent(definitions):
+    f = _filet(
+        violations={"tache_en_retard": 2}, non_evaluees=("photos_non_recues",), partielles=("lead_sans_proprietaire",)
+    )
+    m = _op(definitions, "m8_violations_sla_commercial", f)
+    assert m["statut"] == "calculee" and m["valeur"] == "2"
+    assert m["couverture"]["etat"] == "partielle"
+    assert (m["couverture"]["couverts"], m["couverture"]["attendus"]) == (5, 7)
+    assert "photos_non_recues" in m["couverture"]["raison"] and "lead_sans_proprietaire" in m["couverture"]["raison"]
+    assert m["entrees"]["regles_non_evaluees"] == ["photos_non_recues"]
+    assert m["entrees"]["regles_partielles"] == ["lead_sans_proprietaire"]
+
+
+def test_un_controle_non_evalue_rend_la_couverture_de_l_audit_partielle_et_le_nomme(definitions):
+    f = _filet(anomalies={"client_sans_contact": 1}, non_evalues=("soumission_orpheline",))
+    m = _op(definitions, "m8_anomalies_integrite_crm", f)
+    assert m["statut"] == "calculee" and m["valeur"] == "1" and m["couverture"]["etat"] == "partielle"
+    assert (m["couverture"]["couverts"], m["couverture"]["attendus"]) == (7, 8)
+    assert "soumission_orpheline" in m["couverture"]["raison"]
+    assert m["entrees"]["controles_non_evalues"] == ["soumission_orpheline"]
+
+
+def test_le_filet_du_jour_le_plus_recent_est_repris_le_dernier_publie_l_emporte_quel_que_soit_l_ordre(definitions):
+    hier = _filet(date="2026-10-29", violations={"tache_en_retard": 99}, version="1" * 16)
+    matin = _filet(violations={"tache_en_retard": 1}, version="2" * 16, heure=7)
+    soir = _filet(violations={"tache_en_retard": 4}, version="3" * 16, heure=18)
+    for ordre in ((hier, matin, soir), (soir, matin, hier), (matin, hier, soir)):
+        assert _op(definitions, "m8_violations_sla_commercial", *ordre)["valeur"] == "4"
+
+
+def test_aucun_constat_du_filet_les_deux_mesures_sont_non_calculables(definitions):
+    for metric_id in ("m8_violations_sla_commercial", "m8_anomalies_integrite_crm"):
+        _non_calculable(_op(definitions, metric_id), "m2.filet_anti_perte_constate")
+
+
+@pytest.mark.parametrize("abime", [
+    {"violations_total": -1}, {"violations_total": "3"}, {"violations_par_regle": {}}, {"anomalies_total": -2},
+    {"anomalies_total": None}, {"anomalies_par_controle": {}},
+])
+def test_un_constat_illisible_est_non_calculable_jamais_une_valeur_devinee(definitions, abime):
+    fait = {**_filet(violations={"tache_en_retard": 1}), **abime}
+    if "violations_total" in abime or "violations_par_regle" in abime:
+        _non_calculable(_op(definitions, "m8_violations_sla_commercial", fait))
+    else:
+        _non_calculable(_op(definitions, "m8_anomalies_integrite_crm", fait))
+
+
+def test_le_filet_ne_garde_rien_de_plus_que_ses_comptes_une_propriete_en_trop_ne_traverse_pas():
+    brut = {**_filet().copy()}
+    charge = {k: v for k, v in brut.items() if k not in ("type_entree", "provenance", "publie_le")}
+    charge["evenement_id"] = brut["provenance"]["evenement_id"]
+    charge.update({"lead_id": "L05", "contact": {"nom": "Jeanne"}, "vendeur": "vendeur.un"})
+    range_ = op.fait(op.TYPE_FILET, charge, f"{JOUR}T07:00:00-04:00")
+    assert not {"lead_id", "contact", "vendeur"} & set(range_)
+    assert op.cles_unicite(op.TYPE_FILET) == ("date_reference", "version_donnees", "constate_le")
+    texte = json.dumps(range_, ensure_ascii=False)
+    for interdit in ("L05", "Jeanne", "vendeur.un"):
+        assert interdit not in texte
+
+
 # ================================================================================================ M6 : disponibilité
 def test_les_cinq_comptes_de_disponibilite_sont_repris(definitions):
     d = _dispo()
@@ -825,7 +956,7 @@ def test_toutes_les_mesures_de_la_phase_2_sont_calculees_sur_l_entreprise_fictiv
     registres = jeux_fictifs.registres_fictifs(avec_operations=True)
     mesures = {m["metric_id"]: m for m in mi.mesurer(registres, definitions)}
     nouvelles = [i for i in mesures_constats.CALCULS]
-    assert len(nouvelles) == 19 and set(nouvelles) <= set(mesures)
+    assert len(nouvelles) == 21 and set(nouvelles) <= set(mesures)
     assert all(mesures[i]["statut"] == "calculee" for i in nouvelles), [
         i for i in nouvelles if mesures[i]["statut"] != "calculee"
     ]

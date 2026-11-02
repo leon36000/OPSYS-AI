@@ -84,7 +84,7 @@ filtrés par rôle, conformité statique et digest quotidien.
 
 ## Couche analytique d'entreprise (M8.2, M8.8, M8.11, M8.12, M8.14, M8.18)
 
-Un catalogue fermé de 56 mesures d'entreprise (18 de la tranche 1, 20 interdépartements et 18 de la phase 2 ; `definitions/m8-catalogue.v1.yaml`), lues par un seul moteur (`moteur_mesures.py`) avec la fraîcheur
+Un catalogue fermé de 58 mesures d'entreprise (18 de la tranche 1, 20 interdépartements et 20 de la phase 2 ; `definitions/m8-catalogue.v1.yaml`), lues par un seul moteur (`moteur_mesures.py`) avec la fraîcheur
 de chaque mesure (`fraicheur_mesures.py`, la plus stricte des fenêtres), alimente : l'**entrepôt** dérivé et versionné (`entrepot.py`,
 `entrepot_stockage.py`, migration 0046), les **wallboards** déclaratifs (`wallboards/*.v1.yaml`, `wallboards.py`, servis par la console en SSE
 borné), le **score de santé** transparent et indéterminé plutôt que faux (`sante.py`, `definitions/m8-sante.v1.yaml`), le **copilote** en français
@@ -96,7 +96,7 @@ Données de démonstration et de calibration : `jeux_fictifs.py` (fictives).
 
 ### Entrepôt interdépartements (20 mesures de plus)
 
-Le catalogue fermé compte 56 mesures (voir plus bas la phase 2) : aux 18 premières s'ajoutent vingt mesures tirées des constats que M1, M3, M4, M5, M6 et M7
+Le catalogue fermé compte 58 mesures (voir plus bas la phase 2) : aux 18 premières s'ajoutent vingt mesures tirées des constats que M1, M3, M4, M5, M6 et M7
 publient déjà sur le bus (`metrics/m8-interdepartements.v1.yaml`, `src/m8_analytics/mesures_interdepartements.py`) : marge réelle
 cumulée, chantiers à marge chiffrée et en perte, écart de marge réelle (M5) contre prévue (M3), créances (total et 90 jours et plus),
 écritures en attente, comptes à payer, solde, taxes à remettre, somme des relevés de dépense publicitaire, conversions hors ligne,
@@ -112,13 +112,13 @@ PREMIER état (rien n'est écrasé), est rangé au registre `constats_contradict
 provenance et l'instant de publication ne sont pas du contenu) et dit par `m8_lire_vue_executive` (`constats_contradictoires`, absent
 s'il n'y en a aucun). Le rejeu identique reste silencieux. Preuve : `tests/test_constats_contradictoires.py` du socle.
 
-#### Phase 2 : des résumés agrégés publiés par les départements (18 mesures de plus)
+#### Phase 2 : des résumés agrégés publiés par les départements (20 mesures de plus)
 
 Les décisions D1 à D7 de l'architecte (r10) sont exécutées **sans lecture croisée ni droit d'appareil de plus** : sept départements
 publient un événement NOUVEAU du catalogue (schéma fermé, minimisé, sans renseignement nominatif, identifiant déterministe) et M8 le
 consomme dans `faits_operations` (`operations_recues.py`, la version publiée en dernier fait foi : `publie_le`) :
 `m5.depense_publicitaire_constatee` et `m5.facture_emise_constatee`, `m7.performance_signaux_constatee`,
-`m4.capacite_equipe_constatee`, `m2.pipeline_constate`, `m6.disponibilite_constatee`, `m1.plaintes_constatees`. Dix-huit mesures en
+`m4.capacite_equipe_constatee`, `m2.pipeline_constate`, `m2.filet_anti_perte_constate` (M2-C1 : `m8_violations_sla_commercial`, `m8_anomalies_integrite_crm`), `m6.disponibilite_constatee`, `m1.plaintes_constatees`. Vingt mesures en
 tirent (`mesures_constats.py`) : dépense publicitaire comptabilisée et son **écart** avec les relevés de M7 (désormais calculable),
 factures émises et facturation avant taxes, clics, impressions et visites du site, heures d'équipe disponibles et planifiées et
 leur rapport, leads ouverts, taux de conversion des résolus et valeur pondérée du pipeline, articles en rupture ou sur-réservés et

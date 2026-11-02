@@ -211,13 +211,13 @@ def test_le_filtre_par_segment_cite_le_devis_du_lead_converti_et_les_segments_sa
     assert _ids(_pages_de_leads(a, segment="hot_lead")) == ["lead-a-1"]
 
     # Un segment que M2 ne peut pas calculer : un refus avec ce qui manque, jamais une liste vide.
-    for segment_refuse, mot in (("quote_stale", "seuil à configurer"), ("quote_sent", "m3.devis_envoye"),
+    for segment_refuse, mot in (("quote_stale", "seuil à configurer"), ("seasonal_opportunity", "saisonnier"),
                                 ("needs_photos", "photos")):
         verdict = _verdict(a.appeler("m2_lister_leads", {"horodatage": HORODATAGE, "segment": segment_refuse}))
         assert verdict["code"] == "REJ-SEGMENT-NON-CALCULABLE"
         assert "non calculable, manque" in verdict["detail"] and mot in verdict["detail"]
     page = _pages_de_leads(a)[0]
-    assert {n["segment"] for n in page["segments_non_calculables"]} >= {"needs_photos", "quote_sent", "quote_stale"}
+    assert {n["segment"] for n in page["segments_non_calculables"]} >= {"needs_photos", "quote_stale"}
 
 
 @SQLITE_SEULEMENT
@@ -562,7 +562,7 @@ def _reponses_du_scenario(moteur: Moteur, vente: dict[str, PorteAppareil]) -> di
     garder("page_du_segment_converti",
            a.appeler("m2_lister_leads", {"horodatage": HORODATAGE, "segment": "won_pending_schedule"}))
     garder("refus_segment_non_calculable",
-           a.appeler("m2_lister_leads", {"horodatage": HORODATAGE, "segment": "quote_sent"}))
+           a.appeler("m2_lister_leads", {"horodatage": HORODATAGE, "segment": "needs_photos"}))
     garder("arguments_invalides",
            a.appeler("m2_lister_leads", {"horodatage": HORODATAGE, "owner": "vendeur.b"}))
     garder("suggestion_doublon",

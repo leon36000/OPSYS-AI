@@ -26,6 +26,7 @@ FICTIF = True
 RACINE = Path(__file__).resolve().parents[1]
 ATTENDUS = {
     "m1.constat.plaintes": ("m1_constater_plaintes", ("m8_plaintes_periode",)),
+    "m2.constat.filet": ("m2_constater_filet", ("m8_violations_sla_commercial", "m8_anomalies_integrite_crm")),
     "m2.constat.pipeline": ("m2_constater_pipeline", ("m8_pipeline_leads_ouverts", "m8_taux_conversion_resolus_pct",
                                                       "m8_valeur_ponderee_pipeline_cad")),
     "m4.constat.capacite-equipe": ("m4_constater_capacite_equipe", ("m8_capacite_heures_disponibles",
@@ -43,7 +44,7 @@ ATTENDUS = {
 
 
 # -- les manifestes livrés -------------------------------------------------------------------------------------------
-def test_les_sept_constats_de_la_phase_2_sont_declares_par_les_manifestes_des_departements():
+def test_les_huit_constats_de_la_phase_2_sont_declares_par_les_manifestes_des_departements():
     deps = charger_departements(RACINE / "departments")
     declares = {d.nom: d for d in constats.declarations(deps)}
     assert set(declares) == set(ATTENDUS)

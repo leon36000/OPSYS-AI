@@ -263,6 +263,13 @@ def _instantane_base():
         }
 
 
+def _noter(lead_id, instant=MAINTENANT, auteur="vendeur.un"):
+    """La personne a FAIT la relance préparée et l'a notée au dossier (ce que `a_faire` demande) : depuis M2-C5, seule
+    cette
+    note date la fréquence ; une relance préparée que personne n'a notée n'a pas été faite."""
+    assert outils.enregistrer_interaction(lead_id, auteur, "Relance faite.", instant)["accepte"] is True
+
+
 def _preparees():
     with stockage.transaction():
         return list(stockage.maillons(DEPARTEMENT, "relances_preparees"))
@@ -727,6 +734,7 @@ def test_un_devis_qui_n_a_pas_ete_envoye_n_a_pas_de_relance_meme_apres_des_mois(
 # -- fréquence ----------------------------------------------------------------------------------------------
 def test_une_seconde_preparation_le_meme_jour_est_refusee_avec_la_prochaine_date_permise(par_nom, monde):
     _accepte(_preparer(par_nom))
+    _noter("lead-un")
     avant = _instantane_base()
 
     verdict = _verdict(_preparer(par_nom, horodatage="2026-09-29T13:00:00-04:00"))
@@ -739,6 +747,7 @@ def test_une_seconde_preparation_le_meme_jour_est_refusee_avec_la_prochaine_date
 
 def test_pile_a_la_prochaine_date_permise_la_relance_est_permise_une_seconde_avant_non(par_nom, monde):
     _accepte(_preparer(par_nom))  # MAINTENANT = 2026-09-29T16:00:00Z ; prochaine date = 2026-10-06T16:00:00Z
+    _noter("lead-un")
     avant = _instantane_base()
     assert _verdict(_preparer(par_nom, horodatage="2026-10-06T15:59:59+00:00"))["code"] == "REJ-RELANCE-TROP-PROCHE"
     assert _instantane_base() == avant
@@ -749,6 +758,7 @@ def test_pile_a_la_prochaine_date_permise_la_relance_est_permise_une_seconde_ava
 
 def test_la_liste_montre_la_derniere_relance_la_prochaine_date_et_le_filtre_ecarte_la_trop_proche(par_nom, monde):
     _accepte(_preparer(par_nom, canal="appel"))
+    _noter("lead-un")
     page = _accepte(_lister(par_nom, VENDEUR_UN))
     devis = _relance(page, "lead-un")
     assert devis["derniere_relance"] == {"le": MAINTENANT, "canal": "appel"}
@@ -767,6 +777,7 @@ def test_la_frequence_est_celle_d_une_personne_les_leads_d_un_meme_client_compte
     _envoyer_devis("devis-partage-a", "partage-a", ENVOI_UN)
     _envoyer_devis("devis-partage-b", "partage-b", ENVOI_UN)
     _accepte(_preparer(par_nom, "partage-a"))
+    _noter("partage-a")
 
     verdict = _verdict(_preparer(par_nom, "partage-b", identite_appelante=VENDEUR_DEUX))
 
@@ -787,9 +798,11 @@ def test_un_autre_client_n_est_pas_limite_par_la_relance_de_celui_ci(par_nom, mo
 def test_une_frequence_plus_courte_ou_plus_longue_configuree_s_applique(par_nom, monde, monkeypatch, tmp_path):
     _installer_configuration(monkeypatch, tmp_path, relances_={"jours_entre_relances": 1})
     _accepte(_preparer(par_nom))
+    _noter("lead-un")
     assert _verdict(_preparer(par_nom, horodatage="2026-09-30T15:59:59+00:00"))["code"] == "REJ-RELANCE-TROP-PROCHE"
     assert _accepte(_preparer(par_nom, horodatage="2026-09-30T16:00:00+00:00"))["prochaine_date_permise"] == (
         "2026-10-01T16:00:00+00:00")
+    _noter("lead-un", "2026-09-30T12:00:00-04:00")
     _installer_configuration(monkeypatch, tmp_path, relances_={"jours_entre_relances": 30})
     assert _verdict(_preparer(par_nom, horodatage="2026-10-29T15:59:59+00:00"))["code"] == "REJ-RELANCE-TROP-PROCHE"
     assert _accepte(_preparer(par_nom, horodatage="2026-10-31T16:00:00+00:00"))
@@ -931,6 +944,7 @@ def test_pour_un_appel_d_appareil_l_heure_du_serveur_fait_foi_un_appareil_ne_peu
                       VENDEUR_UN, recu_le="2026-09-29T16:00:00+00:00"))
     (entree,) = _preparees()
     assert entree["prepare_le"] == "2026-09-29T16:00:00+00:00", "l'heure de réception, pas l'argument"
+    _noter("lead-un", "2026-09-29T16:00:00+00:00")
     # Un appareil qui annonce une heure future pour contourner la fréquence n'y gagne rien.
     verdict = _verdict(_appeler(par_nom, "m2_preparer_relance", {**base, "horodatage": "2031-01-01T00:00:00+00:00"},
                                 VENDEUR_UN, recu_le="2026-09-30T16:00:00+00:00"))

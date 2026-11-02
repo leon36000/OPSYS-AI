@@ -828,6 +828,15 @@ def _devis_envoyes_recus() -> list[dict[str, Any]] | None:
     return list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_ENVOYES_RECUS))
 
 
+def _satisfactions_recues() -> list[dict[str, Any]] | None:
+    """Les faits de satisfaction du client déjà reçus de M4 (registre `satisfactions_recues`, celui que remplit
+    `_garder_satisfaction`). `None` quand le registre de M2 est en mémoire (tests unitaires sans base) : la source
+    n'existe pas, `referral_candidate` et `complaint_risk` sont alors non calculables, jamais « aucun lead »."""
+    if not _stockage_durable_actif:
+        return None
+    return list(stockage.maillons(_DEPARTEMENT, faits_interconnexion.REGISTRE_SATISFACTIONS))
+
+
 def _devis_connus() -> list[dict[str, Any]] | None:
     """Les devis envoyés que M2 connaît, un par `devis_id` : l'envoi publié par M3 (`m3.devis_envoye`, l'instant de
     l'approbation) l'emporte sur le constat de M3 (`m3.devis_sans_reponse`) ; sans l'envoi, le constat reste tel quel
@@ -873,6 +882,7 @@ def lister_leads(
         limite=limite,
         budget_caracteres=BUDGET_SORTIE,
         recherche=recherche,
+        satisfactions=_satisfactions_recues(),
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
@@ -947,7 +957,7 @@ def lister_relances(
     devis = _devis_connus()
     evaluation, verdict = liste_leads.evaluer(
         maillons, visibles=visibles, relances_devis=devis, seuils=_seuils_segments(), horodatage=horodatage,
-        statuts_retenus=relances.STATUTS_A_RELANCER,
+        statuts_retenus=relances.STATUTS_A_RELANCER, satisfactions=_satisfactions_recues(),
     )
     if verdict is not None:
         return _refus(verdict)
@@ -1011,7 +1021,7 @@ def preparer_relance(lead_id: str, regle: str, canal: str, horodatage: str) -> d
     devis = _devis_connus()
     evaluation, verdict = liste_leads.evaluer(
         reg.lire(), visibles={lead_id}, relances_devis=devis, seuils=_seuils_segments(), horodatage=maintenant,
-        statuts_retenus=relances.STATUTS_A_RELANCER,
+        statuts_retenus=relances.STATUTS_A_RELANCER, satisfactions=_satisfactions_recues(),
     )
     if verdict is not None:
         return _refus(verdict)
@@ -1366,6 +1376,16 @@ def _ouvrir_nouvelle_opportunite_pour_wct(
     }
 
 
+def _garder_satisfaction(charge: dict[str, Any], lead_applique: str | None) -> None:
+    """Garde la satisfaction que M4 a rapportée (`client_satisfait`, vrai ou faux seulement) : elle débloque les
+    segments
+    `referral_candidate` et `complaint_risk` et la règle « plainte escaladée » (M2-C5, M2-C1). Une clé par chantier
+    (`wct_id`) : un rejeu n'ajoute rien. Rien n'est gardé quand le client n'a rien dit."""
+    fait = faits_interconnexion.fait_satisfaction(charge, lead_applique)
+    if fait is not None:
+        _ranger_fait_interconnexion(faits_interconnexion.REGISTRE_SATISFACTIONS, fait)
+
+
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme m4.travaux_termines (ADR-0009 §3, PLAN T1.2-c ; DEFINITION-PRODUIT §6 cascade
     « travaux terminés », ligne M2). Détermine l'opportunité RÉELLE à faire progresser :
@@ -1430,7 +1450,9 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
         if len(candidats) == 1:
             lead_cible = candidats[0]
         else:
-            return _ouvrir_nouvelle_opportunite_pour_wct(reg, wct_recus, lead_id, client_id, wct_id, horodatage)
+            nouvelle = _ouvrir_nouvelle_opportunite_pour_wct(reg, wct_recus, lead_id, client_id, wct_id, horodatage)
+            _garder_satisfaction(charge, None)
+            return nouvelle
 
     statut_cible_depart = statuts.statut_courant(reg, lead_cible)
     etapes = _ETAPES_VERS_CHANTIER.get(statut_cible_depart)
@@ -1466,6 +1488,7 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
         "lead_id_applique": lead_cible,
         "horodatage_completion": horodatage,
     })
+    _garder_satisfaction(charge, lead_cible)
     return {
         "traite": True,
         "lead_id": lead_id,
@@ -2044,7 +2067,10 @@ _PROCHAINE_ACTION_OBLIGATOIRE = {
 
 def outils() -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
-    from . import outils_ventes  # à l'appel, jamais à l'import : `outils_ventes` importe ce module (pas de cycle)
+    from . import (  # à l'appel, jamais à l'import : `outils_ventes` importe ce module (pas de cycle)
+        outils_integrite,
+        outils_ventes,
+    )
 
     return (
         Outil(
@@ -2605,6 +2631,7 @@ def outils() -> tuple[Outil, ...]:
         *_outils_agenda(),
         *_outils_onboarding(),
         *outils_ventes.outils_ventes(),
+        *outils_integrite.outils_integrite(),
     )
 
 # CRM03 : port admin console privé. Aucune portée appareil ou agent ajoutée.

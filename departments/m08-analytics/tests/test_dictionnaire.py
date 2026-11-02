@@ -144,6 +144,8 @@ def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_ch
         "m8_taux_conversion_resolus_pct", "m8_valeur_ponderee_pipeline_cad", "m8_articles_en_rupture",
         "m8_articles_sur_reserves", "m8_reservations_incompletes", "m8_plaintes_periode", "m8_leads_publicitaires",
         "m8_cout_par_lead_pub_cad",
+        # M2-C1 : le filet anti-perte de M2 (violations SLA, anomalies d'intégrité), tiré de son constat planifié
+        "m8_violations_sla_commercial", "m8_anomalies_integrite_crm",
     }
     assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
 

@@ -42,7 +42,8 @@ dependances: [m01-front-office, m03-estimation, m04-field-ops]
 modeles:
   defaut: standard
 skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon, lister-les-leads, preparer-une-relance,
-         profil-de-propriete, scorer-et-classer-les-leads, coacher-un-vendeur, analyser-et-prevoir-le-pipeline]
+         profil-de-propriete, scorer-et-classer-les-leads, coacher-un-vendeur, analyser-et-prevoir-le-pipeline,
+         filet-anti-perte]
 planifications:
   - nom: digest-commercial
     cron: "0 7 * * 1-5"
@@ -56,6 +57,14 @@ constats_planifies:
     outil: m2_constater_pipeline
     mesures: [m8_pipeline_leads_ouverts, m8_taux_conversion_resolus_pct, m8_valeur_ponderee_pipeline_cad]
     description: Comptes agrégés du pipeline de tous les leads, sans lead ni contact ni vendeur.
+    appels:
+      - horodatage: {calcul: instant}
+  # M2-C1 (filet anti-perte) : comptes de violations SLA et d'anomalies d'intégrité, sans lead ni contact ni vendeur. Une règle SLA
+  # dont le seuil n'est pas déclaré (`configuration.sla`) part en null, jamais en zéro.
+  - nom: filet
+    outil: m2_constater_filet
+    mesures: [m8_violations_sla_commercial, m8_anomalies_integrite_crm]
+    description: Comptes agrégés du filet anti-perte (violations SLA par règle, anomalies d'intégrité par contrôle), sans lead ni contact ni vendeur.
     appels:
       - horodatage: {calcul: instant}
 budget:
@@ -114,7 +123,8 @@ evenements:
   consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte, m3.devis_envoye,
              m1.retrait_consentement, m7.conversion_hors_ligne_importee, m5.creance_relance_preparee,
              m3.contexte_site_pret, m5.facture_emise_constatee]
-  publie: [m2.client_associe, m2.lead_assigne, m2.contact_corrige, m2.profil_propriete_confirme, m2.pipeline_constate]
+  publie: [m2.client_associe, m2.lead_assigne, m2.contact_corrige, m2.profil_propriete_confirme, m2.pipeline_constate,
+           m2.filet_anti_perte_constate]
 configuration:
   # Seuils de segmentation des leads (PLAN T4.6 ; DEFINITION-PRODUIT.md §7 M2.11 ; §13 point 11 « seuils non
   # chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil n'est inventé. Tant qu'un
@@ -150,3 +160,21 @@ configuration:
   #   scoring:
   #     bandes_valeur_cents: [500000, 1500000, 4000000]
   scoring: {}
+  # Délais du filet anti-perte (M2-C1 ; M2.13 « SLA et prévention de perte de leads »). VIDES à dessein, comme les seuils
+  # ci-dessus : AUCUN délai n'est inventé. Une règle SLA dont le délai est absent ou invalide est « non évaluée » et dit quoi
+  # déclarer (`m2_scanner_sla`, mesure M8 `m8_violations_sla_commercial` non calculable ou à couverture partielle), jamais
+  # « aucune violation ». Relus à chaque appel : aucun redémarrage. Chaque clé est un entier d'HEURES, au moins 1 ; le
+  # dépassement est STRICT (pile à la limite, le SLA est tenu) :
+  #   heures_premiere_action:     délai permis à un lead NOUVEAU avant d'avoir une prochaine action
+  #   heures_assignation:         délai permis à un lead NOUVEAU avant d'avoir un propriétaire
+  #   heures_lead_chaud:          délai permis à un lead chaud (urgence déclarée) avant un premier contact humain
+  #   heures_demande_photos:      délai permis à un lead QUALIFIÉ avant que des photos soient liées à son profil de propriété
+  #   heures_relance_soumission:  délai permis après l'échéance d'un devis périmé (jours_soumission_perimee, `segments`) avant
+  #                               sa relance
+  #   heures_escalade_plainte:    délai permis à un client insatisfait avant la prise en charge par une personne
+  #   heures_retard_tolerance:    tolérance après l'échéance d'une prochaine action
+  # Exemple (à recopier sous `sla:`, avec de vraies valeurs, décidées par Nathan) :
+  #   sla:
+  #     heures_lead_chaud: 4
+  #     heures_assignation: 24
+  sla: {}

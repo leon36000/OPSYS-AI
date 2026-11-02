@@ -47,6 +47,8 @@ proprietaires:
   m8_pipeline_leads_ouverts: m02-revenue-crm
   m8_taux_conversion_resolus_pct: m02-revenue-crm
   m8_valeur_ponderee_pipeline_cad: m02-revenue-crm
+  m8_violations_sla_commercial: m02-revenue-crm
+  m8_anomalies_integrite_crm: m02-revenue-crm
   m8_articles_en_rupture: m06-material-control
   m8_articles_sur_reserves: m06-material-control
   m8_reservations_incompletes: m06-material-control
@@ -277,6 +279,20 @@ metrics:
     unite: "CAD"
     source_donnees: "M2 m2.pipeline_constate (valeur_ponderee_cad, ouverts)"
     frequence: "à chaque constat du pipeline de M2"
+    consommateur: "wallboard ventes, copilote analytique, entrepôt"
+  - id: m8_violations_sla_commercial
+    nom: "Violations du SLA commercial (filet anti-perte)"
+    definition: "Nombre de violations des règles SLA du filet anti-perte de M2 (prochaine action obligatoire, lead chaud contacté vite, photos reçues, soumission relancée, plainte escaladée, lead avec propriétaire, tâche en retard), telles que M2 les a comptées à son dernier constat du jour le plus récent. Les délais sont DÉCLARÉS par le propriétaire (configuration.sla de M2) : une règle sans délai déclaré est NON ÉVALUÉE, jamais comptée à zéro ; si aucune règle n'est évaluée la mesure est non calculable, et quand certaines le sont la couverture dit lesquelles manquent. Aucun lead, client, contact ni vendeur n'est gardé."
+    unite: "violations"
+    source_donnees: "M2 m2.filet_anti_perte_constate (violations_par_regle, violations_total, regles_non_evaluees, regles_partielles)"
+    frequence: "à chaque constat du filet de M2"
+    consommateur: "wallboard ventes, copilote analytique, entrepôt"
+  - id: m8_anomalies_integrite_crm
+    nom: "Anomalies d'intégrité du CRM"
+    definition: "Nombre d'anomalies que l'audit d'intégrité de M2 trouve dans ses données à son dernier constat du jour le plus récent : leads sans statut, clients sans contact, tâches sans propriétaire, soumissions orphelines, activités sans lead, leads sans client, pipeline incohérent, doublons probables non signalés. Ces contrôles n'ont besoin d'aucun seuil : zéro est un vrai zéro quand tous les contrôles sont évalués ; un contrôle dont la source est illisible rend la couverture partielle et est nommé. Aucun lead, client ni contact n'est gardé."
+    unite: "anomalies"
+    source_donnees: "M2 m2.filet_anti_perte_constate (anomalies_par_controle, anomalies_total, controles_non_evalues)"
+    frequence: "à chaque constat du filet de M2"
     consommateur: "wallboard ventes, copilote analytique, entrepôt"
   - id: m8_articles_en_rupture
     nom: "Articles en rupture"

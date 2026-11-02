@@ -186,7 +186,7 @@ class TestManifeste:
         dep = charger_departements()["m02-revenue-crm"]
         assert dep.evenements_publie == (
             "m2.client_associe", "m2.lead_assigne", "m2.contact_corrige", "m2.profil_propriete_confirme",
-            "m2.pipeline_constate")
+            "m2.pipeline_constate", "m2.filet_anti_perte_constate")
 
 
 class TestNominal:

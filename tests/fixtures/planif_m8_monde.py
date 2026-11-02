@@ -37,6 +37,7 @@ LUNDI = "2026-11-09"
 ADMIN = contexte.IdentiteAppelante(personne="admin.fictif", role="admin")
 CONSTATS = {
     "m1.constat.plaintes": "m1.plaintes_constatees",
+    "m2.constat.filet": "m2.filet_anti_perte_constate",
     "m2.constat.pipeline": "m2.pipeline_constate",
     "m4.constat.capacite-equipe": "m4.capacite_equipe_constatee",
     "m5.constat.depense-publicitaire": "m5.depense_publicitaire_constatee",

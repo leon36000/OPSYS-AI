@@ -390,6 +390,8 @@ def test_r2_apres_une_reassignation_pendant_l_attente_l_effet_est_celui_de_l_age
     assert audit["motif_decision"] == approbations.MOTIF_VALIDATION_AU_DEPART
     assert audit["resultat"] == {"ok": True, "accepte": False}
 
+    # La relance préparée par l'agent est faite puis notée au dossier (M2-C5) : elle date alors la fréquence.
+    assert outils.enregistrer_interaction("lead-un", "vendeur.deux", "Relance faite.", MAINTENANT)["accepte"] is True
     # Le vendeur courant, frais, prépare à la limite exacte de la fréquence (heure de réception du serveur).
     resultat = _appeler(par_nom, "m2_preparer_relance", _arguments("lead-un", horodatage="2031-01-01T00:00:00+00:00"),
                         VENDEUR_DEUX, recu_le=LIMITE)
@@ -452,6 +454,8 @@ def test_r3_deux_demandes_en_attente_la_seconde_decision_relit_la_frequence_de_l
     assert (entree["lead_id"], entree["prepare_le"], entree["client_id"]) == (
         "partage-a", MAINTENANT, _client("partage-b"))
     assert _demande(demande_b)["statut"] == "en_attente"
+    # la relance préparée par A est FAITE : la personne la note au dossier (M2-C5), sinon elle ne date rien
+    assert outils.enregistrer_interaction("partage-a", "vendeur.un", "Relance faite.", MAINTENANT)["accepte"] is True
     avant = _instantane()
 
     seconde = _decider(capacites, demande_b)

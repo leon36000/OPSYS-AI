@@ -33,7 +33,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 
 <!-- interconnexion:debut -->
 
-57 types au catalogue : 48 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
+58 types au catalogue : 49 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
 
 | Type | Producteur | Consommateurs réels | Sans consommateur : justification |
 |---|---|---|---|
@@ -52,6 +52,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m10.soi_revision_proposee` | M10 | — | Révision du modèle de soi en attente de la décision d'une personne (N3) : lue par la console de la direction. M9 (revue) la relira par le registre... (revue 2026-11-01) |
 | `m2.client_associe` | M2 | M3, M4, M5, M7, M8, M10 |  |
 | `m2.contact_corrige` | M2 | M10 |  |
+| `m2.filet_anti_perte_constate` | M2 | M8 |  |
 | `m2.lead_assigne` | M2 | M8 |  |
 | `m2.pipeline_constate` | M2 | M8 |  |
 | `m2.profil_propriete_confirme` | M2 | M3, M4, M10 |  |

@@ -196,7 +196,7 @@ La descente est refusée dès qu'une ligne existe. Aucune table existante n'est 
 **Le problème.** La phase 2 de l'entrepôt de M8 ([M8-ENTREPOT-SOURCES](M8-ENTREPOT-SOURCES.md)) a livré sept outils de constat
 (T1/N2, agent seulement, aucun droit d'appareil) : `m5_constater_depense_publicitaire`, `m5_constater_factures_emises`,
 `m7_constater_performance_signaux`, `m4_constater_capacite_equipe`, `m2_constater_pipeline`, `m6_constater_disponibilite`,
-`m1_constater_plaintes`. Rien ne les lançait : sans geste d'agent, les mesures de M8 étaient non calculables puis périmées.
+`m1_constater_plaintes` ; le huitième, `m2_constater_filet` (M2-C1, filet anti-perte), les a rejoints ensuite. Rien ne les lançait : sans geste d'agent, les mesures de M8 étaient non calculables puis périmées.
 
 **Décision d'architecture : l'hôte existant convient, aucun second mécanisme.** Les constats sont des appels déterministes
 d'outils N2 : c'est ce que font déjà `m8.entrepot` et `m5.cycle`. Les `planifications:` du manifeste (cron d'un AGENT avec
@@ -216,6 +216,7 @@ console et l'activation les traitent comme les autres tours.
 | `m7.constat.performance-signaux` | `m7_constater_performance_signaux` | clics, impressions, visites du site | 2 : mois précédent, mois en cours | 12 h |
 | `m4.constat.capacite-equipe` | `m4_constater_capacite_equipe` | heures disponibles, heures planifiées, charge | 1 : semaine ISO en cours | 24 h (borné) |
 | `m2.constat.pipeline` | `m2_constater_pipeline` | leads ouverts, taux de conversion, valeur pondérée | 1 | 12 h |
+| `m2.constat.filet` | `m2_constater_filet` | violations du SLA commercial, anomalies d'intégrité du CRM | 1 | 12 h |
 | `m6.constat.disponibilite` | `m6_constater_disponibilite` | ruptures, sur-réservés, réservations incomplètes | 1 | 12 h |
 | `m1.constat.plaintes` | `m1_constater_plaintes` | plaintes de la période | 1 : période par défaut de l'outil | 12 h |
 
@@ -236,6 +237,13 @@ relances du cycle. M8 ne retient que le constat de plus grand `sequence`.
    7 jours) est donc planifiée au jour, ce qui est plus fréquent que nécessaire, jamais moins.
 L'admin règle l'intervalle à l'activation comme pour tout tour ; une mesure ou une cadence déclarée par le propriétaire change le
 défaut au prochain tour, sans toucher au code. Une mesure inconnue du catalogue ou sans fenêtre est refusée (`verifier`).
+
+**Le constat du filet anti-perte de M2 (`m2.constat.filet`, M2-C1).** Même mécanisme, deux particularités. (1) Les délais de SLA sont
+**déclarés par le propriétaire** (`configuration.sla` de M2, vide à dessein) : tant qu'ils ne le sont pas, le constat publie `null` pour
+chaque règle non évaluée et la mesure `m8_violations_sla_commercial` est **non calculable** (jamais zéro) ; la mesure
+`m8_anomalies_integrite_crm`, qui n'a besoin d'aucun seuil, se calcule. (2) Les délais sont relus à chaque appel : un changement du
+propriétaire modifie le constat du créneau suivant sans redémarrage ; une version de données différente est un événement de plus.
+Preuve : `tests/test_filet_anti_perte_planifie.py` (douze leads fictifs, planificateur, bus, M8, wallboard de la vraie console).
 
 **Idempotence.** Les arguments d'un appel sont calculés sur le **créneau** : le multiple de l'intervalle, compté depuis minuit
 local (fuseau de l'entreprise), qui contient l'instant. Deux déclenchements du même créneau (redémarrage en cours de cycle,
@@ -259,7 +267,7 @@ les autres constats : le tour est « erreur » avec le code typé (`REJ-PLAN-DEF
 code du refus de l'outil…), visible à la console Connecteurs (dernier statut, code, échecs sur 24 h) et au journal. La mesure
 devient périmée seulement après DEUX passages manqués (prouvé) puis redevient à jour dès que le constat repasse.
 
-**Ce qui est prouvé** : `tests/test_entrepot_m8_planifie.py` (19 cas de bout en bout : vrais outils, vrai bus et répartiteur,
+**Ce qui est prouvé** : `tests/test_filet_anti_perte_planifie.py` (le filet de M2), `tests/test_entrepot_m8_planifie.py` (19 cas de bout en bout : vrais outils, vrai bus et répartiteur,
 vrai moteur, wallboards de la vraie console, copilote, mémoire de M10, consolidation vue par M9), `tests/test_constats_planifies.py`
 (manifeste, grammaire, créneaux, changement d'heure, garde-fous), `departments/m08-analytics/tests/test_cadence_constats.py`.
 

@@ -16,7 +16,7 @@ from typing import Any
 
 from . import consentements, contrats, doublons, liste_leads, propriete, readiness, segments, valeurs
 
-__all__ = ["Contexte", "construire_contexte", "faits_du_lead"]
+__all__ = ["Contexte", "construire_contexte", "faits_du_lead", "profils_confirmes"]
 
 _SECONDES_PAR_JOUR = 86400
 _AUTEUR_SYSTEME = "system:"
@@ -69,6 +69,13 @@ def _profils(maillons_propriete: Sequence[dict[str, Any]]) -> dict[str, dict[str
             "photos": sum(len(c["champs"].get("photos_liees", {}).get("valeur", [])) for c in confirmes),
         }
     return sortie
+
+
+def profils_confirmes(maillons_propriete: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """L'accès public de `_profils` : `{client_id: {confirme, completude, photos}}` d'après les profils CONFIRMÉS
+    seulement
+    (le filet anti-perte lit les photos liées)."""
+    return _profils(maillons_propriete)
 
 
 def construire_contexte(

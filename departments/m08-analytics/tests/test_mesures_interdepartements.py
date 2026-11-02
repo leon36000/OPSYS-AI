@@ -72,6 +72,8 @@ IDS = [
     "m8_pipeline_leads_ouverts",
     "m8_taux_conversion_resolus_pct",
     "m8_valeur_ponderee_pipeline_cad",
+    "m8_violations_sla_commercial",
+    "m8_anomalies_integrite_crm",
     "m8_articles_en_rupture",
     "m8_articles_sur_reserves",
     "m8_reservations_incompletes",
@@ -405,7 +407,7 @@ def _vide(definitions):
 
 
 # ================================================================================================ définitions
-def test_trente_huit_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
+def test_quarante_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
     assert list(definitions) == IDS
     for metric_id, definition in definitions.items():
         assert definition["proprietaire"].startswith("m0") and definition["definition"]

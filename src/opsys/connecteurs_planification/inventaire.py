@@ -195,6 +195,13 @@ TOURS: tuple[Tour, ...] = (
          _OPS + "m02-revenue-crm/src/m2_revenue_crm/outils_ventes.py", "constater_pipeline", "N2",
          "même idempotence que la capacité de M4 : l'instant du constat entre dans l'identifiant", "aucun",
          "brancher_maintenant", "Comptes agrégés ; aucun lead, contact ni vendeur ne part.", "m2.constat.pipeline"),
+    Tour("m2.constater_filet", "M2 : filet anti-perte, SLA et intégrité des données (constat pour M8)",
+         _OPS + "m02-revenue-crm/src/m2_revenue_crm/outils_integrite.py", "constater_filet", "N2",
+         "même idempotence que le pipeline de M2 : l'instant du constat entre dans l'identifiant", "aucun",
+         "brancher_maintenant",
+         "Comptes de violations et d'anomalies, `null` pour une règle sans délai déclaré ; lecture seule des "
+         "registres de "
+         "M2 ; aucun lead, client, contact ni vendeur ne part, aucun message n'est envoyé.", "m2.constat.filet"),
     Tour("m6.constater_disponibilite", "M6 : disponibilité du matériel (constat pour M8)",
          _OPS + "m06-material-control/src/m6_material_control/outils.py", "constater_disponibilite", "N2",
          "même idempotence que la capacité de M4 : l'instant du constat entre dans l'identifiant", "aucun",

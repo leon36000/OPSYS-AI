@@ -210,6 +210,22 @@ porte un avertissement. *Limite* : modèle de niveau sans tendance ni saison, r�
 - **Pas de migration** (les registres sont génériques) ; la migration 0045 réservée n'est pas utilisée.
 - **Base de connaissances** : lecture seule par `opsys.connaissances` (`rechercher_pour`, `lire_version`), jamais d'écriture, jamais ouverte aux appareils.
 
+## 5 bis. Le filet anti-perte (M2-C1) : SLA, intégrité, réparation, constat vers M8
+
+Autonomie : tout est **lecture (N0)** sauf le constat (T1/N2, agent seulement) ; aucun outil n'a de droit d'appareil ; rien n'est envoyé,
+changé, fusionné ni supprimé. `sla.py` (sept règles, délais DÉCLARÉS dans `configuration.sla`, jamais inventés : un délai absent rend la règle
+« non évaluée » et dit quoi déclarer), `integrite.py` (huit contrôles ; doublons en lecture seule avec le MÊME critère et la MÊME fenêtre que
+l'ingestion), `reparation.py` (actions proposées, `execute: false` ; une action dont l'outil réel est N3 demande l'approbation d'une
+personne ; la prochaine meilleure action existante accompagne chaque lead), `constat_filet.py` (comptes seulement, `null` pour ce qui n'est pas
+évalué) : quatre modules purs, une couture (`outils_integrite.py`). Le constat est déclaré dans `constats_planifies` (exécuteur
+`m2.constat.filet`) : inactif par défaut, `ombre` ne publie rien, un même créneau ne publie rien de plus
+([PLANIFICATION §9](PLANIFICATION.md)) ; M8 en tire `m8_violations_sla_commercial` et `m8_anomalies_integrite_crm`
+([M8-ENTREPOT-SOURCES](M8-ENTREPOT-SOURCES.md)). Les cinq nombres de M2 sont lus par une seule fonction (`outils._bloc_configuration`) pour
+qu'un mécanisme de réglages de direction n'ait qu'elle à brancher. Détail et limites : [README de M2](../../departments/m02-revenue-crm/README.md).
+
+M2-C5 : `client_satisfait` (M4) et le devis envoyé (M3) sont gardés et lus (segments `referral_candidate`, `complaint_risk`, `quote_sent`) ; une
+relance préparée que personne n'a notée au dossier ne retarde plus la suivante (la note d'une personne date la fréquence).
+
 ## 6. Preuves exécutées
 
 Suite du département rejouée (`pytest departments/m02-revenue-crm/tests`) : **2 269 réussis, 0 échec, 0 sauté** (1 926 avant cette
@@ -252,3 +268,7 @@ un geste humain ; refus sans écriture (toutes les tables de la base comparées 
 - **Passerelle et core natif.** Le parcours d'appareil est le harnais Python (`tests/fixtures/harnais_e2e.py`), pas le core
   TypeScript natif ni l'app mobile.
 - **Documents.** Les photos et les mesures ne sont que des références : aucun contrôle que le fichier ou la mesure existe chez M3/M4.
+- **Filet anti-perte (M2-C1).** Les délais de SLA sont une décision de Nathan : aucun n'est livré, donc sans déclaration les règles à délai sont
+  non évaluées. M2 n'a ni entité « tâche » ni accusé d'envoi : « contacté » et « escaladé » se lisent à la note d'une personne, « tâche en retard »
+  est la prochaine action échue sans activité humaine postérieure. Les clients importés à l'onboarding ne sont pas audités. SQLite, données fictives,
+  horloge injectée seulement ; faux positifs sur de vrais carnets non mesurés.

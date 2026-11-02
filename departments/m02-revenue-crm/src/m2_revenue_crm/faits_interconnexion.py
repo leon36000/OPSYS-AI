@@ -18,6 +18,12 @@ lus à ces fonctions.
   compte plus pour l'avertissement. Le fait est terminal : aucun événement ne le défait (un `ENVOYEE` plus ancien rejoué
   après le paiement n'est même pas rangé), et il se lit à la lecture, donc l'ordre de livraison ne compte pas (la
   relance peut arriver APRÈS le paiement). Un paiement PARTIEL n'est jamais `PAYEE` chez M5 : la relance reste ;
+- `m4.travaux_termines` (champ `client_satisfait` SEULEMENT) : la satisfaction que le client a dite à la fin d'un
+chantier,
+  vraie ou fausse, gardée avec l'identifiant du chantier (`wct_id`) et celui du lead. Un `null` ou une absence n'est
+  jamais
+  rangé (rien n'est déduit). Ni nom, ni contact, ni note : un booléen et des identifiants. Elle débloque les segments
+  `referral_candidate` et `complaint_risk` (`segments.py`) et la règle « plainte escaladée » du filet anti-perte ;
 - `m3.contexte_site_pret` : la dernière version du contexte de site d'un lead (facteurs connus, inconnus, à vérifier,
   en conflit), dite au coach comme un FAIT daté. Rien n'est comblé ni tranché ici.
 """
@@ -25,17 +31,20 @@ lus à ces fonctions.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from datetime import datetime
 from typing import Any
 
 REGISTRE_CONVERSIONS = "conversions_hors_ligne_recues"
 REGISTRE_CREANCES = "creances_relances_recues"
 REGISTRE_CONTEXTES_SITE = "contextes_site_recus"
 REGISTRE_FACTURES_CLOSES = "factures_closes_recues"
+REGISTRE_SATISFACTIONS = "satisfactions_recues"
 
 TYPE_CONVERSION = "conversion_hors_ligne_recue"
 TYPE_CREANCE = "creance_relance_recue"
 TYPE_CONTEXTE_SITE = "contexte_site_recu"
 TYPE_FACTURE_CLOSE = "facture_close_recue"
+TYPE_SATISFACTION = "satisfaction_recue"
 # Les seuls statuts de `m5.facture_emise_constatee` qui lèvent une relance de créance : la facture n'est plus due.
 STATUTS_FACTURE_CLOSE = ("PAYEE", "ANNULEE")
 
@@ -77,7 +86,44 @@ def fait_facture_close(charge: Mapping[str, Any]) -> dict[str, Any] | None:
     return {"type_entree": TYPE_FACTURE_CLOSE, "facture_id": charge["facture_id"], "statut": charge["statut"]}
 
 
+def fait_satisfaction(charge: Mapping[str, Any], lead_applique: str | None) -> dict[str, Any] | None:
+    """Le fait « satisfaction du client » d'un chantier terminé, ou `None` quand `client_satisfait` n'est pas un booléen
+    (absent ou `null` : le client n'a rien dit, M2 ne le devine pas). `lead_id` est celui que M4 a publié ;
+    `lead_id_applique` celui que M2 a fait avancer (ou `None` quand le chantier a ouvert une nouvelle opportunité) : la
+    satisfaction se lit sur `lead_applique or lead_id`."""
+    satisfait = charge.get("client_satisfait")
+    if not isinstance(satisfait, bool):
+        return None
+    return {
+        "type_entree": TYPE_SATISFACTION,
+        "wct_id": charge["wct_id"],
+        "lead_id": charge["lead_id"],
+        "lead_id_applique": lead_applique,
+        "client_satisfait": satisfait,
+        "horodatage_completion": charge["horodatage_completion"],
+    }
+
+
+def satisfaction_par_lead(faits: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+    """`{lead_id: dernier fait de satisfaction}` : le chantier terminé le plus récemment fait foi (instants comparés en
+    texte ISO normalisé quand ils se lisent, sinon l'ordre d'écriture). Un lead sans fait n'y figure pas."""
+    meilleurs: dict[str, dict[str, Any]] = {}
+    cle_de: dict[str, Any] = {}
+    for fait in faits:
+        if fait.get("type_entree") != TYPE_SATISFACTION:
+            continue
+        lead = fait.get("lead_id_applique") or fait["lead_id"]
+        try:
+            cle = datetime.fromisoformat(fait["horodatage_completion"]).timestamp()
+        except (ValueError, TypeError, KeyError):
+            cle = float("-inf")
+        if lead not in meilleurs or cle >= cle_de[lead]:
+            meilleurs[lead], cle_de[lead] = dict(fait), cle
+    return meilleurs
+
+
 CLES_UNICITE = {
+    TYPE_SATISFACTION: ("wct_id",),
     TYPE_FACTURE_CLOSE: ("facture_id", "statut"),
     TYPE_CONVERSION: ("conversion_id",),
     TYPE_CREANCE: ("relance_id",),

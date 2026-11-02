@@ -284,8 +284,8 @@ def test_le_filtre_par_segment_reste_dans_la_portee_du_vendeur(moteur, equipe_de
 @SQLITE_SEULEMENT
 def test_un_segment_sans_donnee_est_refuse_avec_ce_qui_manque_jamais_une_liste_vide(moteur, equipe_de_vente):
     a = equipe_de_vente["a"]
-    for segment, mot in (("needs_photos", "photos"), ("quote_sent", "m3.devis_envoye"),
-                         ("complaint_risk", "plaintes"), ("high_value_customer", "valeur du client")):
+    for segment, mot in (("needs_photos", "photos"), ("seasonal_opportunity", "saisonnier"),
+                         ("high_value_customer", "valeur du client")):
         reponse = a.appeler(LISTER, {"horodatage": HORODATAGE, "segment": segment})
         assert reponse.statut == 200 and reponse.metier["accepte"] is False
         verdict = reponse.metier["verdict"]
@@ -293,8 +293,10 @@ def test_un_segment_sans_donnee_est_refuse_avec_ce_qui_manque_jamais_une_liste_v
         assert "non calculable, manque" in verdict["detail"] and mot in verdict["detail"]
     page = _lire(a).resultat
     assert {n["segment"] for n in page["segments_non_calculables"]} >= {
-        "needs_photos", "quote_sent", "high_value_customer", "referral_candidate", "complaint_risk",
-        "seasonal_opportunity", "dormant_lead", "quote_stale"}
+        "needs_photos", "high_value_customer", "seasonal_opportunity", "dormant_lead", "quote_stale"}
+    # M2-C5 : le devis envoyé et la satisfaction du client sont gardés, ces trois segments se calculent
+    assert not {"quote_sent", "referral_candidate", "complaint_risk"} & {
+        n["segment"] for n in page["segments_non_calculables"]}
 
 
 @SQLITE_SEULEMENT

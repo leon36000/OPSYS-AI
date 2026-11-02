@@ -49,7 +49,7 @@ from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from typing import Any
 
-from . import consentements, faits_interconnexion, gabarits_relance, segments, verdicts
+from . import consentements, faits_interconnexion, gabarits_relance, segments, verdicts, verdicts_commercial
 from . import horodatage as _horodatage
 
 __all__ = [
@@ -218,17 +218,73 @@ def _echeance(regle: str, donnee: Mapping[str, Any]) -> Any:
     return segments.instant_utc(depart) + timedelta(days=donnee["seuil_jours"])
 
 
-def _derniere_relance(preparees: Iterable[Mapping[str, Any]], leads_de_la_personne: frozenset[str]) -> Any:
-    """`(instant, maillon)` de la dernière relance préparée pour la personne, ou `None`. À instant égal, la dernière
-    écrite. Seuls `le` et `canal` en sortent : ni le lead ni la règle d'un autre dossier du même client."""
+def _confirmee(
+    maillon: Mapping[str, Any],
+    leads_de_la_personne: frozenset[str],
+    interactions: Mapping[str, Iterable[str]] | None,
+) -> Any:
+    """L'instant (UTC) où la relance préparée a été FAITE, ou `None` si rien ne dit qu'elle l'a été.
+
+    M2 n'envoie jamais rien et ne reçoit aucun accusé d'envoi : le seul signe qu'une relance préparée a eu lieu est la
+    note qu'une PERSONNE écrit au dossier (`m2_enregistrer_interaction`, ce que `a_faire` demande). La relance est donc
+    « faite » à la première note d'une personne (jamais du système) sur un dossier de la personne relancée, écrite à
+    l'instant de la préparation ou après. Avant ce correctif (M2-C5), une relance préparée que personne n'avait notée
+    retardait de `jours_entre_relances` jours la relance suivante du client alors que le client n'avait rien reçu.
+
+    `interactions` à `None` (l'appelant ne les a pas lues) : la préparation seule date la relance, comme avant (le plus
+    prudent pour le client)."""
+    prepare = segments.instant_utc(maillon["prepare_le"])
+    if interactions is None:
+        return prepare
+    notes = []
+    for lead in leads_de_la_personne:
+        for texte in interactions.get(lead, ()):
+            try:
+                instant = segments.instant_utc(texte)
+            except (ValueError, TypeError):
+                continue
+            if instant >= prepare:
+                notes.append(instant)
+    return min(notes) if notes else None
+
+
+def _derniere_relance(
+    preparees: Iterable[Mapping[str, Any]],
+    leads_de_la_personne: frozenset[str],
+    interactions: Mapping[str, Iterable[str]] | None = None,
+) -> Any:
+    """`(instant, maillon)` de la dernière relance FAITE pour la personne (voir `_confirmee`), ou `None`. À instant
+    égal,
+    la dernière écrite. Seuls `le` et `canal` en sortent : ni le lead ni la règle d'un autre dossier du même client."""
     derniere = None
     for maillon in preparees:
         if maillon.get("lead_id") not in leads_de_la_personne:
             continue
-        instant = segments.instant_utc(maillon["prepare_le"])
+        instant = _confirmee(maillon, leads_de_la_personne, interactions)
+        if instant is None:
+            continue
         if derniere is None or instant >= derniere[0]:
             derniere = (instant, maillon)
     return derniere
+
+
+def _preparee_en_attente(
+    preparees: Iterable[Mapping[str, Any]],
+    lead_id: str,
+    regle: str,
+    leads_de_la_personne: frozenset[str],
+    interactions: Mapping[str, Iterable[str]] | None,
+) -> list[Mapping[str, Any]]:
+    """Les relances préparées de CE lead pour CETTE règle que personne n'a notées (donc pas encore faites), dans l'ordre
+    d'écriture. Une relance en attente n'est pas préparée une seconde fois pour le même canal
+    (`REJ-RELANCE-DEJA-PREPAREE`) mais ne retarde aucune autre relance."""
+    if interactions is None:
+        return []
+    return [
+        m for m in preparees
+        if m.get("lead_id") == lead_id and m.get("regle") == regle
+        and _confirmee(m, leads_de_la_personne, interactions) is None
+    ]
 
 
 def _item(
@@ -243,10 +299,11 @@ def _item(
     consentements_contact: list[Mapping[str, Any]],
     retraits: list[Mapping[str, Any]],
     preparees: list[Mapping[str, Any]],
+    interactions: Mapping[str, Iterable[str]] | None = None,
     creance: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     donnee = segment_applique["donnee"]
-    derniere = _derniere_relance(preparees, leads_de_la_personne)
+    derniere = _derniere_relance(preparees, leads_de_la_personne, interactions)
     if derniere is None:
         derniere_relance, prochaine, permise = None, None, True
     else:
@@ -269,6 +326,13 @@ def _item(
         "canaux_permis": canaux,
         "consentements": etats,
     }
+    attente = _preparee_en_attente(preparees, evaluation_du_lead["lead_id"], regle, leads_de_la_personne, interactions)
+    if attente:
+        # clé absente sinon : une relance préparée que personne n'a notée n'a pas été faite (M2-C5)
+        item["preparee_en_attente"] = {
+            "le": attente[-1]["prepare_le"], "canal": attente[-1]["canal"],
+            "canaux": sorted({m["canal"] for m in attente}),
+        }
     if creance is not None:
         # Interconnexion M5 -> M2 : une relance de créance est préparée pour ce client. Avertissement de coordination
         # seulement (clé absente sinon) : la relance commerciale n'est ni supprimée ni retardée.
@@ -330,7 +394,8 @@ def calculer(
             items.append(_item(
                 lead, regle, applique, instant=instant, jours_entre=jours_entre, leads_de_la_personne=personne,
                 devis_par_id=devis_par_id, consentements_contact=consentements_contact, retraits=retraits,
-                preparees=preparees, creance=creance_du_client.get(client_de_lead[lead["lead_id"]]),
+                preparees=preparees, interactions=evaluation.get("interactions_humaines"),
+                creance=creance_du_client.get(client_de_lead[lead["lead_id"]]),
             ))
     items.sort(key=lambda i: (segments.instant_utc(i["due_depuis"]), i["lead_id"], i["regle"]))
     return {
@@ -508,6 +573,16 @@ def preparer(
             "REJ-CONSENTEMENT-ABSENT",
             f"aucun consentement actif pour {canal} : inscris-le avec m2_enregistrer_consentement_contact "
             "(énoncé versionné, preuve), ou relance par appel.",
+        )
+    attente = item.get("preparee_en_attente")
+    if attente is not None and canal in attente["canaux"]:
+        return None, verdicts_commercial.construire_verdict(
+            "REJ-RELANCE-DEJA-PREPAREE",
+            detail=(
+                f"cette relance « {regle} » a déjà été préparée par {canal} (la dernière le {attente['le']}) et "
+                "personne ne l'a notée au dossier : fais-la, puis note le résultat (m2_enregistrer_interaction), ou ne "
+                "la prépare pas une seconde fois."
+            ),
         )
     modele = gabarits_relance.gabarit(regle, canal)
     if modele is None:
