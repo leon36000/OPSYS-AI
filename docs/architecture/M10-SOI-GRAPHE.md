@@ -254,8 +254,12 @@ Depuis M10-06, deux départements consomment réellement les leçons, par `src/o
 Chaque valeur corrigée cite `lecon_id`, `sources`, `date`, `echantillon`, `parametre` et la décision humaine ; sans leçon active,
 avec un échantillon sous le **minimum DÉCLARÉ** (`configuration.lecons_consommees.echantillon_minimum`, vide dans les deux
 manifestes), ou sans minimum déclaré, la valeur de base est conservée et le verdict dit pourquoi. La correction est une
-**proposition de niveau N4** : la promotion de la leçon ne déclenche aucun geste de facturation, d'envoi ni de prix. Le facteur
-`ecart_materiau` n'est pas ventilé par service, saison, fournisseur ni équipe (voir §9).
+**proposition de niveau N4** : la promotion de la leçon ne déclenche aucun geste de facturation, d'envoi ni de prix. La valeur
+corrigée suit l'arrondi de la grandeur (cent `ROUND_HALF_UP` pour une marge, 4 décimales pour une quantité) ; le canari se tire
+sur la version d'estimation, jamais sur le lead ; une marge exige un `droit_aux_couts` explicite dans le consommateur, sinon
+elle n'est ni calculée ni rendue ; deux unités pour une même clé sont refusées (`unite_ambigue`). Le facteur `ecart_materiau`
+n'est pas ventilé par service, saison, fournisseur ni équipe, et l'unité n'est pas stockée dans la leçon (voir §9 et
+[LIMITES-CONNUES](../utilisation/LIMITES-CONNUES.md) §7 bis).
 
 ## 6. Console, CLI, événements
 

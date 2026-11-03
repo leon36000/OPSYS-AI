@@ -348,10 +348,11 @@ def test_une_correction_proposee_garde_son_avertissement_par_defaut(tmp_path, mo
     assert "Aucune correction" not in prevision["avertissement"]
 
 
-def test_la_cle_de_canari_prend_le_lead_puis_le_hash_de_version():
-    assert outils_m3._cle_application_lecons({"lead_id": "lead-fictif"}, {}) == "lead-fictif"
+def test_la_cle_de_canari_est_le_hash_de_version_jamais_le_lead():
+    assert outils_m3._cle_application_lecons({"lead_id": "lead-fictif"}, {}) is None
     assert outils_m3._cle_application_lecons({"lead_id": 123}, {"estimation": {"hash_maillon": "a" * 64}}) == "a" * 64
     assert outils_m3._cle_application_lecons({}, {"estimation": {"hash_maillon": 123}}) is None
+    assert outils_m3._cle_application_lecons({"lead_id": "lead-fictif"}, {"estimation": {"hash_maillon": ""}}) is None
     assert outils_m3._cle_application_lecons(None, None) is None
 
 
@@ -381,3 +382,78 @@ def test_le_schema_du_nouvel_outil_borne_le_devis_id_et_ferme_les_arguments():
     assert schema["required"] == ["devis_id"] and schema["additionalProperties"] is False
     assert schema["properties"]["devis_id"]["minLength"] == 1
     assert schema["properties"]["devis_id"]["maxLength"] == 128
+
+
+# -- D2 : le canari se tire sur le CAS (version d'estimation), jamais sur le lead
+def test_la_cle_de_canari_est_le_hash_de_l_estimation_et_non_le_lead():
+    hash_source = "a" * 64
+    assert outils_m3._cle_application_lecons(
+        {"lead_id": LEAD}, {"estimation": {"hash_maillon": hash_source}}
+    ) == hash_source
+    assert outils_m3._cle_application_lecons({"lead_id": LEAD}, {}) is None
+
+
+def test_l_outil_de_lecture_tire_le_canari_sur_le_hash_de_l_estimation(tmp_path, monkeypatch, base_durable):
+    _manifeste(tmp_path, monkeypatch)
+    from opsys.mnemo import consommation as consommation_lecons
+
+    cles = []
+
+    def _actives(cible, cle):
+        cles.append((cible, cle))
+        return {"lecons": []}
+
+    monkeypatch.setattr(consommation_lecons, "lecons_actives", _actives)
+    estimation = _estimer()
+    hash_source = estimation["estimation"]["hash_maillon"]
+    assert cles[-1] == ("m06-material-control", hash_source)
+    devis_id = estimation["besoins_materiaux"]["devis_id"]
+    creation = executer_atomique(_outil("m3_creer_devis"), {
+        "devis_id": devis_id,
+        "lead_id": LEAD,
+        "chantier_id": None,
+        "lignes": [{
+            "description": "Gouttières fictives", "quantite": "25", "unite": "pi2",
+            "cout_unitaire": "10.00", "reference_besoin_materiau": None,
+        }],
+        "taux_marge": "0.35",
+        "horodatage": "2026-10-03T15:00:00+00:00",
+        "estimation_source_hash": hash_source,
+    })
+    assert creation["ok"] is True and creation["resultat"]["accepte"] is True, creation
+    cles.clear()
+    reponse = executer_atomique(_outil("m3_prevoir_materiaux_avec_lecons"), {"devis_id": devis_id})
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    assert cles == [("m06-material-control", hash_source)]
+
+
+# -- D4 : l'unité n'est pas jetée avant la correction
+def test_deux_unites_pour_un_meme_materiau_ne_partagent_pas_un_facteur(tmp_path, monkeypatch):
+    _manifeste(tmp_path, monkeypatch)
+    from opsys.mnemo import consommation as consommation_lecons
+
+    lecon = {
+        "lecon_id": "lc-unite-fictive",
+        "genre": "ecart_materiau",
+        "cible": "m06-material-control",
+        "cle": MATERIAU,
+        "etat": "complete",
+        "propose_le": HORODATAGE,
+        "sources": ["ligne-fictive-1"],
+        "contenu": {"parametre": "1.15", "mode": "facteur", "chantiers": 6},
+    }
+    monkeypatch.setattr(
+        consommation_lecons, "lecons_actives", lambda *_a, **_k: {"lecons": [lecon]}
+    )
+    reponse = outils_m3._prevision_materiaux_avec_lecons(
+        {
+            "lignes": [
+                {"materiau": MATERIAU, "quantite_estimee": "50", "unite": "pi"},
+                {"materiau": MATERIAU, "quantite_estimee": "50", "unite": "pi2"},
+            ]
+        },
+        "cas-fictif",
+    )
+    assert reponse["corrections"] == []
+    assert [ligne["raison"] for ligne in reponse["lignes"]] == ["unite_ambigue", "unite_ambigue"]
+    assert [ligne["unite"] for ligne in reponse["lignes"]] == ["pi", "pi2"]

@@ -179,6 +179,12 @@ La boucle « apprendre » atteint maintenant l'estimation : une leçon PROMUE d'
 - `m3_prevoir_materiaux_avec_lecons` (T0/N0, agent seulement) relit la même prévision pour un devis dont l'estimation d'origine
   est prouvée par son `estimation_source_hash` exact.
 
+Le tirage du canari se fait sur le hash exact de la version d'estimation (le cas), jamais sur le lead ; l'outil de lecture
+emploie le même cas. Une valeur corrigée est arrondie à 4 décimales (`ROUND_HALF_UP`) et une unité non textuelle n'est pas
+recopiée. Si deux unités différentes apparaissent pour un même matériau dans le même appel, les deux lignes sont refusées
+(`unite_ambigue`) au lieu de partager un facteur ; l'unité n'étant pas stockée dans la leçon, une divergence entre deux
+estimations reste possible (voir [LIMITES-CONNUES](../../docs/utilisation/LIMITES-CONNUES.md) §7 bis).
+
 Le minimum d'échantillon est **DÉCLARÉ** par la direction dans `configuration.lecons_consommees.echantillon_minimum` ; il est
 VIDE dans le manifeste. Sans valeur déclarée, sans leçon active ou sous le minimum, la quantité reste celle du code et la
 réponse dit pourquoi. Une correction est une **proposition N4** : elle n'est jamais appliquée par un modèle ni inscrite au

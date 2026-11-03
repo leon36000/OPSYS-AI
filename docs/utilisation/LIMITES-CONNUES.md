@@ -314,6 +314,16 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
   prévision sans changer la cible. Si deux leçons applicables existent pour la même clé, la consommation les refuse toutes
   (`plusieurs_lecons_actives`) au lieu d'en choisir une en silence. Rien de tout cela n'a été exécuté avec un vrai modèle, de
   vraies données ni sur PostgreSQL.
+- **Unité de la leçon non stockée** : la consommation refuse deux unités différentes pour une même clé DANS UN MÊME appel
+  (`unite_ambigue`), mais la leçon ne porte pas l'unité de ses observations. Une leçon apprise sur une unité peut donc encore
+  être proposée pour une autre unité dans une AUTRE estimation. Fermer ce point exige d'ajouter l'unité à la clé ou au contenu
+  de la leçon (M10) et de traiter la compatibilité des leçons existantes ; non fait dans cette correction.
+- **Droit aux coûts de la marge corrigée** : le consommateur refuse par défaut de calculer une marge sans `droit_aux_couts`
+  explicite (`droit_aux_couts_absent`) ; M5 ne le passe que dans sa vue détaillée déjà autorisée. La politique de qui peut
+  voir la marge corrigée, par quels canaux et avec quelle trace reste à trancher par la direction ; aucun écran employé n'a
+  été testé avec cette valeur.
+- **Arrondi et proposition** : les valeurs corrigées sont arrondies au cent (`ROUND_HALF_UP`, marge) ou à 4 décimales
+  (quantité), mais restent des propositions N4 : aucune n'est écrite dans un registre, un devis, un prix ou une marge calculée.
 
 ## 8. Écarts de documentation connus et non corrigés
 

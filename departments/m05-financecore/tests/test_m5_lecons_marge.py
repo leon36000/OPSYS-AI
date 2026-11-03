@@ -5,6 +5,7 @@ Fictif.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from types import SimpleNamespace
 
 import m5_financecore.outils as m5_outils
@@ -308,3 +309,19 @@ def test_la_trace_d_un_chantier_detail_est_a_jour(base_durable):
     resultat = _appeler()
     (chantier,) = resultat["resultat"]["chantiers"]
     assert chantier["trace"]["a_jour"] is True
+
+
+# -- D5 : une marge finie en notation scientifique n'est pas une base invalide
+def test_une_marge_en_notation_scientifique_n_est_pas_base_invalide(tmp_path, monkeypatch):
+    _manifeste_lecons(tmp_path, monkeypatch)
+    from opsys.mnemo import consommation as consommation_lecons
+
+    monkeypatch.setattr(
+        consommation_lecons, "lecons_actives",
+        lambda *_a, **_k: {"lecons": [_lecon_marge("-5.00")]},
+    )
+    reponse = m5_outils._prevision_marge_avec_lecons(Decimal("1E+2"), DEVIS)
+    assert reponse["statut"] == "correction_proposee", reponse
+    (ligne,) = reponse["lignes"]
+    assert ligne["base"] == "100"
+    assert ligne["valeur"] == "95.00"

@@ -59,7 +59,8 @@ def _marge(**surcharges):
     return lecon
 
 
-def _appeler(lecons, *, genre="ecart_materiau", cible="m06-material-control", entrees=None, minimum=6):
+def _appeler(lecons, *, genre="ecart_materiau", cible="m06-material-control", entrees=None, minimum=6,
+             droit_aux_couts=False):
     return consommation.appliquer_lignes(
         consommateur="m03-estimation" if genre == "ecart_materiau" else "m05-financecore",
         cible=cible,
@@ -68,6 +69,7 @@ def _appeler(lecons, *, genre="ecart_materiau", cible="m06-material-control", en
         or [{"cle": "gouttiere-alu-5po-fictif", "base": "20.00"}],
         lecons_actives=lecons,
         minimum_echantillon=minimum,
+        droit_aux_couts=droit_aux_couts,
     )
 
 
@@ -177,6 +179,7 @@ def test_la_marge_est_un_decalage_en_dollars_et_non_un_facteur():
         genre="ecart_marge",
         cible="m05-financecore",
         entrees=[{"cle": "marge", "base": "120.00"}],
+        droit_aux_couts=True,
     )
     assert r["statut"] == "correction_proposee"
     assert Decimal(r["lignes"][0]["valeur"]) == Decimal("105.00")
@@ -348,3 +351,142 @@ def test_une_liste_de_lecons_non_sequence_ou_entier_ne_leve_pas():
         )
         assert r["statut"] == "aucune_lecon_active"
         assert r["lignes"][0]["corrigee"] is False
+
+
+# -- D1 : la valeur corrigée est arrondie selon la grandeur (cent pour l'argent, 4 décimales pour une quantité)
+def test_une_marge_corrigee_est_arrondie_au_cent_ROUND_HALF_UP():
+    r = _appeler(
+        [_marge(contenu={"parametre": "-15.005", "mode": "decalage_cad", "chantiers": 6})],
+        genre="ecart_marge",
+        cible="m05-financecore",
+        entrees=[{"cle": "marge", "base": "120.00"}],
+        droit_aux_couts=True,
+    )
+    (ligne,) = r["lignes"]
+    assert ligne["valeur"] == "105.00", ligne
+    assert r["corrections"][0]["apres"] == "105.00"
+
+
+def test_une_quantite_corrigee_suit_la_precision_de_M3_sans_zeros_inutiles():
+    r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "50"}])
+    (ligne,) = r["lignes"]
+    assert ligne["valeur"] == "57.5", ligne
+
+
+# -- D3 : sans droit aux coûts, aucun montant de marge n'est exposé (protection par DÉFAUT)
+def test_sans_droit_aux_couts_une_marge_n_est_pas_corrigee_ni_attribuee():
+    r = _appeler(
+        [_marge()],
+        genre="ecart_marge",
+        cible="m05-financecore",
+        entrees=[{"cle": "marge", "base": "120.00"}],
+    )
+    assert r["statut"] == "droit_aux_couts_absent"
+    assert r["corrections"] == []
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is False and ligne["valeur"] == "120.00"
+    assert ligne["attribution"] is None
+    assert "parametre" not in ligne and "parametre" not in r["avertissement"]
+
+
+def test_un_droit_aux_couts_non_booleen_ne_debloque_pas_la_marge():
+    r = consommation.appliquer_lignes(
+        consommateur="m05-financecore", cible="m05-financecore", genre="ecart_marge",
+        entrees=[{"cle": "marge", "base": "120.00"}], lecons_actives=[_marge()],
+        minimum_echantillon=6, droit_aux_couts="true",
+    )
+    assert r["statut"] == "droit_aux_couts_absent"
+    assert r["corrections"] == []
+
+
+# -- D4 : deux unités pour une même clé ne reçoivent jamais le même facteur
+def test_deux_unites_pour_la_meme_cle_ne_partagent_pas_un_facteur():
+    r = _appeler(
+        [_lecon()],
+        entrees=[
+            {"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": "pi"},
+            {"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": "pi2"},
+        ],
+    )
+    assert r["corrections"] == []
+    assert [ligne["raison"] for ligne in r["lignes"]] == ["unite_ambigue", "unite_ambigue"]
+    assert [ligne["unite"] for ligne in r["lignes"]] == ["pi", "pi2"]
+
+
+# -- cas limites des corrections D1/D3/D4
+def test_un_montant_negatif_corrige_garde_son_signe():
+    r = _appeler(
+        [_marge(contenu={"parametre": "-15.00", "mode": "decalage_cad", "chantiers": 6})],
+        genre="ecart_marge",
+        cible="m05-financecore",
+        entrees=[{"cle": "marge", "base": "10.00"}],
+        droit_aux_couts=True,
+    )
+    assert r["lignes"][0]["valeur"] == "-5.00"
+
+
+def test_un_montant_arrondi_a_zero_ne_porte_pas_de_signe_negatif():
+    r = _appeler(
+        [_marge(contenu={"parametre": "0.001", "mode": "decalage_cad", "chantiers": 6})],
+        genre="ecart_marge",
+        cible="m05-financecore",
+        entrees=[{"cle": "marge", "base": "-0.005"}],
+        droit_aux_couts=True,
+    )
+    assert r["lignes"][0]["valeur"] == "0.00"
+
+
+def test_l_arrondi_au_cent_est_ROUND_HALF_UP_et_non_HALF_EVEN():
+    r = _appeler(
+        [_marge(contenu={"parametre": "0", "mode": "decalage_cad", "chantiers": 6})],
+        genre="ecart_marge",
+        cible="m05-financecore",
+        entrees=[{"cle": "marge", "base": "104.985"}],
+        droit_aux_couts=True,
+    )
+    assert r["lignes"][0]["valeur"] == "104.99"
+
+
+def test_le_defaut_de_appliquer_lignes_ne_debloque_pas_la_marge():
+    r = consommation.appliquer_lignes(
+        consommateur="m05-financecore", cible="m05-financecore", genre="ecart_marge",
+        entrees=[{"cle": "marge", "base": "120.00"}], lecons_actives=[_marge()],
+        minimum_echantillon=6,
+    )
+    assert r["statut"] == "droit_aux_couts_absent"
+    assert r["corrections"] == []
+
+
+def test_deux_lignes_de_meme_unite_recoivent_le_meme_facteur():
+    r = _appeler(
+        [_lecon()],
+        entrees=[
+            {"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": "pi"},
+            {"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": "pi"},
+        ],
+    )
+    assert [ligne["valeur"] for ligne in r["lignes"]] == ["57.5", "57.5"]
+
+
+def test_des_unites_invalides_repetees_sont_ambigues_et_refusees():
+    r = _appeler(
+        [_lecon()],
+        entrees=[
+            {"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": 123},
+            {"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": 123},
+        ],
+    )
+    assert r["corrections"] == []
+    assert [ligne["raison"] for ligne in r["lignes"]] == ["unite_ambigue", "unite_ambigue"]
+
+
+def test_une_unite_non_texte_n_est_pas_recopiee_dans_la_ligne_corrigee():
+    r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": 123}])
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is True
+    assert ligne["unite"] is None
+
+
+def test_une_cle_vide_est_refusee_avant_toute_collecte_d_unite():
+    r = _appeler([_lecon()], entrees=[{"cle": "", "base": "50", "unite": "pi"}])
+    assert r["lignes"][0]["raison"] == "cle_invalide"
