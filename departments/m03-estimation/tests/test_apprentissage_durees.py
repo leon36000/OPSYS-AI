@@ -5,6 +5,7 @@ le contenu : aucun sleep, aucun réseau."""
 from __future__ import annotations
 
 import copy
+import hashlib
 import sys
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -110,6 +111,93 @@ def test_valeurs_structurellement_absurdes_refusees(champ, valeur):
     assert ad.lire_politique(brut)[0] is None
 
 
+def test_empreinte_trie_les_cles_echappe_les_non_ascii_et_refuse_nan():
+    assert ad.empreinte({"x": "é"}) == hashlib.sha256(b'{"x":"\\u00e9"}').hexdigest()
+    assert ad.empreinte({"b": 1, "a": 2}) == hashlib.sha256(b'{"a":2,"b":1}').hexdigest()
+    with pytest.raises(ValueError):
+        ad.empreinte(float("nan"))
+
+
+def test_politique_canonique_est_toute_la_politique_sauf_son_empreinte():
+    canon = ad.politique_canonique(politique())
+    assert set(canon) == set(ad.CHAMPS_POLITIQUE)
+    assert "empreinte" not in canon
+
+
+def test_texte_decimal_est_borne_a_quarante_caracteres():
+    assert ad._decimal("1" * 40) is not None
+    assert ad._decimal("1" * 41) is None
+
+
+def test_entier_accepte_les_bornes_exactes_et_refuse_juste_au_dela():
+    assert ad._entier(3, 3, 1000) == 3
+    assert ad._entier(1000, 3, 1000) == 1000
+    assert ad._entier(2, 3, 1000) is None
+    assert ad._entier(1001, 3, 1000) is None
+    assert ad._entier(True, 3, 1000) is None
+
+
+def _politique_avec(**champs):
+    brut = copy.deepcopy(POLITIQUE_BRUTE)
+    brut.update(champs)
+    return brut
+
+
+@pytest.mark.parametrize("champs,attendu", [
+    ({"echantillon_minimum": 3}, True),
+    ({"echantillon_minimum": 1000, "derive_fenetre": 1000}, True),
+    ({"echantillon_minimum": 2}, False),
+    ({"echantillon_minimum": 1001, "derive_fenetre": 1000}, False),
+    ({"echantillon_minimum_equipe": 3}, True),
+    ({"echantillon_minimum_equipe": 1000}, True),
+    ({"echantillon_minimum_equipe": 1001}, False),
+    ({"echantillon_minimum_equipe": 2}, False),
+    ({"demi_vie_jours": 7}, True),
+    ({"demi_vie_jours": 3650}, True),
+    ({"demi_vie_jours": 6}, False),
+    ({"demi_vie_jours": 3651}, False),
+    ({"replications": 200}, True),
+    ({"replications": 5000}, True),
+    ({"replications": 199}, False),
+    ({"replications": 5001}, False),
+    ({"echantillon_minimum": 3, "derive_fenetre": 3}, True),
+    ({"derive_fenetre": 1000}, True),
+    ({"echantillon_minimum": 3, "derive_fenetre": 2}, False),
+    ({"derive_fenetre": 1001}, False),
+])
+def test_les_bornes_des_entiers_de_la_politique_sont_exactes(champs, attendu):
+    assert (ad.lire_politique(_politique_avec(**champs))[0] is not None) == attendu
+
+
+@pytest.mark.parametrize("champ,valeurs_acceptees,valeurs_refusees", [
+    ("aberrantes_k", ["2", "10"], ["1.9", "10.1"]),
+    ("echelle_minimale_relative", ["0.001", "1"], ["0.0009", "1.1"]),
+    ("niveau_confiance", ["0.5", "0.999"], ["0.499", "1"]),
+    ("facteur_min", ["0.01", "1"], ["0.009", "1.1"]),
+    ("facteur_max", ["1", "100"], ["0.9", "101"]),
+    ("derive_seuil_pct", ["1", "1000"], ["0.9", "1001"]),
+])
+def test_les_bornes_des_decimaux_de_la_politique_sont_exactes(champ, valeurs_acceptees, valeurs_refusees):
+    for valeur in valeurs_acceptees:
+        assert ad.lire_politique(_politique_avec(**{champ: valeur}))[0] is not None, valeur
+    for valeur in valeurs_refusees:
+        assert ad.lire_politique(_politique_avec(**{champ: valeur}))[0] is None, valeur
+
+
+def test_les_paliers_de_variation_doivent_rester_strictement_ordonnes():
+    assert ad.lire_politique(_politique_avec(variation_minimale_pct="20", variation_auto_max_pct="20"))[0] is None
+
+
+@pytest.mark.parametrize("complexites", [["aa"], ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh"]])
+def test_une_a_huit_complexites_distinctes_sont_acceptees(complexites):
+    assert ad.lire_politique(_politique_avec(complexites=complexites))[0] is not None
+
+
+@pytest.mark.parametrize("complexites", [[], ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii"], [1]])
+def test_complexites_hors_bornes_ou_non_textuelles_sont_refusees(complexites):
+    assert ad.lire_politique(_politique_avec(complexites=complexites))[0] is None
+
+
 # ---------------------------------------------------------------------------------------- observations
 def test_exclusions_comptees_par_raison_et_le_deplacement_n_entre_jamais():
     pol = politique()
@@ -153,6 +241,83 @@ def test_entree_hors_limite_ou_horloge_invalide_refusee():
     assert ad.preparer_observations([], maintenant_utc="hier", politique=politique())["statut"] == "refuse"
     assert ad.preparer_observations("x", maintenant_utc=MAINTENANT, politique=politique())["statut"] == "refuse"
     assert ad.preparer_observations([{}] * 2001, maintenant_utc=MAINTENANT, politique=politique())["statut"] == "refuse"
+
+
+def test_instant_borne_a_quarante_caracteres_et_fuseau_obligatoire():
+    quarante = "2026-09-01T12:00:00." + "1" * 14 + "+00:00"
+    quarante_et_un = "2026-09-01T12:00:00." + "1" * 15 + "+00:00"
+    assert len(quarante) == 40 and ad._instant(quarante) is not None
+    assert len(quarante_et_un) == 41 and ad._instant(quarante_et_un) is None
+    assert ad._instant(123) is None
+    assert ad._instant("2026-09-01T12:00:00") is None
+
+
+def test_identite_non_textuelle_et_chronologie_incomplete_sont_exclues_par_raison():
+    r = ad.preparer_observations(
+        [obs(20, 30, wct_id=123), obs(21, 30, horodatage_debut="pas une date"),
+         obs(22, 30, horodatage_completion="pas une date")],
+        maintenant_utc=MAINTENANT, politique=politique(),
+    )
+    assert r["lignes"] == []
+    assert r["exclusions"] == {"identite_invalide": 1, "chronologie_invalide": 2}
+
+
+def test_les_bornes_de_la_duree_reelle_sont_exactes():
+    r = ad.preparer_observations(
+        [obs(23, 30, quantite=1, duree_reelle_minutes=1),
+         obs(24, 30, quantite=1_000_000, duree_reelle_minutes=1_000_000),
+         obs(25, 30, quantite=1_000_000, duree_reelle_minutes=1_000_001)],
+        maintenant_utc=MAINTENANT, politique=politique(),
+    )
+    assert {x["wct_id"] for x in r["lignes"]} == {"wct-gouttieres-023", "wct-gouttieres-024"}
+    assert r["exclusions"] == {"mesure_invalide": 1}
+
+
+def test_debut_egal_a_la_fin_et_fin_exactement_a_l_horloge_sont_acceptes():
+    fin = "2026-09-01T07:00:00Z"
+    r = ad.preparer_observations(
+        [obs(30, 30, horodatage_debut=fin, horodatage_completion=fin),
+         obs(31, 30, horodatage_debut="2026-09-01T05:00:00Z", horodatage_completion=MAINTENANT)],
+        maintenant_utc=MAINTENANT, politique=politique(),
+    )
+    assert len(r["lignes"]) == 2 and r["exclusions"] == {}
+
+
+def test_equipe_non_textuelle_est_exclue_au_lieu_de_faire_echouer_la_lecture():
+    r = ad.preparer_observations([obs(32, 30, equipe=123)], maintenant_utc=MAINTENANT, politique=politique())
+    assert r["lignes"] == [] and r["exclusions"] == {"equipe_invalide": 1}
+
+
+def test_age_en_jours_compte_les_jours_et_les_secondes_du_jour():
+    r = ad.preparer_observations(
+        [obs(33, 30, horodatage_debut="2026-08-22T00:00:00Z",
+             horodatage_completion="2026-08-22T07:00:00Z")],
+        maintenant_utc=MAINTENANT, politique=politique(),
+    )
+    attendu = Decimal(10) + Decimal(5) / Decimal(24)
+    assert r["lignes"][0]["age_jours"].quantize(Decimal("0.000001")) == attendu.quantize(Decimal("0.000001"))
+
+
+def test_deux_mille_observations_exactement_sont_encore_lues():
+    r = ad.preparer_observations(
+        [obs(i, 30, jours=10 + i) for i in range(2000)], maintenant_utc=MAINTENANT, politique=politique(),
+    )
+    assert r["statut"] == "ok" and len(r["lignes"]) == 2000
+
+
+def test_observation_invalide_puis_valide_du_meme_wct_reste_exclue():
+    valide = obs(34, 30)
+    invalide = {**valide, "duree_reelle_minutes": 0}
+    r = ad.preparer_observations([invalide, valide], maintenant_utc=MAINTENANT, politique=politique())
+    assert r["lignes"] == [] and r["exclusions"] == {"mesure_invalide": 1}
+
+
+def test_observation_valide_puis_version_invalide_divergente_exclut_tout():
+    valide = obs(35, 30)
+    invalide = {**valide, "duree_reelle_minutes": 0}
+    r = ad.preparer_observations([valide, invalide], maintenant_utc=MAINTENANT, politique=politique())
+    assert r["lignes"] == []
+    assert r["exclusions"] == {"mesure_invalide": 1, "conflit_rejeu": 1}
 
 
 # ------------------------------------------------------------------------------------------- cohortes
@@ -275,6 +440,14 @@ def test_horloge_injectee_change_les_poids_pas_la_decision_de_forme():
     assert all(x["poids"] < Decimal("0.1") for x in plus_tard["lignes"])
 
 
+@pytest.mark.parametrize("mois,saison", [
+    (12, "hiver"), (1, "hiver"), (2, "hiver"), (3, "printemps"), (4, "printemps"), (5, "printemps"),
+    (6, "ete"), (7, "ete"), (8, "ete"), (9, "automne"), (10, "automne"), (11, "automne"),
+])
+def test_chaque_mois_du_calendrier_a_sa_saison(mois, saison):
+    assert ad.saison_de(datetime(2026, mois, 1, tzinfo=UTC)) == saison
+
+
 def test_saisons_sont_decrites_sans_changer_le_taux():
     c = cohorte(serie(12, 34.3))
     assert set(c["saisons"]) <= {"hiver", "printemps", "ete", "automne"} and sum(
@@ -368,6 +541,78 @@ def test_indice_par_type_de_travaux_pas_melange():
     par = {(e["equipe_ref"], e["type_service"]): Decimal(e["indice_median"]) for e in r["equipes"]}
     assert par[("eq-a", "gouttieres")] < 1 < par[("eq-b", "gouttieres")]
     assert par[("eq-a", "revetement")] > 1 > par[("eq-b", "revetement")]
+
+
+def test_seed_est_le_prefixe_sha256_hexadecimal_de_seize_caracteres():
+    attendu = int(hashlib.sha256(b"a\x1fb").hexdigest()[:16], 16)
+    assert ad._seed("a", "b") == attendu
+
+
+def test_mediane_pair_et_impair():
+    assert ad._mediane([Decimal("3"), Decimal("1"), Decimal("2")]) == Decimal("2")
+    assert ad._mediane([Decimal("1"), Decimal("2"), Decimal("3"), Decimal("4")]) == Decimal("2.5")
+
+
+def test_mediane_ponderee_milieu_exact_et_poids_jamais_nuls():
+    assert ad._mediane_ponderee([(Decimal("1"), Decimal("1")), (Decimal("2"), Decimal("1"))]) == Decimal("1.5")
+    assert ad._mediane_ponderee([
+        (Decimal("1"), Decimal("1")), (Decimal("2"), Decimal("1")), (Decimal("3"), Decimal("2")),
+    ]) == Decimal("2.5")
+
+
+def test_intervalle_bootstrap_est_borne_a_quatre_cents_lignes_et_deterministe():
+    paires = [(Decimal("-1000"), Decimal("1"))] + [(Decimal(10 + i % 50), Decimal("1")) for i in range(400)]
+    assert ad._intervalle(paires, politique(), 1) == (Decimal("33"), Decimal("37"))
+
+
+def test_aberrante_exactement_au_seuil_est_retenue():
+    pol = politique()
+    lignes = [{"taux": Decimal("10")}] * 4 + [{"taux": Decimal("11.75")}]
+    retenues, nb = ad._sans_aberrantes(lignes, pol)
+    assert nb == 0 and len(retenues) == 5
+
+
+def test_intervalle_sans_observation_ne_fabrique_pas_d_echantillon():
+    c = cohorte([])
+    assert c["n_observations"] == 0 and c["n_chantiers"] == 0
+
+
+def test_derive_evaluable_exactement_a_deux_fenetres():
+    assert cohorte(constante(16, 30))["derive"]["evaluable"] is True
+    assert cohorte(constante(15, 30))["derive"]["evaluable"] is False
+
+
+def test_ecart_au_seuil_exact_n_est_pas_une_derive():
+    cas = [
+        ([obs(200 + i, 29, jours=60 + i) for i in range(8)],
+         [obs(300 + i, 34.5, jours=1 + i) for i in range(8)], "30"),   # régime > 15 %, référence = 15 %
+        ([obs(400 + i, 30, jours=60 + i) for i in range(8)],
+         [obs(500 + i, 34.5, jours=1 + i) for i in range(8)], "29"),   # régime = 15 %, référence > 15 %
+    ]
+    for anciennes, recentes, courant in cas:
+        c = cohorte(anciennes + recentes, courant=courant)
+        assert c["derive"]["detectee"] is False
+
+
+def test_intervalle_aux_percentiles_et_bornes_extremes():
+    paires = [(Decimal(i), Decimal("1")) for i in range(1, 402)]
+    pol = politique()
+    assert ad._intervalle(paires, pol, 7) == (Decimal("186.5"), Decimal("215.5"))
+    pol_extreme = {**pol, "niveau_confiance": Decimal("0.999"), "replications": 200}
+    assert ad._intervalle(paires, pol_extreme, 7) == (Decimal("178.5"), Decimal("225.5"))
+
+
+def test_variation_minimale_exacte_n_est_pas_encore_un_petit_ajustement():
+    c = cohorte([obs(i, 30.3, jours=10 + i, quantite=100) for i in range(10)])
+    assert Decimal(c["variation_pct"]) == Decimal("1")
+    assert c["decision"] == "auto_applicable"
+
+
+def test_la_reference_egale_a_une_borne_de_l_intervalle_reste_stable(monkeypatch):
+    donnees = serie(12, 34.3)
+    for bornes in ((Decimal("30"), Decimal("35")), (Decimal("25"), Decimal("30"))):
+        monkeypatch.setattr(ad, "_intervalle", lambda *_args, _bornes=bornes, **_kwargs: _bornes)
+        assert cohorte(donnees)["decision"] == "stable"
 
 
 # ---------------------------------------------------------------------------------------- bornes exactes

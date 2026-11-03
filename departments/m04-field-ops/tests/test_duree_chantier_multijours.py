@@ -281,6 +281,22 @@ def test_une_duree_illisible_ou_hors_bornes_est_ecartee(texte):
     assert bloc["statut"] == "ecartee"
 
 
+def test_la_borne_haute_exacte_de_la_duree_est_encore_une_duree():
+    bloc = duree_chantier.retenir_estimation(
+        {"duree_estimee_minutes": "14400", "semantique_temps": "duree_ecoulee_intervention"})
+    assert bloc["statut"] == "retenue" and bloc["minutes"] == "14400"
+    assert duree_chantier.minutes_entieres("14400") == 14400
+    assert duree_chantier.minutes_entieres("14400.0001") is None
+
+
+def test_une_origine_bareme_ne_porte_jamais_un_identifiant_de_calibration():
+    bloc = duree_chantier.retenir_estimation(
+        {"duree_estimee_minutes": "960", "semantique_temps": "duree_ecoulee_intervention",
+         "duree_origine": {"origine": "bareme", "calibration_version_id": "a1" * 32}})
+    assert bloc["statut"] == "retenue" and bloc["origine"] == "bareme"
+    assert bloc["calibration_version_id"] is None
+
+
 def test_la_duree_de_m3_est_arrondie_vers_le_haut_jamais_vers_le_bas():
     assert duree_chantier.minutes_entieres("840") == 840
     assert duree_chantier.minutes_entieres("840.0001") == 841
@@ -624,6 +640,23 @@ def test_decouper_garde_la_somme_exacte_et_respecte_le_maximum():
     assert duree_chantier.decouper(960, 480) == [480, 480]
     assert duree_chantier.decouper(961, 480) == [321, 320, 320]
     assert duree_chantier.decouper(480, 480) == [480]
+
+
+def test_decouper_accepte_exactement_le_nombre_maximal_de_visites():
+    borne = duree_chantier.tournees.MAX_VISITES * 480
+    visites = duree_chantier.decouper(borne, 480)
+    assert visites is not None
+    assert len(visites) == duree_chantier.tournees.MAX_VISITES and sum(visites) == borne
+    assert duree_chantier.decouper(borne + 1, 480) is None
+
+
+def test_les_deux_bornes_de_la_duree_maximale_d_une_visite_sont_declarees():
+    for cap in (1, duree_chantier.tournees.MINUTES_PAR_JOUR):
+        regles, motif = duree_chantier.lire_multijours({"visite_max_minutes": cap, "jours_consecutifs": True})
+        assert motif is None and regles == {"visite_max_minutes": cap, "jours_consecutifs": True}
+    assert duree_chantier.lire_multijours({"visite_max_minutes": 0, "jours_consecutifs": True})[0] is None
+    assert duree_chantier.lire_multijours(
+        {"visite_max_minutes": duree_chantier.tournees.MINUTES_PAR_JOUR + 1, "jours_consecutifs": True})[0] is None
 
 
 def test_resoudre_prefere_l_estimation_et_signale_l_ecart_avec_le_profil():

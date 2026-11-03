@@ -211,3 +211,43 @@ def test_la_transition_supplier_confirmed_n_existe_que_depuis_sent_to_supplier()
     assert po2 is None and verdict2["code"] == "REJ-PO-TRANSITION-ILLEGALE", "pas deux fois"
     inconnu, v3 = bons_commande.confirmer_fournisseur("nope", "t", registre2, {})
     assert inconnu is None and v3["code"] == "REJ-PO-INTROUVABLE"
+
+
+def test_un_devis_cite_n_est_pas_remplace_par_le_devis_d_un_chantier_cite():
+    besoins = [
+        {"devis_id": "D-1", "chantier_id": "CH-9", "lignes": []},
+        {"devis_id": "D-2", "chantier_id": "CH-1", "lignes": []},
+    ]
+    r = cc.rapprocher(_charge(jetons_reference=["D-1", "CH-1"]), besoins, [], [])
+    assert r["devis"] == ["D-1"], "le devis cité prime sur la déduction par chantier"
+    assert r["chantiers"] == ["CH-1"]
+
+
+@pytest.mark.parametrize("quantite", ["n/a", ""])
+def test_quantite_illisible_laisse_l_ecart_inconnu_sans_comparer(quantite):
+    r = cc.rapprocher(
+        _charge(jetons_reference=["D-1"], lignes=[{"designation": "ciment", "quantite": quantite, "unite": "sacs"}]),
+        BESOINS,
+        [],
+        [],
+    )
+    entree = r["lignes"][0]
+    assert entree["materiau_id"] == "ciment"
+    assert entree["quantite_prevue"] == "20.0"
+    assert entree["ecart_a_prevu"] == "inconnu"
+
+
+def test_les_identifiants_de_courriel_sont_courts_et_stables():
+    commande = cc.identifiant_commande("courriel:abc")
+    confirmation = cc.identifiant_confirmation("courriel:abc")
+    assert commande.startswith("cc-") and len(commande) == 19
+    assert confirmation.startswith("cf-") and len(confirmation) == 19
+    assert cc.identifiant_commande("courriel:abc") == commande
+    assert cc.identifiant_confirmation("courriel:abc") == confirmation
+
+
+def test_les_regles_de_provenance_sont_plafonnees_a_quarante():
+    c = _charge(jetons_reference=["D-1"], regles=[f"r{i}" for i in range(41)])
+    m = cc.maillon_commande(c, "f-1", {"devis": []})
+    assert len(m["provenance"]["regles"]) == 40
+    assert m["provenance"]["regles"][-1] == "r39"

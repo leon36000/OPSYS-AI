@@ -1,5 +1,7 @@
 """M9.8 — scénarios : oracles indépendants (Fraction), bases sourcées, refus sans base, référence (fictif)."""
 
+from dataclasses import FrozenInstanceError
+from decimal import Decimal
 from fractions import Fraction
 
 import pytest
@@ -300,3 +302,89 @@ def test_fonctions_du_catalogue_valident_un_parametre_isole_et_refusent_l_inconn
         sc.valider_parametre("inconnu", "x", "1")
     with pytest.raises(ValueError, match="REJ-SCENARIO-CHOC"):
         sc.bases_requises(["liste"])
+
+
+# --- Bornes de catalogue, immuabilité et précision déclarée ---------------------------------------------------------
+def _scenario_vide(rang):
+    return {"choc": f"choc-{rang}", "scenario_id": f"scenario-{rang}", "bases": {}, "effets": []}
+
+
+def test_comparer_accepte_le_maximum_de_scenarios_et_refuse_un_de_plus():
+    assert sc.comparer([_scenario_vide(i) for i in range(12)], {}, {})["lignes"] == []
+    with pytest.raises(ValueError, match="REJ-SCENARIO-COMPARAISON"):
+        sc.comparer([_scenario_vide(i) for i in range(13)], {}, {})
+
+
+def test_les_objets_du_catalogue_sont_immuables():
+    parametre = sc.Parametre("p", "%", Decimal("0"), Decimal("100"))
+    with pytest.raises(FrozenInstanceError):
+        parametre.nom = "autre"
+    base = sc.Base("b", "leads", "m02-revenue-crm", "description")
+    with pytest.raises(FrozenInstanceError):
+        base.unite = "CAD"
+    effet = sc.Effet("e", "b", "ajouter", ("p",), "leads", 2)
+    with pytest.raises(FrozenInstanceError):
+        effet.echelle = 3
+    choc = sc.Choc("c", "libellé", (parametre,), (effet,), ({"effet": "x", "proprietaire": "m5"},))
+    with pytest.raises(FrozenInstanceError):
+        choc.id = "autre"
+
+
+def test_un_jour_de_mauvais_temps_superieur_aux_jours_ouvrables_est_infaisable():
+    scenario = sc.evaluer("meteo", {"jours_bloques": "30"}, BASES, FAITS)
+    effet = _effet(scenario, "jours_disponibles")
+    assert effet["statut"] == "INFAISABLE" and Fraction(effet["valeur"]) < 0
+
+
+PARAMETRES_NEUF = {
+    "baisse_leads": {"baisse_pct": "25"},
+    "hausse_budget_marketing": {"hausse_pct": "10"},
+    "hausse_cout_materiaux": {"hausse_pct": "12.5"},
+    "absences": {"personnes": "2", "jours_absents": "5"},
+    "meteo": {"jours_bloques": "4"},
+    "achat_camion": {"prix": "48000.25"},
+    "nouvel_employe": {"cout_mensuel": "5200", "mois": "3"},
+    "perte_gros_client": {"revenu_perdu": "30000"},
+    "nouvelle_ville": {"leads_supplementaires": "10", "investissement": "9000"},
+}
+
+
+@pytest.mark.parametrize("choc", sorted(PARAMETRES_NEUF | PARAMETRES_NOUVEAUX))
+def test_chaque_effet_est_arrondi_a_l_echelle_declaree(choc):
+    param = (PARAMETRES_NEUF | PARAMETRES_NOUVEAUX)[choc]
+    scenario = sc.evaluer(choc, param, BASES, FAITS)
+    assert scenario["effets"] or choc in ("cashflow_serre", "rupture_inventaire")
+    for effet in scenario["effets"]:
+        assert effet["statut"] in ("CALCULE", "INFAISABLE")
+        decimales = effet["valeur"].split(".", 1)[1] if "." in effet["valeur"] else ""
+        attendu = 0 if effet["id"] == "jours_disponibles" else 2
+        assert len(decimales) == attendu
+
+
+def test_les_bornes_exactes_d_un_parametre_sont_acceptees_et_un_cran_dehors_refuse():
+    assert sc.valider_parametre("meteo", "jours_bloques", "0") == Decimal("0")
+    assert sc.valider_parametre("meteo", "jours_bloques", "366") == Decimal("366")
+    for hors in ("-1", "367"):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-BORNE"):
+            sc.valider_parametre("meteo", "jours_bloques", hors)
+
+
+def test_le_plancher_zero_laisse_un_resultat_nul_ou_positif_calcule_et_signale_le_negatif():
+    nul = sc.evaluer("retard_paiement_client", {"montant_retarde": "41000.50", "jours_retard": "30"}, BASES, FAITS)
+    assert _effet(nul, "encaissements_apres_retard")["statut"] == "CALCULE"
+    petit = sc.evaluer("retard_paiement_client", {"montant_retarde": "41000.10", "jours_retard": "30"}, BASES, FAITS)
+    assert _effet(petit, "encaissements_apres_retard")["statut"] == "CALCULE"
+
+
+def test_comparer_refuse_un_ecart_d_unite_hors_des_operations_de_pourcentage():
+    scenario = {
+        "choc": "synthetique",
+        "scenario_id": "synthetique-1",
+        "bases": {"b": {"etat": "SOURCEE", "valeur": "10", "unite": "CAD", "adresse": "x#0"}},
+        "effets": [{
+            "id": "e", "base": "b", "statut": "CALCULE", "valeur": "9", "ecart": "-1",
+            "unite": "jours", "operation": "soustraire",
+        }],
+    }
+    with pytest.raises(ValueError, match="REJ-SCENARIO-UNITE"):
+        sc.comparer([scenario], {}, {})

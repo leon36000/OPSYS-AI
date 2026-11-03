@@ -128,12 +128,34 @@ def test_echantillon_borne_dix_et_counts_independants_de_m3(base):
     assert rapport["manquants_m3"]["omis"] == 20
 
 
+def test_echantillon_borne_dix_aussi_pour_les_recus_hors_univers(base):
+    _recevoir(*(f"WCT-FICTIF-{i:03}" for i in range(11)))
+    rapport = _rapport()
+    assert rapport["statut"] == "ecarts"
+    assert rapport["compteurs"]["hors_univers_m4"] == 11
+    assert rapport["hors_univers_m4"] == {
+        "exemples": [f"WCT-FICTIF-{i:03}" for i in range(10)], "omis": 1,
+    }
+
+
+def test_reception_m3_bornee_a_deux_mille_identites_exactement(base):
+    _recevoir(*(f"WCT-FICTIF-{i:04}" for i in range(2000)))
+    rapport = _rapport()
+    assert rapport["statut"] == "ecarts"
+    assert rapport["compteurs"]["recus_m3"] == 2000
+    _recevoir("WCT-FICTIF-2000")
+    refuse = _rapport()
+    assert refuse["statut"] == "refuse"
+    assert "compteurs" not in refuse
+
+
 @pytest.mark.parametrize("role,source", [("seller", "appareil"), ("admin", "console"), ("admin", "agent")])
 def test_voie_directe_refuse_role_ou_source_non_appareil(base, role, source):
     with stockage.transaction(), _admin(role, source):
         rapport = outils.auditer_couverture_apprentissage()
     assert rapport["statut"] == "refuse"
     assert rapport["raison"] == "identite_admin_authentifiee_requise"
+    assert rapport["candidate_active"] is False
     assert "compteurs" not in rapport
 
 

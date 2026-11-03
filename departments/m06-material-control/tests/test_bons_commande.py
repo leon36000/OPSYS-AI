@@ -7,6 +7,8 @@ en mémoire ici — la persistance durable (`opsys.stockage.maillons`) est prouv
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 
 import pytest
 from m6_material_control import bons_commande, contrats, fournisseurs, livre_prix
@@ -688,3 +690,371 @@ def test_po_prix_absent_ou_autre_fournisseur_null_sans_date_inventee(livre):
     legacy = copy.deepcopy(po)
     legacy.pop("provenance_prix_lignes")
     assert bons_commande.lire([legacy], "PO-1")["provenance_prix_lignes"][0]["marquage_source"] is None
+
+
+# --- Bornes, entrées malformées et filtres (mutants survivants) ----------------------
+
+_LIGNE_MIN = {"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}
+
+
+_CONDITIONS_PAR_DEFAUT = object()
+
+
+def _creer_avec(lignes, conditions=_CONDITIONS_PAR_DEFAUT, unites_fiche=None, registre_prix=None):
+    conditions = CONDITIONS_PO if conditions is _CONDITIONS_PAR_DEFAUT else conditions
+    return bons_commande.creer_brouillon(
+        "PO-MUT", "C1", "gentek", lignes, "2026-01-02T00:00:00Z", [],
+        _prix_gentek() if registre_prix is None else registre_prix, _fournisseurs_avec_gentek(),
+        conditions=conditions, unites_fiche=unites_fiche)
+
+
+def test_repartition_plafond_de_20_fournisseurs():
+    repartition = [{"po_id": f"P{i}", "fournisseur_id": f"f{i}", "materiau_ids": []} for i in range(21)]
+    affectations, verdict = bons_commande.repartir_besoin([], repartition)
+    assert affectations is None
+    assert verdict["code"] == "REJ-PO-REPARTITION-TROP-GRANDE"
+
+
+def test_repartition_plafond_de_200_lignes_par_bon():
+    entree = {"po_id": "P", "fournisseur_id": "f", "materiau_ids": [f"M{i}" for i in range(201)]}
+    affectations, verdict = bons_commande.repartir_besoin([], [entree])
+    assert affectations is None
+    assert verdict["code"] == "REJ-PO-REPARTITION-TROP-GRANDE"
+
+
+def test_longueurs_des_textes_de_conditions_aux_bornes():
+    for cle, maximum in (("lieu_livraison", 200), ("ville", 80), ("notes", 500)):
+        conditions = {**CONDITIONS_PO, cle: "a" * maximum}
+        po, verdict = _creer_avec([dict(_LIGNE_MIN)], conditions)
+        assert verdict is None, (cle, verdict)
+        assert po[cle] == "a" * maximum
+        rejete, verdict = _creer_avec([dict(_LIGNE_MIN)], {**CONDITIONS_PO, cle: "a" * (maximum + 1)})
+        assert rejete is None and verdict["code"] == "REJ-PO-TEXTE-INVALIDE", cle
+
+
+def test_longueur_de_l_unite_aux_bornes():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "unite": "u" * 40}])
+    assert verdict is None and po["lignes"][0]["unite"] == "u" * 40
+    rejete, verdict = _creer_avec([{**_LIGNE_MIN, "unite": "u" * 41}])
+    assert rejete is None and verdict["code"] == "REJ-PO-UNITE-REQUISE"
+
+
+def test_longueur_de_la_designation_aux_bornes():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "designation": "a" * 200}])
+    assert verdict is None and po["lignes"][0]["designation"] == "a" * 200
+    rejete, verdict = _creer_avec([{**_LIGNE_MIN, "designation": "a" * 201}])
+    assert rejete is None and verdict["code"] == "REJ-PO-TEXTE-INVALIDE"
+
+
+@pytest.mark.parametrize("quantite", [True, "5"])
+def test_quantite_booleenne_ou_textuelle_refusee(quantite):
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "quantite_nette": quantite}])
+    assert po is None and verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
+
+
+@pytest.mark.parametrize("quantite", [1.0, 5.0])
+def test_quantite_finie_positive_acceptee(quantite):
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "quantite_nette": quantite}])
+    assert verdict is None and po["lignes"][0]["quantite_nette"] == quantite
+
+
+def test_quantite_non_finie_refusee_sans_laisser_calculer():
+    for quantite in (float("inf"), float("nan")):
+        po, verdict = _creer_avec([{**_LIGNE_MIN, "quantite_nette": quantite}])
+        assert po is None and verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
+        assert "detail" not in verdict
+
+
+def test_quantite_nulle_refusee_sans_laisser_calculer():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "quantite_nette": 0.0}])
+    assert po is None and verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
+    assert "detail" not in verdict
+
+
+def test_calculer_lignes_ecart_exactement_nul_omet_la_ligne():
+    registre = Registre()
+    registre.ajouter({"type_mouvement": "RECEPTION", "chantier_id": "C1", "materiau_id": "MAT-1",
+                      "quantite": 10.0, "cout_unitaire": 10.0})
+    besoins = [{"materiau_id": "MAT-1", "quantite_estimee": 10.0, "unite": "boite"}]
+    assert bons_commande.calculer_lignes_a_commander(besoins, "C1", registre) == []
+
+
+def test_calculer_lignes_ecart_fractionnaire_est_commande():
+    registre = Registre()
+    registre.ajouter({"type_mouvement": "RECEPTION", "chantier_id": "C1", "materiau_id": "MAT-1",
+                      "quantite": 9.5, "cout_unitaire": 10.0})
+    besoins = [{"materiau_id": "MAT-1", "quantite_estimee": 10.0, "unite": "boite"}]
+    assert bons_commande.calculer_lignes_a_commander(besoins, "C1", registre) == [
+        {"materiau_id": "MAT-1", "quantite_nette": 0.5, "unite": "boite"}]
+
+
+def test_unite_none_ou_vide_refusee_proprement():
+    for unite in (None, ""):
+        po, verdict = _creer_avec([{**_LIGNE_MIN, "unite": unite}])
+        assert po is None and verdict["code"] == "REJ-PO-UNITE-REQUISE"
+
+
+def test_unite_de_un_caractere_acceptee():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "unite": "u"}])
+    assert verdict is None and po["lignes"][0]["unite"] == "u"
+
+
+def test_unite_avec_espace_de_bord_refusee():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "unite": " boite"}])
+    assert po is None and verdict["code"] == "REJ-PO-UNITE-REQUISE"
+
+
+def test_caractere_de_controle_dans_un_texte_refuse():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "designation": "ciment\x01"}])
+    assert po is None and verdict["code"] == "REJ-PO-TEXTE-INVALIDE"
+
+
+def test_ligne_non_dict_ou_incomplete_refusee_nommee():
+    po, verdict = _creer_avec(["pas-une-ligne"])
+    assert po is None and verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
+    po, verdict = _creer_avec([{"materiau_id": "MAT-1", "quantite_nette": 5.0}])
+    assert po is None and verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
+
+
+def test_ligne_avec_toutes_les_cles_acceptee():
+    ligne = {**_LIGNE_MIN, "facteur_perte": "0.1", "designation": "Ciment", "unite_source": "declaree"}
+    po, verdict = _creer_avec([ligne])
+    assert verdict is None and po["lignes"][0]["designation"] == "Ciment"
+
+
+def test_materiau_vide_refuse():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "materiau_id": ""}])
+    assert po is None and verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
+
+
+def test_quantite_hors_domaine_garde_son_motif():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "quantite_nette": 0.0}])
+    assert po is None and "detail" not in verdict
+
+
+@pytest.mark.parametrize("facteur", [1, "abc", "1", "1.5"])
+def test_facteur_de_perte_invalide_refuse(facteur):
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "facteur_perte": facteur}])
+    assert po is None and verdict["code"] == "REJ-PO-FACTEUR-PERTE-INVALIDE"
+
+
+def test_facteur_de_perte_valide_applique_une_seule_fois():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "facteur_perte": "0.1"}])
+    assert verdict is None
+    assert po["lignes"][0]["quantite_demandee"] == 5.5
+
+
+@pytest.mark.parametrize("facteur", ["0." + "0" * 17 + "1", "0." + "0" * 18 + "1"])
+def test_facteur_de_perte_longueur_limite(facteur):
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "facteur_perte": facteur}])
+    if len(facteur) == 20:
+        assert verdict is None
+    else:
+        assert po is None and verdict["code"] == "REJ-PO-FACTEUR-PERTE-INVALIDE"
+
+
+def test_quantite_qui_deborde_du_domaine_float_refusee():
+    po, verdict = _creer_avec(
+        [{**_LIGNE_MIN, "quantite_nette": 1.7e308, "facteur_perte": "0.5"}], registre_prix=[])
+    assert po is None
+    assert verdict["code"] == "REJ-PO-LIGNE-INVALIDE"
+    assert "hors domaine" in verdict["detail"]
+
+
+def test_unite_de_fiche_identique_acceptee_et_differente_refusee():
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], unites_fiche={"MAT-1": "boite"})
+    assert verdict is None
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], unites_fiche={"MAT-1": "palette"})
+    assert po is None and verdict["code"] == "REJ-PO-UNITE-INCOHERENTE"
+
+
+def test_ligne_sans_designation_ou_avec_designation_valide_acceptee():
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)])
+    assert verdict is None and po["lignes"][0]["designation"] is None
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "designation": "Ciment"}])
+    assert verdict is None and po["lignes"][0]["designation"] == "Ciment"
+
+
+def test_conditions_invalides_refusees_nommees():
+    for conditions in (None, {}, {**CONDITIONS_PO, "x": 1}):
+        po, verdict = _creer_avec([dict(_LIGNE_MIN)], conditions)
+        assert po is None and verdict["code"] == "REJ-PO-CONDITIONS-INVALIDES"
+
+
+def test_conditions_avec_toutes_les_cles_acceptees():
+    conditions = {
+        "date_requise": "2099-12-31", "mode_livraison": "ramassage",
+        "lieu_livraison": "Dépôt fictif", "ville": "Québec", "notes": "Sonner", "devis_id": "D-1",
+    }
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], conditions)
+    assert verdict is None and po["devis_id"] == "D-1" and po["notes"] == "Sonner"
+
+
+def test_date_requise_non_textuelle_ou_avant_creation_refusee():
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], {**CONDITIONS_PO, "date_requise": 20260102})
+    assert po is None and verdict["code"] == "REJ-PO-DATE-REQUISE-INVALIDE"
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], {**CONDITIONS_PO, "date_requise": "2026-01-01"})
+    assert po is None and verdict["code"] == "REJ-PO-DATE-REQUISE-INVALIDE"
+
+
+def test_date_requise_le_jour_meme_de_la_creation_acceptee():
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], {**CONDITIONS_PO, "date_requise": "2026-01-02"})
+    assert verdict is None and po["date_requise"] == "2026-01-02"
+
+
+def test_livraison_au_chantier_sans_lieu_refusee():
+    conditions = {**CONDITIONS_PO, "mode_livraison": "livraison_chantier"}
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], conditions)
+    assert po is None and verdict["code"] == "REJ-PO-LIEU-LIVRAISON-REQUIS"
+
+
+def test_texte_optional_invalide_ou_devis_vide_refuses():
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], {**CONDITIONS_PO, "ville": "Québec\x01"})
+    assert po is None and verdict["code"] == "REJ-PO-TEXTE-INVALIDE"
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], {**CONDITIONS_PO, "devis_id": ""})
+    assert po is None and verdict["code"] == "REJ-PO-TEXTE-INVALIDE"
+
+
+def test_manques_de_commandabilite_dune_livraison_au_chantier_sans_lieu():
+    po = {"date_requise": "2099-12-31", "mode_livraison": "livraison_chantier",
+          "lignes": [{"materiau_id": "MAT-1", "unite": "boite"}]}
+    assert bons_commande.manques_commandabilite(po) == ["lieu_livraison"]
+
+
+def test_un_maillon_pour_un_po_inconnu_est_ignore():
+    registre = [
+        {"type_entree": "po_cree", "po_id": "P1", "statut": "draft", "lignes": []},
+        {"type_entree": "transition_po", "po_id": "P2", "statut": "approved"},
+    ]
+    assert [po["po_id"] for po in bons_commande.lister(registre)] == ["P1"]
+
+
+def test_pourcentage_de_perte_du_courriel():
+    po, verdict = _creer_avec([{**_LIGNE_MIN, "facteur_perte": "0.1"}])
+    assert verdict is None
+    courriel = bons_commande.construire_courriel(po, "d@exemple-fictif.test", "GRS")
+    assert "perte déclarée de 10 %" in courriel["corps"]
+
+
+def test_empreinte_du_courriel_est_le_json_canonique():
+    conditions = {**CONDITIONS_PO, "ville": "Montréal"}
+    po, verdict = _creer_avec([dict(_LIGNE_MIN)], conditions)
+    assert verdict is None
+    courriel = bons_commande.construire_courriel(po, "d@exemple-fictif.test", "GRS")
+    attendu = hashlib.sha256(json.dumps(
+        {"objet": courriel["objet"], "destinataire": courriel["destinataire"], "corps": courriel["corps"]},
+        sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    assert courriel["empreinte"] == attendu
+
+
+def _po_envoye():
+    registre_po = _po_email_ready()
+    bons_commande.marquer_envoye("PO-1", "2026-01-05T00:00:00Z", registre_po)
+    return registre_po
+
+
+def test_changer_statut_pilotable_avec_motif():
+    registre_po = _po_envoye()
+    po, verdict = bons_commande.changer_statut("PO-1", "disputed", "litige fictif", "2026-01-06T00:00:00Z", registre_po)
+    assert verdict is None and po["statut"] == "disputed"
+    po, verdict = bons_commande.changer_statut("PO-1", "closed", "", "2026-01-07T00:00:00Z", registre_po)
+    assert po is None and verdict["code"] == "REJ-PO-MOTIF-VIDE"
+
+
+def test_confirmation_de_fournisseur_seulement_sur_un_po_envoye():
+    registre_po = _po_email_ready()
+    po, verdict = bons_commande.confirmer_fournisseur("PO-1", "2026-01-06T00:00:00Z", registre_po, {})
+    assert po is None and "confirmation de fournisseur" in verdict["detail"]
+    po, verdict = bons_commande.confirmer_fournisseur("PO-X", "2026-01-06T00:00:00Z", registre_po, {})
+    assert po is None and verdict["code"] == "REJ-PO-INTROUVABLE"
+    bons_commande.marquer_envoye("PO-1", "2026-01-05T00:00:00Z", registre_po)
+    po, verdict = bons_commande.confirmer_fournisseur("PO-1", "2026-01-06T00:00:00Z", registre_po, {})
+    assert verdict is None and po["statut"] == "supplier_confirmed"
+
+
+def test_repartition_nominale_et_cles_en_double_refusees():
+    lignes = [{"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}]
+    entree = {"po_id": "P1", "fournisseur_id": "f1", "materiau_ids": ["MAT-1"]}
+    affectations, verdict = bons_commande.repartir_besoin(lignes, [entree])
+    assert verdict is None and affectations == [{"po_id": "P1", "fournisseur_id": "f1", "lignes": lignes}]
+
+    double_po = [entree, {"po_id": "P1", "fournisseur_id": "f2", "materiau_ids": ["MAT-1"]}]
+    _, verdict = bons_commande.repartir_besoin(lignes, double_po)
+    assert verdict["code"] == "REJ-PO-REPARTITION-PO-DOUBLE"
+
+    double_f = [entree, {"po_id": "P2", "fournisseur_id": "f1", "materiau_ids": ["MAT-1"]}]
+    _, verdict = bons_commande.repartir_besoin(lignes, double_f)
+    assert verdict["code"] == "REJ-PO-REPARTITION-FOURNISSEUR-DOUBLE"
+
+
+def test_repartition_entrees_malformees_refusees_nommees():
+    lignes = [{"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}]
+    entree = {"po_id": "P1", "fournisseur_id": "f1", "materiau_ids": ["MAT-1"]}
+    for repartition in (("pas", "une", "liste"), [5], ["pas-un-objet"],
+                        [{**entree, "materiau_ids": 5}], [{**entree, "x": 1}],
+                        [{**entree, "po_id": ""}], [{**entree, "fournisseur_id": ""}],
+                        [{**entree, "materiau_ids": "MAT-1"}], [{**entree, "materiau_ids": [""]}]):
+        affectations, verdict = bons_commande.repartir_besoin(lignes, repartition)
+        assert affectations is None, repartition
+        assert verdict["code"] == "REJ-PO-REPARTITION-INCOMPLETE", repartition
+
+
+def test_repartition_tuple_meme_valide_refusee():
+    lignes = [{"materiau_id": "MAT-1", "quantite_nette": 5.0, "unite": "boite"}]
+    entree = {"po_id": "P1", "fournisseur_id": "f1", "materiau_ids": ["MAT-1"]}
+    affectations, verdict = bons_commande.repartir_besoin(lignes, (entree,))
+    assert affectations is None
+    assert verdict["code"] == "REJ-PO-REPARTITION-INCOMPLETE"
+
+
+def test_repartition_liste_de_materiaux_vide_refusee():
+    entree = {"po_id": "P1", "fournisseur_id": "f1", "materiau_ids": []}
+    affectations, verdict = bons_commande.repartir_besoin([], [entree])
+    assert affectations is None and verdict["code"] == "REJ-PO-REPARTITION-INCOMPLETE"
+
+
+def test_repartition_de_200_lignes_acceptee():
+    lignes = [{"materiau_id": f"M{i}", "quantite_nette": 1.0, "unite": "u"} for i in range(200)]
+    entree = {"po_id": "P", "fournisseur_id": "f", "materiau_ids": [ligne["materiau_id"] for ligne in lignes]}
+    affectations, verdict = bons_commande.repartir_besoin(lignes, [entree])
+    assert verdict is None and len(affectations[0]["lignes"]) == 200
+
+
+def test_repartition_de_20_fournisseurs_acceptee():
+    lignes = [{"materiau_id": f"M{i}", "quantite_nette": 1.0, "unite": "u"} for i in range(20)]
+    repartition = [{"po_id": f"P{i}", "fournisseur_id": f"f{i}", "materiau_ids": [f"M{i}"]} for i in range(20)]
+    affectations, verdict = bons_commande.repartir_besoin(lignes, repartition)
+    assert verdict is None and len(affectations) == 20
+
+
+def test_livraison_doit_apparier_le_po_et_le_chantier():
+    po = bons_commande.lire(_creer_po()[1], "PO-1")
+    base = {"po_id": "PO-1", "chantier_id": "C1", "horodatage": "2026-01-06T00:00:00Z",
+            "lignes_recues": [{"materiau_id": "MAT-1", "quantite_recue": 5}]}
+    assert bons_commande.construire_livraison(po, base)["lignes"][0]["quantite_recue"] == "5"
+    assert bons_commande.construire_livraison(po, {**base, "po_id": "PO-AUTRE"}) is None
+    assert bons_commande.construire_livraison(po, {**base, "chantier_id": "C-AUTRE"}) is None
+    assert bons_commande.construire_livraison(po, {**base, "lignes_recues": None}) is None
+    assert bons_commande.construire_livraison(po, {**base, "lignes_recues": []}) is None
+
+
+def test_livraisons_et_comptage_ne_gardent_que_ce_po():
+    registre = [
+        {"type_entree": "transition_po", "po_id": "P1", "verdict_reception": "CONFORME",
+         "livraison": {"empreinte": "e1"}},
+        {"type_entree": "transition_po", "po_id": "P2", "verdict_reception": "CONFORME",
+         "livraison": {"empreinte": "e2"}},
+        {"type_entree": "transition_po", "po_id": "P1", "verdict_reception": "RECEPTION_INFERIEURE"},
+        {"type_entree": "po_cree", "po_id": "P1", "verdict_reception": "CONFORME",
+         "livraison": {"empreinte": "e3"}},
+    ]
+    assert bons_commande.livraisons(registre, "P1") == [{"empreinte": "e1"}]
+    assert bons_commande.livraisons_sans_detail(registre, "P1") == 1
+    assert bons_commande.livraison_deja_enregistree(registre, "P1", {"empreinte": "e1"}) is True
+    assert bons_commande.livraison_deja_enregistree(registre, "P1", {"empreinte": "inconnue"}) is False
+
+
+def test_une_reception_avec_detail_ne_manque_pas_de_detail():
+    registre = [{"type_entree": "transition_po", "po_id": "P1", "verdict_reception": "CONFORME",
+                 "livraison": {"empreinte": "e1"}}]
+    assert bons_commande.livraisons_sans_detail(registre, "P1") == 0

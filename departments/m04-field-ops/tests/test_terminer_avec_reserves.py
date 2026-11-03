@@ -309,6 +309,22 @@ def test_accepter_des_reserves_qui_n_existent_pas_est_refuse():
 # =========================================================================================
 # 4. Les invariants du registre refusent un maillon forgé
 # =========================================================================================
+def test_un_bloc_de_reserves_absent_est_valide_et_vide():
+    assert reserves_completion.codes_du_bloc(None) == ((), True)
+
+
+@pytest.mark.parametrize("bloc", [
+    {"version_schema": 1, "reserves": [LISTE_CONTROLE_INCOMPLETE], "en_trop": 1},
+    {"version_schema": 2, "reserves": [LISTE_CONTROLE_INCOMPLETE]},
+    {"version_schema": True, "reserves": [LISTE_CONTROLE_INCOMPLETE]},
+    ["version_schema", "reserves"],
+    {"version_schema": 1, "reserves": (LISTE_CONTROLE_INCOMPLETE,)},
+    {"version_schema": 1, "reserves": [SIGNATURE_IMPOSSIBLE, MATERIEL_ECARTE_NON_DOCUMENTE]},
+])
+def test_un_bloc_de_reserves_mal_forme_est_refuse_sans_etre_presume_valide(bloc):
+    assert reserves_completion.codes_du_bloc(bloc) == ((), False)
+
+
 def _forger(reg, modification):
     maillons = copy.deepcopy(reg.lire())
     modification(maillons)

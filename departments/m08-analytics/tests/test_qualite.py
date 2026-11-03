@@ -14,6 +14,8 @@ def test_evaluer_presence_non_fini_est_distinct_de_l_absence():
         "n": 0, "valeurs_invalides": 1,
     }
     assert qualite.evaluer_presence("m_cpl", 1, float("nan"))["verdict"] == qualite.VERDICT_DONNEE_INVALIDE
+    # une valeur non finie sans compte explicite est comptée UNE fois : la preuve chiffrée ne double pas
+    assert qualite.evaluer_presence("m_cpl", 1, float("nan"))["valeurs_invalides"] == 1
 
 
 def test_evaluer_presence_n_zero_mais_valeur_fournie_reste_absente_garde_defensive():

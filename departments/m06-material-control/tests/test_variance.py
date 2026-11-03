@@ -90,6 +90,29 @@ def test_variance_superieure_au_stock_theorique_avec_ecart_signe():
     assert resultat["ecart"] == 3.0
 
 
+def test_variance_ecart_positif_fractionnaire_reste_superieur():
+    registre = RegistreFactice(
+        [
+            {
+                "type_mouvement": "RECEPTION",
+                "chantier_id": "CHANTIER-1",
+                "materiau_id": "MAT-1",
+                "quantite": 10.0,
+            }
+        ]
+    )
+
+    resultat = variance.evaluer_variance(
+        "CHANTIER-1",
+        "MAT-1",
+        10.5,
+        registre,
+    )
+
+    assert resultat["ecart"] == 0.5
+    assert resultat["verdict_variance"] == "STOCK_SUPERIEUR_AU_THEORIQUE"
+
+
 def test_variance_indeterminee_sans_mouvement_prealable_meme_si_comptage_non_nul():
     registre = RegistreFactice([])
 

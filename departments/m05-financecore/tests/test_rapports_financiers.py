@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import json
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -789,3 +790,233 @@ def test_un_budget_demesure_est_refuse_avant_tout_calcul(plan):
     assert (
         budgets.construire_budget(pile, "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None)[1] is None
     )  # 36 mois
+
+
+# ================================================================= mutants : bornes exactes du budget déclaré
+def test_mutations_budget_bornes_exactes_de_taille_de_mois_et_de_montant(plan):
+    base = {"compte": "4100", "mois": "2026-01", "montant": "10.00"}
+    _, refus = budgets.construire_budget(
+        [dict(base)] * budgets.LIGNES_MAX, "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None
+    )
+    # la 1500e ligne est admise par le contrôle de cardinalité : le refus vient du doublon, pas du nombre de lignes
+    assert refus["code"] == "REJ-BUDGET-LIGNE-DOUBLE"
+    assert (
+        budgets.construire_budget([base], "x" * 80, plan, humain=HUMAIN, version=1, motif=None, remplace=None)[1]
+        is None
+    )
+    _, refus = budgets.construire_budget([base], "x" * 81, plan, humain=HUMAIN, version=1, motif=None, remplace=None)
+    assert refus["code"] == "REJ-BUDGET-ENTREE-INVALIDE"
+    assert budgets.construire_budget(
+        [base], "B", plan, humain=HUMAIN, version=2, motif="m" * 300, remplace="bud-x"
+    )[1] is None
+    _, refus = budgets.construire_budget(
+        [base], "B", plan, humain=HUMAIN, version=2, motif="m" * 301, remplace="bud-x"
+    )
+    assert refus["code"] == "REJ-BUDGET-MOTIF-REQUIS"
+    # l'étendue de 36 mois est admise ; celle de 37 est refusée
+    assert budgets.construire_budget(
+        [
+            {"compte": "4100", "mois": "2026-01", "montant": "1.00"},
+            {"compte": "4100", "mois": "2028-12", "montant": "1.00"},
+        ],
+        "B",
+        plan,
+        humain=HUMAIN,
+        version=1,
+        motif=None,
+        remplace=None,
+    )[1] is None
+    _, refus = budgets.construire_budget(
+        [
+            {"compte": "4100", "mois": "2026-01", "montant": "1.00"},
+            {"compte": "4100", "mois": "2029-01", "montant": "1.00"},
+        ],
+        "B",
+        plan,
+        humain=HUMAIN,
+        version=1,
+        motif=None,
+        remplace=None,
+    )
+    assert refus["code"] == "REJ-BUDGET-MOIS-INVALIDE"
+    # bornes d'année incluses, et seulement elles
+    for mois in ("1900-01", "2999-12"):
+        assert budgets.construire_budget(
+            [{**base, "mois": mois}], "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None
+        )[1] is None
+    for mois in ("1899-12", "3000-01"):
+        _, refus = budgets.construire_budget(
+            [{**base, "mois": mois}], "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None
+        )
+        assert refus["code"] == "REJ-BUDGET-MOIS-INVALIDE"
+    # le montant exactement au plafond est admis
+    assert budgets.construire_budget(
+        [{**base, "montant": "999999999999.99"}], "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None
+    )[1] is None
+
+
+@pytest.mark.parametrize(
+    "deuxieme",
+    [
+        {"compte": "4100", "mois": "2026-01", "montant": "10.00", "extra": "x"},
+        {"compte": "9999", "mois": "2026-01", "montant": "10.00"},
+        {"compte": "5990", "mois": "2026-01", "montant": "10.00"},
+        {"compte": "1010", "mois": "2026-01", "montant": "10.00"},
+        {"compte": "4100", "mois": "2026-13", "montant": "10.00"},
+        {"compte": "4100", "mois": "2026-01", "montant": "-1.00"},
+        {"compte": "4100", "mois": "2026-01", "montant": "1000000000000.00"},
+    ],
+)
+def test_mutations_budget_le_detail_nomme_la_vraie_ligne(plan, deuxieme):
+    if deuxieme.get("compte") == "5990":
+        plan, _ = plan_comptable.appliquer_extension(plan, {"comptes_desactives": ["5990"]})
+    base = {"compte": "4100", "mois": "2026-01", "montant": "10.00"}
+    _, refus = budgets.construire_budget(
+        [base, deuxieme], "B", plan, humain=HUMAIN, version=1, motif=None, remplace=None
+    )
+    assert refus["code"].startswith("REJ-BUDGET-")
+    assert "ligne 2" in refus["detail"]
+
+
+def test_mutations_budget_lignes_non_sequence_et_anomalies_tronquees(plan):
+    _, refus = budgets.normaliser_lignes(5, plan)
+    assert refus["code"] == "REJ-BUDGET-ENTREE-INVALIDE"
+    _, refus = budgets.normaliser_lignes("x", plan)
+    assert "une liste non vide" in refus["detail"]
+    etat = budgets.etat_budgets([{"type_entree": "autre"}] * 4)
+    assert budgets.refus_anomalies(etat)["detail"].count("étranger aux budgets") == 3
+
+
+# ================================================================= mutants : bornes des dates et des rapports
+def test_mutations_fin_de_mois_janvier_decembre_et_entree_invalide():
+    assert rapports_financiers.fin_de_mois("2026-01") == date(2026, 1, 31)
+    assert rapports_financiers.fin_de_mois("2026-12") == date(2026, 12, 31)
+    assert rapports_financiers.fin_de_mois(None) is None
+    assert rapports_financiers._jour(None) is None
+    assert rapports_financiers._jour("2026-01-05") == date(2026, 1, 5)
+
+
+def test_mutations_periode_en_dates_bornes_exactes():
+    assert rapports_financiers.periode_en_dates("2026-01-01", "2026-01-01") == (
+        (date(2026, 1, 1), date(2026, 1, 1)),
+        None,
+    )
+    _, refus = rapports_financiers.periode_en_dates("2026-01-01", "2027-02-05")  # 400 jours
+    assert refus["code"] == "REJ-RAPPORT-PERIODE-INVALIDE"
+    assert rapports_financiers.periode_en_dates("2026-01-01", "2027-02-04")[1] is None  # 399 jours
+
+
+def test_mutations_extraire_mouvements_tronque_anomalies_et_comptes():
+    etat_altere = {"anomalies": ["a", "b", "c", "z"], "ordre": [], "ecritures": {}, "verrou": None}
+    _, refus = rapports_financiers.extraire_mouvements(
+        etat_altere, {"comptes": {}, "version_effective": 1}, None, date(2026, 1, 31)
+    )
+    assert "z" not in refus["detail"]
+    six = [{"compte": f"9{i:03d}", "debit": Decimal("1.00"), "credit": Decimal("0.00")} for i in range(6)]
+    etat = {
+        "anomalies": [],
+        "ordre": ["e1"],
+        "ecritures": {
+            "e1": {"date_effet": "2026-01-01", "statut": "DEFINITIVE", "lignes": six},
+        },
+        "verrou": None,
+    }
+    _, refus = rapports_financiers.extraire_mouvements(
+        etat, {"comptes": {}, "version_effective": 1}, None, date(2026, 1, 31)
+    )
+    assert "9004" in refus["detail"] and "9005" not in refus["detail"]
+
+
+def test_mutations_bilan_un_solde_nul_n_est_pas_anormal():
+    entrees = {
+        "au": "2026-01-31",
+        "comptes": [{"compte": "1010", "nom": "Banque", "type": "actif", "debit": "100.00", "credit": "100.00"}],
+        "ecritures_definitives": 1,
+        "brouillons": 0,
+        "plan_comptable_version": "v",
+    }
+    etat = rapports_financiers.calculer_bilan(entrees, {"au": "2026-01-31"})["etat"]
+    assert etat["comptes_a_solde_anormal"] == 0 and etat["lignes"][0]["solde_anormal"] is False
+
+
+def test_mutations_budget_contre_reel_resume_zero_et_un_dollar_non_budgete():
+    sans_mois = {
+        "budget": {
+            "budget_id": "bud-1",
+            "version": 1,
+            "lignes": [{"compte": "4100", "mois": "2026-02", "montant": "10.00"}],
+        },
+        "reel": [],
+        "comptes_budget": [],
+        "mois": ["2026-01"],
+        "ecritures_definitives": 0,
+        "brouillons": 0,
+        "sources": [],
+    }
+    r = rapports_financiers.calculer_budget_contre_reel(sans_mois, {"mois": ["2026-01"]})
+    assert r["etat"]["statut"] == "NON_CALCULABLE" and r["recu"]["resultat"]["mois_compares"] == 0
+    entrees = {
+        "budget": {
+            "budget_id": "bud-1",
+            "version": 1,
+            "lignes": [{"compte": "4100", "mois": "2026-01", "montant": "100.00"}],
+        },
+        "reel": [
+            {"compte": "4100", "mois": "2026-01", "type": "produits", "nom": "Ventes", "montant": "100.50"},
+            {"compte": "5990", "mois": "2026-01", "type": "charges", "nom": "Divers", "montant": "1.00"},
+        ],
+        "comptes_budget": [{"compte": "4100", "type": "produits", "nom": "Ventes"}],
+        "mois": ["2026-01"],
+        "ecritures_definitives": 2,
+        "brouillons": 0,
+        "sources": [],
+    }
+    etat = rapports_financiers.calculer_budget_contre_reel(entrees, {"mois": ["2026-01"]})["etat"]
+    assert etat["non_budgetes"] == [{"compte": "5990", "nom": "Divers", "type": "charges", "reel": "1.00"}]
+    assert etat["lignes"][0]["ecart"] == "0.50" and etat["lignes"][0]["sens"] == "FAVORABLE"
+
+
+@pytest.mark.parametrize("champ", ["marge_reelle", "cout_reel", "prix_facture"])
+def test_mutations_rentabilite_exclut_chaque_champ_manquant(champ):
+    r = rentabilite("service", [chantier("D1", **{champ: None})])
+    assert r["statut"] == "NON_CALCULABLE" and r["exclus_cout_partiel"] == 1 and r["sans_dimension"] == 0
+
+
+def test_mutations_rentabilite_resume_a_zero_et_une_seule_dimension_absente():
+    vide = {"axe": "service", "debut": None, "fin": None, "chantiers": []}
+    recu = rapports_financiers.calculer_rentabilite_par_axe(vide, {"axe": "service"})["recu"]
+    assert recu["resultat"]["groupes"] == 0
+    r = rentabilite("service", [chantier("D1")])
+    assert r["statut"] == "NON_CALCULABLE" and r["sans_dimension"] == 1
+    assert "dimension" in r["manque"] and "service" in r["manque"]
+
+
+def test_mutations_rapport_mensuel_ne_compte_que_les_non_calculables():
+    sections = [
+        {
+            "id": "a",
+            "titre": "A",
+            "statut": "CALCULEE",
+            "faits": [],
+            "hypotheses": [],
+            "donnees_manquantes": [],
+            "recu_empreinte": None,
+        }
+    ]
+    r = rapports_financiers.composer_rapport_mensuel("2026-01", sections, {})["recu"]["resultat"]
+    assert r["sections"] == 1 and r["sections_non_calculables"] == 0
+
+
+def test_mutations_rejouer_des_entrees_inexploitables_est_un_echec():
+    recu = recu_calcul.construire(
+        moteur="bilan_brouillon",
+        version_moteur=rapports_financiers.VERSION,
+        methode="x",
+        precision={},
+        parametres={},
+        entrees={"au": "2026-01-31"},
+        resultat={},
+        avertissements=[],
+    )
+    valide, raison = rapports_financiers.rejouer(recu)
+    assert valide is False and raison.startswith("entrées inexploitables")

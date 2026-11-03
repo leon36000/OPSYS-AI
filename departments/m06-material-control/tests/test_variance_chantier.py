@@ -429,3 +429,139 @@ def test_evaluer_avec_registre_ne_contient_toujours_aucune_cle_monetaire_ni_vol(
     assert code is None
     assert not collecter_cles_recursivement(resultat).intersection(CLES_MONETAIRES_INTERDITES)
     assert "vol" not in repr(resultat).lower()
+
+
+# --- Bornes exactes et filtres du registre (mutants survivants) -----------------------
+
+
+def test_aucun_ecart_quand_estime_et_reel_sont_tous_deux_zero():
+    verdicts = variance_chantier.comparer([besoin(quantite_estimee=0.0)], [ligne("prevu", quantite=0.0)])
+    assert verdicts[0]["verdict_variance"] == "AUCUN_ECART"
+    assert verdicts[0]["classification_requise"] is False
+
+
+def test_non_utilise_avec_une_estimation_de_un():
+    verdicts = variance_chantier.comparer([besoin(quantite_estimee=1.0)], [])
+    assert verdicts[0]["verdict_variance"] == "NON_UTILISE"
+    assert verdicts[0]["quantite_reelle"] == 0.0
+
+
+def test_ecart_superieur_avec_une_estimation_de_un_exactement():
+    verdicts = variance_chantier.comparer([besoin(quantite_estimee=1.0)], [ligne("prevu", quantite=2.0)])
+    assert verdicts[0]["verdict_variance"] == "ECART_REEL_SUPERIEUR"
+    assert verdicts[0]["ecart_pourcentage"] == 1.0
+
+
+def test_ecart_inferieur_avec_un_reel_de_un():
+    verdicts = variance_chantier.comparer([besoin(quantite_estimee=10.0)], [ligne("prevu", quantite=1.0)])
+    assert verdicts[0]["verdict_variance"] == "ECART_REEL_INFERIEUR"
+    assert verdicts[0]["ecart"] == -9.0
+
+
+def test_ecart_positif_fractionnaire_reste_superieur():
+    verdicts = variance_chantier.comparer([besoin(quantite_estimee=10.0)], [ligne("prevu", quantite=10.5)])
+    assert verdicts[0]["verdict_variance"] == "ECART_REEL_SUPERIEUR"
+    assert verdicts[0]["ecart"] == 0.5
+
+
+def test_unite_du_besoin_conservee_sans_aucune_ligne_declaree():
+    verdicts = variance_chantier.comparer([besoin(quantite_estimee=10.0, unite="boite")], [])
+    assert verdicts[0]["unite"] == "boite"
+    assert verdicts[0]["verdict_variance"] == "NON_UTILISE"
+
+
+def test_mouvement_d_un_autre_chantier_n_ajoute_pas_de_materiau():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -9.0, materiau_id="MAT-9", chantier_id="CHANTIER-AUTRE"))
+    verdicts = variance_chantier.comparer_depuis_registre([besoin(quantite_estimee=5.0)], "CHANTIER-1", registre)
+    assert [v["materiau_id"] for v in verdicts] == ["MAT-1"]
+
+
+def test_filtre_wct_ne_garde_pas_les_mouvements_des_autres_wct():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, materiau_id="MAT-9", wct_id="wct-1"))
+    verdicts = variance_chantier.comparer_depuis_registre([], "CHANTIER-1", registre, wct_id="wct-1")
+    assert [v["materiau_id"] for v in verdicts] == ["MAT-9"]
+
+
+def test_mouvement_d_un_autre_materiau_n_influe_pas_sur_l_unite():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, materiau_id="MAT-1", unite="boite"))
+    registre.ajouter(_mouvement("CONSOMMATION", -2.0, materiau_id="MAT-2", unite="pi"))
+    verdicts = variance_chantier.comparer_depuis_registre(
+        [besoin(materiau_id="MAT-1", quantite_estimee=5.0, unite="boite")], "CHANTIER-1", registre,
+    )
+    verdict_mat1 = next(v for v in verdicts if v["materiau_id"] == "MAT-1")
+    assert verdict_mat1["verdict_variance"] == "AUCUN_ECART"
+
+
+def test_mouvement_d_un_type_non_declare_n_influe_pas_sur_l_unite():
+    registre = Registre()
+    registre.ajouter(_mouvement("RECEPTION", 5.0, materiau_id="MAT-1", unite="pi"))
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, materiau_id="MAT-1", unite="boite"))
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(materiau_id="MAT-1", quantite_estimee=5.0, unite="boite")], "CHANTIER-1", registre,
+    )[0]
+    assert verdict["verdict_variance"] == "AUCUN_ECART"
+
+
+def test_wct_id_absent_agrege_les_mouvements_meme_avec_un_wct():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, unite="boite", wct_id="wct-1"))
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0, unite="sacs")], "CHANTIER-1", registre,
+    )[0]
+    assert verdict["verdict_variance"] == "INDETERMINE"
+
+
+def test_wct_id_fourni_n_inclut_pas_les_autres_wct():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, unite="boite", wct_id="wct-1"))
+    registre.ajouter(_mouvement("CONSOMMATION", -3.0, unite="pi", wct_id="wct-2"))
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0, unite="boite")], "CHANTIER-1", registre, wct_id="wct-1",
+    )[0]
+    assert verdict["quantite_reelle"] == 5.0
+    assert verdict["verdict_variance"] == "AUCUN_ECART"
+
+
+def test_wct_id_fourni_garde_son_mouvement_pour_le_controle_d_unite():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, unite="pi", wct_id="wct-1"))
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0, unite="boite")], "CHANTIER-1", registre, wct_id="wct-1",
+    )[0]
+    assert verdict["verdict_variance"] == "INDETERMINE"
+
+
+def test_deux_unites_sans_besoin_ne_sont_pas_comparees():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, materiau_id="MAT-9", unite="boite"))
+    registre.ajouter(_mouvement("PERTE", -2.0, materiau_id="MAT-9", unite="pi"))
+    verdict = variance_chantier.comparer_depuis_registre([], "CHANTIER-1", registre)[0]
+    assert verdict["verdict_variance"] == "INDETERMINE"
+
+
+def test_une_unite_non_textuelle_ne_leve_pas_et_rend_indetermine():
+    class RegistreMalforme:
+        def lire(self):
+            return [_mouvement("CONSOMMATION", -5.0, unite=123)]
+
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0, unite="boite")], "CHANTIER-1", RegistreMalforme(),
+    )[0]
+    assert verdict["verdict_variance"] == "INDETERMINE"
+
+
+def test_unite_du_besoin_conservee_sans_mouvement_au_registre():
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=10.0, unite="boite")], "CHANTIER-1", Registre(),
+    )[0]
+    assert verdict["unite"] == "boite"
+    assert verdict["verdict_variance"] == "NON_UTILISE"
+
+
+def test_non_prevu_avec_un_reel_fractionnaire_sans_estimation():
+    verdicts = variance_chantier.comparer([besoin(quantite_estimee=0.0)], [ligne("non_prevu", quantite=0.5)])
+    assert verdicts[0]["verdict_variance"] == "NON_PREVU"
+    assert verdicts[0]["ecart_pourcentage"] is None

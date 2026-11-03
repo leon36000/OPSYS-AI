@@ -474,3 +474,56 @@ def test_le_registre_refuse_une_origine_incoherente_avec_le_cout():
     assert registre.taille() == 0
     maillon, code = registre.ajouter({**base, "cout_unitaire": None, "origine_cout": {"source": "INCONNU"}})
     assert code is None and maillon["origine_cout"] == {"source": "INCONNU"}
+
+
+# --- Résolution pure du coût : bornes et entrées malformées (données fictives) ---
+
+from datetime import date as _date  # noqa: E402
+
+from m6_material_control import cout_sortie as _cout  # noqa: E402
+
+_JOUR = _date(2026, 11, 2)
+_ENTREE_LIVRE = {
+    "materiau_id": "REV-ALU-FICTIF",
+    "fournisseur_id": "f-un",
+    "prix_unitaire": 7.5,
+    "unite": "feuille",
+    "devise": "CAD",
+    "date_effet": "2026-10-01",
+    "source_document": None,
+}
+
+
+def test_une_date_effet_absente_du_livre_est_ignoree_sans_lever():
+    resultat = _cout.resoudre("CH-FICTIF", "REV-ALU-FICTIF", "feuille", _JOUR, [], [{**_ENTREE_LIVRE,
+                                                                                    "date_effet": None}])
+    assert resultat["cout_unitaire"] is None
+    assert resultat["origine"]["source"] == "INCONNU"
+    assert resultat["origine"]["motif"] == "AUCUN_PRIX"
+
+
+def test_un_cout_de_reception_positif_sous_un_dollar_reste_utilisable():
+    mouvement = {"type_mouvement": "RECEPTION", "chantier_id": "CH-FICTIF", "materiau_id": "REV-ALU-FICTIF",
+                 "cout_unitaire": 0.5, "quantite": 10.0, "hash_maillon": "h-fictif"}
+    resultat = _cout.resoudre("CH-FICTIF", "REV-ALU-FICTIF", "feuille", _JOUR, [mouvement], None)
+    assert resultat["cout_unitaire"] == 0.5
+    assert resultat["origine"]["source"] == "RECEPTION_CHANTIER"
+
+
+def test_un_prix_du_livre_au_jour_meme_du_wct_s_applique():
+    resultat = _cout.resoudre("CH-FICTIF", "REV-ALU-FICTIF", "feuille", _JOUR, [], [{**_ENTREE_LIVRE,
+                                                                                    "date_effet": "2026-11-02"}])
+    assert resultat["cout_unitaire"] == 7.5
+    assert resultat["origine"]["source"] == "LIVRE_PRIX"
+
+
+def test_une_devise_non_cad_donne_aucun_prix_et_non_une_unite_refusee():
+    resultat = _cout.resoudre("CH-FICTIF", "REV-ALU-FICTIF", "feuille", _JOUR, [], [{**_ENTREE_LIVRE, "devise": "USD"}])
+    assert resultat["cout_unitaire"] is None
+    assert resultat["origine"]["motif"] == "AUCUN_PRIX"
+
+
+def test_une_attente_ignore_un_mouvement_sans_origine_de_cout():
+    mouvement = {"type_mouvement": "CONSOMMATION", "materiau_id": "REV-ALU-FICTIF", "unite": "feuille",
+                 "wct_id": "wct-fictif"}
+    assert _cout.attentes_cout_inconnu([mouvement], [], {"wct-fictif": _JOUR}) == []

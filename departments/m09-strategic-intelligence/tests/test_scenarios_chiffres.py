@@ -5,6 +5,7 @@ tests/test_m9_scenarios_chiffres_integre)."""
 
 import copy
 import json
+from dataclasses import FrozenInstanceError
 
 import pytest
 from m9_strategic_intelligence import scenarios_chiffres as sc
@@ -590,3 +591,328 @@ def test_le_scenario_est_deterministe_et_chaque_choc_du_catalogue_designe_un_pro
     from m9_strategic_intelligence import scenarios
 
     assert anciens <= set(scenarios.CHOCS), "chaque choc chiffré renvoie à un choc du catalogue arithmétique"
+
+
+# --- Bornes exactes des paramètres et des options ---------------------------------------------------------------------
+RETARD = {"part_carnet_pct": "30", "retard_semaines": 4}
+MC = {"graine": 7, "tirages": 1000}
+ACHAT = {
+    "prix_achat": "40000", "frais_achat": "500", "valeur_residuelle": "8000", "paiement_mensuel": "900",
+    "depot_initial": "1000", "mois": 48, "taux_actualisation_annuel": "0.08", "paiements_en_debut_de_periode": True,
+}
+ABSENCES = {"absences": [{"equipe_id": "eq-a", "personnes": 2, "jours": 2}]}
+ABS_OPTIONS = {"debut_semaine": "2026-11-02"}
+PIPELINE = {"leads_par_semaine": "4"}
+PIPE_OPTIONS = {"serie": "leads_ingeres", "methode": "moyenne_mobile", "horizon": 2, "niveau": 80}
+
+
+def test_les_objets_du_catalogue_chiffre_sont_immuables():
+    parametre = sc.Parametre("p", "pct", "%", sc.Decimal("0"), sc.Decimal("100"))
+    with pytest.raises(FrozenInstanceError):
+        parametre.nom = "autre"
+    choc = sc.choc("retard_paiement_carnet")
+    with pytest.raises(FrozenInstanceError):
+        choc.id = "autre"
+
+
+def test_la_graine_maximale_est_2_puissance_63_moins_1():
+    for graine in (0, 2**63 - 1):
+        assert sc.valider("retard_paiement_carnet", RETARD, {**MC, "graine": graine})[2]["graine"] == graine
+    for graine in (-1, 2**63):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+            sc.valider("retard_paiement_carnet", RETARD, {**MC, "graine": graine})
+
+
+def test_les_bornes_entieres_du_retard_et_des_mois_sont_exactes():
+    for semaines in (1, 12):
+        assert sc.valider(
+            "retard_paiement_carnet", {**RETARD, "retard_semaines": semaines}, MC
+        )[1]["retard_semaines"] == semaines
+    for semaines in (0, 13):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-BORNE"):
+            sc.valider("retard_paiement_carnet", {**RETARD, "retard_semaines": semaines}, MC)
+    for mois in (1, 120):
+        assert sc.valider("achat_equipement_comparaison", {**ACHAT, "mois": mois}, {})[1]["mois"] == mois
+    for mois in (0, 121):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-BORNE"):
+            sc.valider("achat_equipement_comparaison", {**ACHAT, "mois": mois}, {})
+
+
+def test_les_bornes_de_pourcentage_sont_exactes_de_0_01_a_100():
+    for part in ("0.01", "100"):
+        assert sc.valider("retard_paiement_carnet", {**RETARD, "part_carnet_pct": part}, MC)[1][
+            "part_carnet_pct"
+        ] == part
+    for part in ("0", "100.01"):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-BORNE"):
+            sc.valider("retard_paiement_carnet", {**RETARD, "part_carnet_pct": part}, MC)
+
+
+def test_les_jours_bloques_acceptent_de_un_a_sept_dates_distinctes():
+    une = ["2026-11-02"]
+    sept = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07", "2026-11-08"]
+    for dates in (une, sept):
+        assert sc.valider("meteo_jours_bloques", {"jours_bloques": dates}, ABS_OPTIONS)[1]["jours_bloques"] == dates
+    for dates in ([], sept + ["2026-11-09"], ["2026-11-02", "2026-11-02"], ["2026-02-30"]):
+        with pytest.raises(ValueError, match="REJ-SCENARIO"):
+            sc.valider("meteo_jours_bloques", {"jours_bloques": dates}, ABS_OPTIONS)
+    with pytest.raises(ValueError, match="REJ-SCENARIO"):
+        sc.valider("meteo_jours_bloques", {"jours_bloques": "2026-11-02"}, ABS_OPTIONS)
+
+
+def test_les_absences_acceptent_de_un_a_cinq_equipes_et_leurs_bornes():
+    une = [{"equipe_id": "eq-a", "personnes": 1, "jours": 1}]
+    cinq = [{"equipe_id": f"eq-{i}", "personnes": 50, "jours": 7} for i in range(5)]
+    for absences in (une, cinq):
+        assert sc.valider("absences_equipe", {"absences": absences}, ABS_OPTIONS)[1]["absences"] == absences
+    invalides = [
+        [],
+        cinq + [{"equipe_id": "eq-x", "personnes": 1, "jours": 1}],
+        [{"equipe_id": "eq a;", "personnes": 1, "jours": 1}],
+        [{"equipe_id": "eq-a", "personnes": 0, "jours": 1}],
+        [{"equipe_id": "eq-a", "personnes": 51, "jours": 1}],
+        [{"equipe_id": "eq-a", "personnes": 1, "jours": 0}],
+        [{"equipe_id": "eq-a", "personnes": 1, "jours": 8}],
+        [{"equipe_id": "eq-a", "personnes": 1}],
+        ["pas un objet"],
+    ]
+    for absences in invalides:
+        with pytest.raises(ValueError, match="REJ-SCENARIO"):
+            sc.valider("absences_equipe", {"absences": absences}, ABS_OPTIONS)
+    with pytest.raises(ValueError, match="REJ-SCENARIO"):
+        sc.valider("absences_equipe", {"absences": "pas une liste"}, ABS_OPTIONS)
+
+
+def test_la_loi_triangulaire_accepte_min_egal_mode_et_mode_egal_max_mais_pas_min_egal_max():
+    for triplet in (("0", "0", "10"), ("0", "10", "10")):
+        hausse = dict(zip(("hausse_min_pct", "hausse_probable_pct", "hausse_max_pct"), triplet, strict=True))
+        assert sc.valider("hausse_cout_materiaux", hausse, MC)[1] == hausse
+    for triplet in (("0", "10", "0"), ("10", "10", "10")):
+        hausse = dict(zip(("hausse_min_pct", "hausse_probable_pct", "hausse_max_pct"), triplet, strict=True))
+        with pytest.raises(ValueError, match="REJ-SCENARIO-PARAMETRES"):
+            sc.valider("hausse_cout_materiaux", hausse, MC)
+
+
+def test_les_options_non_mappees_sont_refusees():
+    with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+        sc.valider("achat_equipement_comparaison", ACHAT, [])
+
+
+def test_les_bornes_des_options_du_calcul_sont_exactes():
+    for tirages in (1, 10000):
+        assert sc.valider("retard_paiement_carnet", RETARD, {**MC, "tirages": tirages})[2]["tirages"] == tirages
+    for tirages in (0, 10001):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+            sc.valider("retard_paiement_carnet", RETARD, {**MC, "tirages": tirages})
+    for horizon in (1, 26):
+        assert sc.valider("retard_paiement_carnet", RETARD, {**MC, "horizon_semaines": horizon})[2][
+            "horizon_semaines"
+        ] == horizon
+    for horizon in (0, 27):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+            sc.valider("retard_paiement_carnet", RETARD, {**MC, "horizon_semaines": horizon})
+    for horizon in (1, 8):
+        assert sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "horizon": horizon})[2][
+            "horizon"
+        ] == horizon
+    for horizon in (0, 9):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+            sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "horizon": horizon})
+    for fenetre in (2, 12):
+        assert sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "fenetre": fenetre})[2][
+            "fenetre"
+        ] == fenetre
+    for fenetre in (1, 13):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+            sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "fenetre": fenetre})
+
+
+def test_les_niveaux_80_90_95_sont_les_seuls_admis_et_un_flottant_est_refuse():
+    for niveau in (80, 90, 95):
+        assert sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "niveau": niveau})[2][
+            "niveau"
+        ] == niveau
+    for niveau in (79, 96, 80.0):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+            sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "niveau": niveau})
+
+
+def test_les_options_texte_et_alpha_sont_validees_par_leur_forme():
+    valides = {
+        "serie": "leads_perdus",
+        "methode": "lissage_exponentiel",
+        "portee": "journees_datees_seulement",
+        "alpha": "0.5",
+        "horodatage_reference": HORO,
+    }
+    for cle, valeur in valides.items():
+        assert sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, cle: valeur})[2][cle] == valeur
+    for cle, valeur in (("serie", "inconnue"), ("methode", "inconnue"), ("portee", "inconnue")):
+        with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+            sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, cle: valeur})
+    with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+        sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "alpha": "2"})
+    with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+        sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "alpha": 1})
+    with pytest.raises(ValueError, match="REJ-SCENARIO-OPTION"):
+        sc.valider("leads_niveau_hypothetique", PIPELINE, {**PIPE_OPTIONS, "horodatage_reference": 1})
+
+
+# --- Robustesse des réponses du propriétaire et bornes de présentation ------------------------------------------------
+def test_le_negatif_est_strictement_inferieur_a_zero_et_illisible_est_faux():
+    assert sc._negatif("-0.5") is True
+    assert sc._negatif("0") is False and sc._negatif("0.5") is False
+    assert sc._negatif("pas un nombre") is False
+
+
+def test_les_avertissements_sont_tronques_a_110_caracteres_et_limites_a_trois():
+    avertissements = ["x" * 120, "y" * 120, "z" * 120, "w", "v"]
+    abreges = sc.res_avert({"avertissements": avertissements})
+    assert len(abreges) == 3 and [len(a) for a in abreges] == [110, 110, 110]
+
+
+def test_un_recu_avec_exactement_les_colonnes_voulues_est_chiffre():
+    recu = _recu_mc()
+    recu["resultat"]["colonnes"] = ["semaine", "solde_base", "p5", "p50", "p95", "probabilite_negatif"]
+    recu["resultat"]["semaines"] = [["1", "10000.00", "9000.00", "10000.00", "11000.00", "0.0000"]]
+    port = Port(
+        m5_simuler_tresorerie_monte_carlo={"ok": True, "resultat": {"accepte": True, "resultat": {"recu": recu}}},
+        m5_verifier_recu_calcul=_verif_m5(),
+    )
+    scenario, _ = _mc(port=port)
+    assert scenario["impacts"][0]["statut"] == "CHIFFRE"
+
+
+def test_un_recu_sans_resultat_est_non_chiffre_sans_exception():
+    port = Port(
+        m5_simuler_tresorerie_monte_carlo={"ok": True, "resultat": {"accepte": True, "resultat": {"recu": None}}},
+    )
+    scenario, _ = _mc(port=port)
+    assert scenario["impacts"][0]["statut"] == "NON_CHIFFRE"
+
+
+def test_un_recu_d_achat_incomplet_est_non_chiffre():
+    port = Port(
+        m5_comparer_credit_bail_achat={
+            "ok": True,
+            "resultat": {"accepte": True, "resultat": {"recu": {"empreinte": EMPREINTE, "resultat": {}}}},
+        },
+    )
+    scenario = sc.chiffrer("achat_equipement_comparaison", ACHAT, {}, jour=JOUR, horodatage=HORO, lecteur=port)
+    assert scenario["impacts"][0]["statut"] == "NON_CHIFFRE"
+
+
+def test_une_reponse_m4_non_mappee_ou_avec_des_manques_hors_forme_est_non_chiffree():
+    port = Port(m4_projeter_capacite_hypotheses={"ok": True, "resultat": {"accepte": True, "resultat": "pas un objet"}})
+    scenario = sc.chiffrer("absences_equipe", ABSENCES, ABS_OPTIONS, jour=JOUR, horodatage=HORO, lecteur=port)
+    assert scenario["impacts"][0]["statut"] == "NON_CHIFFRE"
+    port = Port(m4_projeter_capacite_hypotheses=_reponse_m4(False, [123, "ok"]))
+    scenario = sc.chiffrer("absences_equipe", ABSENCES, ABS_OPTIONS, jour=JOUR, horodatage=HORO, lecteur=port)
+    assert scenario["impacts"][0]["statut"] == "NON_CHIFFRE" and "ok" in scenario["impacts"][0]["manque"]
+
+
+def test_une_prevision_m2_sans_periode_est_non_chiffree():
+    reponse = _reponse_m2()
+    reponse["resultat"]["resultat"]["recu"]["resultat"]["par_periode"] = []
+    port = Port(m2_prevoir_pipeline=reponse)
+    scenario = sc.chiffrer(
+        "leads_niveau_hypothetique", PIPELINE, PIPE_OPTIONS, jour=JOUR, horodatage=HORO, lecteur=port
+    )
+    assert scenario["impacts"][0]["statut"] == "NON_CHIFFRE"
+
+
+def test_un_rejeu_m2_absent_est_dit_non_verifie():
+    port = Port(m2_prevoir_pipeline=_reponse_m2())
+    scenario = sc.chiffrer(
+        "leads_niveau_hypothetique", PIPELINE, PIPE_OPTIONS, jour=JOUR, horodatage=HORO, lecteur=port
+    )
+    verification = scenario["impacts"][0]["verification"]
+    assert verification["identique"] is None and verification["non_verifie"]
+
+
+def test_un_jour_de_calendrier_invalide_est_refuse():
+    with pytest.raises(ValueError, match="REJ-SCENARIO-TEMPS"):
+        sc.chiffrer("retard_paiement_carnet", RETARD, MC, jour="2026-13-01", horodatage=HORO, lecteur=Port())
+
+
+def test_le_port_absent_donne_le_code_port_absent_jamais_un_chiffre():
+    scenario = sc.chiffrer("retard_paiement_carnet", RETARD, MC, jour=JOUR, horodatage=HORO, lecteur=None)
+    impact = scenario["impacts"][0]
+    assert impact["statut"] == "NON_CHIFFRE" and impact["raison"] == "port_absent"
+
+
+def test_le_recu_allege_enumere_les_cles_retirees():
+    compact = sc._recu_allege({"empreinte": "e", "entrees": {}, "methode": "x", "precision": {}, "avertissements": []})
+    assert compact["allege"] == ["entrees", "methode", "precision", "avertissements"]
+    assert "entrees" not in compact and compact["empreinte"] == "e"
+
+
+def test_un_recu_avec_des_semaines_non_liste_est_non_chiffre():
+    recu = _recu_mc()
+    recu["resultat"]["semaines"] = "pas une liste"
+    port = Port(
+        m5_simuler_tresorerie_monte_carlo={"ok": True, "resultat": {"accepte": True, "resultat": {"recu": recu}}},
+        m5_verifier_recu_calcul=_verif_m5(),
+    )
+    scenario, _ = _mc(port=port)
+    assert scenario["impacts"][0]["statut"] == "NON_CHIFFRE"
+
+
+def test_un_jour_non_texte_est_refuse_avec_le_code_du_temps():
+    with pytest.raises(ValueError, match="REJ-SCENARIO-TEMPS"):
+        sc.chiffrer("retard_paiement_carnet", RETARD, MC, jour=123, horodatage=HORO, lecteur=Port())
+
+
+def test_un_rappel_du_calcul_sans_reponse_du_proprietaire_est_non_identique_sans_exception():
+    appels = {"n": 0}
+
+    def simuler(_arguments):
+        appels["n"] += 1
+        if appels["n"] == 1:
+            return {"ok": True, "resultat": {"accepte": True, "resultat": {"recu": _recu_mc(entrees=False)}}}
+        return None
+
+    scenario, _ = _mc(port=Port(m5_simuler_tresorerie_monte_carlo=simuler))
+    verification = scenario["impacts"][0]["verification"]
+    assert verification["mode"] == "rappel_du_calcul" and verification["identique"] is False
+
+
+def test_une_prevision_m2_sans_serie_nommee_reste_chiffree_avec_une_serie_nulle():
+    reponse = _reponse_m2()
+    reponse["resultat"]["resultat"]["recu"]["resultat"]["serie"] = None
+    port = Port(
+        m2_prevoir_pipeline=reponse,
+        m2_rejouer_recu_commercial={"ok": True, "resultat": {"accepte": True, "resultat": {"identique": True}}},
+    )
+    scenario = sc.chiffrer(
+        "leads_niveau_hypothetique", PIPELINE, PIPE_OPTIONS, jour=JOUR, horodatage=HORO, lecteur=port
+    )
+    assert scenario["impacts"][0]["statut"] == "CHIFFRE"
+    assert scenario["impacts"][0]["valeurs"]["serie"] is None
+
+
+def test_le_rappel_du_calcul_d_achat_recopie_l_empreinte_du_proprietaire():
+    recu = {
+        "type": "RECU_CALCUL",
+        "empreinte": EMPREINTE,
+        "resultat": {
+            "va_cout_achat": "41234.56", "va_cout_credit_bail": "43999.99",
+            "ecart_credit_bail_moins_achat": "2765.43", "option_au_cout_actualise_le_plus_bas": "achat",
+        },
+        "avertissements": [],
+    }
+    port = Port(m5_comparer_credit_bail_achat={"ok": True, "resultat": {"accepte": True, "resultat": {"recu": recu}}})
+    scenario = sc.chiffrer("achat_equipement_comparaison", ACHAT, {}, jour=JOUR, horodatage=HORO, lecteur=port)
+    verification = scenario["impacts"][0]["verification"]
+    assert verification["mode"] == "rappel_du_calcul" and verification["identique"] is True
+
+
+def test_une_prevision_m2_avec_serie_nommee_recopie_son_nom():
+    port = Port(
+        m2_prevoir_pipeline=_reponse_m2(),
+        m2_rejouer_recu_commercial={"ok": True, "resultat": {"accepte": True, "resultat": {"identique": True}}},
+    )
+    scenario = sc.chiffrer(
+        "leads_niveau_hypothetique", PIPELINE, PIPE_OPTIONS, jour=JOUR, horodatage=HORO, lecteur=port
+    )
+    assert scenario["impacts"][0]["valeurs"]["serie"] == "leads_ingeres"

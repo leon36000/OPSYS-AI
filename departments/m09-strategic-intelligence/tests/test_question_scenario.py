@@ -214,3 +214,51 @@ def test_question_piegee_est_traitee_en_temps_borne(texte):
     with contextlib.suppress(ValueError):  # un refus nommé est une réponse : seule la durée compte ici
         qs.interpreter(texte[: qs.MAX_QUESTION])
     assert time.perf_counter() - debut < 2.0
+
+
+# --- Bornes exactes, mots-nombres et extraits ------------------------------------------------------------------------
+def test_la_longueur_maximale_fixe_est_de_500_caracteres_et_501_est_refuse():
+    admise = "Baisse des leads de 30 %" + " " * 3
+    assert len(admise) < 500 and qs.interpreter(admise)["statut"] == "RECONNUE"
+    with pytest.raises(ValueError, match="REJ-QUESTION-LONGUEUR"):
+        qs.interpreter("baisse des leads de 30 %" + " " * (501 - len("baisse des leads de 30 %")))
+
+
+MOTS_NOMBRES_ATTENDUS = {
+    "un": 1,
+    "une": 1,
+    "deux": 2,
+    "trois": 3,
+    "quatre": 4,
+    "cinq": 5,
+    "six": 6,
+    "sept": 7,
+    "huit": 8,
+    "neuf": 9,
+    "dix": 10,
+    "onze": 11,
+    "douze": 12,
+    "treize": 13,
+    "quatorze": 14,
+    "quinze": 15,
+    "seize": 16,
+    "vingt": 20,
+    "trente": 30,
+}
+
+
+@pytest.mark.parametrize(("mot", "valeur"), sorted(MOTS_NOMBRES_ATTENDUS.items()))
+def test_chaque_mot_nombre_est_traduit_par_sa_valeur(mot, valeur):
+    (proposition,) = qs.interpreter(f"absences de {mot} employés pendant 2 jours")["propositions"]
+    assert proposition["choc"] == "absences" and proposition["parametres"]["personnes"] == str(valeur)
+
+
+def test_l_extrait_est_le_texte_complet_correspondant_pas_seulement_le_premier_groupe():
+    question = "Baisse des leads de 30 %"
+    (proposition,) = qs.interpreter(question)["propositions"]
+    assert proposition["extrait"] == qs.normaliser(question)
+
+
+def test_deux_chocs_coles_sans_separateur_restent_deux_propositions():
+    resultat = qs.interpreter("Mauvaise météo 7 joursBaisse des leads de 30 %")
+    assert [p["choc"] for p in resultat["propositions"]] == ["meteo", "baisse_leads"]

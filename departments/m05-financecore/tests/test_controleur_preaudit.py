@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import json
+from datetime import date
 
 import pytest
 from m5_financecore import constat_preaudit, recu_calcul
@@ -841,3 +842,170 @@ def test_une_contre_passation_d_un_remboursement_de_client_n_est_pas_un_paiement
     )
     k = un_seul(controler(d), "PAIEMENT_SANS_FACTURE")
     assert k["sources"] == [{"registre": "grand_livre", "reference": "gle-9"}]
+
+
+# ============================================================== mutants : bornes, comptes et messages du contrôleur
+def test_mutations_seuils_bornes_exactes():
+    s, p = c.seuils_depuis({"seuil_transaction_hors_norme_cad": "0.50"})
+    assert s["transaction_hors_norme_cad"] == "0.50" and p == []
+    s, p = c.seuils_depuis({"seuil_transaction_hors_norme_cad": "999999999999.99"})
+    assert s["transaction_hors_norme_cad"] == "999999999999.99" and p == []
+    for cle, maximum in (("jours_fenetre_doublon", 366), ("historique_changement_compte", 50)):
+        for valeur in (1, maximum):
+            s, p = c.seuils_depuis({cle: valeur})
+            assert s[cle] == valeur and p == []
+        for valeur in (0, maximum + 1):
+            s, p = c.seuils_depuis({cle: valeur})
+            assert s[cle] is None and p
+
+
+def test_mutations_jour_et_cle_de_constat():
+    assert c._jour(None) is None
+    assert c._jour("2026-01-05") == date(2026, 1, 5)
+    assert c._jour("2026-01-05T10:00:00") == date(2026, 1, 5)
+    assert c._jour("2026-01-05é") == date(2026, 1, 5)
+    sources = [{"registre": "r", "reference": f"R-{i}"} for i in range(13)]
+    k = c._constat("DOUBLON_PROBABLE", "raison", sources, "action")
+    assert len(k["sources"]) == 12 and k["sources_total"] == 13 and len(k["cle"]) == 19
+
+
+def test_mutations_facture_sans_paiement_dit_le_numero_et_compte_la_partielle():
+    d = dossier_propre()
+    d["factures_clients"][1]["echeance"] = "2026-03-30"
+    k = un_seul(controler(d), "FACTURE_SANS_PAIEMENT")
+    assert "F-1002" in k["raison"]
+    d = dossier_propre()
+    d["factures_clients"][1]["echeance"] = None
+    r = controler(d)
+    regle = next(x for x in r["regles"] if x["regle"] == "FACTURE_SANS_PAIEMENT")
+    assert regle["etat"] == "PARTIELLE" and "1 facture(s)" in regle["manque"][0]
+
+
+def test_mutations_flux_exige_un_montant_strictement_positif():
+    def flux(debit, credit):
+        return c._flux({"lignes": [["1010", debit, "0.00"], ["1100", "0.00", credit]]}, "1010", "1100")
+
+    assert flux("0.00", "1.00") is False
+    assert flux("1.00", "0.00") is False
+    assert flux("0.50", "1.00") is True
+    assert flux("1.00", "0.50") is True
+
+
+def test_mutations_depense_sans_recu_charge_positive_et_montant_du_debit():
+    d = dossier_propre()
+    d["ecritures"].append(
+        ecriture("gle-z", "saisie:recu:Z", "2026-03-03", "recu", "Z", (("5100", "0.00", None), ("1010", None, "0.00")))
+    )
+    assert [k for k in controler(d)["constats"] if k["regle"] == "DEPENSE_SANS_RECU"] == []
+    d = dossier_propre()
+    d["ecritures"].append(
+        ecriture("gle-z", "saisie:recu:Z", "2026-03-03", "recu", "Z", (("5100", "0.50", None), ("1010", None, "0.50")))
+    )
+    assert un_seul(controler(d), "DEPENSE_SANS_RECU")["montant_cad"] == "0.50"
+    d = dossier_propre()
+    d["ecritures"].append(
+        ecriture(
+            "gle-z",
+            "saisie:recu:Z",
+            "2026-03-03",
+            "recu",
+            "Z",
+            (("5100", "25.00", None), ("1010", "10.00", None), ("1010", None, "25.00"), ("2100", None, "10.00")),
+        )
+    )
+    assert un_seul(controler(d), "DEPENSE_SANS_RECU")["montant_cad"] == "25.00"
+
+
+def _ecart_taxe(cote, reference, role="tps_a_percevoir"):
+    return {
+        "cote": cote,
+        "role": role,
+        "reference": reference,
+        "raison": "montant différent",
+        "attendu": "1.00",
+        "au_grand_livre": "2.00",
+    }
+
+
+def test_mutations_taxe_regroupement_libelle_et_absence_d_illisibles():
+    d = dossier_propre()
+    d["taxes"]["ecarts"] = [_ecart_taxe("clients", None), _ecart_taxe("clients", "", role="tvq_a_percevoir")]
+    assert len([k for k in controler(d)["constats"] if k["regle"] == "TAXE_INCOHERENTE"]) == 1
+    d = dossier_propre()
+    d["taxes"]["ecarts"] = [_ecart_taxe("clients", "F2")]
+    k = un_seul(controler(d), "TAXE_INCOHERENTE")
+    assert k["raison"].startswith("Taxes à percevoir") and k["sources"][0]["registre"] == "factures"
+    d = dossier_propre()
+    del d["taxes"]["illisibles"]
+    regle = next(x for x in controler(d)["regles"] if x["regle"] == "TAXE_INCOHERENTE")
+    assert regle["etat"] == "EVALUEE"
+
+
+def test_mutations_doublon_ecriture_automatique_jamais_signalee():
+    d = dossier_propre()
+    frais = (("5990", "25.00", None), ("1010", None, "25.00"))
+    d["ecritures"] += [
+        ecriture("gle-7", "auto:manuel:1", "2026-03-04", "manuelle", "M-1", frais),
+        ecriture("gle-8", "auto:manuel:2", "2026-03-04", "manuelle", "M-2", frais),
+    ]
+    d["pieces_liees"] += [["ecriture", "gle-7"], ["ecriture", "gle-8"]]
+    assert [k for k in controler(d)["constats"] if k["regle"] == "DOUBLON_PROBABLE"] == []
+
+
+def test_mutations_hors_norme_nomme_la_piece_avec_son_type():
+    d = dossier_propre()
+    d["seuils"]["transaction_hors_norme_cad"] = "1400.00"
+    depense = (("5600", "1500.00", None), ("1010", None, "1500.00"))
+    d["ecritures"].append(
+        ecriture("gle-hn", "saisie:recu:H", "2026-03-20", "recu", "H-1", depense)
+    )
+    d["pieces_liees"].append(["ecriture", "gle-hn"])
+    k = un_seul(controler(d), "TRANSACTION_HORS_NORME")
+    assert "recu:H-1" in k["raison"]
+
+
+def test_mutations_changement_compte_historique_court_et_date_illisible():
+    d = dossier_propre()
+    d["seuils"]["historique_changement_compte"] = 1
+    d["factures_fournisseurs"][1]["compte_charge"] = "5300"
+    k = un_seul(controler(d), "CHANGEMENT_COMPTE_INHABITUEL")
+    assert "5300" in k["raison"] and "5100" in k["raison"]
+    d = dossier_propre()
+    d["seuils"]["historique_changement_compte"] = 1
+    d["factures_fournisseurs"][1]["date_facture"] = "pas-une-date"
+    assert [k for k in controler(d)["constats"] if k["regle"] == "CHANGEMENT_COMPTE_INHABITUEL"] == []
+
+
+def test_mutations_changement_compte_ordre_par_date_et_non_par_identifiant():
+    d = dossier_propre()
+    d["seuils"]["historique_changement_compte"] = 2
+    d["factures_fournisseurs"][0].update(date_facture="2026-03-20", compte_charge="5300")
+    d["factures_fournisseurs"][1]["date_facture"] = "2026-02-10"
+    ajouter_fournisseur(d, "A3", "N-3", "2026-03-01", montant="90.00", compte="5100")
+    k = un_seul(controler(d), "CHANGEMENT_COMPTE_INHABITUEL")
+    assert k["sources"] == [{"registre": "comptes_a_payer", "reference": "A1"}]
+
+
+def test_mutations_changement_compte_ordre_a_date_egale_par_date_puis_id():
+    d = dossier_propre()
+    d["seuils"]["historique_changement_compte"] = 1
+    d["factures_fournisseurs"][0].update(date_facture="2026-03-01", compte_charge="5300")
+    d["factures_fournisseurs"][1].update(date_facture="2026-03-01", compte_charge="5100")
+    k = un_seul(controler(d), "CHANGEMENT_COMPTE_INHABITUEL")
+    assert k["sources"] == [{"registre": "comptes_a_payer", "reference": "A2"}]
+
+
+def test_mutations_piste_audit_references_de_douze_caracteres():
+    d = dossier_propre()
+    d["anomalies_gl"] = ["anomalie fictive"]
+    d["numerotation"] = {"ok": False, "defauts": ["trou dans la suite : 1002"]}
+    ks = [k for k in controler(d)["constats"] if k["regle"] == "PISTE_AUDIT_INCOMPLETE"]
+    assert len(ks) == 2 and all(len(k["sources"][0]["reference"]) == 12 for k in ks)
+
+
+def test_mutations_document_manquant_sans_numero_garde_l_identifiant():
+    d = dossier_propre()
+    d["factures_clients"][0]["numero"] = None
+    d["ecritures"] = [e for e in d["ecritures"] if e["id"] not in ("gle-1", "gle-2")]
+    ks = [k for k in controler(d)["constats"] if k["regle"] == "DOCUMENT_MANQUANT"]
+    assert len(ks) == 2 and all("F1" in k["raison"] for k in ks)

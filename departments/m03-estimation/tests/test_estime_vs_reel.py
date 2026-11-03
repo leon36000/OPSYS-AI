@@ -381,6 +381,136 @@ def test_wct_id_distincts_coexistent():
     assert len(registre_cible) == 2
 
 
+# -- schéma 3 de la trace : cohérence quantité x taux, identité de calibration -------------------
+def _trace_schema3(**surcharges):
+    trace = {
+        "version_schema": 3, "semantique_temps": "duree_ecoulee_intervention",
+        "duree_estimee_minutes": "80", "quantite": "2", "taux_minutes_par_unite": "40",
+        "taux_minutes_par_unite_source": "35", "calibration_version_id": "a" * 64,
+    }
+    trace.update(surcharges)
+    return trace
+
+
+def _devis_et_maillon_schema3(trace=None, **surcharges_maillon):
+    registre_devis = []
+    source_hash = "a" * 64
+    _creer_devis(registre_devis, estimation_source_hash=source_hash)
+    maillon = _maillon_estimation(
+        hash_maillon=source_hash, duree_estimee_minutes="80",
+        trace_calibration_temps=_trace_schema3() if trace is None else trace, **surcharges_maillon,
+    )
+    return registre_devis, [maillon]
+
+
+def test_trace_schema_trois_coherente_donne_la_duree_et_sa_provenance():
+    registre_devis, maillons = _devis_et_maillon_schema3()
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert charge["duree_estimee_minutes"] == "80"
+    assert charge["duree_origine"] == {
+        "origine": "calibration", "calibration_version_id": "a" * 64,
+        "taux_minutes_par_unite_source": "35", "taux_minutes_par_unite": "40",
+    }
+
+
+def test_trace_schema_trois_accepte_des_quantites_et_taux_strictement_entre_zero_et_un():
+    trace = _trace_schema3(duree_estimee_minutes="20", quantite="0.5", taux_minutes_par_unite="40")
+    registre_devis, maillons = _devis_et_maillon_schema3(trace)
+    maillons[0]["charge"]["duree_estimee_minutes"] = "20"
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert charge["duree_estimee_minutes"] == "20"
+
+
+def test_trace_schema_trois_accepte_un_taux_et_un_taux_source_sous_un():
+    trace = _trace_schema3(duree_estimee_minutes="20", quantite="40", taux_minutes_par_unite="0.5",
+                           taux_minutes_par_unite_source="0.5")
+    registre_devis, maillons = _devis_et_maillon_schema3(trace)
+    maillons[0]["charge"]["duree_estimee_minutes"] = "20"
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert charge["duree_estimee_minutes"] == "20"
+
+
+@pytest.mark.parametrize("trace", [
+    _trace_schema3(quantite="0"),
+    _trace_schema3(taux_minutes_par_unite="0"),
+    _trace_schema3(taux_minutes_par_unite_source="0"),
+    _trace_schema3(taux_minutes_par_unite="41"),                       # produit différent de la durée
+    _trace_schema3(calibration_version_id="a" * 63),
+    _trace_schema3(calibration_version_id="a" * 65),
+    _trace_schema3(calibration_version_id="g" * 64),
+    {"version_schema": 4, "semantique_temps": "duree_ecoulee_intervention", "duree_estimee_minutes": "80",
+     "quantite": "2", "taux_minutes_par_unite": "40", "taux_minutes_par_unite_source": "35",
+     "calibration_version_id": "a" * 64},
+])
+def test_trace_schema_trois_incoherente_ou_hors_schema_ne_devient_pas_une_duree(trace):
+    registre_devis, maillons = _devis_et_maillon_schema3(trace)
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert "duree_estimee_minutes" not in charge and "duree_origine" not in charge
+
+
+def test_trace_schema_deux_reste_au_bareme_meme_avec_un_identifiant_de_calibration():
+    trace = {"version_schema": 2, "semantique_temps": "duree_ecoulee_intervention",
+             "duree_estimee_minutes": "80", "calibration_version_id": "a" * 64}
+    registre_devis, maillons = _devis_et_maillon_schema3(trace)
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert charge["duree_estimee_minutes"] == "80"
+    assert charge["duree_origine"]["origine"] == "bareme"
+
+
+def test_estimation_sans_trace_de_temps_ne_produit_aucune_duree():
+    registre_devis, maillons = _devis_et_maillon_schema3(trace=None)
+    del maillons[0]["charge"]["trace_calibration_temps"]
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert "duree_estimee_minutes" not in charge
+
+
+def test_duree_etroite_entre_zero_et_un_est_une_vraie_duree_pas_un_rejet():
+    ecart, verdict = estime_vs_reel.ecart_relatif(Decimal("0.5"), Decimal("1"))
+    assert verdict is None and ecart == Decimal("1")
+
+
+@pytest.mark.parametrize("brute, attendu", [("0", None), ("1", "1"), ("Infinity", None), ("NaN", None)])
+def test_duree_estimee_non_finie_nulle_ou_un_seul_est_traitee_exactement(brute, attendu):
+    trace = {"version_schema": 2, "semantique_temps": "duree_ecoulee_intervention", "duree_estimee_minutes": brute}
+    registre_devis, maillons = _devis_et_maillon_schema3(trace)
+    maillons[0]["charge"]["duree_estimee_minutes"] = brute
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert charge.get("duree_estimee_minutes") == attendu
+
+
+def test_identifiant_de_source_non_hexadecimal_n_est_jamais_le_lien_exact():
+    source_hash = "g" * 64
+    devis = {"devis_id": "M3-DEVIS-001", "lead_id": "lead-001", "estimation_source_hash": source_hash}
+    maillons = [_maillon_estimation(hash_maillon=source_hash, duree_estimee_minutes="80")]
+    assert estime_vs_reel._estimation_origine(devis, maillons) is None
+
+
+def test_un_trace_de_duree_divergente_n_est_pas_retenu_meme_si_le_maillon_est_bien_lie():
+    trace = {"version_schema": 2, "semantique_temps": "duree_ecoulee_intervention", "duree_estimee_minutes": "70"}
+    registre_devis, maillons = _devis_et_maillon_schema3(trace)
+    maillons[0]["charge"]["duree_estimee_minutes"] = "80"
+    charge = estime_vs_reel.avec_duree_estimee({}, "M3-DEVIS-001", registre_devis, maillons)
+    assert "duree_estimee_minutes" not in charge
+
+
+def test_le_detail_d_absence_dit_les_deux_faits_vrais():
+    registre_devis = []
+    _creer_devis(registre_devis)
+    verdict = estime_vs_reel._duree_estimee_minutes("M3-DEVIS-001", registre_devis, [])[1]
+    assert "devis trouvé=True" in verdict["detail"]
+    assert "référence exacte exploitable=False" in verdict["detail"]
+
+
+def test_une_variance_arrivee_avant_son_wct_n_est_pas_lue_au_hasard():
+    registre_cible = [
+        {"type_entree": "variance_recue", "wct_id": "wct-001", "materiaux": {"lignes": []}},
+        {"type_entree": "wct_recu", "wct_id": "wct-001", "devis_id": "M3-DEVIS-001",
+         "horodatage_completion": "2026-09-28T14:00:00-04:00"},
+    ]
+    resultats, verdict = estime_vs_reel.lire_ecarts(registre_cible, "M3-DEVIS-001", None, None)
+    assert verdict is None and [r["wct_id"] for r in resultats] == ["wct-001"]
+
+
 # -- enregistrer_variance_chantier : matériaux, seulement au statut evaluee ----------------------
 def test_variance_non_evaluee_ne_touche_jamais_le_registre():
     registre_cible = []
@@ -516,6 +646,32 @@ def test_lire_ecarts_borne_jusqua_exclue():
     )
     assert verdict is None
     assert resultats == []
+
+
+def test_lire_ecarts_borne_depuis_est_incluse():
+    registre_cible = []
+    estime_vs_reel.enregistrer_travaux_termines(
+        _charge_wct(devis_id=None, horodatage_completion="2026-09-01T00:00:00-04:00"), [], [], registre_cible
+    )
+    resultats, verdict = estime_vs_reel.lire_ecarts(
+        registre_cible, None, "2026-09-01T00:00:00-04:00", "2026-10-01T00:00:00-04:00"
+    )
+    assert verdict is None and [r["wct_id"] for r in resultats] == ["wct-001"]
+
+
+def test_lire_ecarts_periode_vide_ou_d_un_seul_cote_sans_fuseau_est_refusee():
+    _verdict_attendu(
+        estime_vs_reel.lire_ecarts([], None, "2026-09-01T00:00:00-04:00", "2026-09-01T00:00:00-04:00"),
+        "REJ-ECART-PERIODE-INVALIDE",
+    )
+    _verdict_attendu(
+        estime_vs_reel.lire_ecarts([], None, "2026-09-01T00:00:00", "2026-10-01T00:00:00-04:00"),
+        "REJ-ECART-PERIODE-INVALIDE",
+    )
+    _verdict_attendu(
+        estime_vs_reel.lire_ecarts([], None, "2026-09-01T00:00:00-04:00", "2026-10-01T00:00:00"),
+        "REJ-ECART-PERIODE-INVALIDE",
+    )
 
 
 def test_lire_ecarts_rend_main_doeuvre_et_materiaux_compacts():

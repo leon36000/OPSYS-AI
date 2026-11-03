@@ -130,3 +130,42 @@ def test_la_vue_pagine_du_plus_recent_au_plus_ancien():
     vue = esc.vue(chaine, depart=0, limite=2)
     assert [a["jour"] for a in vue["avis"]] == ["2026-10-28", "2026-10-27"] and vue["prochain_depart"] == 2
     assert all(a["externe"] is False for a in vue["avis"]) and rk is not None
+
+
+def test_le_texte_de_l_avis_ignore_les_valeurs_nulles_et_les_blocs_imbriques():
+    radar = _radar()
+    risque = copy.deepcopy(esc.selection(radar)[0])
+    risque["mesure"] = {
+        "valeur": "6",
+        "unite": "plaintes",
+        "periode_jours": None,
+        "periode": {"debut": "2026-10-21", "fin": "2026-10-28"},
+    }
+    risque["seuil"] = {"valeur": "3", "unite": "plaintes", "note": None, "details": {"multiple": "1.5"}}
+    texte = esc.texte_avis(risque)
+    assert "valeur = 6" in texte and "unite = plaintes" in texte and "valeur = 3" in texte
+    assert "periode_jours" not in texte and "note" not in texte and "details" not in texte
+    assert "periode = " not in texte
+
+
+def test_la_vue_par_defaut_rend_les_dix_derniers_et_le_prochain_depart_suit_la_page():
+    radar = _radar()
+    risque = esc.selection(radar)[0]
+    chaine: list = []
+    for jour in range(1, 13):
+        chaine.append(esc.avis(chaine, risque, radar, connaissance=f"2026-09-{jour:02d}T08:00:00Z", par="a"))
+    vue = esc.vue(chaine)
+    assert vue["depart"] == 0 and len(vue["avis"]) == 10 and vue["prochain_depart"] == 10
+    assert [a["jour"] for a in vue["avis"]][0] == "2026-09-12"
+    fin = esc.vue(chaine, depart=10, limite=5)
+    assert len(fin["avis"]) == 2 and fin["prochain_depart"] is None
+
+
+def test_le_prochain_depart_est_nul_quand_la_page_atteint_exactement_la_fin():
+    radar = _radar()
+    risque = esc.selection(radar)[0]
+    chaine: list = []
+    for jour in ("01", "02", "03"):
+        chaine.append(esc.avis(chaine, risque, radar, connaissance=f"2026-09-{jour}T08:00:00Z", par="a"))
+    vue = esc.vue(chaine, depart=1, limite=2)
+    assert len(vue["avis"]) == 2 and vue["prochain_depart"] is None
