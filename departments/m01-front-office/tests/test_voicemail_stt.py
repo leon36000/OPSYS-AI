@@ -401,3 +401,23 @@ def test_transcription_reussie_apres_panne_stt_reprend_le_voicemail_sans_second_
     assert reprise["m1"]["resultat"]["transcription_conservee"] is True
     assert reprise["m1"]["resultat"]["tache_rappel"]["transfert_id"] == rappel_initial
     assert len(_ServeurSTT.requetes) == 2
+
+
+def test_audio_ref_est_transmis_a_l_import_sans_conserver_l_audio(capacites_m1, serveur_stt, tmp_path):
+    fichier = _wav(tmp_path / "appel-audio-ref-fictif.wav")
+    reference = "https://audio.example.test/appels/fictif-audio-ref.wav"
+    resultat = voicemail_stt.transcrire_et_importer(
+        fichier.read_bytes(), suffixe=".wav", capacites=capacites_m1,
+        configuration=_client(serveur_stt), audio_ref=reference,
+        confiance_transcription="haute", **_args(),
+    )
+    assert resultat["statut"] == "transcrit"
+    assert resultat["m1"]["resultat"]["voicemail"]["audio"] == {
+        "reference": reference, "conserve": False, "politique": "non validée",
+    }
+    with stockage.transaction():
+        (importe,) = [
+            ligne for ligne in outils_m1._obtenir_registre().lire()
+            if ligne.get("type_entree") == "appel_importe"
+        ]
+    assert importe["audio_ref"] == reference and importe["confiance_transcription"] == "haute"

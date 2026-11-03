@@ -5,6 +5,27 @@ Front Office IA — reception omnicanale, voix 0->5, qualification, adjointe
 Statut: PARTIAL (EPIC E — vague 1 livrée en mode ombre : registre, machine à états des phases
 voix 0->5, garde-fou des interdits absolus, qualification, adaptateurs, digest.)
 
+## Appel manqué complet et messagerie vocale intelligente — tranche du 3 novembre 2026
+
+**M1-C (M1.4).** Le gabarit fixe `sms_appel_manque` dit « Nous avons manqué votre appel » et porte la divulgation
+« assistant virtuel (intelligence artificielle) ». Un appel manqué importé avec `nom_entreprise` prépare un **brouillon**
+SMS (gouvernance SMS existante : STOP, fenêtre de 24 h, un seul brouillon) ; rien n'est envoyé. La demande d'envoi reste
+une **N4** sur `m1_emettre_notification` avec le texte exact, et `m1_consigner_contact_reussi` (N3, humain) clôt le rappel
+avec `delai_rappel_s` mesuré entre la réception de l'appel et la décision. Un transfert sans appel réel, une heure
+antérieure, un STOP ou un numéro déjà retiré sont refusés par un code nommé.
+
+**M1-F (M1.5).** `voicemail_intelligent.py` compose un **résumé déterministe** et extrait, par règles bornées, nom,
+téléphone, service, ville, adresse et urgence. Une transcription conservée (`accorde`) alimente la qualification existante ;
+une demande explicite de rappel ouvre une tâche humaine même si un lead part à M2. Une confiance `faible`, un texte sans
+consentement ou une extraction incomplète ne créent **aucun lead inventé** : la tâche de rappel reste, et la réponse dit
+quoi demander. `audio_ref` n'est qu'un lien (http(s) ou identifiant opaque) : aucun audio n'est conservé, `data:`/`file:`
+sont refusés.
+
+Prouvé sur SQLite avec le vrai registre, le vrai bus et le vrai sas N4, données fictives : `tests/test_appel_manque_complet.py`
+(15) et `tests/test_voicemail_intelligent.py` (29). **Limites** : aucun transport SMS/téléphone, aucun STT réel, extraction
+lexicale et non sémantique, adresse personnelle non couverte par la rétention Loi 25, contact réussi = déclaration humaine.
+Détail : [`docs/architecture/M1-APPEL-MANQUE-VOICEMAIL.md`](../../docs/architecture/M1-APPEL-MANQUE-VOICEMAIL.md).
+
 ## Profil de réception proposé par le pack, et bac à sable vocal textuel — tranche du 2 novembre 2026
 
 **Profil prêt à qualifier (M1-A).** Sans profil, M1 enregistre tout et ne qualifie rien (questions, vocabulaire des plaintes,

@@ -96,6 +96,7 @@ from . import (
     suivi,
     transferts,
     verdicts,
+    voicemail_intelligent,
 )
 from . import horodatage as controle_horodatage
 from .phases_voix import TransitionInterdite
@@ -105,6 +106,8 @@ _CANAUX = ("telephone", "courriel", "formulaire", "texte")
 _DEPARTEMENT = "m01-front-office"
 _NOM_REGISTRE = "principal"
 _FOURNISSEURS_APPEL_HOTE = frozenset({"mock", "twilio", "telnyx", "plivo"})
+_CONFIANCE_TRANSCRIPTION = frozenset({"haute", "faible"})
+_REFERENCE_AUDIO = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/?#&=%+\-]{0,499}$")
 
 # La politique Loi 25 « photos » (T3), dont M1 lit le statut : dérivé de __file__, jamais du répertoire courant (même
 # discipline que M3). parents[4] depuis src/m1_front_office/outils.py atteint la racine du dépôt.
@@ -208,14 +211,22 @@ def importer_appel_manuellement(
     statut: str,
     transcription: str | None = None,
     consentement_enregistrement: str | None = None,
+    nom_entreprise: str | None = None,
+    audio_ref: str | None = None,
+    confiance_transcription: str | None = None,
 ) -> dict[str, Any]:
     """Importe manuellement un appel ou une arrivée tardive de transcription, sans fournisseur vocal.
 
     `source` décrit explicitement le journal/export consulté ; les identifiants d'événement et d'appel sont ceux de
     cette source. Le même appel peut recevoir ensuite un événement `voicemail` après `manque`. Le texte n'entre dans
-    la qualification que si le consentement explicite est `accorde`; aucun média/audio n'est accepté ou conservé.
-    Une demande qualifiée passe par l'événement M1→M2 existant. Sinon une tâche de rappel durable apparaît dans « À
-    voir ». Aucun appel ni message sortant n'est émis.
+    la qualification que si le consentement explicite est `accorde`; aucun média/audio n'est accepté ou conservé :
+    `audio_ref` n'est qu'un lien, et il est refusé s'il n'a pas la forme d'une URL ou d'un identifiant opaque.
+    `nom_entreprise`, s'il est fourni, prépare le brouillon SMS « Nous avons manqué votre appel » ; absent, aucun
+    brouillon n'est inventé et la réponse dit quoi fournir. `confiance_transcription` (`haute` ou `faible`) est
+    déclarée par l'hôte STT : une confiance faible ne fait entrer aucun texte dans la qualification et laisse un
+    rappel humain. Une demande qualifiée passe par l'événement M1→M2 existant. Sinon, ou si le message vocal demande
+    explicitement un rappel, une tâche de rappel durable apparaît dans « À voir ». Aucun appel ni message sortant
+    n'est émis.
     """
     if isinstance(source, str) and source.strip().startswith("voice-call:"):
         raise ValueError("REJ-SOURCE-RESERVEE: cette provenance appartient à l'hôte téléphonique")
@@ -223,6 +234,7 @@ def importer_appel_manuellement(
         source, evenement_id, appel_id, recu_le, telephone, statut, transcription,
         consentement_enregistrement, declenchement="appel_manuel",
         prefixe_signal="appel-manuel", source_contact="numéro de téléphone importé manuellement",
+        nom_entreprise=nom_entreprise, audio_ref=audio_ref, confiance_transcription=confiance_transcription,
     )
 
 
@@ -384,6 +396,39 @@ def _reprendre_voicemail_sans_transcription(
     return reponse
 
 
+def _preparer_brouillon_appel_manque(
+    conversation_id: str, horodatage: str, nom_entreprise: str | None
+) -> dict[str, Any]:
+    """Prépare le brouillon SMS « Nous avons manqué votre appel » par la gouvernance SMS EXISTANTE.
+
+    Aucun envoi : `assistant_sms.autoriser` refuse un correspondant retiré (STOP), la fenêtre échue ou l'absence
+    d'appel entrant ; un refus est rendu avec son code, jamais remplacé par un texte par défaut. L'absence de nom
+    d'entreprise est un refus nommé : le gabarit ne s'invente pas.
+    """
+    if not isinstance(nom_entreprise, str) or not nom_entreprise.strip():
+        return {
+            "prepare": False,
+            "raison": "REJ-M1-APPEL-ENTREPRISE: donne le nom de l'entreprise (paramètre nom_entreprise) pour que "
+            "le gabarit « Nous avons manqué votre appel » puisse être rendu ; aucun brouillon n'est inventé",
+        }
+    from . import assistant_sms_outils
+
+    try:
+        reponse = assistant_sms_outils.preparer_message_sms(
+            conversation_id, "sms_appel_manque", {"entreprise": nom_entreprise.strip()}, horodatage
+        )
+    except ValueError as exc:
+        return {"prepare": False, "raison": str(exc)}
+    resultat = reponse["resultat"]
+    return {
+        "prepare": True,
+        "brouillon_id": resultat["brouillon_id"],
+        "statut": resultat["statut"],
+        "deja_prepare": resultat["deja_prepare"],
+        "texte": resultat["texte"],
+    }
+
+
 def _importer_appel(
     source: str,
     evenement_id: str,
@@ -397,6 +442,9 @@ def _importer_appel(
     declenchement: str,
     prefixe_signal: str,
     source_contact: str,
+    nom_entreprise: str | None = None,
+    audio_ref: str | None = None,
+    confiance_transcription: str | None = None,
 ) -> dict[str, Any]:
     """Owner partagé de l'import M1; toutes les provenances sont fixées par wrappers internes."""
     if not isinstance(source, str) or not source.strip() or len(source) > 120:
@@ -415,11 +463,25 @@ def _importer_appel(
         raise ValueError("REJ-TRANSCRIPTION-INVALIDE: transcription absente ou vide")
     if statut == "manque" and transcription:
         raise ValueError("REJ-STATUT-INVALIDE: un appel manqué ne porte pas de transcription")
-    if statut == "voicemail" and transcription and consentement_enregistrement != "accorde":
+    if confiance_transcription is not None and confiance_transcription not in _CONFIANCE_TRANSCRIPTION:
+        raise ValueError(
+            "REJ-CONFIANCE-TRANSCRIPTION: attendu `haute` ou `faible`, ou absent si l'hôte ne la fournit pas"
+        )
+    if audio_ref is not None and (
+        not isinstance(audio_ref, str)
+        or _REFERENCE_AUDIO.fullmatch(audio_ref) is None
+        or audio_ref.lower().startswith(("data:", "file:"))
+    ):
+        raise ValueError(
+            "REJ-AUDIO-REFERENCE: audio_ref est un LIEN ou un identifiant opaque (URL http(s)), jamais un "
+            "contenu audio, un data: ou un file:"
+        )
+    faible_confiance = confiance_transcription == "faible"
+    if statut == "voicemail" and transcription and not faible_confiance and consentement_enregistrement != "accorde":
         # On ne rejette pas l'événement source : le message vocal est bien reçu, mais son contenu reste hors registre.
         transcription_a_traiter = None
     else:
-        transcription_a_traiter = transcription
+        transcription_a_traiter = None if faible_confiance else transcription
 
     contenu = {
         "source": source.strip(), "evenement_id": evenement_id.strip(), "appel_id": appel_id.strip(),
@@ -490,25 +552,52 @@ def _importer_appel(
 
     conversation_id = reception.identifiant_de_conversation("sms", telephone)
     signal_id = f"{prefixe_signal}:{contenu['source']}:{contenu['evenement_id']}"
-    texte = transcription_a_traiter or (
-        "Appel manqué, rappel demandé." if statut == "manque"
-        else "Message vocal reçu; contenu non conservé faute de consentement explicite."
-    )
     zone, verdict_zone = taxonomie.charger_zone_desservie()
     if verdict_zone is not None:
         raise ValueError(f"{verdict_zone['code']}: {verdict_zone['detail']}")
+    services, verdict_services = taxonomie.charger_services()
+    if verdict_services is not None:
+        raise ValueError(f"{verdict_services['code']}: {verdict_services['detail']}")
     fenetre, verdict_fenetre = taxonomie.charger_fenetre_conversation()
     if verdict_fenetre is not None and verdict_fenetre["code"] != taxonomie.VERDICT_FENETRE_NON_CONFIGUREE:
         raise ValueError(f"{verdict_fenetre['code']}: {verdict_fenetre['detail']}")
+
+    analyse = None
+    if statut == "voicemail" and transcription_a_traiter is not None:
+        # L'analyse ne reçoit QUE le texte conservé avec consentement (ou la confiance haute) ; aucune adresse ne
+        # peut donc être lue dans un message dont le texte n'a pas le droit d'être conservé.
+        analyse = voicemail_intelligent.analyser(
+            transcription_a_traiter, telephone=telephone, services=services, zone_desservie=list(zone)
+        )
+    if transcription_a_traiter is not None:
+        texte = transcription_a_traiter
+        motif_voicemail = "analyse"
+    elif statut == "manque":
+        texte = "Appel manqué, rappel demandé."
+        motif_voicemail = None
+    elif faible_confiance:
+        texte = "Message vocal reçu; transcription de confiance faible, rappel humain."
+        motif_voicemail = "confiance_faible"
+    else:
+        texte = "Message vocal reçu; contenu non conservé faute de consentement explicite."
+        motif_voicemail = "sans_consentement"
     resultat = _traiter(
         texte, "telephone", conversation_id, signal_id, recu_le, list(zone),
         consentement_enregistrement if transcription_a_traiter else None, declenchement, None, None,
         contact_canal={"telephone": telephone}, fenetre_minutes=fenetre,
     )
     # Les appels manqués et les messages non qualifiés deviennent une tâche humaine durable. Une plainte/urgence
-    # garde la priorité de son transfert existant ; un lead qualifié est déjà transmis au vrai CRM M2.
+    # garde la priorité de son transfert existant ; un lead qualifié est déjà transmis au vrai CRM M2. Un message
+    # vocal qui demande EXPLICITEMENT un rappel garde sa propre tâche, même quand le lead est déjà parti à M2.
+    decision = resultat.get("decision")
+    demande_rappel = bool(analyse and analyse["demande_rappel"])
+    besoin_tache = decision not in {
+        "TRANSMETTRE_M2", "ESCALADE_PLAINTE", "ESCALADE_URGENCE", "TRANSFERT_EN_COURS",
+    }
+    if statut == "voicemail" and demande_rappel and decision == "TRANSMETTRE_M2":
+        besoin_tache = True
     transfert_resultat = None
-    if resultat.get("decision") not in {"TRANSMETTRE_M2", "ESCALADE_PLAINTE", "ESCALADE_URGENCE", "TRANSFERT_EN_COURS"}:
+    if besoin_tache:
         signal = next((ligne for ligne in reg.lire() if ligne.get("type_entree") == "signal"
                        and ligne.get("signal_id") == signal_id), None)
         if signal is not None:
@@ -524,21 +613,51 @@ def _importer_appel(
                 ligne_id = reg.ajouter(ligne)
                 transfert_resultat = {"transfert_id": ligne["transfert_id"], "statut": "ouvert",
                                       "ligne_id": ligne_id, "envoi_automatique": False}
-    elif resultat.get("decision") == "TRANSFERT_EN_COURS":
+    elif decision == "TRANSFERT_EN_COURS":
         transfert_ouvert = resultat.get("transfert", {})
         if transfert_ouvert.get("type_transfert") == "ventes":
             transfert_resultat = {"transfert_id": transfert_ouvert["transfert_id"], "statut": "ouvert",
                                   "deja_ouvert": True, "envoi_automatique": False}
+    brouillon = (
+        _preparer_brouillon_appel_manque(conversation_id, recu_le, nom_entreprise) if statut == "manque" else None
+    )
+    if statut == "voicemail":
+        voicemail = {
+            "analyse": analyse,
+            "extraction": None if analyse is None else analyse["extraction"],
+            "resume": None if analyse is None else analyse["resume"],
+            "demande_rappel": demande_rappel,
+            "motif": motif_voicemail,
+            "audio": (
+                None if audio_ref is None
+                else {"reference": audio_ref, "conserve": False, "politique": "non validée"}
+            ),
+        }
+        resume_voicemail = (
+            analyse["resume"] if analyse is not None
+            else ("Message vocal reçu; transcription de confiance faible, rappel humain."
+                  if faible_confiance else "Message vocal reçu; contenu non conservé faute de consentement explicite.")
+        )
+    else:
+        voicemail = None
+        resume_voicemail = None
     reponse = {
         "accepte": True, "source": contenu["source"], "appel_id": contenu["appel_id"],
         "evenement_id": contenu["evenement_id"], "statut": statut,
         "transcription_conservee": transcription_a_traiter is not None,
         "traitement": resultat, "tache_rappel": transfert_resultat,
         "envoi_automatique": False,
+        "voicemail": voicemail, "resume_voicemail": resume_voicemail,
     }
+    if brouillon is not None:
+        reponse["brouillon_sms"] = brouillon
     trace_import = {"type_entree": "appel_importe", "source": contenu["source"],
                     "evenement_id": contenu["evenement_id"], "appel_id": contenu["appel_id"],
                     "statut": statut, "empreinte": empreinte, "horodatage": recu_le, "reponse": reponse}
+    if audio_ref is not None:
+        trace_import["audio_ref"] = audio_ref
+    if confiance_transcription is not None:
+        trace_import["confiance_transcription"] = confiance_transcription
     if fallback_v2:
         trace_import.update({"representation_fallback": "voicemail_manuel_v2",
                              "empreinte_reception": empreinte_reception})
@@ -1768,6 +1887,61 @@ def lire_transfert(transfert_id: str) -> dict[str, Any]:
     return {"accepte": True, "resultat": resultat}
 
 
+def consigner_contact_reussi(transfert_id: str, horodatage: str) -> dict[str, Any]:
+    """Une PERSONNE déclare le contact réussi d'un rappel issu d'un appel importé.
+
+    Ce n'est pas une clôture générique : le transfert doit être relié à un appel réel (`sources_appel_rappel`), et
+    l'outil mesure le délai entre la réception de l'appel et la décision humaine, en secondes exactes. Le motif est
+    fixe (aucun texte libre), la ligne de clôture porte `issue=contact_reussi`, `delai_rappel_s` et l'heure de l'appel.
+    Décision humaine : refusée à un agent qui n'a pas passé par l'approbation ou un jeton d'appareil `admin`.
+    """
+    acteur, refus = _acteur_humain("m1_consigner_contact_reussi")
+    if acteur is None:
+        return refus or _verdict_refus("REJ-HUMAIN-REQUIS", "acteur humain introuvable")
+    reg = _obtenir_registre()
+    lignes = reg.lire()
+    etat = _etat_du_transfert(lignes, transfert_id)
+    if etat is None:
+        return _verdict_refus("REJ-TRANSFERT-INCONNU", f"aucun transfert {transfert_id!r} au registre")
+    if not etat.ouvert:
+        return _verdict_refus("REJ-TRANSFERT-DEJA-CLOS", f"le transfert {transfert_id!r} est déjà clos")
+    sources = transferts.sources_appel_rappel(lignes, transfert_id)
+    if not sources:
+        return _verdict_refus(
+            "REJ-RAPPEL-SANS-APPEL",
+            "ce transfert n'est pas un rappel relié à un appel importé : la mesure du délai de rappel n'a pas de "
+            "source, utilise m1_clore_transfert pour une clôture sans mesure",
+        )
+    appel_recu_le = min(source["horodatage"] for source in sources)
+    quand = _horodatage_faisant_foi(horodatage)
+    try:
+        debut = dt.datetime.fromisoformat(appel_recu_le)
+        fin = dt.datetime.fromisoformat(quand)
+    except (TypeError, ValueError):
+        return _verdict_refus("REJ-HORODATAGE-INVALIDE", "horodatage ISO 8601 avec fuseau requis")
+    if debut.tzinfo is None or fin.tzinfo is None or fin.utcoffset() is None:
+        return _verdict_refus("REJ-HORODATAGE-INVALIDE", "horodatage ISO 8601 avec fuseau requis")
+    if fin < debut:
+        return _verdict_refus(
+            "REJ-RAPPEL-HORODATAGE-ANTERIEUR",
+            f"l'heure du contact ({quand}) précède la réception de l'appel ({appel_recu_le}) : aucune durée négative",
+        )
+    motif = "Contact réussi avec le client, déclaré par une personne."
+    verdict = transferts.verifier_cloture(motif, quand)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    delai_s = int((fin - debut).total_seconds())
+    ligne = transferts.ligne_de_cloture(
+        etat, par=acteur["par"], role=acteur["role"], voie=acteur["voie"], motif=motif, horodatage=quand
+    )
+    ligne.update({"issue": "contact_reussi", "delai_rappel_s": delai_s, "appel_recu_le": appel_recu_le})
+    ligne_id = reg.ajouter(ligne)
+    return {"accepte": True, "resultat": {
+        "transfert_id": transfert_id, "statut": "clos", "issue": "contact_reussi",
+        "delai_rappel_s": delai_s, "appel_recu_le": appel_recu_le, "contact_reussi_le": quand,
+        "clos_par": acteur["par"], "role": acteur["role"], "voie": acteur["voie"], "ligne_id": ligne_id}}
+
+
 def clore_transfert(transfert_id: str, motif: str, horodatage: str) -> dict[str, Any]:
     """Une PERSONNE clôt un transfert ouvert, avec son motif : il sort de la file « À voir ». Décision humaine : refusée
     à un agent qui n'a pas passé par l'approbation ou par un jeton d'appareil `admin`."""
@@ -2337,9 +2511,14 @@ def _outils_base() -> tuple[Outil, ...]:
             nom="m1_importer_appel_manuellement",
             description=(
                 "Importe un appel manqué ou un message vocal depuis une source explicitement nommée (journal/export "
-                "manuel). Ce n'est pas une intégration opérateur et aucun audio n'est accepté. Le texte vocal n'est "
-                "traité/conservé qu'avec consentement explicite `accorde`; sinon seul le fait d'appel est inscrit et "
-                "une tâche de rappel peut être créée. Un lead qualifié rejoint M2 par le contrat existant. Aucun "
+                "manuel). Ce n'est pas une intégration opérateur ; aucun contenu audio n'est accepté, seulement un "
+                "lien `audio_ref` (jamais conservé). Le texte vocal n'est traité/conservé qu'avec consentement "
+                "explicite `accorde`; sinon seul le fait d'appel est inscrit et une tâche de rappel peut être créée. "
+                "Une transcription de confiance `faible` ne fait entrer aucun texte dans la qualification. Pour un "
+                "message vocal, l'outil rend un résumé déterministe et l'extraction bornée (nom, téléphone, service, "
+                "adresse, urgence) ; une demande explicite de rappel ouvre une tâche même si un lead part à M2. Pour "
+                "un appel manqué, `nom_entreprise` prépare le brouillon SMS « Nous avons manqué votre appel » "
+                "(aucun envoi ; demande N4 séparée). Un lead qualifié rejoint M2 par le contrat existant. Aucun "
                 "appel, SMS ou courriel n'est envoyé. Un événement tardif `voicemail` peut compléter un appel `manque`."
             ),
             parametres={
@@ -2351,6 +2530,20 @@ def _outils_base() -> tuple[Outil, ...]:
                     "statut": {"type": "string", "enum": ["manque", "voicemail"]},
                     "transcription": {"type": ["string", "null"]},
                     "consentement_enregistrement": {"type": ["string", "null"]},
+                    "nom_entreprise": {
+                        "type": ["string", "null"], "maxLength": 120,
+                        "description": "Nom exact de l'entreprise pour le gabarit d'appel manqué ; absent, aucun "
+                        "brouillon n'est préparé et la réponse dit quoi fournir.",
+                    },
+                    "audio_ref": {
+                        "type": ["string", "null"], "maxLength": 500,
+                        "description": "Lien http(s) ou identifiant opaque de l'audio, conservé comme référence ; "
+                        "aucun contenu audio, data: ni file: n'est accepté.",
+                    },
+                    "confiance_transcription": {
+                        "type": ["string", "null"], "enum": ["haute", "faible", None],
+                        "description": "Déclarée par l'hôte STT ; `faible` laisse un rappel humain sans lead.",
+                    },
                 },
                 "required": ["source", "evenement_id", "appel_id", "recu_le", "telephone", "statut"],
                 "additionalProperties": False,
@@ -2632,6 +2825,32 @@ def _outils_base() -> tuple[Outil, ...]:
             # personne ; un appel d'appareil `admin` s'exécute « au départ » (ADR-0009 §4, addendum T1.4-h). L'outil
             # refuse lui-même tout appel qui n'est pas une décision humaine (`_acteur_humain`), même en `supervise`.
             # §9.5 M1 mobile (admin) : plaintes, transferts, « prendre en charge ».
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m1_consigner_contact_reussi",
+            description=(
+                "Une PERSONNE déclare un CONTACT RÉUSSI sur un rappel issu d'un appel manqué ou d'un message vocal "
+                "importé : la tâche est close (elle sort de « À voir ») et le délai de rappel est mesuré en secondes "
+                "exactes entre la réception de l'appel et cette décision. Décision humaine uniquement (appareil admin "
+                "ou approbation) ; refusée sur un transfert qui n'est pas relié à un appel réel."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "transfert_id": _TRANSFERT_ID,
+                    "horodatage": {
+                        "type": "string",
+                        "description": "ISO-8601 avec fuseau ; l'heure du serveur fait foi pour un appareil.",
+                    },
+                },
+                "required": ["transfert_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=consigner_contact_reussi,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+            # Même décision humaine que la clôture d'un transfert : l'outil refuse lui-même un agent seul.
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

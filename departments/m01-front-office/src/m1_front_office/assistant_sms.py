@@ -71,6 +71,7 @@ class EtatSms:
     opt_in_le: str | None
     retire_le: str | None
     reponse_possible: bool
+    appel_manque_le: str | None = None
 
     def vers_json(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -114,6 +115,16 @@ def etat_conversation(
         for m in lignes_m1
         if m.get("type_entree") == "signal" and m.get("source") == "sms" and m.get("conversation_id") == conversation_id
     ]
+    # Un appel entrant (manqué ou message vocal) est un signal du même correspondant : il ouvre la fenêtre de
+    # réponse de 24 h et permet le gabarit « Nous avons manqué votre appel », qui est la divulgation. Aucun numéro
+    # n'est lu ici : le registre relie déjà l'appel à cette conversation.
+    appels = [
+        m
+        for m in lignes_m1
+        if m.get("type_entree") == "signal"
+        and m.get("canal") == "telephone"
+        and m.get("conversation_id") == conversation_id
+    ]
     retrait = next(
         (
             m
@@ -134,7 +145,8 @@ def etat_conversation(
         t0 = _t(min(b["horodatage"] for b in livree))
         oui = [m for m in entrants if _t(m["horodatage"]) >= t0 and est_oui(m.get("contenu_filtre", ""))]
         opt_in_le = oui[0]["horodatage"] if oui else None
-    dernier = max((m["horodatage"] for m in entrants), key=_t, default=None)
+    dernier = max((m["horodatage"] for m in entrants + appels), key=_t, default=None)
+    appel_manque_le = max((m["horodatage"] for m in appels), key=_t, default=None)
     now = _t(maintenant)
     fenetre = dernier is not None and _t(dernier) <= now <= _t(dernier) + dt.timedelta(hours=FENETRE_REPONSE_H)
     if retrait is not None:
@@ -143,7 +155,7 @@ def etat_conversation(
         etat = "opt_in"
     elif demandee:
         etat = "opt_in_demande"
-    elif entrants:
+    elif entrants or appels:
         etat = "ouverte"
     else:
         etat = "inconnu"
@@ -156,6 +168,7 @@ def etat_conversation(
         opt_in_le,
         None if retrait is None else retrait["horodatage"],
         fenetre and retrait is None,
+        appel_manque_le,
     )
 
 
@@ -167,6 +180,11 @@ def autoriser(e: EtatSms, g: Gabarit, drafts: Mapping[str, Mapping[str, Any]]) -
         raise RefusSms("REJ-SMS-RETRAIT: le correspondant s'est retiré (STOP) : aucun message n'est préparé")
     if e.etat == "inconnu":
         raise RefusSms("REJ-SMS-AUCUN-ENTRANT: M1 n'écrit par SMS qu'à un correspondant qui lui a écrit")
+    if g.identifiant == "sms_appel_manque" and e.appel_manque_le is None:
+        raise RefusSms(
+            "REJ-SMS-AUCUN-APPEL: « Nous avons manqué votre appel » ne se prépare que pour un appel entrant "
+            "du même correspondant"
+        )
     if g.divulgation:
         if e.divulgation_demandee:
             raise RefusSms("REJ-SMS-DIVULGATION-DEJA: la divulgation est déjà demandée ou livrée")

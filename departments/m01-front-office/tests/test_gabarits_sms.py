@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from m1_front_office import assistant_sms as sms
 from m1_front_office import gabarits as gb
@@ -215,3 +217,53 @@ def test_identifiant_de_brouillon_stable_et_lie_au_texte():
         == sms.identifiant_brouillon(CONV, "sms_accuse_photos", "x")
         != sms.identifiant_brouillon(CONV, "sms_accuse_photos", "y")
     )
+    assert re.fullmatch(r"sb-[0-9a-f]{16}", a)
+
+
+def test_une_cloture_met_a_jour_le_statut_du_brouillon_existant():
+    s = [_brouillon(T0, "sms_accuse_photos", "sb-1"), _demande("sb-1"),
+         {"type_entree": sms.TYPE_CLOTURE, "conversation_id": CONV, "brouillon_id": "sb-1", "statut": "REFUSE"}]
+    assert sms.brouillons(s, CONV, {})["sb-1"]["statut"] == "REFUSE"
+
+def test_la_borne_exacte_d_un_sms_est_480_caracteres():
+    identifiant = "test_borne_480"
+    gb.GABARITS[identifiant] = gb.Gabarit(identifiant, 1, "sms", None, "x" * 480)
+    gb.GABARITS[identifiant + "_trop"] = gb.Gabarit(
+        identifiant + "_trop", 1, "sms", None, "x" * 481
+    )
+    try:
+        assert len(gb.rendre(identifiant, {})[1]) == 480
+        with pytest.raises(gb.RefusGabarit, match="LONGUEUR"):
+            gb.rendre(identifiant + "_trop", {})
+    finally:
+        del gb.GABARITS[identifiant]
+        del gb.GABARITS[identifiant + "_trop"]
+
+
+def test_les_phrases_promues_ne_doublent_pas_la_punctuation_et_en_ajoutent_une():
+    _, avec_point = gb.rendre("sms_rappel_rdv", RDV, ["Merci de votre patience."])
+    assert "Merci de votre patience.." not in avec_point and "Merci de votre patience." in avec_point
+    _, sans_point = gb.rendre("sms_rappel_rdv", RDV, ["Merci de votre patience"])
+    assert "Merci de votre patience." in sans_point
+
+def test_une_demande_ou_une_cloture_sans_brouillon_est_ignoree_sans_clef_inventee():
+    lignes = [
+        {"type_entree": sms.TYPE_DEMANDE, "conversation_id": CONV, "brouillon_id": "sb-orphelin", "demande_id": "d1"},
+        {"type_entree": sms.TYPE_CLOTURE, "conversation_id": CONV, "brouillon_id": "sb-orphelin2", "statut": "REFUSE"},
+    ]
+    assert sms.brouillons(lignes, CONV, {}) == {}
+
+def test_la_fenetre_de_24_heures_est_inclusive_et_un_oui_a_l_instant_meme_compte():
+    m1 = [_entrant(T0, "Allo")]
+    s = [_brouillon(T0, "sms_divulgation_opt_in", "sb-1"), _demande("sb-1")]
+    # OUI exactement à l'instant de la divulgation livrée : >= (et non >)
+    meme_instant = _etat([*m1, _entrant(T0, "oui")], s, statuts={"d1": "executee"})
+    assert meme_instant.etat == "opt_in"
+    # Fin de fenêtre exactement à 24 h : <= (et non <)
+    bord = _etat(m1, s, maintenant="2026-11-03T10:00:00-05:00", statuts={"d1": "executee"})
+    assert bord.reponse_possible
+
+def test_les_phrases_promues_dans_un_courriel_restent_apres_le_bonjour_et_avant_la_signature():
+    _, corps = gb.rendre("courriel_rdv_confirmation", RDV, ["Merci de votre patience."])
+    assert corps.startswith("Bonjour,")
+    assert "Merci de votre patience.\n\nAtelier Fictif" in corps

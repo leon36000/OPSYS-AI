@@ -47,6 +47,7 @@ def remplacements(m: dict[str, object]) -> dict[str, list[tuple[str, str]]]:
     return {
         "README.md": [
             (r"(\| Outils \| )\d+( \|)", rf"\g<1>{m['outils']}\2"),
+            (r"(\| Outils ouverts aux appareils \| )\d+( \|)", rf"\g<1>{m['appareils']}\2"),
             (r"(\| Tête alembic \| )\d+( \|)", rf"\g<1>{m['tete']}\2"),
             (r"(\| Fichiers de migration \| )\d+( \|)", rf"\g<1>{m['migrations']}\2"),
             (r"(\| Révision du registre MCP \| )\d+( \|)", rf"\g<1>{m['registre_revision']}\2"),
