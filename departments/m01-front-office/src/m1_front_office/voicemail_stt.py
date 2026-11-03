@@ -332,6 +332,8 @@ def transcrire_et_importer(
     configuration: ConfigurationSTT | None = None,
     consentement_transfert_externe: str | None = None,
     importeur: ImporteurM1 | None = None,
+    audio_ref: str | None = None,
+    confiance_transcription: str | None = None,
 ) -> dict[str, Any]:
     """Transcrit si permis, puis utilise toujours l'import d'appel canonique M1.
 
@@ -350,6 +352,10 @@ def transcrire_et_importer(
         "transcription": None,
         "consentement_enregistrement": None,
     }
+    if audio_ref is not None:
+        args_m1["audio_ref"] = audio_ref
+    if confiance_transcription is not None:
+        args_m1["confiance_transcription"] = confiance_transcription
     erreur: ErreurVoicemail | None = None
     empreinte_transcription: dict[str, Any] | None = None
     if consentement_enregistrement != "accorde":

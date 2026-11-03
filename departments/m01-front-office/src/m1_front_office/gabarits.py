@@ -66,6 +66,15 @@ GABARITS: Mapping[str, Gabarit] = {
             divulgation=True,
         ),
         Gabarit(
+            "sms_appel_manque",
+            1,
+            "sms",
+            None,
+            "Bonjour, ici l'assistant virtuel (intelligence artificielle) de {entreprise}. Nous avons manqué votre "
+            "appel; une personne vous rappellera. Répondez STOP pour ne plus recevoir de messages.",
+            divulgation=True,
+        ),
+        Gabarit(
             "sms_accuse_photos",
             1,
             "sms",
