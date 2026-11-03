@@ -167,3 +167,20 @@ département, approbations). Six outils fermés aux appareils : `m3_lire_apprent
   d'adéquation M4. Détail, décisions d'architecte, patron réutilisable et limites : [APPRENTISSAGE.md](../../docs/architecture/APPRENTISSAGE.md).
 - **Preuve** : `test_apprentissage_bout_en_bout.py` (vrais outils M3 et M4, données fictives), `test_apprentissage_durees.py`,
   `test_apprentissage_journal.py`, `test_apprentissage_estimation.py`.
+
+## Leçons de M10 consommées : la prévision de matériaux (M10-06, 2026-11-03)
+
+La boucle « apprendre » atteint maintenant l'estimation : une leçon PROMUE d'écart de quantités de matériaux (cible
+`m06-material-control`, lue par M3 qui prévoit la quantité) corrige la prévision **sans jamais toucher au prix**. Deux surfaces :
+
+- `m3_estimer_projet` ajoute la clé sœur `prevision_materiaux_avec_lecons` : chaque ligne porte sa quantité de base (celle des
+  `besoins_materiaux`, inchangée et publiée telle quelle à M6), sa valeur corrigée et l'attribution (`lecon_id`, `sources`,
+  `date`, `echantillon`, `parametre`, décision humaine) ;
+- `m3_prevoir_materiaux_avec_lecons` (T0/N0, agent seulement) relit la même prévision pour un devis dont l'estimation d'origine
+  est prouvée par son `estimation_source_hash` exact.
+
+Le minimum d'échantillon est **DÉCLARÉ** par la direction dans `configuration.lecons_consommees.echantillon_minimum` ; il est
+VIDE dans le manifeste. Sans valeur déclarée, sans leçon active ou sous le minimum, la quantité reste celle du code et la
+réponse dit pourquoi. Une correction est une **proposition N4** : elle n'est jamais appliquée par un modèle ni inscrite au
+registre. Preuve : `tests/test_m3_lecons_materiaux.py` ; limites : seuil de 6 chantiers, facteur non ventilé par service ni
+saison, aucune donnée réelle.

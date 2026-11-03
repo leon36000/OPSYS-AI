@@ -295,6 +295,24 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 
 <!-- matrices:fin -->
 
+## 7 bis. Leçons consommées par M3 et M5 (M10-06, 3 novembre 2026)
+
+- **M3** : `m3_estimer_projet` rend une prévision de quantités de matériaux corrigée par une leçon promue, et
+  `m3_prevoir_materiaux_avec_lecons` la relit pour un devis dont l'estimation d'origine est prouvée par son hash exact. La
+  correction est une **proposition N4**, jamais appliquée au registre, aux besoins publiés à M6, au prix ni au devis. Le minimum
+  d'échantillon est **vide à dessein** dans `department.yaml/configuration/lecons_consommees` : aucune correction n'est proposée
+  tant que la direction ne l'a pas déclaré. Le facteur d'écart de matériaux n'est pas ventilé par service, saison, fournisseur ni
+  équipe ; tout repose sur des chantiers **fictifs** (seuil de 6), sans modèle réel ni PostgreSQL.
+- **M5** : la vue détaillée de `m5_lire_rentabilite_chantier` affiche une marge prévue corrigée par une leçon promue d'écart de
+  marge, avec son attribution. La marge de base reste `prix_total - cout_total` du devis accepté ; la correction ne modifie ni le
+  devis, ni la marge calculée, ni un prix, et reste une **proposition N4**. Même minimum vide à dessein, mêmes limites de
+  données (peu de chantiers fictifs, aucun modèle réel, aucun PostgreSQL). À valider auprès d'un comptable (CPA) / professionnel
+  qualifié.
+- **M10** : la cible de la leçon d'écart de matériaux reste `m06-material-control` (origine des variances) ; M3 la lit pour la
+  prévision sans changer la cible. Si deux leçons applicables existent pour la même clé, la consommation les refuse toutes
+  (`plusieurs_lecons_actives`) au lieu d'en choisir une en silence. Rien de tout cela n'a été exécuté avec un vrai modèle, de
+  vraies données ni sur PostgreSQL.
+
 ## 8. Écarts de documentation connus et non corrigés
 
 - Les décisions d'architecture (ADR) 0002, 0006, 0007 et 0008 citent `core/UPSTREAM.md` et un outil `scripts/tally.py` qui n'existent pas dans ce

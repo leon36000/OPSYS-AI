@@ -25,6 +25,7 @@ from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, idempotence, identite, jetons, readiness_m2, stockage, taxonomie
 from opsys.approbations import approbateur_en_cours
+from opsys.mnemo import consommation as consommation_lecons
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from opsys.stockage import codec
 from opsys.stockage.concurrence import verrou_ecriture_console
@@ -601,6 +602,13 @@ def estimer_projet(
                 "statut": "non_appliquee", "raison": raison_apprentissage,
                 "deplacement": {"inclus": False, "note": "calculé à part (distances de M4)"},
             }}
+        if resultat.get("accepte") is True:
+            resultat = {
+                **resultat,
+                "prevision_materiaux_avec_lecons": _prevision_materiaux_avec_lecons(
+                    resultat.get("besoins_materiaux"), _cle_application_lecons(contrat, resultat)
+                ),
+            }
         if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
             _publier_besoins_materiaux(resultat["besoins_materiaux"])
         if resultat.get("accepte") is True and contexte_resume is not None:
@@ -608,6 +616,74 @@ def estimer_projet(
         if vue["role"] == "employe" and resultat.get("accepte") is True:
             return _projeter_estimation_employe(resultat)
         return resultat
+
+
+def _prevision_materiaux_avec_lecons(besoins: Any, cle_application: Any) -> dict[str, Any]:
+    """La prévision de quantités de matériaux, corrigée par une leçon PROMUE d'écart de matériau.
+
+    Le calcul de référence (les besoins publiés à M6) n'est jamais modifié : la correction est une
+    PROPOSITION qui cite sa leçon (identifiant, sources, date, échantillon). Le minimum d'échantillon est
+    celui que la direction a DÉCLARÉ dans `department.yaml/configuration/lecons_consommees` ; absent ou
+    invalide, rien n'est corrigé et le verdict dit quoi déclarer. Une leçon est lue via le MÊME registre
+    que `opsys_lecons_actives` : aucune valeur n'est inventée par un modèle.
+    """
+    config = _configuration_du_manifeste()
+    reglages = config.get("lecons_consommees") if isinstance(config, dict) else None
+    minimum, raison = consommation_lecons.lire_minimum(reglages)
+    cible = "m06-material-control"
+    lignes = besoins.get("lignes") if isinstance(besoins, dict) else None
+    if not isinstance(lignes, list):
+        return {
+            "consommateur": "m03-estimation", "cible": cible, "genre": "ecart_materiau",
+            "statut": "sans_quantite", "application": "aucune_correction", "niveau_humain": "N4",
+            "minimum_echantillon": minimum, "lignes": [], "corrections": [], "sans_correction": [],
+            "avertissement": "Aucune quantité de matériau prévue : aucune correction à proposer.",
+        }
+    entrees = [
+        {"cle": ligne.get("materiau"), "base": ligne.get("quantite_estimee")}
+        for ligne in lignes if isinstance(ligne, dict)
+    ]
+    actives: list[dict[str, Any]] = []
+    indisponible = False
+    if minimum is not None and isinstance(cle_application, str) and cle_application:
+        try:
+            actives = consommation_lecons.lecons_actives(cible, cle_application)["lecons"]
+        except Exception:
+            indisponible = True
+    reponse = consommation_lecons.appliquer_lignes(
+        consommateur="m03-estimation",
+        cible=cible,
+        genre="ecart_materiau",
+        entrees=entrees,
+        lecons_actives=actives,
+        minimum_echantillon=minimum,
+    )
+    if raison is not None:
+        reponse["statut"] = raison
+        reponse["avertissement"] = (
+            "Aucune correction : " + (
+                "l'échantillon minimum n'est pas déclaré. Déclarer "
+                "configuration.lecons_consommees.echantillon_minimum dans department.yaml."
+                if raison == "minimum_non_declare"
+                else "l'échantillon minimum déclaré est invalide (entier de 1 à 1000)."
+            )
+        )
+    if indisponible:
+        reponse["statut"] = "registre_indisponible"
+        reponse["avertissement"] = (
+            "Aucune correction : le registre des leçons de M10 est indisponible ; la prévision reste celle du code."
+        )
+    return reponse
+
+
+def _cle_application_lecons(contrat: Any, resultat: Any) -> str | None:
+    """Le cas stable du tirage du canari : le lead de l'estimation, à défaut son identifiant de version."""
+    if isinstance(contrat, dict) and isinstance(contrat.get("lead_id"), str):
+        return contrat["lead_id"]
+    estimation = resultat.get("estimation") if isinstance(resultat, dict) else None
+    if isinstance(estimation, dict) and isinstance(estimation.get("hash_maillon"), str):
+        return estimation["hash_maillon"]
+    return None
 
 
 def _publier_besoins_materiaux(contrat: dict[str, Any]) -> str:
@@ -2238,6 +2314,39 @@ def _recevoir_profil_propriete_confirme(charge: dict[str, Any]) -> dict[str, Any
     return {"enregistre": ajoute, "deja_enregistre": not ajoute, "revision": charge["revision"]}
 
 
+def prevoir_materiaux_avec_lecons(devis_id: str) -> dict[str, Any]:
+    """La prévision de quantités de matériaux d'un devis, corrigée par une leçon promue (M10-06).
+
+    Le devis est lu au registre durable, puis son estimation d'origine par le hash EXACT que M3 y a
+    inscrit (`estimation_source_hash`). Les quantités de base sont celles des `besoins_materiaux`
+    enregistrés ; la correction n'est qu'une proposition attribuée (leçon, sources, date, échantillon).
+    Aucun prix, coût ou marge n'est lu ou calculé ici. Une leçon absente, un minimum non déclaré ou un
+    échantillon insuffisant laisse la quantité inchangée et le dit.
+    """
+    devis, verdict = devis_durable.lire_devis(registre_devis_production(), devis_id)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    charge = _source_estimation_exacte(
+        devis.get("estimation_source_hash"), devis_id, devis.get("lead_id") if isinstance(devis, dict) else None
+    )
+    if charge is None:
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail="le devis ne référence aucune estimation M3 validée pour ce devis et ce lead",
+            ),
+        }
+    besoins = charge.get("besoins_materiaux")
+    cle = devis.get("lead_id") if isinstance(devis, dict) else None
+    return {
+        "accepte": True,
+        "devis_id": devis_id,
+        "estimation_id": devis.get("estimation_source_hash"),
+        "prevision_materiaux_avec_lecons": _prevision_materiaux_avec_lecons(besoins, cle),
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
@@ -2541,6 +2650,26 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_ecarts_estime_reel,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m3_prevoir_materiaux_avec_lecons",
+            description=(
+                "Prévision de quantités de matériaux d'un devis, corrigée par une leçon PROMUE d'écart de "
+                "matériau (M10-06) : la quantité de base vient des besoins matériaux réellement enregistrés "
+                "pour l'estimation d'origine du devis ; la correction proposée cite la leçon (identifiant, "
+                "sources, date, échantillon) et n'est jamais appliquée par ce calcul. Sans leçon active, avec "
+                "un échantillon sous le minimum DÉCLARÉ ou sans minimum déclaré, la quantité reste celle du "
+                "code et la réponse dit pourquoi. Aucun prix, coût, marge ni soumission n'est lu ou modifié. "
+                "Lecture pure (T0), aucune écriture."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"devis_id": {"type": "string", "minLength": 1, "maxLength": 128}},
+                "required": ["devis_id"],
+                "additionalProperties": False,
+            },
+            fonction=prevoir_materiaux_avec_lecons,
             autonomie=Autonomie.T0,
         ),
         Outil(

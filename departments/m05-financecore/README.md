@@ -482,3 +482,16 @@ Une donnée que seule la direction connaît (budget, comptes de coûts directs, 
 et dit quoi déclarer : jamais zéro. Aucune clôture de période, aucune écriture, aucun envoi, aucun PDF, aucune valeur fiscale inventée.
 Architecture, règles, preuves, mutations et limites : [M5-RAPPORTS-PREAUDIT](../../docs/architecture/M5-RAPPORTS-PREAUDIT.md).
 Aucun CPA n'a validé ces états. À valider auprès d'un comptable (CPA) / professionnel qualifié.
+
+## Leçons de M10 consommées : la marge prévue (M10-06, 2026-11-03)
+
+La vue détaillée de `m5_lire_rentabilite_chantier` (filtre `devis_id`) ajoute `prevision_marge_avec_lecons` à côté de la marge
+prévue reçue de M3 : une leçon PROMUE d'écart de marge (cible `m05-financecore`) propose un décalage en CAD, avec son
+attribution (`lecon_id`, `sources`, `date`, `echantillon`, `parametre`, décision humaine). La marge de base reste
+`prix_total - cout_total` du devis accepté : ni le devis, ni la marge calculée, ni un prix ne sont modifiés.
+
+Le minimum d'échantillon est **DÉCLARÉ** dans `configuration.lecons_consommees.echantillon_minimum` (VIDE dans le manifeste) ;
+sans valeur, sans leçon active ou sous le minimum, aucune correction et la réponse dit pourquoi. La correction est une
+**proposition N4**, jamais appliquée par un modèle. Preuve : `tests/test_m5_lecons_marge.py` ; limites : peu de chantiers
+(seuil de 6), décalage global non ventilé, aucune mesure sur un modèle réel ni sur PostgreSQL. À valider auprès d'un
+comptable (CPA) / professionnel qualifié.
