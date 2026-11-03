@@ -317,6 +317,22 @@ def test_un_risque_critique_cree_un_avis_une_tache_et_une_memoire_et_rien_d_exte
     assert m.appeler_m9("m9_lire_avis_risques", {})["resultat"]["total"] == 6
 
 
+def test_rejouer_l_escalade_apres_l_annulation_d_une_tache_par_la_direction_ne_leve_rien_et_ne_la_recree_pas(monde):
+    m = monde
+    instant4 = _mois(m)["instant4"]
+    premiere = m.appeler_m9("m9_escalader_risques_critiques", {"connaissance": instant4})["resultat"]
+    cible = premiere["escalades"][0]["tache_id"]
+    annulation = m.appeler_m9(
+        "m9_annuler_plan", {"plan_id": cible, "motif": "traité hors de l'outil", "horodatage": instant4})
+    assert annulation["ok"] is True and annulation["resultat"]["annule"] is True, annulation
+    rejeu = m.appeler_m9("m9_escalader_risques_critiques", {"connaissance": instant4})
+    assert rejeu["ok"] is True and rejeu["resultat"]["accepte"] is True, rejeu
+    par_tache = {e["tache_id"]: e for e in rejeu["resultat"]["escalades"]}
+    assert par_tache[cible]["tache_annulee"] is True and par_tache[cible]["tache_nouvelle"] is False
+    assert all(not e["tache_nouvelle"] and not e["avis_nouveau"] for e in par_tache.values())
+    assert [e["tache_annulee"] for t, e in par_tache.items() if t != cible] == [False, False]
+
+
 def test_l_escalade_n_est_pas_un_geste_d_agent_ni_d_appareil_et_ne_voit_que_des_critiques_actifs(monde):
     m = monde
     mois = _mois(monde)

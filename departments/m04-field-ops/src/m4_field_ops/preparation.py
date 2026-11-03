@@ -121,7 +121,13 @@ def _volet_equipe(_registre, inscription, _lire_position, lire_equipes, _lire_me
     if verdict is not None:
         return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
     cedule_profil = profil.get("cedule") if isinstance(profil.get("cedule"), dict) else {}
-    regles = cedule_profil.get("multijours")
+    regles = None
+    if cedule_profil.get("multijours") is not None:
+        # Les règles déclarées sont relues ici comme le fait la cédule : un profil mal formé dit quoi corriger,
+        # il ne fait jamais lever une exception (ni diviser par zéro) dans la préparation.
+        regles, motif = duree_chantier.lire_multijours(cedule_profil["multijours"])
+        if regles is None:
+            return _volet(STATUT_MANQUE, manque=motif, detail="REJ-CHAMP-MANQUANT")
     duree, detail_duree = duree_chantier.resoudre(
         inscription, exigences["duree_min"], duree_chantier.SOURCE_PROFIL, regles)
     if duree is None:

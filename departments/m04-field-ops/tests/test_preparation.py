@@ -163,6 +163,20 @@ def _lecteur(profil=None, verdict=None):
 class TestVoletEquipe:
     """PLAN T4.12 : le volet équipe se vérifie depuis le profil des équipes ; il ne « manque » que faute de profil."""
 
+    @pytest.mark.parametrize("multijours", [
+        {"visite_max_minutes": 0, "jours_consecutifs": True}, "xxx",
+        {"visite_max_minutes": "gros", "jours_consecutifs": True},
+        {"visite_max_minutes": 240}, {"visite_max_minutes": 240, "jours_consecutifs": "oui"}, [],
+    ])
+    def test_des_regles_multijours_mal_formees_disent_quoi_corriger_sans_lever(self, intervention, multijours):
+        reg, iid = intervention
+        verdict, refus = preparation.evaluer(
+            reg, iid, _lire_position_ok, _lecteur(_profil(cedule={"multijours": multijours})))
+        assert refus is None
+        equipe = _volets(verdict)["equipe"]
+        assert equipe["statut"] == preparation.STATUT_MANQUE and equipe["detail"] == "REJ-CHAMP-MANQUANT"
+        assert "multijours" in equipe["manque"]
+
     def test_une_equipe_admissible_rend_le_volet_ok_et_le_nomme(self, intervention):
         reg, iid = intervention
         lecteur = _lecteur(_profil())

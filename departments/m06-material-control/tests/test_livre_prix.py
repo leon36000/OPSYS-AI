@@ -151,3 +151,24 @@ def test_prix_absent_ou_autre_fournisseur_sans_provenance_inventee(livre):
     assert resolution["marquage_source"] is None
     assert resolution["prix_unitaire"] is resolution["date_effet"] is resolution["source_document"] is None
     assert livre == avant
+
+
+@pytest.mark.parametrize("devise", ["USD", "EUR", "", " ", None])
+def test_un_prix_en_devise_etrangere_ne_devient_jamais_un_prix_de_po(devise):
+    registre = [{**_entree_cad(), "devise": devise}]
+    resolution = livre_prix.resoudre_prix_po("M1", "F1", registre)
+    assert resolution["verdict_prix"] == "INDETERMINE" and resolution["raison"] == "DEVISE_NON_SUPPORTEE"
+    assert resolution["prix_unitaire"] is None and resolution["devise"] is None
+
+
+@pytest.mark.parametrize("devise", ["CAD", " cad ", "Cad"])
+def test_la_devise_cad_est_tolere_a_la_casse_et_aux_espaces_et_rendue_normalisee(devise):
+    registre = [{**_entree_cad(), "devise": devise}]
+    resolution = livre_prix.resoudre_prix_po("M1", "F1", registre)
+    assert resolution["verdict_prix"] == "PRIX_LIVRE" and resolution["devise"] == "CAD"
+    assert resolution["prix_unitaire"] == 7.5
+
+
+def _entree_cad():
+    return {"materiau_id": "M1", "fournisseur_id": "F1", "prix_unitaire": 7.5, "devise": "CAD",
+            "date_effet": "2026-01-01", "source_document": None}

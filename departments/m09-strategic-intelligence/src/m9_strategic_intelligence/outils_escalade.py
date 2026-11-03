@@ -53,15 +53,14 @@ def construire_outils(
         appelante = contexte.identite_appelante()
         return appelante.personne if appelante is not None else "inconnu"
 
-    def tache_ouverte(chaine_plans: list[dict], suivi_ref: str) -> str | None:
+    def tache_du_suivi(chaine_plans: list[dict], suivi_ref: str) -> tuple[str | None, bool]:
+        """`(plan_id, annulee)` de la tâche déjà créée pour ce suivi, ou `(None, False)`. Une tâche que la direction a
+        annulée reste « la tâche de ce risque pour ce jour » : le rejeu du même jour ne la recrée pas (le plan annulé
+        refuserait de toute façon) et l'annulation de la direction fait foi."""
         for plan_id, etat in sorted(plans_module.etat_plans(chaine_plans).items()):
-            if (
-                etat["annule"] is None
-                and etat["versions"]
-                and etat["versions"][-1]["plan"]["decision_ref"] == suivi_ref
-            ):
-                return plan_id
-        return None
+            if etat["versions"] and etat["versions"][-1]["plan"]["decision_ref"] == suivi_ref:
+                return plan_id, etat["annule"] is not None
+        return None, False
 
     def publier(maillon: dict) -> dict[str, Any]:
         charge = esc.evenement_memoire(maillon)
@@ -90,7 +89,7 @@ def construire_outils(
                 avis_chaine.append(maillon)
             else:
                 maillon = next(m for m in avis_chaine if m["avis_id"] == ids["avis_id"])
-            tache_id = tache_ouverte(plans_chaine, ids["suivi_ref"])
+            tache_id, tache_annulee = tache_du_suivi(plans_chaine, ids["suivi_ref"])
             tache_nouvelle = tache_id is None
             if tache_nouvelle:
                 plan = esc.tache(risque, connaissance=connaissance)
@@ -103,7 +102,8 @@ def construire_outils(
                 "regle": risque["regle"], "sujet": risque["sujet"], "domaine": risque["domaine"],
                 "gravite": risque["gravite"], "raison": risque["raison"],
                 "avis_id": maillon["avis_id"], "avis_nouveau": nouveau,
-                "tache_id": tache_id, "tache_nouvelle": tache_nouvelle, "memoire": memoire,
+                "tache_id": tache_id, "tache_nouvelle": tache_nouvelle, "tache_annulee": tache_annulee,
+                "memoire": memoire,
             })  # fmt: skip
         return borner(
             {

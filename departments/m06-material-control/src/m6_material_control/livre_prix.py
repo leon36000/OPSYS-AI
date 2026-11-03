@@ -134,8 +134,9 @@ def resoudre_prix_po(
     C2 : si ``unite`` (celle de la ligne du PO) est fournie et que l'entrée du livre déclare une AUTRE unité, le
     prix ne s'applique pas (``INDETERMINE``, ``raison`` « UNITE_DIFFERENTE ») : un prix à la boîte n'est pas un prix à
     la
-    feuille. Une entrée sans unité reste applicable (anciennes entrées) mais ``unite_confirmee`` est faux : la
-    personne qui approuve le sait."""
+    feuille. Une devise autre que CAD (casse et espaces tolérés, comme pour le coût d'une sortie) ne donne aucun prix
+    (``INDETERMINE``, ``raison`` « DEVISE_NON_SUPPORTEE »). Une entrée sans unité reste applicable (anciennes entrées)
+    mais ``unite_confirmee`` est faux : la personne qui approuve le sait."""
     entree = prix_en_vigueur(materiau_id, fournisseur_id, registre_cible)
     vide = {
         "verdict_prix": _VERDICT_PRIX_INDETERMINE,
@@ -151,6 +152,11 @@ def resoudre_prix_po(
     if entree is None:
         return {**vide, "raison": "AUCUN_PRIX"}
     unite_prix = entree.get("unite")
+    devise = entree.get("devise")
+    if not (isinstance(devise, str) and devise.strip().upper() == "CAD"):
+        # Un PO et M5 comptent en dollars canadiens (même règle que le coût d'une sortie, `cout_sortie`) : un prix
+        # libellé dans une autre devise n'est jamais un prix de PO, il demande un prix en CAD.
+        return {**vide, "raison": "DEVISE_NON_SUPPORTEE", "unite_prix": unite_prix}
     if (
         _texte_non_vide(unite) and _texte_non_vide(unite_prix) and unite_prix.strip() != unite.strip()
     ):
@@ -158,7 +164,7 @@ def resoudre_prix_po(
     return {
         "verdict_prix": _VERDICT_PRIX_LIVRE,
         "prix_unitaire": entree["prix_unitaire"],
-        "devise": entree["devise"],
+        "devise": "CAD",
         "date_effet": entree["date_effet"],
         "source_document": entree.get("source_document"),
         "marquage_source": marquage_source_document(entree.get("source_document")),
