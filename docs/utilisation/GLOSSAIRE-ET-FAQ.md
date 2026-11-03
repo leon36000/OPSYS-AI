@@ -31,7 +31,7 @@
 | **Migration** | Évolution contrôlée de la structure de la base. La « tête » est la plus récente (0086 aujourd'hui). |
 | **Mode (ombre, supervisé, autonome)** | Niveau d'autonomie d'un département : à partir de quel niveau N un geste attend une approbation. |
 | **N0 à N5** | Niveaux d'approbation : lecture, brouillon, tâche interne (automatiques) ; N3 validation d'une personne ; N4 le propriétaire ; N5 le propriétaire ET le professionnel. |
-| **Outil** | Un geste précis qu'un département sait faire (ex. « calculer un devis »). Il y en a 689. |
+| **Outil** | Un geste précis qu'un département sait faire (ex. « calculer un devis »). Il y en a 691. |
 | **Pack sectoriel** | Vocabulaire, services et barèmes d'un métier. `generique-pme` ou `renovation-exterieure-qc`. |
 | **Passerelle (Gateway)** | Le service du Core qui reçoit les agents, les appareils et les canaux. |
 | **Planificateur** | Tâches récurrentes sûres (synchronisation, envois et publications déjà approuvés), sous l'acteur système. |

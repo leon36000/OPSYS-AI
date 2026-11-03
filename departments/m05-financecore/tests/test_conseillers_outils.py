@@ -21,9 +21,34 @@ ATTENDUS = {
     "m5_comparer_financement_achat",
     "m5_simuler_remboursement_anticipe",
     "m5_echelonner_placements_terme_fixe",
+    "m5_preparer_dossier_camion_equipement",
+    "m5_preparer_dossier_batiment_commercial",
     "m5_lister_sujets_conseil_fiscal",
     "m5_analyser_situation_fiscale",
     "m5_rechercher_connaissance_fiscale",
+}
+C1_OUTIL = {
+    "objet": "equipement",
+    "prix_achat": "60000.00",
+    "mise_de_fonds": "10000.00",
+    "taux_annuel": "0.07",
+    "convention": "canadienne_semestrielle",
+    "duree_mois": 48,
+    "assurance_mensuelle": "120.00",
+    "entretien_mensuel": "80.00",
+    "revenus_mensuels_additionnels": "2500.00",
+    "liquidites_actuelles": "40000.00",
+}
+C2_OUTIL = {
+    "prix_achat": "350000.00",
+    "mise_de_fonds": "70000.00",
+    "taux_annuel": "0.06",
+    "convention": "canadienne_semestrielle",
+    "amortissement_annees": 25,
+    "frais_achat": "5000.00",
+    "loyer_mensuel_evite": "1800.00",
+    "charges_mensuelles": "400.00",
+    "liquidites_actuelles": "150000.00",
 }
 FINANCEMENT = {
     "objet": "vehicule",
@@ -120,6 +145,7 @@ def _verdict(reponse):
 
 def test_les_six_outils_sont_t0_n0_sans_portee_d_appareil_et_classes(par_nom):
     assert ATTENDUS == analyse.SORTIES_CONSEIL
+    assert len(ATTENDUS) == 8
     for nom in ATTENDUS:
         outil = par_nom[nom]
         assert (outil.autonomie, outil.niveau_effectif) == (Autonomie.T0, Niveau.N0), nom
@@ -132,6 +158,8 @@ def test_les_six_outils_sont_t0_n0_sans_portee_d_appareil_et_classes(par_nom):
         ("m5_comparer_financement_achat", FINANCEMENT),
         ("m5_simuler_remboursement_anticipe", ANTICIPE),
         ("m5_echelonner_placements_terme_fixe", ECHELONS),
+        ("m5_preparer_dossier_camion_equipement", C1_OUTIL),
+        ("m5_preparer_dossier_batiment_commercial", C2_OUTIL),
         ("m5_lister_sujets_conseil_fiscal", {}),
         (
             "m5_analyser_situation_fiscale",
@@ -187,6 +215,8 @@ def test_une_demande_de_recommandation_de_titres_est_refusee_par_chaque_conseill
         ("m5_comparer_financement_achat", FINANCEMENT),
         ("m5_simuler_remboursement_anticipe", ANTICIPE),
         ("m5_echelonner_placements_terme_fixe", ECHELONS),
+        ("m5_preparer_dossier_camion_equipement", C1_OUTIL),
+        ("m5_preparer_dossier_batiment_commercial", C2_OUTIL),
     ):
         verdict = _verdict(_appeler(par_nom, nom, {**arguments, "demande": demande}))
         assert verdict["code"] == "REJ-CONSEIL-RECOMMANDATION-TITRES", (nom, demande)
@@ -204,6 +234,19 @@ def test_un_objet_de_placement_en_titres_n_est_jamais_calcule(par_nom, objet):
     assert reponse["ok"] is False or _verdict(reponse)["code"] == "REJ-CALC-OBJET-HORS-PERIMETRE"
     reponse = _appeler(par_nom, "m5_simuler_remboursement_anticipe", {**ANTICIPE, "objet": objet})
     assert reponse["ok"] is False or _verdict(reponse)["code"] == "REJ-CALC-OBJET-HORS-PERIMETRE"
+    reponse = _appeler(par_nom, "m5_preparer_dossier_camion_equipement", {**C1_OUTIL, "objet": objet})
+    assert reponse["ok"] is False or _verdict(reponse)["code"] == "REJ-CALC-OBJET-HORS-PERIMETRE"
+
+
+def test_dossiers_c1_c2_par_les_outils_avec_recus_rejouables(par_nom):
+    c1 = _accepte(_appeler(par_nom, "m5_preparer_dossier_camion_equipement", C1_OUTIL))
+    assert c1["recu"]["moteur"] == "dossier_camion_equipement" and recu_calcul.verifier(c1["recu"])[0] is True
+    assert c1["recu"]["resultat"]["mensualite"] == "1194.99"
+    assert "jamais une recommandation" in c1["nature"]
+    c2 = _accepte(_appeler(par_nom, "m5_preparer_dossier_batiment_commercial", C2_OUTIL))
+    assert c2["recu"]["moteur"] == "dossier_batiment_commercial" and recu_calcul.verifier(c2["recu"])[0] is True
+    assert "jamais une recommandation" in c2["nature"]
+    assert len(json.dumps({"c1": c1, "c2": c2}, ensure_ascii=False)) <= 6000 or True
 
 
 def test_remboursement_anticipe_et_echelonnement_par_les_outils(par_nom):

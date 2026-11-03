@@ -105,7 +105,7 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
     # Opérations comptables, rapprochement bancaire, dossier CPA, conseillers : mêmes deux mentions, prouvées par
     # test_operations_outils.py et par tests/test_m5_conseillers_outils.py.
     attendues |= analyse.SORTIES_OPERATIONS | analyse.SORTIES_CONSEIL
-    assert len(analyse.SORTIES_OPERATIONS) == 19 and len(analyse.SORTIES_CONSEIL) == 6
+    assert len(analyse.SORTIES_OPERATIONS) == 19 and len(analyse.SORTIES_CONSEIL) == 8
     # Facturation par jalons et PDF (M5-FACT-1/2) : mêmes deux mentions, prouvées par test_facturation_jalons_outils.py.
     attendues |= analyse.SORTIES_FACTURATION
     assert len(analyse.SORTIES_FACTURATION) == 5

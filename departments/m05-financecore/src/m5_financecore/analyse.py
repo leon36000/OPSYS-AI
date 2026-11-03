@@ -136,6 +136,8 @@ SORTIES_CONSEIL = frozenset({
     "m5_comparer_financement_achat",  # coûts actualisés comptant, prêt, location : jamais une recommandation
     "m5_simuler_remboursement_anticipe",  # intérêts épargnés sous hypothèses
     "m5_echelonner_placements_terme_fixe",  # échelonnement de trésorerie aux taux saisis, aucun titre
+    "m5_preparer_dossier_camion_equipement",  # C1 : mensualité, coût, DSCR, seuil, stress : jamais une reco
+    "m5_preparer_dossier_batiment_commercial",  # C2 : mensualité, occupation, écart, DSCR, stress : jamais une reco
     "m5_lister_sujets_conseil_fiscal",  # les sujets, leurs règles et données exigées
     "m5_analyser_situation_fiscale",  # affirmations sourcées, ESSAI/non approuvé, refus si règle non renseignée
     "m5_rechercher_connaissance_fiscale",  # citations de la base fiscale et comptable, ou « inconnu »
