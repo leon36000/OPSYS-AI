@@ -30,6 +30,7 @@ from . import (
     connaissances_fiscales,
     conseiller_financement,
     conseiller_fiscal,
+    dossier_acquisition,
     garde_investissement,
     grand_livre,
     moteur_calcul,
@@ -203,6 +204,85 @@ def echelonner_placements_terme_fixe(
     )
 
 
+# ================================================================= C1/C2 dossiers d'acquisition
+def preparer_dossier_camion_equipement(
+    objet: str,
+    prix_achat: str,
+    mise_de_fonds: str,
+    taux_annuel: str,
+    convention: str,
+    duree_mois: int,
+    assurance_mensuelle: str,
+    entretien_mensuel: str,
+    revenus_mensuels_additionnels: str,
+    liquidites_actuelles: str | None = None,
+    demande: str | None = None,
+) -> dict[str, Any]:
+    refus = _appareil_refuse() or _garde(demande)
+    if refus is not None:
+        return refuse(refus)
+    entrees: dict[str, Any] = {
+        "objet": objet,
+        "prix_achat": prix_achat,
+        "mise_de_fonds": mise_de_fonds,
+        "taux_annuel": taux_annuel,
+        "convention": convention,
+        "duree_mois": duree_mois,
+        "assurance_mensuelle": assurance_mensuelle,
+        "entretien_mensuel": entretien_mensuel,
+        "revenus_mensuels_additionnels": revenus_mensuels_additionnels,
+    }
+    if liquidites_actuelles is not None:
+        entrees["liquidites_actuelles"] = liquidites_actuelles
+    sortie, verdict = dossier_acquisition.preparer_dossier_camion(entrees)
+    return _sortie_recu(
+        sortie,
+        verdict,
+        nature="information générale : dossier de décision C1 (camion/équipement), jamais une recommandation, "
+        "jamais un conseil d'investissement personnalisé",
+    )
+
+
+def preparer_dossier_batiment_commercial(
+    prix_achat: str,
+    mise_de_fonds: str,
+    taux_annuel: str,
+    convention: str,
+    amortissement_annees: int,
+    frais_achat: str,
+    loyer_mensuel_evite: str,
+    charges_mensuelles: str,
+    revenus_locatifs_mensuels: str | None = None,
+    liquidites_actuelles: str | None = None,
+    demande: str | None = None,
+) -> dict[str, Any]:
+    refus = _appareil_refuse() or _garde(demande)
+    if refus is not None:
+        return refuse(refus)
+    entrees: dict[str, Any] = {
+        "objet": "immeuble_exploitation",
+        "prix_achat": prix_achat,
+        "mise_de_fonds": mise_de_fonds,
+        "taux_annuel": taux_annuel,
+        "convention": convention,
+        "amortissement_annees": amortissement_annees,
+        "frais_achat": frais_achat,
+        "loyer_mensuel_evite": loyer_mensuel_evite,
+        "charges_mensuelles": charges_mensuelles,
+    }
+    if revenus_locatifs_mensuels is not None:
+        entrees["revenus_locatifs_mensuels"] = revenus_locatifs_mensuels
+    if liquidites_actuelles is not None:
+        entrees["liquidites_actuelles"] = liquidites_actuelles
+    sortie, verdict = dossier_acquisition.preparer_dossier_batiment(entrees)
+    return _sortie_recu(
+        sortie,
+        verdict,
+        nature="information générale : dossier de décision C2 (bâtiment commercial), jamais une recommandation, "
+        "jamais un conseil d'investissement personnalisé",
+    )
+
+
 # ============================================================================================== M5.15 fiscal
 def _soldes_taxes(ctx: Mapping[str, Any], jour: str) -> dict[str, str]:
     roles = ctx["plan"]["roles"]
@@ -364,6 +444,92 @@ def outils_conseillers() -> tuple[Outil, ...]:
                 ],
             },
             fonction=comparer_financement_achat,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_preparer_dossier_camion_equipement",
+            description=(
+                "Conseiller C1 camion/équipement (information générale, jamais une recommandation, jamais un conseil "
+                "d'investissement personnalisé) : mensualité du prêt (amortissement canadien), coût total du crédit, "
+                "DSCR (revenus additionnels / mensualité + assurance + entretien saisis), seuil de rentabilité, "
+                "stress nommé (revenus −20 %, taux +2 points, combiné), liquidités déclarées après mise de fonds, "
+                "avec reçu rejouable. DPA/CCA : lues dans la base fiscale versionnée de M5, jamais en dur ; "
+                "absentes, le dossier le dit. Demande de recommandation de titres refusée (NC 31-103)." + _MENTION
+            ),
+            parametres={
+                **objet,
+                "properties": {
+                    "objet": {"type": "string", "enum": ["vehicule", "equipement", "outillage"]},
+                    "prix_achat": montant,
+                    "mise_de_fonds": montant,
+                    "taux_annuel": taux,
+                    "convention": {
+                        "type": "string",
+                        "enum": ["nominal_compose_a_la_frequence", "canadienne_semestrielle", "effectif_annuel"],
+                    },
+                    "duree_mois": {"type": "integer", "minimum": 1, "maximum": 120},
+                    "assurance_mensuelle": montant,
+                    "entretien_mensuel": montant,
+                    "revenus_mensuels_additionnels": montant,
+                    "liquidites_actuelles": {**montant, "type": ["string", "null"]},
+                    "demande": _DEMANDE,
+                },
+                "required": [
+                    "objet",
+                    "prix_achat",
+                    "mise_de_fonds",
+                    "taux_annuel",
+                    "convention",
+                    "duree_mois",
+                    "assurance_mensuelle",
+                    "entretien_mensuel",
+                    "revenus_mensuels_additionnels",
+                ],
+            },
+            fonction=preparer_dossier_camion_equipement,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_preparer_dossier_batiment_commercial",
+            description=(
+                "Conseiller C2 bâtiment commercial (information générale, jamais une recommandation, jamais un "
+                "conseil d'investissement personnalisé) : mensualité hypothécaire (amortissement canadien), coût "
+                "d'occupation (mensualité + charges saisies), écart contre le loyer évité déclaré, DSCR, stress "
+                "nommé (revenus −20 %, taux +2 points, combiné), liquidités déclarées après mise de fonds et frais, "
+                "questions pour la banque ou le prêteur, le notaire et le CPA, avec reçu rejouable. DPA/CCA : lues "
+                "dans la base fiscale versionnée de M5, jamais en dur ; absentes, le dossier le dit. Demande de "
+                "recommandation de titres refusée (NC 31-103)." + _MENTION
+            ),
+            parametres={
+                **objet,
+                "properties": {
+                    "prix_achat": montant,
+                    "mise_de_fonds": montant,
+                    "taux_annuel": taux,
+                    "convention": {
+                        "type": "string",
+                        "enum": ["nominal_compose_a_la_frequence", "canadienne_semestrielle", "effectif_annuel"],
+                    },
+                    "amortissement_annees": {"type": "integer", "minimum": 1, "maximum": 40},
+                    "frais_achat": montant,
+                    "loyer_mensuel_evite": montant,
+                    "charges_mensuelles": montant,
+                    "revenus_locatifs_mensuels": {**montant, "type": ["string", "null"]},
+                    "liquidites_actuelles": {**montant, "type": ["string", "null"]},
+                    "demande": _DEMANDE,
+                },
+                "required": [
+                    "prix_achat",
+                    "mise_de_fonds",
+                    "taux_annuel",
+                    "convention",
+                    "amortissement_annees",
+                    "frais_achat",
+                    "loyer_mensuel_evite",
+                    "charges_mensuelles",
+                ],
+            },
+            fonction=preparer_dossier_batiment_commercial,
             autonomie=Autonomie.T0,
         ),
         Outil(

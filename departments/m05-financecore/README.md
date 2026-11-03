@@ -6,7 +6,7 @@ Statut au 1er octobre 2026 : **PARTIEL — consolidation requise**. Les opérati
 rapports préparatoires sont raccordés, mais le périmètre CFO complet n'est pas livré. Le comptage
 historique au commit `2e56c0d` (17 outils) et le constat initial DEP-001 ne décrivent plus l'arbre
 courant : DEP-001 est corrigé localement, avec régression en mémoire et sur stockage durable
-(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**107 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
+(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**109 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
 `opsys-metier verifier` confirme les nombres de départements, outils et portées d'appareil dans sa preuve de cette tranche. Voir le [périmètre cible](../../docs/produit/PERIMETRE-MODULES.md), la
 [recherche actuelle](../../docs/research/R16-2026-09-30/recherche-m5.md) et le
 [bilan intégré](../../docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md).
@@ -420,6 +420,26 @@ validation d'écriture, clôture de période et confirmation d'un rapprochement 
 l'analyse est marquée ESSAI/non approuvé. Architecture, outils, flux, événements, limites, mesures et mutations :
 [M5-SOPHIE](../../docs/architecture/M5-SOPHIE.md). Configuration du propriétaire : bloc commenté `configuration.operations` de
 `department.yaml`.
+
+### Vague 13 : conseillers C1 (camion/équipement) et C2 (bâtiment commercial)
+
+Deux outils T0 (N0), fermés aux appareils, en lecture seule : `m5_preparer_dossier_camion_equipement` (C1) et
+`m5_preparer_dossier_batiment_commercial` (C2). Chacun produit un **DOSSIER DE DÉCISION chiffré déterministe** (jamais une
+décision ni un conseil personnalisé) : mensualité du prêt (amortissement canadien `mensuelle`, convention semestrielle),
+coût total du crédit, DSCR (C1 : revenus additionnels / mensualité + assurance + entretien ; C2 : loyer évité + revenus
+locatifs / mensualité + charges), seuil de rentabilité (C1) ou écart contre le loyer évité (C2), stress nommé (revenus
+−20 %, taux +2 points, combiné), liquidités déclarées après mise de fonds et frais, DPA/CCA lue dans la base fiscale
+versionnée (jamais en dur ; aujourd'hui **absente : le dossier dit NON_RENSEIGNEE**, source officielle requise, CPA), avec
+reçu rejouable (`recu_calcul`, moteurs `dossier_camion_equipement` / `dossier_batiment_commercial`). Entrée manquante =
+verdict qui dit quoi fournir (`REJ-CONSEIL-DONNEE-MANQUANTE`) ; objet titres = refus NC 31-103 ; demande de recommandation
+de titres = `REJ-CONSEIL-RECOMMANDATION-TITRES`. Texte obligatoire porté : « À valider auprès d'un comptable (CPA) /
+professionnel qualifié ». Preuve : `tests/test_dossier_acquisition.py` (34 tests), e2e C1/C2 sur SQLite avec les vrais
+outils MCP (mensualité C1 1194.99 $, DSCR 1.7921 ; mensualité C2 1791.46 $, occupation 2191.46 $, écart −391.46 $, DSCR
+0.8214 ; idempotence, abus titres, identité appareil refusée, schéma qui refuse `actions`). Limites : liquidités et loyer
+**déclarés par l'appelant** (jamais lus d'un registre ; absents = rubrique non calculable, jamais zéro) ; **aucune
+projection de prévision jointe** au dossier (la prévision M5.7 existe mais le dossier ne la consomme pas : l'impact
+trésorerie « depuis la prévision existante » reste à brancher) ; aucune valeur de marché estimée ; pénalités du prêteur
+non modélisées.
 
 ## Dépense publicitaire comptabilisée et factures émises publiées pour M8
 

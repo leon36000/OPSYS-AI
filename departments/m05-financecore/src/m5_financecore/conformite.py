@@ -857,6 +857,7 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "dossier_cpa": None,
     "conseiller_financement": None,
     "conseiller_fiscal": None,
+    "dossier_acquisition": None,
     "connaissances_fiscales": None,
     "verdicts_operations": None,
     "outils_operations": None,

@@ -208,6 +208,7 @@ _FICHIERS = (
     "dossier_cpa",
     "conseiller_financement",
     "conseiller_fiscal",
+    "dossier_acquisition",
     "connaissances_fiscales",
     "verdicts_operations",
     "outils_operations",
