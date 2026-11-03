@@ -32,7 +32,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 from collections.abc import Mapping, Sequence
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from . import lecons as _lecons
@@ -51,6 +51,8 @@ GENRES = {"ecart_materiau": "facteur", "ecart_marge": "decalage_cad"}
 NIVEAU_HUMAIN = "N4"
 CODE_ECHANTILLON = "REJ-LECON-MINIMUM-A-CONFIGURER"
 _DECIMAL = re.compile(r"^-?[0-9]+(?:\.[0-9]+)?$")
+_CENT = Decimal("0.01")
+_QUANTITE = Decimal("0.0001")
 _MINIMUM_MIN, _MINIMUM_MAX = 1, 1000
 _ETATS_ACTIFS = frozenset({"complete", "canari"})
 
@@ -99,6 +101,24 @@ def _date(valeur: Any) -> bool:
 
 def _texte_decimal(valeur: Decimal) -> str:
     return format(valeur, "f")
+
+
+def _texte_valeur(valeur: Decimal, genre: str) -> str:
+    """Le texte d'une valeur CORRIGÉE : cent HALF_UP pour un montant CAD, 4 décimales pour une quantité.
+
+    Un montant de marge suit l'arrondi de M5 (`cout_reel._arrondi`, ROUND_HALF_UP au cent) ; une quantité
+    de matériau garde la précision de M3 (`0.0001`) et s'écrit sans zéros de fin, comme `besoins_materiaux`.
+    """
+    if genre == "ecart_marge":
+        arrondi = valeur.quantize(_CENT, rounding=ROUND_HALF_UP)
+        if arrondi.is_zero():  # évite le signe de « -0.00 » dans un montant
+            arrondi = arrondi.copy_abs()
+        return format(arrondi, "f")
+    arrondi = valeur.quantize(_QUANTITE, rounding=ROUND_HALF_UP)
+    texte = format(arrondi, "f")
+    if "." in texte:
+        texte = texte.rstrip("0").rstrip(".")
+    return texte
 
 
 def _decision(lecon: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -193,12 +213,15 @@ def appliquer_lignes(
     lecons_actives: Any,
     minimum_echantillon: Any,
     avertissement: str | None = None,
+    droit_aux_couts: bool = False,
 ) -> dict[str, Any]:
     """Applique une leçon par ligne d'entrée, sous le minimum DÉCLARÉ, et ATTRIBUE chaque valeur.
 
-    `entrees` : séquence de `{cle, base}` (base en texte décimal). `lecons_actives` : les leçons que le
-    port a rendues actives pour la cible. Aucune entrée, leçon ou valeur invalide n'est interprétée :
-    la ligne garde sa base et dit `raison`.
+    `entrees` : séquence de `{cle, base}` (base en texte décimal), avec `unite` quand la grandeur en a
+    une. `lecons_actives` : les leçons que le port a rendues actives pour la cible. `droit_aux_couts`
+    doit être explicitement vrai pour une marge : sans ce droit, aucun montant de marge n'est corrigé
+    ni attribué (protection par défaut, décision de politique à trancher par la direction). Aucune
+    entrée, leçon ou valeur invalide n'est interprétée : la ligne garde sa base et dit `raison`.
     """
     if genre not in GENRES:
         return {
@@ -251,8 +274,46 @@ def appliquer_lignes(
         sortie["statut"] = "entree_invalide"
         sortie["avertissement"] = "Aucune correction : les entrées doivent être une séquence de {cle, base}."
         return sortie
+    if genre == "ecart_marge" and droit_aux_couts is not True:
+        # D3 : un décalage de marge EST un montant de coût. Sans droit explicite, on ne le calcule pas, on ne
+        # l'attribue pas et on ne le rend pas : un appelant ne peut pas le rediffuser à un employé.
+        sortie["statut"] = "droit_aux_couts_absent"
+        sortie["avertissement"] = (
+            "Aucune correction : le droit de voir les coûts n'est pas établi ; un montant de marge n'est "
+            "ni corrigé ni attribué. Accorder explicitement ce droit à l'appelant interne autorisé."
+        )
+        for entree in entrees:
+            if not isinstance(entree, Mapping):
+                ligne = _ligne_non_corrigee("?", "0", "droit_aux_couts_absent", minimum=minimum_echantillon)
+            else:
+                cle = entree.get("cle")
+                base = entree.get("base")
+                ligne = _ligne_non_corrigee(
+                    str(cle), str(base), "droit_aux_couts_absent", minimum=minimum_echantillon,
+                )
+            sortie["lignes"].append(ligne)
+            sortie["sans_correction"].append({k: ligne[k] for k in ("cle", "raison")})
+        return sortie
     if not isinstance(lecons_actives, Sequence) or isinstance(lecons_actives, (str, bytes)):
         lecons_actives = []
+    # D4 : une unité fait partie du sens d'une quantité. Deux unités pour la même clé ne reçoivent jamais le
+    # même facteur : on refuse les deux lignes plutôt que d'appliquer un facteur appris sur une autre unité.
+    unites: dict[str, list[str | None]] = {}
+    for entree in entrees:
+        if not isinstance(entree, Mapping):
+            continue
+        cle = entree.get("cle")
+        if not isinstance(cle, str):
+            continue
+        if cle == "":
+            continue
+        unite = entree.get("unite")
+        unites.setdefault(cle, []).append(unite if isinstance(unite, str) and unite else None)
+    ambigues = {
+        cle
+        for cle, vues in unites.items()
+        if len(vues) > 1 and (None in vues or len(set(vues)) > 1)
+    }
 
     for entree in entrees:
         if not isinstance(entree, Mapping):
@@ -273,6 +334,14 @@ def appliquer_lignes(
             sortie["sans_correction"].append({k: ligne[k] for k in ("cle", "raison")})
             continue
         base_texte = _texte_decimal(base)
+        unite = entree.get("unite")
+        if cle in ambigues:
+            ligne = _ligne_non_corrigee(
+                cle, base_texte, "unite_ambigue", minimum=minimum_echantillon, unite=unite,
+            )
+            sortie["lignes"].append(ligne)
+            sortie["sans_correction"].append({k: ligne[k] for k in ("cle", "raison")})
+            continue
         candidates = [
             lecon for lecon in lecons_actives
             if isinstance(lecon, Mapping)
@@ -327,13 +396,14 @@ def appliquer_lignes(
         ligne = {
             "cle": cle,
             "base": base_texte,
-            "valeur": _texte_decimal(valeur),
+            "valeur": _texte_valeur(valeur, genre),
             "corrigee": True,
             "raison": None,
             "minimum_echantillon": minimum_echantillon,
             "attribution": attribution,
             "application": "proposee_non_appliquee",
             "niveau_humain": NIVEAU_HUMAIN,
+            "unite": unite if isinstance(unite, str) and unite else None,
         }
         sortie["lignes"].append(ligne)
         sortie["corrections"].append(

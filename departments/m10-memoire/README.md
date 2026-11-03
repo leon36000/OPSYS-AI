@@ -222,7 +222,11 @@ personnel, aucun conseil de contourner l'approbation) ; l'élément reste `candi
 qu'une seule leçon par clé. L'échantillon (`contenu.chantiers`) doit atteindre le **minimum DÉCLARÉ** dans
 `configuration.lecons_consommees.echantillon_minimum` (VIDE dans les manifestes M3 et M5 : sans valeur, aucune correction et la
 réponse dit quoi déclarer). Chaque valeur corrigée cite `lecon_id`, `sources`, `date`, `echantillon` et `parametre` ; la
-correction est une **proposition N4**, jamais appliquée au registre, au devis, au prix ou à la marge calculée.
+correction est une **proposition N4**, jamais appliquée au registre, au devis, au prix ou à la marge calculée. La valeur
+corrigée est arrondie selon la grandeur (cent `ROUND_HALF_UP` pour une marge, 4 décimales pour une quantité). Le canari se
+tire sur la version d'estimation (son hash exact), jamais sur le lead ; une marge n'est rendue qu'à un appelant qui déclare
+explicitement le droit aux coûts (`droit_aux_couts`). Deux unités pour une même clé sont refusées (`unite_ambigue`) ; l'unité
+n'étant pas stockée dans la leçon, la divergence entre deux estimations n'est pas fermée.
 
 - **M3** : `m3_estimer_projet` rend `prevision_materiaux_avec_lecons` à côté des `besoins_materiaux` (quantité de base
   inchangée, facteur proposé) ; `m3_prevoir_materiaux_avec_lecons` la relit pour un devis dont l'estimation d'origine est

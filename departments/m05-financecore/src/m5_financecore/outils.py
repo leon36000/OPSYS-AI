@@ -4112,7 +4112,10 @@ def _prevision_marge_avec_lecons(marge_prevue: Any, devis_id: Any) -> dict[str, 
     """
     config = _configuration_manifeste()
     minimum, raison = consommation_lecons.lire_minimum(config.get("lecons_consommees"))
-    entrees = [{"cle": "marge", "base": str(marge_prevue)}]
+    # `str(Decimal("1E+2"))` vaut « 1E+2 » : la notation scientifique est refusée par le consommateur, qui
+    # n'accepte qu'un texte décimal positionnel. On formate donc le montant, sans le recalculer.
+    base = format(marge_prevue, "f") if isinstance(marge_prevue, Decimal) else str(marge_prevue)
+    entrees = [{"cle": "marge", "base": base}]
     actives: list[dict[str, Any]] = []
     indisponible = False
     if minimum is not None and isinstance(devis_id, str) and devis_id:
@@ -4127,6 +4130,8 @@ def _prevision_marge_avec_lecons(marge_prevue: Any, devis_id: Any) -> dict[str, 
         entrees=entrees,
         lecons_actives=actives,
         minimum_echantillon=minimum,
+        # Ce bloc n'est rendu qu'après `autorise_couts` vrai (vue détaillée) : le droit est établi ici.
+        droit_aux_couts=True,
     )
     if raison is not None:
         reponse["statut"] = raison

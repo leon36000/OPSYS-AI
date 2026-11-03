@@ -508,7 +508,10 @@ Aucun CPA n'a validé ces états. À valider auprès d'un comptable (CPA) / prof
 La vue détaillée de `m5_lire_rentabilite_chantier` (filtre `devis_id`) ajoute `prevision_marge_avec_lecons` à côté de la marge
 prévue reçue de M3 : une leçon PROMUE d'écart de marge (cible `m05-financecore`) propose un décalage en CAD, avec son
 attribution (`lecon_id`, `sources`, `date`, `echantillon`, `parametre`, décision humaine). La marge de base reste
-`prix_total - cout_total` du devis accepté : ni le devis, ni la marge calculée, ni un prix ne sont modifiés.
+`prix_total - cout_total` du devis accepté : ni le devis, ni la marge calculée, ni un prix ne sont modifiés. Le montant
+corrigé est arrondi au cent `ROUND_HALF_UP`, comme le reste de M5. Le consommateur exige un droit aux coûts explicite
+(`droit_aux_couts`) : sans lui, il ne calcule ni ne rend la correction (`droit_aux_couts_absent`), et M5 ne le passe que
+dans la vue détaillée déjà autorisée.
 
 Le minimum d'échantillon est **DÉCLARÉ** dans `configuration.lecons_consommees.echantillon_minimum` (VIDE dans le manifeste) ;
 sans valeur, sans leçon active ou sous le minimum, aucune correction et la réponse dit pourquoi. La correction est une

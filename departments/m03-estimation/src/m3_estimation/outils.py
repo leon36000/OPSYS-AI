@@ -640,7 +640,7 @@ def _prevision_materiaux_avec_lecons(besoins: Any, cle_application: Any) -> dict
             "avertissement": "Aucune quantité de matériau prévue : aucune correction à proposer.",
         }
     entrees = [
-        {"cle": ligne.get("materiau"), "base": ligne.get("quantite_estimee")}
+        {"cle": ligne.get("materiau"), "base": ligne.get("quantite_estimee"), "unite": ligne.get("unite")}
         for ligne in lignes if isinstance(ligne, dict)
     ]
     actives: list[dict[str, Any]] = []
@@ -676,13 +676,16 @@ def _prevision_materiaux_avec_lecons(besoins: Any, cle_application: Any) -> dict
     return reponse
 
 
-def _cle_application_lecons(contrat: Any, resultat: Any) -> str | None:
-    """Le cas stable du tirage du canari : le lead de l'estimation, à défaut son identifiant de version."""
-    if isinstance(contrat, dict) and isinstance(contrat.get("lead_id"), str):
-        return contrat["lead_id"]
+def _cle_application_lecons(_contrat: Any, resultat: Any) -> str | None:
+    """Le cas stable du tirage du canari : la VERSION d'estimation (son hash exact), jamais le lead.
+
+    Un lead peut porter plusieurs estimations : tirer sur le lead ferait entrer toutes ses versions dans le
+    même canari (mauvais grain) et pouvait diverger de l'outil de lecture, qui ne connaît que le devis et son
+    `estimation_source_hash`. Sans hash de version, aucun canari n'est tiré (fail-closed).
+    """
     estimation = resultat.get("estimation") if isinstance(resultat, dict) else None
     if isinstance(estimation, dict) and isinstance(estimation.get("hash_maillon"), str):
-        return estimation["hash_maillon"]
+        return estimation["hash_maillon"] or None
     return None
 
 
@@ -2338,7 +2341,9 @@ def prevoir_materiaux_avec_lecons(devis_id: str) -> dict[str, Any]:
             ),
         }
     besoins = charge.get("besoins_materiaux")
-    cle = devis.get("lead_id") if isinstance(devis, dict) else None
+    # Le canari se tire sur le CAS : la version exacte de l'estimation source, celle que l'estimation d'origine
+    # a utilisée (`_cle_application_lecons`), jamais sur le lead.
+    cle = devis.get("estimation_source_hash") if isinstance(devis, dict) else None
     return {
         "accepte": True,
         "devis_id": devis_id,
