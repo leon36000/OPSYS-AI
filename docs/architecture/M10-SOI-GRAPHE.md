@@ -234,10 +234,28 @@ deux parties, **sur le corpus de garde courant** (sinon `REJ-MNEMO-LECON-NON-EVA
 ### 5.5 Aucune leçon ne s'applique seule
 
 Promouvoir rend la leçon **lisible** par le département visé (`opsys_lecons_actives`, avec le tirage du canari) ; c'est ce
-département qui décide de s'en servir. **Aucun département n'appelle encore cet outil** : brancher la leçon d'écart de quantités
-dans l'estimation de M3, ou celle d'écart de marge dans la prévision de M5, est un chantier de ces départements, sous leurs
-propres gardes. `m10_surveiller_lecons` rejoue chaque leçon chiffrée promue sur les chantiers terminés depuis sa promotion et dit
-si elle améliore, régresse ou manque de données ; elle ne retire rien (une personne décide du retour arrière).
+département qui décide de s'en servir. `m10_surveiller_lecons` rejoue chaque leçon chiffrée promue sur les chantiers terminés
+depuis sa promotion et dit si elle améliore, régresse ou manque de données ; elle ne retire rien (une personne décide du retour
+arrière).
+
+### 5.6 Consommation par M3 puis M5 (M10-06)
+
+Depuis M10-06, deux départements consomment réellement les leçons, par `src/opsys/mnemo/consommation.py` (socle, calcul en
+`Decimal`, aucune horloge, aucun modèle) :
+
+- **M3 estimation**, pour l'écart de quantités de matériaux (leçon de cible `m06-material-control`, que M3 lit parce que c'est
+  M3 qui prévoit la quantité) : `m3_estimer_projet` ajoute la clé sœur `prevision_materiaux_avec_lecons` (la quantité de base
+  reste celle des `besoins_materiaux` ; la correction par `facteur` est proposée, attribuée et jamais appliquée au registre ni au
+  prix), et `m3_prevoir_materiaux_avec_lecons` la relit pour un devis dont l'estimation d'origine est prouvée par son hash exact ;
+- **M5 finance**, pour l'écart de marge (leçon de cible `m05-financecore`) : la vue détaillée de `m5_lire_rentabilite_chantier`
+  ajoute `prevision_marge_avec_lecons` (la marge prévue reste `prix_total - cout_total` de M3 ; la correction par `decalage_cad`
+  est proposée et attribuée, jamais appliquée à la marge calculée).
+
+Chaque valeur corrigée cite `lecon_id`, `sources`, `date`, `echantillon`, `parametre` et la décision humaine ; sans leçon active,
+avec un échantillon sous le **minimum DÉCLARÉ** (`configuration.lecons_consommees.echantillon_minimum`, vide dans les deux
+manifestes), ou sans minimum déclaré, la valeur de base est conservée et le verdict dit pourquoi. La correction est une
+**proposition de niveau N4** : la promotion de la leçon ne déclenche aucun geste de facturation, d'envoi ni de prix. Le facteur
+`ecart_materiau` n'est pas ventilé par service, saison, fournisseur ni équipe (voir §9).
 
 ## 6. Console, CLI, événements
 
@@ -285,7 +303,11 @@ Socle : `src/opsys/mnemo/` (`soi*.py`, `lecons.py`, `promotion.py`, `garde_gabar
    agent réel utilise bien ces outils n'est pas mesuré.
 2. **Aucune donnée réelle, aucun client.** Tout le corpus et tous les tests sont fictifs. Une PME réelle aura des identifiants,
    des volumes et des profils que le banc ne représente pas.
-3. **Aucun département ne consomme les leçons.** `opsys_lecons_actives` est un port de lecture sans lecteur.
+3. **La consommation des leçons est réelle mais étroite.** M3 (quantités de matériaux) et M5 (marge prévue) lisent les leçons
+   promues et n'en proposent qu'une correction attribuée ; leur minimum d'échantillon est VIDE à dessein dans les manifestes, donc
+   aucune correction n'est proposée tant que la direction ne l'a pas déclaré. Aucun autre département ne consomme une leçon ; le
+   facteur d'écart de matériaux n'est pas ventilé par service, saison, fournisseur ni équipe, et une correction n'est jamais
+   appliquée automatiquement à un prix, un devis ou une marge.
 4. **La garde du gabarit prouve que le TEXTE d'une leçon est inoffensif pour les contrôles universels**, pas qu'un agent se
    comportera mieux avec elle.
 5. **Les leçons de quantités et de marge reposent sur peu de chantiers** (seuil de 6 ; 2 de test). Un seuil bas est un choix de PME

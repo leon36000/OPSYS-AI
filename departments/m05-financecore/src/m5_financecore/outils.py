@@ -211,6 +211,7 @@ import yaml
 from opsys import approbations, contexte, evenements, identite, jetons, service_acteur_systeme, stockage
 from opsys.evenements import constats
 from opsys.evenements.repartiteur import instant_publication_livre
+from opsys.mnemo import consommation as consommation_lecons
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from opsys.stockage import concurrence
 from opsys.stockage.portabilite import DIALECTES_QUALIFIES
@@ -4101,6 +4102,50 @@ def attentes() -> list[dict[str, Any]]:
     return items + facture_courriel_outils.attentes_factures_courriel()
 
 
+def _prevision_marge_avec_lecons(marge_prevue: Any, devis_id: Any) -> dict[str, Any]:
+    """La marge PRÉVUE d'un devis accepté, corrigée par une leçon PROMUE d'écart de marge (M10-06).
+
+    La marge de référence est celle que M5 a reçue de M3 (`prix_total - cout_total`) : elle n'est jamais
+    recalculée ici. La correction est une PROPOSITION qui cite la leçon (identifiant, sources, date,
+    échantillon) ; un minimum non déclaré ou un échantillon insuffisant laisse la marge inchangée et le
+    dit. Aucune valeur ne vient d'un modèle : le paramètre est un décalage en CAD calculé par M10.
+    """
+    config = _configuration_manifeste()
+    minimum, raison = consommation_lecons.lire_minimum(config.get("lecons_consommees"))
+    entrees = [{"cle": "marge", "base": str(marge_prevue)}]
+    actives: list[dict[str, Any]] = []
+    indisponible = False
+    if minimum is not None and isinstance(devis_id, str) and devis_id:
+        try:
+            actives = consommation_lecons.lecons_actives("m05-financecore", devis_id)["lecons"]
+        except Exception:
+            indisponible = True
+    reponse = consommation_lecons.appliquer_lignes(
+        consommateur="m05-financecore",
+        cible="m05-financecore",
+        genre="ecart_marge",
+        entrees=entrees,
+        lecons_actives=actives,
+        minimum_echantillon=minimum,
+    )
+    if raison is not None:
+        reponse["statut"] = raison
+        reponse["avertissement"] = (
+            "Aucune correction : " + (
+                "l'échantillon minimum n'est pas déclaré. Déclarer "
+                "configuration.lecons_consommees.echantillon_minimum dans department.yaml."
+                if raison == "minimum_non_declare"
+                else "l'échantillon minimum déclaré est invalide (entier de 1 à 1000)."
+            )
+        )
+    if indisponible:
+        reponse["statut"] = "registre_indisponible"
+        reponse["avertissement"] = (
+            "Aucune correction : le registre des leçons de M10 est indisponible ; la marge reste celle du code."
+        )
+    return reponse
+
+
 def _vue_chantier(etat: dict[str, Any], sources: dict[str, Any], autorise_couts: bool, detail: bool) -> dict[str, Any]:
     """Ce que l'outil de lecture rend pour un devis : un statut d'attente (aucun montant), ou l'état calculé.
 
@@ -4120,6 +4165,10 @@ def _vue_chantier(etat: dict[str, Any], sources: dict[str, Any], autorise_couts:
                    if cle not in ("version_entrees", cout_reel.CHAMP_EMPREINTE_HORS_VENTILATION)}
     else:
         contenu = cout_reel.resumer(rentabilite)
+    if autorise_couts and detail and rentabilite.get("marge_prevue") is not None:
+        contenu["prevision_marge_avec_lecons"] = _prevision_marge_avec_lecons(
+            rentabilite["marge_prevue"], etat["devis_id"]
+        )
     trace_vue = {"a_jour": trace is not None and trace.get("version_entrees") == rentabilite["version_entrees"]}
     if detail:  # l'empreinte de 64 caractères n'a d'intérêt que pour un chantier précis
         trace_vue = {"version_entrees": rentabilite["version_entrees"], **trace_vue}

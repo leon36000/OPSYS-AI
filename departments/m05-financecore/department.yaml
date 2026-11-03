@@ -256,6 +256,13 @@ constats_planifies:
 #  * Le BUDGET ne s'écrit pas ici : il se déclare par m5_etablir_budget (N3, une personne l'approuve).
 configuration:
   preaudit: {}
+  # Consommation des LEÇONS de M10 (M10-06, docs/architecture/M10-SOI-GRAPHE.md §5.5) : une leçon d'écart de marge
+  # (cible M5) n'est proposée pour la marge PRÉVUE d'un devis que si son échantillon de chantiers atteint le minimum
+  # DÉCLARÉ ici. VIDE à dessein : sans valeur, aucune correction n'est proposée et la réponse dit quoi déclarer.
+  # Entier de 1 à 1000 chantiers distincts ; décision de la direction, jamais une valeur par défaut. La correction
+  # reste une PROPOSITION de niveau N4 : elle cite sa leçon et ne modifie ni le devis, ni la marge calculée.
+  lecons_consommees:
+    echantillon_minimum: null
 reglages:
   - cle: m5.seuil_transaction_hors_norme_cad
     libelle: "Montant à partir duquel une transaction est hors norme"

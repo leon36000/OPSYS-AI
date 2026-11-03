@@ -150,7 +150,8 @@ personne, dérive = révision proposée), un **graphe d'entités** natif (migrat
 une personne, port `MoteurGraphe`) et des **leçons** mesurées hors ligne, promues par une personne (canari, retour arrière, aucune
 application seule). 21 outils M10 + 2 outils communs, aucun rôle d'appareil (7 outils de plus pour les contradictions et la mémoire d'expérience : voir plus bas). Documentation, mesures et limites :
 [docs/architecture/M10-SOI-GRAPHE.md](../../docs/architecture/M10-SOI-GRAPHE.md). Statut : PARTIEL (aucun modèle réel, aucune donnée
-réelle, aucun département ne consomme encore les leçons).
+réelle ; M3 et M5 consomment les leçons depuis M10-06, sous le minimum d'échantillon VIDE à dessein : aucune correction n'est
+proposée tant que la direction ne l'a pas déclaré).
 
 Vector memory, graphe de connaissances INFÉRÉ par un modèle (le graphe de Mnémo est explicite et sourcé), context injector et l'application effective du
 PREFLIGHT/POSTFLIGHT (D-014, hook applicatif) restent GATED (hors périmètre v1, cf.
@@ -213,3 +214,24 @@ Statut : PARTIEL. Prouvé sur SQLite avec le vrai bus, la vraie file d'approbati
 (N2) passe la **garde d'admission** (`opsys.mnemo.experience` : schéma fermé, noms vérifiés contre le registre MCP scellé, aucune valeur, aucun chiffre, aucun renseignement
 personnel, aucun conseil de contourner l'approbation) ; l'élément reste `candidat`, aucun département ne le lit. `m10_lire_experiences` (N0). Le **banc** « avec / sans mémoire »
 (`opsys.evaluation.memoire_experience`, cas `evals/experience.v1.yaml`) se valide par un répondant double sensible à la mémoire. **Aucun modèle réel n'a été mesuré.**
+
+## Leçons consommées par M3 et M5 (M10-06, 2026-11-03)
+
+`src/opsys/mnemo/consommation.py` est le consommateur DÉTERMINISTE commun : il reçoit les leçons que le port
+`opsys_lecons_actives` rend actives, vérifie la cible, l'état, le paramètre décimal, les sources et la date, puis n'applique
+qu'une seule leçon par clé. L'échantillon (`contenu.chantiers`) doit atteindre le **minimum DÉCLARÉ** dans
+`configuration.lecons_consommees.echantillon_minimum` (VIDE dans les manifestes M3 et M5 : sans valeur, aucune correction et la
+réponse dit quoi déclarer). Chaque valeur corrigée cite `lecon_id`, `sources`, `date`, `echantillon` et `parametre` ; la
+correction est une **proposition N4**, jamais appliquée au registre, au devis, au prix ou à la marge calculée.
+
+- **M3** : `m3_estimer_projet` rend `prevision_materiaux_avec_lecons` à côté des `besoins_materiaux` (quantité de base
+  inchangée, facteur proposé) ; `m3_prevoir_materiaux_avec_lecons` la relit pour un devis dont l'estimation d'origine est
+  prouvée par son hash exact. La leçon d'écart de matériaux garde sa cible `m06-material-control` (origine des variances) ;
+  M3 la lit pour la prévision, sans changer la cible.
+- **M5** : la vue détaillée de `m5_lire_rentabilite_chantier` (filtre `devis_id`) rend `prevision_marge_avec_lecons` à côté de
+  la marge prévue reçue de M3 (`prix_total - cout_total`), sans modifier ce calcul.
+- **Retrait** : après `retour_arriere`, la leçon ne paraît plus dans `opsys_lecons_actives` et la correction disparaît.
+- **Preuve** : `tests/test_m10_06_lecons_consommees_e2e.py` (variance et marge réelles → extraction M10 → promotion humaine →
+  M3 puis M5), `tests/test_mnemo_consommation.py`, `departments/m03-estimation/tests/test_m3_lecons_materiaux.py`,
+  `departments/m05-financecore/tests/test_m5_lecons_marge.py`. **Limites** : peu de chantiers (seuil M10 de 6), facteur non
+  ventilé, aucune mesure sur un modèle réel ni sur PostgreSQL, minimum non déclaré par défaut.

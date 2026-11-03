@@ -169,6 +169,7 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
         "m3_lire_devis", "m3_marquer_devis_accepte", "m3_lire_ecarts_estime_reel",
         "m3_detecter_devis_sans_reponse", "m3_generer_soumission_brouillon",
         "m3_demander_envoi_devis", "m3_verifier_politique_photos",
+        "m3_prevoir_materiaux_avec_lecons",  # M10-06 : lecture de la prévision de matériaux, aucun prix
     }
     assert noms[0] == "m3_estimer_projet"
     assert len(noms) == len(set(noms))

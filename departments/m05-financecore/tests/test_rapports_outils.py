@@ -269,7 +269,10 @@ def test_le_manifeste_declare_le_constat_les_trois_reglages_et_l_evenement(dep):
         assert reglage.chemin[:2] == ("configuration", "preaudit") and reglage.debloque
     texte = (_RACINE_M5 / "department.yaml").read_text(encoding="utf-8")
     donnees = yaml.safe_load(texte)
-    assert donnees["configuration"] == {"preaudit": {}}  # AUCUN seuil écrit au manifeste livré
+    assert donnees["configuration"] == {  # AUCUN seuil écrit au manifeste livré
+        "preaudit": {},
+        "lecons_consommees": {"echantillon_minimum": None},  # M10-06 : minimum DÉCLARÉ, vide à dessein
+    }
 
 
 # ============================================================================================= mentions et pagination
