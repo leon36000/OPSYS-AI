@@ -360,3 +360,170 @@ def test_mise_de_fonds_egale_au_prix_et_montants_negatifs_sont_refuses():
         sortie, verdict = da.preparer_dossier_camion(entrees) if "duree_mois" in entrees \
             else da.preparer_dossier_batiment(entrees)
         assert sortie is None and verdict["code"] == "REJ-CALC-MONTANT-INVALIDE"
+
+
+# ====================================================================================================================
+# Tueurs de mutants (vague 13) : chaque test ci-dessous distingue un mutant survivant du code réel. Les survivants
+# déclarés équivalents sont justifiés dans RAPPORT.md (borne inatteignable, valeur d'erreur jamais lue).
+# ====================================================================================================================
+def test_mutants_tueurs_objet_non_hachable_et_prix_zero_distingue():
+    """Un objet non hachable (liste) ne doit pas lever : la garde de type court-circuite l'appartenance à l'ensemble.
+    Le prix nul est refusé PAR LA GARDE DU PRIX (« prix_achat : … > 0 »), pas par la mise de fonds."""
+    from m5_financecore import dossier_acquisition as da
+
+    sortie, verdict = da.preparer_dossier_camion({**C1, "objet": ["vehicule"]})
+    assert sortie is None and verdict["code"] == "REJ-CALC-OBJET-HORS-PERIMETRE"
+    for fonction, base in ((da.preparer_dossier_camion, C1), (da.preparer_dossier_batiment, C2)):
+        sortie, verdict = fonction({**base, "prix_achat": "0.00"})
+        assert sortie is None and verdict["code"] == "REJ-CALC-MONTANT-INVALIDE"
+        assert verdict["detail"].startswith("prix_achat :")
+
+
+def test_mutants_tueurs_date_reference_canonique_acceptee():
+    """Une date réelle et canonique est acceptée ; la comparaison `isoformat()` est une égalité, pas une inégalité."""
+    from m5_financecore import dossier_acquisition as da
+
+    sortie, verdict = da.preparer_dossier_camion({**C1, "date_reference": "2026-10-20"})
+    assert sortie is not None and verdict is None
+    assert sortie["recu"]["resultat"]["fiscalite"]["statut"] == "NON_RENSEIGNEE"
+
+
+def _regle_dpa(identifiant: str) -> dict:
+    return {"identifiant": identifiant, "empreinte": "e" * 64, "statut_revue": "approuve"}
+
+
+def test_mutants_tueurs_fiscalite_toutes_regles_resolues(monkeypatch):
+    """La base résout les trois règles : statut RENSEIGNEE (pas PARTIELLE), règles citées (pas ignorées)."""
+    from m5_financecore import base_fiscale
+    from m5_financecore import dossier_acquisition as da
+
+    monkeypatch.setattr(base_fiscale, "charger_base_par_defaut", lambda: (object(), None))
+    monkeypatch.setattr(
+        base_fiscale, "resoudre", lambda base, identifiant, jour, *, mode: (_regle_dpa(identifiant), None)
+    )
+    sortie, verdict = da.preparer_dossier_camion({**C1, "date_reference": "2026-10-20"})
+    assert verdict is None
+    fiscalite = sortie["recu"]["resultat"]["fiscalite"]
+    assert fiscalite["statut"] == "RENSEIGNEE"
+    assert [r["identifiant"] for r in fiscalite["regles_resolues"]] == list(da._REGLES_DPA)
+    assert all(r["empreinte"] == "e" * 64 for r in fiscalite["regles_resolues"])
+
+
+def test_mutants_tueurs_fiscalite_partielle_et_loader_incoherent(monkeypatch):
+    """Une seule règle résolue = PARTIELLE (pas NON_RENSEIGNEE) ; une base avec erreur reste illisible même fournie."""
+    from m5_financecore import base_fiscale
+    from m5_financecore import dossier_acquisition as da
+
+    monkeypatch.setattr(base_fiscale, "charger_base_par_defaut", lambda: (object(), None))
+    monkeypatch.setattr(
+        base_fiscale,
+        "resoudre",
+        lambda base, identifiant, jour, *, mode: (
+            (_regle_dpa(identifiant), None) if identifiant == da._REGLES_DPA[0] else (None, {"code": "X"})
+        ),
+    )
+    sortie, verdict = da.preparer_dossier_camion({**C1, "date_reference": "2026-10-20"})
+    assert verdict is None
+    fiscalite = sortie["recu"]["resultat"]["fiscalite"]
+    assert fiscalite["statut"] == "PARTIELLE" and len(fiscalite["regles_resolues"]) == 1
+
+    monkeypatch.setattr(base_fiscale, "charger_base_par_defaut", lambda: (object(), {"detail": "base illisible"}))
+    monkeypatch.setattr(
+        base_fiscale, "resoudre", lambda base, identifiant, jour, *, mode: (_regle_dpa(identifiant), None)
+    )
+    sortie, verdict = da.preparer_dossier_camion({**C1, "date_reference": "2026-10-20"})
+    assert verdict is None
+    fiscalite = sortie["recu"]["resultat"]["fiscalite"]
+    assert fiscalite["statut"] == "NON_RENSEIGNEE" and "illisible" in fiscalite["detail"]
+
+
+def test_mutants_tueurs_borne_stress_taux_incluse_et_refus_juste_au_dessus():
+    """taux 0.98 + 2 points = 1.00 exactement : la borne haute est INCLUSE ; 0.9801 la dépasse et est refusé."""
+    from m5_financecore import dossier_acquisition as da
+
+    sortie, verdict = da.preparer_dossier_camion({**C1, "taux_annuel": "0.98"})
+    assert verdict is None
+    assert sortie["recu"]["resultat"]["stress"]["taux_plus_2_points"]["taux_annuel"] == "1.0000"
+    sortie, verdict = da.preparer_dossier_camion({**C1, "taux_annuel": "0.9801"})
+    assert sortie is None and verdict["code"] == "REJ-CALC-TAUX-HORS-BORNES"
+
+
+def test_mutants_tueurs_service_entre_zero_et_un_dollar():
+    """Un service de 0.50 $ est positif : la garde refuse un service NUL, pas tout service sous 1 $."""
+    from m5_financecore import dossier_acquisition as da
+
+    entrees = {
+        **C1,
+        "prix_achat": "60.00",
+        "mise_de_fonds": "0.00",
+        "taux_annuel": "0",
+        "duree_mois": 120,
+        "assurance_mensuelle": "0.00",
+        "entretien_mensuel": "0.00",
+    }
+    sortie, verdict = da.preparer_dossier_camion(entrees)
+    assert verdict is None
+    assert sortie["recu"]["resultat"]["service_dette_mensuel"] == "0.50"
+
+
+def test_mutants_tueurs_c2_loyers_omis_et_stress_revenus():
+    """Sans revenus locatifs saisis, le défaut est ZÉRO (pas un dollar) ; le stress revenus vaut 80 % du total."""
+    entrees = dict(C2)
+    del entrees["revenus_locatifs_mensuels"]
+    from m5_financecore import dossier_acquisition as da
+
+    sortie, verdict = da.preparer_dossier_batiment(entrees)
+    assert verdict is None
+    resultat = sortie["recu"]["resultat"]
+    assert resultat["dscr"] == "0.8214"
+    assert resultat["stress"]["revenus_moins_20"]["revenus_mensuels"] == "1440.00"
+
+
+def test_mutants_tueurs_c2_loyers_locatifs_sommes_et_combine():
+    """Les revenus totaux ADDITIONNENT le loyer évité et les loyers locatifs ; le taux combiné AJOUTE 2 points."""
+    resultat = _dossier_c2(revenus_locatifs_mensuels="500.00")["resultat"]
+    assert resultat["dscr"] == "1.0495"
+    assert resultat["stress"]["revenus_moins_20"]["revenus_mensuels"] == "1840.00"
+    assert resultat["stress"]["combine"]["taux_annuel"] == "0.0800"
+
+
+def test_mutants_tueurs_c2_occupation_stressee_additionnee():
+    """Le coût d'occupation stressé = mensualité stressée + charges (pas une soustraction)."""
+    resultat = _dossier_c2()["resultat"]
+    stresse = resultat["stress"]["taux_plus_2_points"]
+    assert stresse["cout_occupation_mensuel"] == format(D(stresse["mensualite"]) + D("400.00"), ".2f")
+
+
+def test_mutants_tueurs_c2_occupation_faible_mais_positive():
+    """0.13 $ d'occupation et 0.18 $ stressé sont positifs : le seuil de refus est zéro, pas un dollar."""
+    from m5_financecore import dossier_acquisition as da
+
+    entrees = {
+        **C2,
+        "prix_achat": "60.00",
+        "mise_de_fonds": "0.00",
+        "taux_annuel": "0",
+        "amortissement_annees": 40,
+        "frais_achat": "0.00",
+        "charges_mensuelles": "0.00",
+        "liquidites_actuelles": "1000.00",
+    }
+    sortie, verdict = da.preparer_dossier_batiment(entrees)
+    assert verdict is None
+    resultat = sortie["recu"]["resultat"]
+    assert resultat["cout_occupation_mensuel"] == "0.13"
+    assert resultat["stress"]["taux_plus_2_points"]["cout_occupation_mensuel"] == "0.18"
+
+
+def test_mutants_tueurs_c2_tresorerie_presente_et_absente():
+    """Liquidités fournies = aucun manque ; absentes = manque nommé (jamais l'inverse)."""
+    from m5_financecore import dossier_acquisition as da
+
+    assert _dossier_c2()["resultat"]["tresorerie_manque"] == []
+    entrees = dict(C2)
+    del entrees["liquidites_actuelles"]
+    sortie, verdict = da.preparer_dossier_batiment(entrees)
+    assert verdict is None
+    resultat = sortie["recu"]["resultat"]
+    assert resultat["liquidites_apres_achat"] is None
+    assert any("liquidit" in manque for manque in resultat["tresorerie_manque"])
