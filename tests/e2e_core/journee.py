@@ -173,9 +173,11 @@ class AppProprietaire:
                                         horodatage_appareil=appel.horodatage_appareil,
                                         appareil_id=self.appareil.identifiant, etape=f"rejeu : {appel.outil}")
 
-    def ecran(self) -> dict[str, Any]:
-        """L'écran des approbations : `m9_lister_demandes_approbation`."""
-        reponse = self.passerelle.invoquer("m9_lister_demandes_approbation", {})
+    def ecran(self, decalage_attentes: int = 0) -> dict[str, Any]:
+        """L'écran des approbations : `m9_lister_demandes_approbation` (`decalage_attentes` : rang de la première
+        attente de la page, comme l'app qui lit « À voir » page par page)."""
+        reponse = self.passerelle.invoquer(
+            "m9_lister_demandes_approbation", {"decalage_attentes": decalage_attentes} if decalage_attentes else {})
         exiger(reponse.statut == 200 and reponse.ok and reponse.enveloppe.get("ok") is True
                and not (isinstance(reponse.metier, dict) and reponse.metier.get("accepte") is False),
                "l'écran des approbations doit répondre au propriétaire", statut=reponse.statut, corps=reponse.corps)
@@ -350,12 +352,20 @@ def jouer_la_journee(
     exiger(set(telephone) == CLES_ECRAN and telephone["proprietaire"] is True and telephone["attentes_illisibles"] == []
            and all(set(a) == CLES_ATTENTE for a in telephone["attentes"]),
            "l'écran du propriétaire doit avoir la forme que l'app lit", cles=sorted(telephone))
-    par_type = {a["type"]: a for a in telephone["attentes"]}
-    # `attentes_reste` : ce que l'écran coupe (`BUDGET_ATTENTES`, aucune pagination) ; une alerte coupée n'est pas lue.
-    exiger({"completion_en_revue", "chantier_a_reviser"} <= set(par_type) and telephone["attentes_reste"] == 0,
-           "l'alerte d'écart doit être dans « À voir », sans qu'aucune attente soit coupée", types=sorted(par_type),
-           total=telephone["total_attentes"], affichees=telephone["attentes_affichees"],
-           reste=telephone["attentes_reste"], attentes=telephone["attentes"])
+    # Le budget de la page (`BUDGET_ATTENTES`) n'est pas relevé pour en montrer plus : l'app lit « À voir » page
+    # par page (`attentes_suivant`). Toutes les pages sont lues ; aucune attente ne doit manquer ni se répéter.
+    attentes_lues = list(telephone["attentes"])
+    page_courante = telephone
+    while page_courante["attentes_suivant"] is not None:
+        page_courante = ecran.ecran(page_courante["attentes_suivant"])
+        attentes_lues += page_courante["attentes"]
+    par_type = {a["type"]: a for a in attentes_lues}
+    exiger({"completion_en_revue", "chantier_a_reviser", "ecart_materiaux_critique"} <= set(par_type)
+           and len(attentes_lues) == telephone["total_attentes"] == len(par_type)
+           and page_courante["attentes_reste"] == 0,
+           "l'alerte d'écart doit être dans « À voir » (toutes les pages lues), sans qu'aucune attente soit coupée",
+           types=sorted(par_type), total=telephone["total_attentes"], lues=len(attentes_lues),
+           attentes=attentes_lues)
     en_revue = par_type["completion_en_revue"]
     exiger(en_revue["id"] == chantier.intervention_id and en_revue["departement"] == "m04-field-ops"
            and en_revue["niveau"] == "N4" and "écart matériaux CRITIQUE signalé par M6" in en_revue["resume"]

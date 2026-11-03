@@ -277,6 +277,20 @@ def construire_outils(
             if (recu := cs.instant(c["recu_a"])) is not None and 0 < (maintenant - recu).total_seconds() <= 86400  # type: ignore[operator]
         )
         presents = [r for r in radar["risques"] if r["statut"] != "LEVE"]
+        # Une cause répétée à l'identique pour un même statut n'est dite qu'une fois (`manques_causes`) : la liste des
+        # lectures reste complète mais tient dans la borne de sortie, quel que soit le nombre de lectures absentes.
+        non_presentes = [e for e in couverture["lectures"] if e["statut"] != "PRESENTE"]
+        causes_communes: dict[str, str] = {}
+        for statut in sorted({e["statut"] for e in non_presentes}):
+            textes = [e.get("manque") for e in non_presentes if e["statut"] == statut and e.get("manque")]
+            if textes:
+                causes_communes[statut] = max(sorted(set(textes)), key=textes.count)
+        manques_compacts = []
+        for e in non_presentes:
+            entree = {"lecture_id": e["lecture_id"], "statut": e["statut"]}
+            if e.get("manque") != causes_communes.get(e["statut"]):
+                entree["manque"] = e.get("manque")
+            manques_compacts.append(entree)
         contenu = {
             "type": "SALLE_DE_GUERRE",
             "reference": reference,
@@ -326,11 +340,8 @@ def construire_outils(
             "conseils_en_cours": en_cours[:MAX_ITEMS_SALLE],
             "conseils_en_cours_total": len(en_cours),
             "recommandations_a_valider_par_un_humain": a_valider,
-            "manques": [
-                {"lecture_id": e["lecture_id"], "statut": e["statut"], "manque": e.get("manque")}
-                for e in couverture["lectures"]
-                if e["statut"] != "PRESENTE"
-            ],
+            "manques": manques_compacts,
+            "manques_causes": causes_communes,
             "responsabilites": "M9 propose ; toute décision sensible reste au propriétaire ; aucun effet ici",
             "limites": [
                 "Lecture seule : aucune planification, aucun effet, aucune décision n'est créée par cette vue."

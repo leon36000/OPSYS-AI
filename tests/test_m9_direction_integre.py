@@ -99,6 +99,10 @@ def test_salle_de_guerre_montre_couverture_manques_et_refuse_une_vue_perimee(cap
     assert salle["type"] == "SALLE_DE_GUERRE" and salle["couverture"]["complete"] is False
     statuts = {m["lecture_id"]: m["statut"] for m in salle["manques"]}
     assert statuts["m6.disponibilite"] == "ABSENTE" and "m2.leads" not in statuts
+    # une cause répétée à l'identique pour un statut n'est dite qu'une fois : la liste reste complète mais bornée
+    assert salle["manques_causes"]["ABSENTE"] == "aucune capture connue à l'instant de connaissance"
+    assert all("manque" not in m for m in salle["manques"] if m["statut"] == "ABSENTE")
+    assert len(json.dumps(salle, ensure_ascii=False)) < 4500
     assert salle["decisions_en_attente"]["total"] == 0 and salle["conseils_en_cours_total"] == 0
     assert "aucun effet" in salle["responsabilites"]
     meme = _ok(

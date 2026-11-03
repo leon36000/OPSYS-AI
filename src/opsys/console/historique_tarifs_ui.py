@@ -91,6 +91,8 @@ def lire(cnx, deps, session, materiau_id, args):
     attendu = dict(fournisseurs=[dict(fournisseur_id=f['fournisseur_id'], nom=f['nom']) for f in page],
                    total=len(fiches), suivant=25 if len(fiches) > 25 else None)
     reel = _appel(cnx, deps, session, 'm6_lister_fournisseurs_console', dict(debut=0, limite=25))
+    # `a_fournir` (ajouté par M6) ne concerne pas cet écran : seule la page des fiches est comparée.
+    reel = {k: v for k, v in reel.items() if k != 'a_fournir'}
     if _encoder(reel) != _encoder(attendu):
         raise lecture.Refus('SOURCE-REPONSE-INCOHERENTE')
     historique = None
