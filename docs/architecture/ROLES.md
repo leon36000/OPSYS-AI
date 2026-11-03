@@ -71,9 +71,9 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 255 outils sur 691 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 256 outils sur 692 sont déclarés.
 
-### `employee` (17 outils) : §9.3, le terrain
+### `employee` (18 outils) : §9.3, le terrain
 
 Chaque outil qui porte une identité ou une intervention ne s'exécute que pour la personne authentifiée et
 pour SES interventions (section « Contrôle d'accès par personne et par intervention » plus bas, T1.4-k).
@@ -131,7 +131,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (254 outils) : §9.5 + employé + vendeur
+### `admin` (255 outils) : §9.5 + employé + vendeur
 
 Les 17 outils de l'employé, les 29 du vendeur également permis à l'admin, et :
 

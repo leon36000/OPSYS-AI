@@ -99,6 +99,7 @@ from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 
 from . import (
     acces,
+    achats_terrain,
     besoins_materiaux_recus,
     besoins_prevus,
     bons_commande,
@@ -131,7 +132,9 @@ from . import (
     verdicts,
     wct_recus,
 )
+from . import attentes_c5_c6 as attentes_supplementaires
 from . import catalogue as catalogue_module
+from . import details_reception as details_reception_module
 from . import registre as registre_module
 
 _DEPARTEMENT = "m06-material-control"
@@ -144,6 +147,7 @@ _NOM_REGISTRE_BONS_COMMANDE = "bons_commande"
 _NOM_REGISTRE_BESOINS_COMMANDE = "besoins_commande"
 _NOM_REGISTRE_RESERVATIONS = "reservations"
 _NOM_REGISTRE_EMPLACEMENTS = "emplacements"
+_NOM_REGISTRE_ACHATS_TERRAIN = "achats_terrain"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _TYPE_EVENEMENT_WCT = "m4.travaux_termines"
 
@@ -201,6 +205,46 @@ _SEUILS_REORDER = {
         },
         "required": ["chantier_id", "materiau_id", "seuil_quantite"],
     },
+}
+_DETAIL_RECEPTION = {
+    "type": "object",
+    "description": (
+        "C5 : statut de la ligne reçue (conforme, manquant, substitue, endommage), matériau "
+        "substitué quand il y a lieu, références CAS des photos quand la ligne est endommagée."
+    ),
+    "properties": {
+        "materiau_id": {"type": "string"},
+        "statut_ligne": {"type": "string"},
+        "materiau_substitue": {"type": "string"},
+        "photos": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["materiau_id", "statut_ligne"],
+}
+_DETAILS_RECEPTION = {"type": "array", "items": _DETAIL_RECEPTION}
+_LIEU_LIVRAISON = {
+    "type": ["object", "null"],
+    "description": "C5 : lieu fermé d'arrivée du stock (depot, chantier, camion, remorque, employe).",
+}
+_PRIX_BL = {
+    "type": ["object", "null"],
+    "description": "C5 : prix unitaires lus du bon de livraison, par materiau_id (saisie, source BON_LIVRAISON).",
+}
+_ACHAT_TERRAIN = {
+    "type": "object",
+    "description": "C6 : achat sur place (montant en texte décimal, reçu CAS obligatoire, chantier, raison).",
+    "properties": {
+        "materiau_id": {"type": "string"},
+        "quantite": {"type": "number"},
+        "montant": {"type": "string"},
+        "devise": {"type": "string"},
+        "fournisseur": {"type": "string"},
+        "raison": {"type": "string"},
+        "chantier_id": {"type": "string"},
+        "recu": {"type": "string"},
+    },
+    "required": ["materiau_id", "quantite", "montant", "devise", "fournisseur",
+                 "raison", "chantier_id", "recu"],
+    "additionalProperties": False,
 }
 _WCT = {"type": "object", "description": "WctRecu — 12 clés exactes émises par M4, reproduites telles quelles."}
 _WCT_ID = {
@@ -412,6 +456,15 @@ def _bons_commande_de_l_appel(historique: list[dict[str, Any]] | None) -> list[d
     return list(historique or [])
 
 
+def _achats_terrain_de_l_appel(historique: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Registre durable DÉDIÉ des achats sur place (C6) : jamais le registre de mouvements de stock
+    (pas de `type_mouvement`, pas de hash-chaînage applicatif — même discipline que les PO,
+    `bons_commande.py`). Même patron durable/en mémoire que ci-dessus."""
+    if stockage.connexion_courante() is not None:
+        return stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ACHATS_TERRAIN)
+    return list(historique or [])
+
+
 def _seuil_decimal(cle: str) -> Any:
     """La valeur de `configuration.<cle>` : celle que la direction a ADOPTÉE (réglage de direction, CFG-1,
     `opsys.reglages`) si elle existe, sinon celle de `department.yaml`, sinon `None`. Une valeur adoptée est un texte
@@ -461,6 +514,19 @@ def _seuil_ecart_prix_reception() -> float | None:
     seuil = _seuil_decimal("seuil_ecart_prix_reception_pourcentage")
     ok, _ = validation.valider_seuil_variance_chantier(seuil)
     return seuil if ok else None
+
+
+def _plafond_achat_terrain() -> str | None:
+    """Plafond DÉCLARÉ par achat sur place (C6, Q3) : même source et même discipline fail-closed
+    que les seuils ci-dessus. La direction adopte un texte décimal via le réglage de direction
+    `m6.plafond_achat_terrain` (CFG-1) ; sinon `configuration.plafond_achat_terrain` du manifeste ;
+    absent ou illisible : `None`, jamais un montant inventé — l'achat attend alors l'admin."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration")
+    du_fichier = configuration if isinstance(configuration, dict) else {}
+    lue = reglages_lecture.superposer(donnees, ("configuration",), du_fichier)
+    valeur = lue.get("plafond_achat_terrain") if isinstance(lue, dict) else None
+    return valeur if isinstance(valeur, str) else None
 
 
 def _articles_reapprovisionnement() -> dict[str, Any] | None:
@@ -913,6 +979,9 @@ def receptionner_commande(
     seuils_reorder: list[dict[str, Any]] | None = None,
     registre_historique: list[dict[str, Any]] | None = None,
     bons_commande_historique: list[dict[str, Any]] | None = None,
+    details_reception: list[dict[str, Any]] | None = None,
+    lieu_livraison: dict[str, Any] | None = None,
+    prix_bl: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """PLAN T2.5 point 4 : `materiel.enregistrer_reception` (DA-M6-11) reste APPELÉ SANS
     MODIFICATION — la réception éphémère (`bon_demande` fourni à l'appel) continue de fonctionner
@@ -938,8 +1007,25 @@ def receptionner_commande(
     `reception_cumulee` dit le cumul. (2) Une livraison déjà enregistrée (même PO, même horodatage, mêmes
     quantités) est refusée (`REJ-RECEPTION-DEJA-ENREGISTREE`) : additionnée deux fois, une livraison partielle
     ferait passer le PO à `received`. (3) Une quantité négative ou non finie est refusée AVANT toute écriture
-    aussi pour une réception éphémère (PO non persisté)."""
+    aussi pour une réception éphémère (PO non persisté).
+
+    C5 (réception enrichie, additif) : `details_reception` (statuts par ligne), `lieu_livraison`
+    (lieu fermé d'arrivée) et `prix_bl` (prix lus du bon de livraison, marqués `BON_LIVRAISON`)
+    sont optionnels. Quand ils sont fournis, ils sont validés — `REJ-RECEPTION-SUBSTITUE-INCOMPLET`,
+    `REJ-RECEPTION-PREUVE-MANQUANTE`, `REJ-RECEPTION-STATUT-INCONNU`, `REJ-RECEPTION-LIEU-INVALIDE` —
+    AVANT toute écriture au stock, puis recopiés dans la réponse (`details_lignes`, `lieu`,
+    `signaux_prix_bl`). Quand ils sont absents, le comportement est inchangé (contrats gelés)."""
     bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
+    details_valides = None
+    if details_reception is not None:
+        details_valides, code_details = details_reception_module.valider_details(details_reception)
+        if code_details is not None:
+            return {"accepte": False, "verdict": {"code": code_details}}
+    lieu_valide = None
+    if lieu_livraison is not None:
+        lieu_valide, code_lieu = details_reception_module.valider_lieu(lieu_livraison)
+        if code_lieu is not None:
+            return {"accepte": False, "verdict": {"code": code_lieu}}
     po_id = bon_demande.get("po_id") if isinstance(bon_demande, dict) else None
     po_existant = bons_commande.lire(bons_registre, po_id) if po_id else None
     livraison = None
@@ -978,6 +1064,14 @@ def receptionner_commande(
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
     reponse = {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
+    if details_valides is not None:
+        reponse["details_lignes"] = details_valides
+    if lieu_valide is not None:
+        reponse["lieu_livraison"] = lieu_valide
+    if prix_bl is not None and po_existant is not None:
+        signaux_bl = details_reception_module.detecter_ecarts_prix_bl(
+            po_existant.get("lignes", []), prix_bl, _seuil_ecart_prix_reception())
+        reponse["signaux_prix_bl"] = signaux_bl
     # T4.14 : du stock vient d'entrer, PO persisté ou non : les réservations auxquelles il manquait quelque chose
     # se complètent (les plus anciennes d'abord), et `m6.materiel_pret` le dit à M4.
     publies = _reconcilier_reservations(
@@ -1012,6 +1106,59 @@ def receptionner_commande(
             reponse["evenement_reception_id"] = _publier_reception(
                 po_maj, accuse, reception_po, seuil_ecart_prix, reponse["signaux_ecart_prix"]
             )
+    return reponse
+
+
+def declarer_achat_terrain(
+    achat: dict[str, Any],
+    role: str = "employee",
+    achats_terrain_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """C6 : déclare un achat sur place (urgent, fournisseur, montant exact, article, raison, photo du
+    reçu OBLIGATOIRE, chantier). Valide fail-closed (`achats_terrain.valider_achat`, rôle terrain),
+    décide au plafond DÉCLARÉ de la direction (`_plafond_achat_terrain`, CFG-1, borne incluse) :
+    sous le plafond, accepté et tracé au registre durable dédié `achats_terrain` (idempotent par
+    reçu + matériau + chantier) ; au-delà, ou plafond absent/illisible, attente admin N3 AVANT
+    toute entrée au stock (tracée au même registre, `en_attente: True`, sans montant vers l'employé).
+    Rend l'attente M5 `depense_terrain_a_saisir` (transmise quand l'achat est accepté, jamais payée :
+    M6 ne paie ni ne rembourse). Le rôle vient de l'appareil ; ne lit jamais les montants d'autrui."""
+    acteur, verdict_acteur = _declarant_appareil()
+    if verdict_acteur is not None:
+        return {"accepte": False, "verdict": verdict_acteur}
+    role_effectif = acteur.role if acteur is not None else role
+    copie, code = achats_terrain.valider_achat(achat, role=role_effectif)
+    if code is not None:
+        return {"accepte": False, "verdict": {"code": code}}
+    assert copie is not None
+    registre_cible = _achats_terrain_de_l_appel(achats_terrain_historique)
+    decision = achats_terrain.decider(copie, _plafond_achat_terrain())
+    if decision["statut"] != "accepte":
+        attente = dict(copie)
+        attente["en_attente"] = True
+        attente["motif"] = decision.get("motif")
+        if stockage.connexion_courante() is not None:
+            stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ACHATS_TERRAIN).append(attente)
+        else:
+            registre_cible.append(attente)
+        reponse_attente: dict[str, Any] = {"accepte": False, "decision": decision,
+                                           "verdict": {"code": "REJ-ACHAT-TERRAIN-EN-ATTENTE",
+                                                       "motif": decision.get("motif")}}
+        if stockage.connexion_courante() is None:
+            reponse_attente["achats_terrain_historique"] = list(registre_cible)
+        return reponse_attente
+    trace, code_trace = achats_terrain.enregistrer(copie, registre_cible)
+    if code_trace is not None:
+        return {"accepte": False, "verdict": {"code": code_trace}}
+    if stockage.connexion_courante() is not None:
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ACHATS_TERRAIN).append(trace["mouvement"])
+    reponse: dict[str, Any] = {
+        "accepte": True,
+        "resultat": trace.get("mouvement"),
+        "decision": decision,
+        "attente_m5": achats_terrain.attente_m5(copie),
+    }
+    if stockage.connexion_courante() is None:
+        reponse["achats_terrain_historique"] = trace["registre"]
     return reponse
 
 
@@ -2979,7 +3126,9 @@ def outils() -> tuple[Outil, ...]:
                 "livraisons se CUMULENT (la livraison qui complète un PO partiel le passe à received), un écart de "
                 "prix au-delà du seuil est signalé, et m6.reception_enregistree (ce qui est arrivé cette fois-là, "
                 "aucun montant) est publié dans la même transaction. Refuse, avant d'écrire : quantité négative ou "
-                "non finie (aussi hors PO), horodatage sans fuseau, livraison déjà enregistrée."
+                "non finie (aussi hors PO), horodatage sans fuseau, livraison déjà enregistrée. "
+                "C5 (optionnels, validés avant écriture) : details_reception (statuts par ligne), "
+                "lieu_livraison (lieu fermé d'arrivée), prix_bl (prix du bon de livraison, source BON_LIVRAISON)."
             ),
             parametres={
                 "type": "object",
@@ -2990,6 +3139,9 @@ def outils() -> tuple[Outil, ...]:
                     "seuils_reorder": _SEUILS_REORDER,
                     "registre_historique": _REGISTRE_HISTORIQUE,
                     "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                    "details_reception": _DETAILS_RECEPTION,
+                    "lieu_livraison": _LIEU_LIVRAISON,
+                    "prix_bl": _PRIX_BL,
                 },
                 "required": ["bon_demande", "reception_po"],
                 "additionalProperties": False,
@@ -2998,6 +3150,32 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T1,
             # §9.5 M6 (réception rapide). Pas `employee` : la réponse porte des prix (§9.3 « aucun coût »).
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_declarer_achat_terrain",
+            description=(
+                "C6 : déclare un achat sur place (urgent, fournisseur, montant exact en texte décimal, "
+                "article, raison, photo du reçu CAS OBLIGATOIRE, chantier) au plafond DÉCLARÉ de la "
+                "direction (borne incluse) : sous le plafond, accepté et tracé au registre dédié "
+                "(idempotent par reçu + matériau + chantier) avec une attente M5 « dépense terrain à "
+                "saisir » ; au-delà, ou plafond absent, attente admin N3 tracée avant toute entrée au "
+                "stock. Refus nommés avant écriture (preuve, montant, rôle). M6 ne paie ni ne rembourse jamais."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "achat": _ACHAT_TERRAIN,
+                    "role": {"type": "string"},
+                    "achats_terrain_historique": _REGISTRE_HISTORIQUE,
+                },
+                "required": ["achat"],
+                "additionalProperties": False,
+            },
+            fonction=declarer_achat_terrain,
+            autonomie=Autonomie.T1,
+            # Geste terrain comme la déclaration de matériaux (§9.3) ; la réponse porte un montant :
+            # l'employé ne voit que SON reçu, jamais les coûts d'autrui.
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m6_consommer_materiaux",
@@ -4144,6 +4322,18 @@ def _attentes_ecart_critique() -> list[dict[str, Any]]:
     return sortie
 
 
+def _attentes_achats_terrain() -> list[dict[str, Any]]:
+    """C6 : les achats sur place en attente d'approbation admin (N3), lus au registre durable
+    dédié. Lecture seule : aucun montant n'est montré à l'employé (cette file est admin)."""
+    if stockage.connexion_courante() is None:
+        return []
+    decisions = []
+    for maillon in stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ACHATS_TERRAIN):
+        if isinstance(maillon, dict) and maillon.get("en_attente") is True:
+            decisions.append(maillon)
+    return attentes_supplementaires.attentes_achats_terrain(decisions)
+
+
 def attentes() -> list[dict[str, Any]]:
     """Le stock bas et les seuils à configurer, tels qu'ils sont AUJOURD'HUI (`reapprovisionnement.attentes`) :
     une attente `besoin_commande` par article constaté dont le stock est encore sous le seuil, et une seule
@@ -4159,4 +4349,4 @@ def attentes() -> list[dict[str, Any]]:
         hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
     ) + _attentes_cout_sortie() + _attentes_ecart_critique() + _attentes_po(
     ) + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
-        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE))
+        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE)) + _attentes_achats_terrain()

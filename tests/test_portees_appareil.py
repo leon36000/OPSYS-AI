@@ -32,6 +32,7 @@ EMPLOYE = frozenset({
     "m4_demarrer_route", "m4_deposer_fichier", "m4_etat_fichier", "m4_lister_interventions", "m4_pointer",
     "m4_signaler_report", "m4_statut_intervention", "m6_declarer_materiaux_utilises",
     "m6_lire_contexte_materiaux_appareil", "m6_declarer_materiaux_avec_preuves_appareil",
+    "m6_declarer_achat_terrain",  # C6 : geste terrain, SON achat seul, jamais un coût d'autrui
     # M7 : enregistrer un consentement de référence et importer/lire les avis non privés;
     # les plaintes privées et les décisions/exports/publications restent fermés à ce rôle.
     "m7_enregistrer_consentement_reference", "m7_importer_avis_manuel", "m7_lister_inbox_reputation",

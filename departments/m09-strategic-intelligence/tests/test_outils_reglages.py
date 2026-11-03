@@ -313,7 +313,7 @@ def test_lire_a_la_livraison_dit_vingt_huit_manquants_avec_ce_que_ca_bloque_et_l
     pages = _tout_lire(deps)
     page = pages[0]
     # 28 réglages vides (M2, M8 dont six seuils d'alerte, M5, M9) + 2 de M6 (C3) déjà valorisés à department.yaml.
-    assert page["accepte"] is True and page["total"] == 30 and page["manquants"] == 28
+    assert page["accepte"] is True and page["total"] == 31 and page["manquants"] == 28
     assert page["chaine"]["valide"] is True and "recommandation, non validée" in page["mention"]
     lignes = [ligne for p in pages for ligne in p["reglages"]]
     assert len(lignes) == 28 and pages[-1]["prochain_depart"] is None
