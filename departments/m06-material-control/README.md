@@ -245,9 +245,38 @@ Bugs corrigés (test rouge → vert) lors de cette passe :
   aucune modification de m5_financecore).
 
 ## Disponibilité du matériel publiée pour M8 — `m6_constater_disponibilite`
-
 (phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) publie `m6.disponibilite_constatee` : CINQ comptes (articles suivis, en rupture, sur-réservés, réservations actives et incomplètes), calculés comme `m6_lire_disponibilite` (module pur `constat_disponibilite.py`). Aucun article, quantité, prix ni chantier ne part. L'identifiant porte l'instant du constat.
 
 **Déclenchement.** Ce constat est déclaré par `constats_planifies` du `department.yaml` et lancé par le planificateur durable
 (exécuteur `m6.constat.disponibilite`, inactif par défaut, cadence par défaut dérivée du catalogue de M8) : `horodatage` = le début du créneau. Aucun agent n'a besoin de le
 faire à la main. Voir `docs/architecture/PLANIFICATION.md` §9.
+
+## C5 — réception enrichie, C6 — achats sur place (M6.7, M6.17)
+
+(2026-11-03, vague 13) **PARTIEL, prouvé sur SQLite réelle + bus réel, données fictives** : aucun service externe, aucun
+paiement, aucun envoi.
+
+*C5* (`details_reception.py`, pur ; additif à `receptionner_commande`, contrats gelés) : chaque ligne reçue porte un
+statut fermé (`conforme`, `manquant`, `substitue`, `endommage`) — `substitue` exige le matériau substitué nommé
+(`REJ-RECEPTION-SUBSTITUE-INCOMPLET`), `endommage` exige au moins une photo CAS `fichier:sha256:` (sinon preuve
+manquante, refus avant écriture), tout autre statut est refusé (`REJ-RECEPTION-STATUT-INCONNU`, injection comprise) ;
+le lieu de livraison est un lieu fermé d'arrivée (`depot`, `chantier`, `camion`, `remorque`, `employe`, référence exigée
+sauf `depot`, délégué à `emplacements.normaliser`, sinon `REJ-RECEPTION-LIEU-INVALIDE`) ; le prix lu du bon de livraison
+(`prix_bl`, donnée saisie marquée `BON_LIVRAISON`) est comparé au prix prévu du PO en `Fraction` sur le texte décimal au
+seuil DÉCLARÉ `m6.seuil_ecart_prix_reception_pourcentage` (0.15, borne incluse, baisse comprise) : au-delà, signaux
+`signaux_prix_bl` retournés (vers M5/M8 comme `signaux_ecart_prix`, jamais transmis directement) et attentes admin
+`ecart_prix_bl_a_verifier` (N3). Absents, le comportement est inchangé. L'événement `m6.reception_enregistree`
+(schéma fermé) est inchangé.
+
+*C6* (`achats_terrain.py`, pur ; nouvel outil `m6_declarer_achat_terrain`, T1, `employee`+`admin`) : l'achat sur place
+(montant en TEXTE décimal exact, jamais un float, reçu photo CAS OBLIGATOIRE `REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`,
+chantier, raison) est validé fail-closed (rôle terrain, sinon `REJ-ACHAT-TERRAIN-ROLE-INTERDIT`), décidé au plafond
+DÉCLARÉ `m6.plafond_achat_terrain` (150, borne incluse, CFG-1 : absent ou illisible, attente admin) : sous le plafond,
+accepté et tracé au registre durable dédié `achats_terrain` (idempotent par reçu + matériau + chantier,
+`REJ-ACHAT-TERRAIN-DEJA-DECLARE`), avec l'attente M5 `depense_terrain_a_saisir` (source `RECU_TERRAIN`, jamais de
+`paiement`/`remboursement`) ; au-delà, attente admin N3 tracée (`en_attente: True`) AVANT toute entrée au stock.
+M6 ne paie ni ne rembourse jamais. Bouts couverts : `tests/test_reception_enrichie_c5.py`,
+`tests/test_achats_terrain_c6.py`, `tests/test_cablage_c5_c6.py`, `tests/test_bout_en_bout_c5_c6.py` (PO persisté →
+réception enrichie → événement → achat sous/hors plafond → idempotence → injection refusée).
+Limites : signaux BL retournés comme les écarts PO (aucune publication dédiée) ; seuils et plafond à adopter par la
+direction (recommandations d'agent, non validées).

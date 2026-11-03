@@ -71,9 +71,9 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 254 outils sur 687 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 255 outils sur 688 sont déclarés.
 
-### `employee` (17 outils) : §9.3, le terrain
+### `employee` (18 outils) : §9.3, le terrain
 
 Chaque outil qui porte une identité ou une intervention ne s'exécute que pour la personne authentifiée et
 pour SES interventions (section « Contrôle d'accès par personne et par intervention » plus bas, T1.4-k).
@@ -92,6 +92,7 @@ pour SES interventions (section « Contrôle d'accès par personne et par interv
 | `m6_declarer_materiaux_utilises` | §9.3 Inventaire et §9.7 étape 3 : formulaire des matériaux utilisés, « aucun coût affiché ». Le WCT de sa propre intervention, ou celui de l'ÉQUIPE dont il est membre déclaré (audit nominatif `m6.materiaux_declares_membre_equipe`). |
 | `m6_declarer_materiaux_avec_preuves_appareil` (T1/N3) | Déclaration DEVICE employee/admin active et WCT courant avant claim/rejeu ; mêmes mouvements/cascades historiques, notes de PERTE/BRIS et CAS associés atomiquement. ACK entier préflight au quota effectif min5400, sans coût ni artefact ; un rejeu hors quota réduit reste une issue de transport inconnue, même clé conservée. |
 | `m6_lire_contexte_materiaux_appareil` (T0/N0) | Contexte et prévu du WCT choisi : identité active et rôle employee/admin courants ; employé individuellement assigné admis par M4 avant bus WCT/prévu M6. IDs intervention/WCT exacts, chantier selon `acces.chantier_attendu`, références natives M4/M3/M6 et estimé sans coût. Pages courantes, enveloppe5400, sources10000 ; aucun cache ajouté, quantité réelle, écriture ou artefact. |
+| `m6_declarer_achat_terrain` (T1) | C6 §9.3 geste terrain : SON achat sur place (montant exact, reçu CAS obligatoire, chantier, raison) au plafond DÉCLARÉ ; sous le plafond tracé + attente M5 « dépense terrain à saisir », au-delà ou sans plafond attente admin N3 tracée. Ne voit aucun coût d'autrui, ne paie jamais. |
 | `m7_enregistrer_consentement_reference` | Consentement qu'il recueille pour une référence; n'autorise pas l'employé à préparer ou publier un contenu public. |
 | `m7_importer_avis_manuel`, `m7_lister_inbox_reputation` | Saisie manuelle et consultation de l'inbox; le texte des plaintes/urgences privées n'est pas rendu à l'employé. Il ne décide ni n'exporte de réponse. |
 
@@ -131,9 +132,9 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (253 outils) : §9.5 + employé + vendeur
+### `admin` (254 outils) : §9.5 + employé + vendeur
 
-Les 17 outils de l'employé, les 29 du vendeur également permis à l'admin, et :
+Les 18 outils de l'employé, les 29 du vendeur également permis à l'admin, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
