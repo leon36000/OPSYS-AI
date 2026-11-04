@@ -181,3 +181,10 @@ def test_le_catalogue_refuse_une_emission_imaginaire_et_une_serie_incoherente():
     alerte_sans_semaine = _charge()
     alerte_sans_semaine["semaines_sous_seuil"] = []
     assert erreurs_charge(ctp.TYPE_EVENEMENT_TRESORERIE_PREVUE, alerte_sans_semaine) != []
+
+
+def test_lire_emission_refuse_un_non_texte_sans_lever():
+    # Tue le mutant `isinstance(brut, str) and fullmatch` -> `or` (le motif lèverait TypeError sur un entier).
+    for brut in (20261104, None, 1.5, ["2026-11-04T07:00:00-05:00"], b"2026-11-04T07:00:00-05:00"):
+        instant, verdict = ctp.lire_emission(brut)
+        assert instant is None and verdict["code"] == ctp._CODE_EMISSION_INVALIDE

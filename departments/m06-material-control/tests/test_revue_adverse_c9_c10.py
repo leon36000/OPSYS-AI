@@ -288,3 +288,50 @@ def test_un_instant_sans_fuseau_est_refuse_et_un_instant_avec_fuseau_est_accepte
     assert {n["regle"] if "regle" in n else n.get("type") for n in avec["non_evaluees"]} != {"horodatage"}
     assert [n for n in sans["non_evaluees"] if "maintenant" in str(n)] != []
     assert sans["alertes"] == []
+
+
+# --- Tests tueurs ajoutés par l'orchestrateur (balayage indépendant de alertes_approvisionnement.py) ---------------
+def _mv(type_mouvement, quantite, materiau="M", index=0, horodatage=None):
+    mouvement = {"index": index, "type_mouvement": type_mouvement, "chantier_id": "CH", "materiau_id": materiau,
+                 "quantite": quantite, "cout_unitaire": None, "hash_precedent": "", "hash_maillon": "a" * 64}
+    if horodatage is not None:
+        mouvement["horodatage"] = horodatage
+    return mouvement
+
+
+_MAINT = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
+
+
+def _calculer(mouvements, seuil=2):
+    return alertes.calculer(mouvements=mouvements, bons_commande=(), fournisseurs=(), wct_recus=(),
+                            seuil_repetition=seuil, fenetre_jours=30, maintenant=_MAINT)
+
+
+def test_un_texte_numerique_n_est_jamais_une_quantite():
+    # `"5"` se lit pourtant comme un Decimal : seul le typage strict de `_quantite` le refuse.
+    assert alertes._quantite("5") is None and alertes._quantite(True) is None
+    assert alertes._quantite(5) == Decimal(5) and alertes._quantite(0.5) == Decimal("0.5")
+    resultat = _calculer([_mv("VARIANCE_INVENTAIRE", "5"), _mv("VARIANCE_INVENTAIRE", "5")])
+    assert resultat["alertes"] == [] and resultat["non_evaluees"]
+
+
+def test_l_ordre_des_types_d_alerte_et_le_compte_des_quantites_illisibles_sont_dits():
+    mouvements = [_mv("VARIANCE_INVENTAIRE", 1.0), _mv("VARIANCE_INVENTAIRE", 2.0), _mv("PERTE", -1.0),
+                  _mv("PERTE", -1.0), _mv("AJUSTEMENT", 1.0), _mv("AJUSTEMENT", 1.0)]
+    types = [a["type"] for a in _calculer(mouvements)["alertes"]]
+    # les trois types sont rendus, dans un ordre déterministe (la liste finale est triée : insérer la variance en tête
+    # ou en queue ne change rien, ce qui rend le mutant d'index 0 -> 1 équivalent)
+    assert sorted(types) == ["ajustements_frequents_article", "ecarts_repetes_article",
+                             "items_manquants_repetes_article"]
+    assert types == [a["type"] for a in _calculer(list(reversed(mouvements)))["alertes"]]
+    illisibles = [_mv("RECEPTION", "dix"), _mv("RECEPTION", "vingt")]
+    detail = " ".join(n["action"] for n in _calculer(illisibles)["non_evaluees"])
+    assert "2 mouvement(s) de stock ont une quantité illisible" in detail
+
+
+def test_une_reception_de_quantite_nulle_n_est_ni_une_commande_recue_ni_une_reception_sans_date():
+    resultat = _calculer([_mv("RECEPTION", 0.0)], seuil=999)
+    assert resultat["alertes"] == []
+    assert not [n for n in resultat["non_evaluees"] if "horodatage" in n["action"].lower()]
+    positive = _calculer([_mv("RECEPTION", 1.0)], seuil=999)
+    assert [n for n in positive["non_evaluees"] if "horodatage" in n["action"].lower()]

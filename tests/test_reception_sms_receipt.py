@@ -191,7 +191,8 @@ def test_sept_decisions_pipeline_reel_et_references(instance):
         assert appel(session, args, FULL_LIRE)['recu'] == initial['recu']
     assert etat(session) == stable
     with session() as cnx:
-        assert cnx.execute(select(schema.EVENEMENTS_SORTANTS.c.type_evenement)).scalars().all() == [
+        # sans ORDER BY l'ordre des lignes dépend du moteur (SQLite, PostgreSQL) : on compare les types triés
+        assert sorted(cnx.execute(select(schema.EVENEMENTS_SORTANTS.c.type_evenement)).scalars().all()) == [
             'm1.lead_qualifie', 'm1.plainte_ouverte', 'm1.plainte_ouverte', 'm1.retrait_consentement',
             'm1.transfert_ouvert', 'm1.transfert_ouvert']
 
