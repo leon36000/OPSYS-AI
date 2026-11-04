@@ -349,6 +349,28 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - **Facteurs absents** : distance, déplacement, saison, urgence et pertes de main-d'œuvre ne sont pas dans la
   composition ; le modèle de perte reste celui des lignes de matériau (`taux_perte`).
 
+## 7 quater. Transfert enrichi, statut client et métriques de réception (M1-E/G/H, 4 novembre 2026)
+
+- **M1-E** : les champs « informations manquantes » et « prochaine action » sont calculés par les règles de M1 ; le
+  profil d'entreprise incomplet les dit `non_evalues`, jamais « manquants ». Les événements `m1.transfert_ouvert` et
+  `m1.plainte_ouverte` sont publiés avec un schéma gelé, mais **aucun consommateur M2/M10 n'est livré sur cette
+  branche** : les agents de la vague 14 les branchent sur leurs propres branches. Un schéma consommé doit être traité
+  comme un contrat : le changer cassera leur lecture.
+- **M1-G** : le statut client est prouvé sur SQLite avec le vrai M1, le vrai M2 et le vrai M3 ; les chemins M4 et M5
+  sont prouvés avec un port contrôlé et, pour M5, un plan absent (repli). **Aucun vrai client, vrai devis, vraie
+  visite, vraie facture, aucun écran client, aucun PostgreSQL.** M5 n'a pas de lecture d'une facture par son seul
+  numéro : il faut le `devis_id` qui la porte. M4 ne retrouve une visite que dans ses 10 premières pages de 50
+  interventions ; au-delà, repli. La matrice d'abus couvre l'usurpation de vérification, l'énumération de références,
+  le niveau insuffisant, le lead ambigu et l'injection dans une référence ; elle ne couvre pas un attaquant qui
+  obtiendrait un jeton d'appareil `admin` (hors M1-G).
+- **M1-H** : le délai, les appels manqués rappelés et les leads par service/ville sont calculés sur le registre de M1 ;
+  **hors zone et photos reçues ne sont pas tracés** et restent `NON_EVALUEE` (jamais zéro). La raison de perte reste à
+  M2. Le constat n'est **pas planifié** : aucune mesure de réception n'existe dans le catalogue fermé de M8 ; il
+  s'appelle à la demande. Aucun objectif de délai ni cible de rappel n'est fixé : ce sont des réglages de direction
+  (CFG-1) non déclarés ici.
+- **Arrondis** : les pourcentages sont au centième (`ROUND_HALF_UP`) ; les délais sont des secondes entières. Une
+  période sans source rend `null`, jamais 0.
+
 ## 8. Écarts de documentation connus et non corrigés
 
 - Les décisions d'architecture (ADR) 0002, 0006, 0007 et 0008 citent `core/UPSTREAM.md` et un outil `scripts/tally.py` qui n'existent pas dans ce

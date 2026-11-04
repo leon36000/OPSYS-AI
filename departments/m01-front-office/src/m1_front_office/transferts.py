@@ -51,6 +51,8 @@ EVT_CLOS = "clos"
 EVT_PRISE_EN_CHARGE = "prise_en_charge"
 EVT_TENTATIVE_SANS_CONTACT = "tentative_sans_contact"
 MARQUE = "rattache_au_transfert"
+TYPE_EVENEMENT_TRANSFERT = "m1.transfert_ouvert"
+TYPE_EVENEMENT_PLAINTE = "m1.plainte_ouverte"
 
 TYPES = taxonomie.TYPES_TRANSFERT
 TYPE_PROPRIETAIRE = "proprietaire"
@@ -85,6 +87,29 @@ _TYPE_D_ATTENTE = {plaintes.TYPE_PLAINTE: "plainte_escaladee", plaintes.TYPE_URG
 TYPE_D_ATTENTE_GENERAL = "transfert_humain"
 
 ACTION_PROPOSEE = "lire (m1_lire_transfert), agir auprès du client, puis clore (m1_clore_transfert)"
+
+# M1-E : les deux champs CALCULÉS qui enrichissent un transfert. Ce sont des CODES d'ensembles fermés, jamais un
+# texte du client ni une valeur choisie par un modèle. `service`, `ville`, `contact` sont les seuls champs que la
+# qualification de M1 peut établir ; `non_evalues` dit ce que le profil n'a pas permis de lire (aucun manque supposé).
+CHAMPS_DU_DOSSIER = ("service", "ville", "contact")
+INFORMATIONS_EVALUEES = "evaluee"
+INFORMATIONS_PARTIELLES = "partielle"
+MOTIF_DIAGNOSTIC_INDISPONIBLE = "diagnostic_indisponible"
+
+ACTION_DEMANDER_INFORMATIONS = "demander_informations"
+ACTION_TRAITER_LA_PLAINTE = "traiter_la_plainte"
+ACTION_TRAITER_L_URGENCE = "traiter_l_urgence"
+ACTION_PRENDRE_EN_CHARGE = "prendre_en_charge"
+ACTION_VERIFIER_LE_DOSSIER = "verifier_le_dossier"
+ACTION_DECISION_APRES_RETRAIT = "decision_humaine_apres_retrait"
+ACTIONS_RECOMMANDEES = (
+    ACTION_DEMANDER_INFORMATIONS,
+    ACTION_TRAITER_LA_PLAINTE,
+    ACTION_TRAITER_L_URGENCE,
+    ACTION_PRENDRE_EN_CHARGE,
+    ACTION_VERIFIER_LE_DOSSIER,
+    ACTION_DECISION_APRES_RETRAIT,
+)
 
 # Un courriel dans un résumé (PLAN T4.17-g3) : un « @ », un domaine derrière et, juste devant, un caractère qui peut
 # faire partie d'une adresse ou d'un mot : lettre, chiffre, `_`, signe permis par la RFC 5322, et aussi un accent
@@ -315,6 +340,93 @@ def composer_faits(
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# M1-E : informations manquantes et prochaine action, calculées par les règles de qualification
+# ---------------------------------------------------------------------------------------------------------------
+
+
+def informations_manquantes(
+    diagnostic: Mapping[str, Any] | None, *, contact_present: bool
+) -> dict[str, Any]:
+    """Ce que le dossier n'établit pas encore, en CODES fermés.
+
+    `diagnostic` : la lecture de `qualification.diagnostiquer` sur les messages couverts, ou `None` quand la zone
+    desservie ou les services ne sont pas déclarés. Dans ce dernier cas, `service` et `ville` ne sont pas dits
+    « manquants » (on ne le sait pas) mais `non_evalues` : aucun manque n'est supposé. Le contact, lui, est toujours
+    observable : son absence est un vrai manque. Aucun texte du client n'entre ici.
+    """
+    champs: list[str] = []
+    non_evalues: list[str] = []
+    if diagnostic is None:
+        non_evalues = ["service", "ville"]
+        if not contact_present:
+            champs.append("contact")
+        statut = INFORMATIONS_PARTIELLES
+        motif: str | None = MOTIF_DIAGNOSTIC_INDISPONIBLE
+    else:
+        manque = set(qualification.champs_manquants(diagnostic))
+        champs = [champ for champ in CHAMPS_DU_DOSSIER if champ in manque]
+        statut = INFORMATIONS_EVALUEES
+        motif = None
+    return {"statut": statut, "champs": champs, "non_evalues": non_evalues, "motif": motif}
+
+
+def prochaine_action_recommandee(
+    type_transfert: str, informations: Mapping[str, Any], *, retire: bool
+) -> dict[str, Any]:
+    """La suite recommandée à une PERSONNE, en choix fermé (`ACTIONS_RECOMMANDEES`), jamais un texte du client.
+
+    Un champ non évalué commande `verifier_le_dossier` : le code ne comble pas un profil absent. Un client retiré
+    (STOP) commande une décision humaine, jamais une relance. Une urgence passe avant une plainte.
+    """
+    champs = list(informations["champs"])
+    if retire:
+        code = ACTION_DECISION_APRES_RETRAIT
+        detail = "le client s'est retiré des messages : une personne décide de la suite, rien ne lui est proposé"
+    elif champs:
+        code = ACTION_DEMANDER_INFORMATIONS
+        detail = f"demander au client : {', '.join(champs)}"
+    elif informations["non_evalues"]:
+        code = ACTION_VERIFIER_LE_DOSSIER
+        detail = (
+            "vérifier le dossier avec l'équipe : "
+            f"{', '.join(informations['non_evalues'])} n'ont pas pu être évalués (profil d'entreprise incomplet)"
+        )
+    elif type_transfert == plaintes.TYPE_URGENCE:
+        code = ACTION_TRAITER_L_URGENCE
+        detail = "l'urgence de sécurité est reconnue, une personne doit la prendre en charge maintenant"
+    elif type_transfert == plaintes.TYPE_PLAINTE:
+        code = ACTION_TRAITER_LA_PLAINTE
+        detail = "la plainte est reconnue, une personne doit la lire et agir"
+    else:
+        code = ACTION_PRENDRE_EN_CHARGE
+        detail = "une personne doit prendre en charge ce transfert"
+    return {"code": code, "detail": detail, "champs": champs}
+
+
+def _diagnostic_des_messages(
+    messages: Sequence[Mapping[str, Any]], zone_desservie: Sequence[str] | None,
+    services: Sequence[Any] | None, contact: Mapping[str, str] | None,
+) -> dict[str, Any] | None:
+    """La lecture de qualification des messages couverts, ou `None` si la zone ou les services manquent.
+
+    Le contact vérifié par le canal est passé à la qualification : il est établi même quand le texte ne l'écrit pas.
+    Une erreur de profil (zone ou services chargés mais invalides) est un `None`, comme une absence : le champ
+    `informations_manquantes` le dit (`diagnostic_indisponible`), jamais une valeur par défaut.
+    """
+    if not zone_desservie or not services:
+        return None
+    contenu = "\n".join(str(m.get("contenu_filtre", "")) for m in messages)
+    if not contenu.strip():
+        return None
+    try:
+        return qualification.diagnostiquer(
+            contenu, list(zone_desservie), services, dict(contact) if contact else None
+        )
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # Écrire : les lignes du registre
 # ---------------------------------------------------------------------------------------------------------------
 
@@ -364,6 +476,9 @@ def preparer_ouverture(
     fenetre_minutes: int | None = None,
     resume_agent: Any = None,
     resume_fourni: bool = False,
+    zone_desservie: Sequence[str] | None = None,
+    services: Sequence[Any] | None = None,
+    retire: bool = False,
 ) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
     """La ligne d'ouverture d'un transfert, ou le verdict qui le refuse : `(ligne, None)` ou `(None, verdict)`.
 
@@ -404,6 +519,9 @@ def preparer_ouverture(
         couverts = [*ouverte.messages[-(MESSAGES_MAX - 1):], declencheur]
         lead = None if ouverte.lead is None else ouverte.lead["lead"]
     horodatages = [m["horodatage"] for m in couverts]
+    diagnostic = _diagnostic_des_messages(couverts, zone_desservie, services, contact)
+    informations = informations_manquantes(diagnostic, contact_present=contact is not None)
+    action = prochaine_action_recommandee(type_transfert, informations, retire=retire)
     faits = composer_faits(
         type_transfert=type_transfert, categories=categories, termes=termes, canal=source or canal,
         horodatages=horodatages, lead=lead, lead_evalue=fenetre_minutes is not None, contact_source=contact_source,
@@ -433,6 +551,8 @@ def preparer_ouverture(
         "resume": resume,
         "resume_origine": origine,
         "faits": faits,
+        "informations_manquantes": informations,
+        "prochaine_action": action,
         "destinataire": destinataire,
         "verdict_destinataire": None if verdict_destinataire is None else dict(verdict_destinataire),
         "contact": None if contact is None else dict(contact),
@@ -458,6 +578,28 @@ def verifier_cloture(motif: Any, horodatage: Any) -> dict[str, str] | None:
     except ValueError:
         return _verdict("REJ-HUMAIN-HORODATAGE-INVALIDE", "horodatage ISO 8601 avec fuseau requis")
     return None
+
+
+def charge_evenement_ouverture(ligne: Mapping[str, Any], type_evenement: str) -> dict[str, Any]:
+    """La charge MINIMALE d'un transfert ouvert pour le bus (M1-E) : identifiants, type, catégories et niveau.
+
+    Jamais le contact, le résumé, un terme du vocabulaire ni le texte du client. `conversation_id` est déjà un
+    pseudonyme (empreinte du correspondant) ; `lead_id` est absent quand aucune affaire n'existe. L'identifiant est
+    déterministe : un rejeu du même transfert est un no-op du bus.
+    """
+    prefixe = "m1-transfert-ouvert" if type_evenement == TYPE_EVENEMENT_TRANSFERT else "m1-plainte-ouverte"
+    return {
+        "evenement_id": f"{prefixe}-{ligne['transfert_id']}",
+        "transfert_id": ligne["transfert_id"],
+        "conversation_id": ligne["conversation_id"],
+        "lead_id": ligne.get("lead_id"),
+        "type_transfert": ligne["type_transfert"],
+        "categories": list(ligne.get("categories", ())),
+        "niveau": ligne["niveau"],
+        "canal": ligne["canal"],
+        "declenche_par": ligne["declenche_par"],
+        "horodatage": ligne["horodatage"],
+    }
 
 
 def ligne_de_cloture(
@@ -559,6 +701,8 @@ def vue(etat: EtatTransfert, lignes: Sequence[Mapping[str, Any]]) -> dict[str, A
         "lead_id": ouverture["lead_id"],
         "resume": ouverture["resume"],
         "resume_origine": ouverture["resume_origine"],
+        "informations_manquantes": ouverture["informations_manquantes"],
+        "prochaine_action": ouverture["prochaine_action"],
         "messages_couverts": couverts["messages"],
         "messages_couverts_omis": couverts["omis"],
         "messages_suivants": suivants["messages"],

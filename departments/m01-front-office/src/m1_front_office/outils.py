@@ -83,6 +83,7 @@ from . import (
     digest,
     garde_fou,
     horodatage,
+    metriques_reception,
     phases_voix,
     photos,
     plaintes,
@@ -608,6 +609,8 @@ def _importer_appel(
                 conversation_id=conversation_id, message_courant=signal, contact={"telephone": telephone},
                 contact_source=source_contact, destinataire=destinataire,
                 verdict_destinataire=verdict_destinataire, fenetre_minutes=None,
+                zone_desservie=list(zone), services=services,
+                retire=transferts.retire(reg.lire(), conversation_id),
             )
             if ligne is not None:
                 ligne_id = reg.ajouter(ligne)
@@ -701,6 +704,24 @@ def _publier_lead(
     alerte = retrait.alerte_de_retrait(lignes, lead["conversation_id"])
     if alerte is not None:
         _publier_retrait(alerte, (lead["lead_id"],))
+
+
+def _publier_transfert_ouvert(ligne: dict[str, Any]) -> None:
+    """Publie l'ouverture d'un transfert au bus (M1-E), dans la transaction courante : un événement minimal pour
+    tout transfert (`m1.transfert_ouvert`) et, pour une plainte ou une urgence, sa spécialisation
+    (`m1.plainte_ouverte`). Aucun contact, aucun texte, aucun terme du client ne part. L'identifiant déterministe
+    rend un rejeu inoffensif."""
+    if not _stockage_durable_actif:
+        return
+    charge = transferts.charge_evenement_ouverture(ligne, transferts.TYPE_EVENEMENT_TRANSFERT)
+    evenements.publier(
+        transferts.TYPE_EVENEMENT_TRANSFERT, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
+    )
+    if ligne["type_transfert"] in (plaintes.TYPE_PLAINTE, plaintes.TYPE_URGENCE):
+        charge = transferts.charge_evenement_ouverture(ligne, transferts.TYPE_EVENEMENT_PLAINTE)
+        evenements.publier(
+            transferts.TYPE_EVENEMENT_PLAINTE, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
+        )
 
 
 def _publier_retrait(alerte: dict[str, Any], lead_ids: Sequence[str]) -> str | None:
@@ -1102,6 +1123,37 @@ def constater_plaintes(
     return {"accepte": True, "resultat": {"publie": True, **charge}}
 
 
+def constater_reception(
+    date_reference: str, jours: int = metriques_reception.JOURS_DEFAUT
+) -> dict[str, Any]:
+    """M1-H : CONSTATE les métriques de réception de la période et publie `m1.reception_constatee` pour M8.
+
+    Délai jusqu'à la première prise en charge humaine, appels manqués rappelés, leads par service/ville ; hors zone
+    et photos reçues sont dites `NON_EVALUEE` tant que M1 n'a pas la source (jamais un zéro). Aucun contact, aucun
+    texte, aucun identifiant de lead ne part : des comptes, des ratios et une empreinte. Rejouer le même registre
+    redonne la même charge, donc rien de plus au bus."""
+    if not _date_calendaire_valide(date_reference):
+        return _verdict_refus("REJ-DIGEST-DATE-INVALIDE", "date_reference doit être une date calendaire YYYY-MM-DD")
+    if not metriques_reception.periode_valide(jours):
+        return _verdict_refus(
+            "REJ-M1-RECEPTION-PERIODE",
+            f"jours doit être un entier de 1 à {metriques_reception.JOURS_MAX}",
+        )
+    resultat = metriques_reception.constater(
+        _obtenir_registre().lire(), date_reference=date_reference, jours=jours
+    )
+    charge = {
+        "evenement_id": (
+            f"m1-reception-{date_reference}-{jours}-{resultat['empreinte_contenu'][:16]}"
+        ),
+        **resultat,
+    }
+    evenements.publier(
+        metriques_reception.CONSTAT, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
+    )
+    return {"accepte": True, "resultat": {"publie": True, **charge}}
+
+
 def emettre_notification(canal: str, message: str) -> dict[str, Any]:
     """Émet un message vers un canal externe (bus de notification en mode ombre).
     Action T2 : réversible, mais externe — jamais présentée comme faite avant
@@ -1232,7 +1284,8 @@ def _traiter_le_signal(
         return _transferer_le_message(
             reg, lignes, etats_transferts, detection, contenu_filtre=contenu_filtre, sain=sain, canal=canal,
             source=source, conversation_id=conversation_id, signal_id=signal_id, horodatage=horodatage,
-            contact_canal=contact_canal, cle_session=cle_session, fenetre_minutes=fenetre_minutes, utm=utm)
+            contact_canal=contact_canal, cle_session=cle_session, fenetre_minutes=fenetre_minutes, utm=utm,
+            zone_desservie=zone_desservie, services=services)
 
     # 2. Registre anti-perte : une ligne immuable, qualifié ou non.
     signal: dict[str, Any] = {
@@ -1430,6 +1483,8 @@ def _bloc_transfert(etat: transferts.EtatTransfert, *, nouveau: bool) -> dict[st
         "nouveau": nouveau,
         "destinataire": ouverture["destinataire"],
         "verdict_destinataire": verdict,
+        "informations_manquantes": ouverture["informations_manquantes"],
+        "prochaine_action": ouverture["prochaine_action"],
     }
 
 
@@ -1475,6 +1530,8 @@ def _transferer_le_message(
     cle_session: str | None,
     fenetre_minutes: int | None,
     utm: dict[str, str] | None = None,
+    zone_desservie: Sequence[str] | None = None,
+    services: Sequence[Any] | None = None,
 ) -> dict[str, Any]:
     """Un message reconnu comme plainte ou urgence de sécurité, ou reçu dans une conversation dont un transfert est
     encore ouvert : il est inscrit, rattaché à un transfert, et n'ouvre JAMAIS de lead (la plainte prime). Un `utm`
@@ -1499,6 +1556,8 @@ def _transferer_le_message(
             message_courant={"signal_id": signal_id, "horodatage": horodatage, "contenu_filtre": contenu_filtre},
             contact=contact, contact_source=contact_source, destinataire=destinataire,
             verdict_destinataire=verdict_destinataire, fenetre_minutes=fenetre_minutes,
+            zone_desservie=zone_desservie, services=services,
+            retire=transferts.retire(lignes, conversation_id),
         )
         if nouvelle is None:
             raise ValueError(f"{refus['code']}: {refus['detail']}" if refus else "transfert non préparé")
@@ -1522,6 +1581,7 @@ def _transferer_le_message(
     ligne_id_signal = reg.ajouter(signal)
     ligne_id_transfert = reg.ajouter(nouvelle) if nouvelle is not None else None
     if nouvelle is not None:
+        _publier_transfert_ouvert(nouvelle)
         _fermer_le_suivi(reg, lignes, canal=canal, source=source, conversation_id=conversation_id,
                          signal_id=signal_id, horodatage=horodatage)
     type_courant = etat.ouverture["type_transfert"]
@@ -1562,6 +1622,12 @@ def _ouvrir_pour_l_agent(
     Le transfert est daté du dernier message du client, heure de la plateforme : aucune horloge.
     """
     correspondant, contact = reception.correspondant_du_canal(canal, expediteur)
+    zone, _ = taxonomie.charger_zone_desservie()
+    services, verdict_services = taxonomie.charger_services()
+    if verdict_services is not None:
+        # Un profil de services absent ou invalide n'empêche pas d'ouvrir un transfert : les champs calculés disent
+        # alors ce qui n'a pas pu être évalué (jamais un manque supposé).
+        services = None
     fenetre, verdict_fenetre = taxonomie.charger_fenetre_conversation()
     if verdict_fenetre is not None and verdict_fenetre["code"] != taxonomie.VERDICT_FENETRE_NON_CONFIGUREE:
         # Une valeur cassée n'est jamais lue comme une valeur absente : refus, rien n'est écrit (comme la réception).
@@ -1599,11 +1665,13 @@ def _ouvrir_pour_l_agent(
         contact_source=_etiquette_du_contact(canal, contact),
         destinataire=destinataire,
         verdict_destinataire=verdict_destinataire, fenetre_minutes=fenetre, resume_agent=resume,
-        resume_fourni=resume is not None,
+        resume_fourni=resume is not None, zone_desservie=list(zone), services=services,
+        retire=transferts.retire(lignes, conversation_id),
     )
     if ligne is None:
         return {"accepte": False, "verdict": refus}
     ligne_id = reg.ajouter(ligne)
+    _publier_transfert_ouvert(ligne)
     _fermer_le_suivi(reg, lignes, canal=canal_contrat, source=canal, conversation_id=conversation_id,
                      signal_id=ligne["signal_id"], horodatage=ligne["horodatage"])
     etat = transferts.EtatTransfert(ligne, None, ())
@@ -2371,7 +2439,7 @@ def prendre_en_charge_rappel_appareil(transfert_id, snapshot_attendu):
     return rappels_appareil.prendre(transfert_id, snapshot_attendu)
 
 
-def outils(lecteur_capacite_m4: Any = None) -> tuple[Outil, ...]:
+def outils(lecteur_capacite_m4: Any = None, lecteur_statut_client: Any = None) -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés). Le courriel
     (boîte de réception, brouillons de réponse) vit dans `courriel_outils` ; import différé : ce module-ci est son
     socle."""
@@ -2381,6 +2449,7 @@ def outils(lecteur_capacite_m4: Any = None) -> tuple[Outil, ...]:
         identite_client_outils,
         reception_interne_outils,
         rendez_vous_outils,
+        statut_client_outils,
         tri_courriel_outils,
     )
 
@@ -2393,6 +2462,7 @@ def outils(lecteur_capacite_m4: Any = None) -> tuple[Outil, ...]:
         *identite_client_outils.outils_identite(),
         *assistant_sms_outils.outils_sms(),
         *rendez_vous_outils.outils_rdv(lecteur_capacite_m4),
+        *statut_client_outils.outils_statut_client(lecteur_statut_client),
         *reception_interne_outils.outils_reception_interne(),
         *base[-2:],
     )
@@ -2728,6 +2798,34 @@ def _outils_base() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=constater_plaintes,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+        ),
+        Outil(
+            nom="m1_constater_reception",
+            description=(
+                "M1-H : CONSTATE les métriques de réception des `jours` jours civils finissant à `date_reference` et "
+                "les PUBLIE au bus (m1.reception_constatee) pour M8 : délai médian et maximal jusqu'à la première "
+                "prise en charge humaine (échantillon et transferts encore en attente), part des appels manqués "
+                "rappelés (numérateur/dénominateur), leads par service et par ville. Hors zone et photos reçues sont "
+                "NON_EVALUÉES tant que M1 n'a pas la source (jamais zéro). Aucun contact, aucun texte, aucun "
+                "identifiant de lead : des comptes, des ratios, une empreinte. Rejouer sur le même registre ne publie "
+                "rien de plus."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "date_reference": {"type": "string", "description": "Fin de période, AAAA-MM-JJ (incluse)."},
+                    "jours": {
+                        "type": "integer",
+                        "description": f"Longueur de la période en jours civils, 1 à {metriques_reception.JOURS_MAX} "
+                                       f"(défaut {metriques_reception.JOURS_DEFAUT}).",
+                    },
+                },
+                "required": ["date_reference"],
+                "additionalProperties": False,
+            },
+            fonction=constater_reception,
             autonomie=Autonomie.T1,
             niveau=Niveau.N2,
         ),

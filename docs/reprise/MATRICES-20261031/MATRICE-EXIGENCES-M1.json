@@ -401,7 +401,10 @@
      "tests": [
       "departments/m01-front-office/tests/test_identite_client.py",
       "tests/test_m1_identite_client_e2e.py",
-      "tests/test_m1_m6_humain_requis.py"
+      "tests/test_m1_m6_humain_requis.py",
+      "departments/m01-front-office/tests/test_statut_client.py",
+      "departments/m01-front-office/tests/test_statut_client_outils.py",
+      "tests/test_m1_statut_client_e2e.py"
      ],
      "docs": [
       "docs/architecture/M1-M6-LEA-ROSALIE.md"
@@ -411,8 +414,8 @@
    ],
    "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
    "current_status": "PARTIEL",
-   "limite": "Machine d'états inconnu, à vérifier, vérifié (n moyens), refusé, expiré ; code à usage unique renvoyé par courriel (l'agent ne le voit ni ne le fournit), moyens attestés par une personne (type de pièce seulement), validation humaine pour le sensible, trois essais puis verrou, rétention bornée, pseudonyme du correspondant ; refus d'usurpation testés (autre expéditeur, authentification, code quoté, rejeu, expiration). NON FAIT : aucune lecture bornée M2/M3/M4/M5 depuis M1 : M1 décide s'il PEUT répondre sur un dossier, pas ce qu'il dit (phrase de repli « Je vais vérifier avec l'équipe ») ; pas de purge physique ; EFVP et avis juridique non faits.",
-   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
+   "limite": "Machine d'états inconnu, à vérifier, vérifié (n moyens), refusé, expiré ; code à usage unique renvoyé par courriel (l'agent ne le voit ni ne le fournit), moyens attestés par une personne (type de pièce seulement), validation humaine pour le sensible, trois essais puis verrou, rétention bornée, pseudonyme du correspondant ; refus d'usurpation testés. M1-G : m1_statut_client lit l'état d'un dossier M2, d'une soumission M3, d'une visite M4 ou d'une facture M5 par le port privé lecteur_statut_client (quatre lectures T0 existantes, aucun droit d'appareil), répond par un gabarit fixe sans montant, et replie « Je vais vérifier avec l'équipe. » sur identité insuffisante, référence inconnue ou d'un autre client. PROUVÉ sur SQLite avec le vrai M1, le vrai M2 et le vrai M3 ; M4/M5 avec un port contrôlé et un plan absent. NON FAIT : aucun vrai client, devis, visite ni facture, aucun écran client, aucun PostgreSQL ; M5 exige le devis_id (pas de lecture par numéro de facture seul) ; M4 ne cherche que dans 10 pages de 50 interventions ; pas de purge physique ; EFVP et avis juridique non faits.",
+   "verifie_sur_branche": "claude/ligne-architecte"
   },
   {
    "id": "M1.11",
@@ -463,7 +466,9 @@
      "tests": [
       "departments/m01-front-office/tests/test_transferts.py",
       "departments/m01-front-office/tests/test_outils_transfert.py",
-      "tests/e2e/test_transferts_admin_appareil.py"
+      "tests/e2e/test_transferts_admin_appareil.py",
+      "departments/m01-front-office/tests/test_transfert_enrichi.py",
+      "departments/m01-front-office/tests/test_evenements_transfert.py"
      ],
      "docs": [],
      "niveau": "T+H"
@@ -471,8 +476,9 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Destinataires vides par défaut ; le rôle destinataire est affiché mais pas appliqué ; aucune tâche M2 ni signal M10 créés à la suite d'un transfert.",
-   "verification": "README M1 / M1-canaux §10.7"
+   "limite": "Destinataires vides par défaut ; le rôle destinataire est affiché mais pas appliqué. M1-E : les champs informations_manquantes et prochaine_action sont calculés par les règles (codes fermés, non_evalues si le profil manque) et les événements minimaux m1.transfert_ouvert / m1.plainte_ouverte sont publiés sans contact ni texte. NON FAIT : aucun consommateur M2 ni M10 sur cette branche (agents de la vague 14) ; aucun envoi au client.",
+   "verification": "README M1 / M1-canaux §10.7",
+   "verifie_sur_branche": "claude/ligne-architecte"
   },
   {
    "id": "M1.13",
@@ -488,7 +494,9 @@
      "tests": [
       "departments/m01-front-office/tests/test_apprentissage.py",
       "tests/test_m1_tri_courriel_e2e.py",
-      "tests/test_m1_m6_humain_requis.py"
+      "tests/test_m1_m6_humain_requis.py",
+      "departments/m01-front-office/tests/test_metriques_reception.py",
+      "departments/m01-front-office/tests/test_constater_reception.py"
      ],
      "docs": [
       "docs/architecture/M1-M6-LEA-ROSALIE.md"
@@ -498,8 +506,8 @@
    ],
    "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
    "current_status": "PARTIEL",
-   "limite": "Retours humains (correction de classe, brouillon accepté/corrigé/rejeté) -> propositions déterministes hors ligne (expressions sur au moins 2 retours et 2 expéditeurs distincts, poids plafonné à 2, filtre contre chiffres, liens, adresses, consignes) -> mesure sur le corpus de garde -> promotion HUMAINE seulement (canari 1-50 % par hachage, promotion depuis un canari, retour arrière, régression bloquante, mesure refaite à la décision). Gain mesuré sur corpus FICTIF : justesse 0,685 à 0,715 (test) à partir des erreurs de dev. NON FAIT : délais de réponse, conversions, raisons de perte (pas de source dans M1) ; aucun apprentissage sur du courrier réel.",
-   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
+   "limite": "Retours humains (correction de classe, brouillon accepté/corrigé/rejeté) -> propositions déterministes hors ligne -> promotion HUMAINE seulement. M1-H ajoute un constat de réception (délai jusqu'à la première prise en charge humaine, appels manqués rappelés, leads par service/ville) avec des NON_EVALUEE explicites pour hors zone et photos reçues, mais la cible complète reste hors d'atteinte : délais de réponse/conversions non mesurés, raison de perte absente (M2), aucune mesure de réception au catalogue M8, constat non planifié, aucun apprentissage sur du courrier réel.",
+   "verifie_sur_branche": "claude/ligne-architecte"
   },
   {
    "id": "M1.14",
@@ -578,7 +586,8 @@
     {
      "tests": [
       "tests/test_cascade_amont_m10.py",
-      "tests/test_canal_sms_bout_en_bout.py"
+      "tests/test_canal_sms_bout_en_bout.py",
+      "departments/m01-front-office/tests/test_evenements_transfert.py"
      ],
      "docs": [],
      "niveau": "S"
@@ -586,8 +595,9 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "M10 consomme m1.lead_qualifie (S). Transferts, plaintes, promesses : rien n'est écrit dans M10 par M1.",
-   "verification": "department.yaml M10 : evenements.consomme contient m1.lead_qualifie seulement pour M1"
+   "limite": "M10 consomme m1.lead_qualifie (S). M1-E publie aussi m1.transfert_ouvert et m1.plainte_ouverte (charge minimale, sans contact ni texte), mais M10 ne les consomme PAS encore sur cette branche : l'agent M10 de la vague 14 les branche. Les promesses humaines et les erreurs ne sont pas écrites dans M10 par M1.",
+   "verification": "department.yaml M10 : evenements.consomme contient m1.lead_qualifie seulement pour M1",
+   "verifie_sur_branche": "claude/ligne-architecte"
   },
   {
    "id": "M1.17",
