@@ -542,6 +542,15 @@ def calculer(
     if verdict is not None:
         return None, verdict
     assert configuration_lue is not None
+    # Les helpers de mois acceptent 1900–2999 : refuser toute fenêtre qui
+    # dépasserait cette plage avant de construire les mois ou leurs dates.
+    mois_courant = jour.year * 12 + jour.month - 1
+    if (mois_courant - configuration_lue["mois_historique"] < 1900 * 12
+            or mois_courant + horizon_mois > 2999 * 12 + 11):
+        return None, _verdict(
+            "REJ-PREVISION-LONGUE-DATE-INVALIDE",
+            "la fenêtre historique et l'horizon doivent rester entre 1900-01 et 2999-12",
+        )
     mois = _mois_projetes(jour, horizon_mois)
     historique_lu, verdict = _lire_historique(historique, jour, configuration_lue["mois_historique"])
     if verdict is not None:
