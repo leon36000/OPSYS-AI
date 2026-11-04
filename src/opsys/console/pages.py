@@ -188,7 +188,9 @@ def gabarit(
                 pastille = f'<span class="pastille">{nombre}</span>'
             liens.append(f'<a href="{e(prefixe)}/{cle}"{courant}>{e(libelle)}{pastille}</a>')
         entete += (
-            f'<nav aria-label="Sections">{"".join(liens)}</nav>'
+            '<button type="button" class="bouton-sections" aria-controls="navigation-sections" '
+            'aria-expanded="true" hidden>Sections</button>'
+            f'<nav id="navigation-sections" aria-label="Sections">{"".join(liens)}</nav>'
             f'<form method="post" action="{e(prefixe)}/deconnexion" class="session">'
             f"<span>Connecté : {e(session.utilisateur)}</span>"
             f'<input type="hidden" name="csrf" value="{e(session.csrf)}">'
