@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from .graphe_impacts import Regle
 
-CATALOGUE_RELATIONS_VERSION = "2026-10-28.1"
+CATALOGUE_RELATIONS_VERSION = "2026-11-04.2"
 _R = "resultat.resultat"  # la réponse du dispatcher est {"ok": true, "resultat": <réponse de l'outil>}
 
 REGLES: tuple[Regle, ...] = (
@@ -45,6 +45,16 @@ REGLES: tuple[Regle, ...] = (
           "chantier", "chantier_id", "po", "po_id"),
     Regle("m2_lead_proprietaire", "suivi_par", "m2.leads", f"{_R}.leads[*]",
           "lead", "lead_id", "personne", "proprietaire"),
+    Regle(
+        "m7_campagne_lead_utm", "attribue_selon_utm", "m7.performance_campagnes", "resultat.campagnes[*]",
+        "campagne", ("^source", "^campagne"), "lead", "reference",
+        sous_lignes="source_refs[*]", filtre_sous_ligne=("type", "m2.client_associe"),
+        types_sous_ligne_reconnus=(
+            "m2.client_associe", "m3.devis_accepte", "m5.rentabilite_chantier",
+        ),
+        couverture_complete=("resultat.couverture", "COMPLETE"), lien_invalide_inconnu=True,
+        lignes_liste_obligatoire=True, sous_lignes_liste_obligatoire=True,
+    ),
 )  # fmt: skip
 
 LIMITES: dict[str, str] = {
@@ -66,6 +76,11 @@ LIMITES: dict[str, str] = {
     "m5_chantier_rentabilite": "le chantier est la clé de la rentabilité (même champ des deux côtés).",
     "m5_chantier_po": "comptes[*].chantier_id/po_id ; vient de la réception du PO, pas du devis ; pas de matériau.",
     "m2_lead_proprietaire": "leads[*].proprietaire ; M2 n'expose pas le devis (statut seulement) ; pagine (decalage).",
+    "m7_campagne_lead_utm": "couple M7 (source,campagne), identifiant opaque SHA-256 du tuple JSON canonique, vers "
+    "les seules références source_refs typées m2.client_associe ; les types M3/M5 connus sont ignorés et un type "
+    "inconnu laisse la règle inconnue ; le lien décrit l'attribution UTM observée, jamais "
+    "une causalité. Une couverture M7 autre que COMPLETE, absente ou non déclarée conserve les arêtes observées mais "
+    "laisse la règle inconnue.",
 }
 
 MANQUES: tuple[str, ...] = (

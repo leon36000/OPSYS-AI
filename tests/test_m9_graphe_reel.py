@@ -26,7 +26,9 @@ Données fictives (`fictif: true`).
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -65,8 +67,9 @@ LUNDI = "2026-09-21"
 HORODATAGE_PLAN = "2026-09-21T12:00:00+00:00"
 RECU_PLAN = dt.datetime(2026, 9, 21, 14, 0, 0, tzinfo=dt.UTC)
 PO = "PO-G1"
-M2, M3, M4, M5, M6, M8 = (
-    "m02-revenue-crm", "m03-estimation", "m04-field-ops", "m05-financecore", "m06-material-control", "m08-analytics",
+M2, M3, M4, M5, M6, M7, M8 = (
+    "m02-revenue-crm", "m03-estimation", "m04-field-ops", "m05-financecore", "m06-material-control",
+    "m07-marketing", "m08-analytics",
 )
 CONNAISSANCE = "2026-10-28T13:00:00Z"
 RESULTAT = "resultat.resultat"
@@ -82,6 +85,7 @@ ARGUMENTS = {
     "m5.rentabilite_chantier": {},
     "m5.comptes_a_payer": {},
     "m6.disponibilite": {},
+    "m7.performance_campagnes": {"debut": "2026-09-01", "fin": "2026-10-31"},
     "m8.mesures_chantier": {"wct_id": WCT},
 }
 
@@ -108,6 +112,7 @@ def _monter_scenario(base: Path, mp: pytest.MonkeyPatch) -> dict:
     A.m3_creer_devis(m3, DEVIS, LEAD)
     lead = B.charge_lead_qualifie(LEAD)
     lead["lead"]["service"] = "ravalement"
+    lead["lead"]["utm"]["utm_campaign"] = "workflow-ravalement-2026"
     B.publier("m1.lead_qualifie", B.M1, lead, evenement_id=f"m1-lead-qualifie-{LEAD}")
     B.livrer((M2,))
     A.geste(m2, "m2_transitionner_statut", {
@@ -150,7 +155,8 @@ def _monter_scenario(base: Path, mp: pytest.MonkeyPatch) -> dict:
     A.geste(m6, "m6_transferer_stock", {
         "transfert_id": "TR-G1", "materiau_id": MATERIAU, "quantite": 120.0, "de": {"type": "inconnu"},
         "vers": {"type": "rebut"}, "motif": "bris fictif", "horodatage": "2026-10-07T09:00:00-04:00"})
-    capacites = B.capacites(M2, M3, M4, M5, M6, M8)
+    B.livrer((M7,))
+    capacites = B.capacites(M2, M3, M4, M5, M6, M7, M8)
     index = {}
     for rang, (lecture_id, arguments) in enumerate(ARGUMENTS.items(), start=1):
         reponse = B.capturer(capacites, B.ADMIN, lecture_id, arguments, _instant(rang))
@@ -199,6 +205,11 @@ def _atteints(propagation) -> dict:
     return {(i["objet"]["kind"], i["objet"]["id"]): i["distance"] for i in propagation["impacts"]}
 
 
+def _id_campagne(source: str, campagne: str) -> str:
+    canonique = json.dumps((source, campagne), ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return "sha256-" + hashlib.sha256(canonique).hexdigest()
+
+
 # =====================================================================================================
 # 0. Le scénario : la rupture est bien déclarée par le producteur
 # =====================================================================================================
@@ -227,13 +238,18 @@ def test_chaque_regle_cite_des_lignes_reelles_portant_ses_deux_champs(monde):
             continue  # forme paginée de M4 : prouvée par test_forme_paginee_de_m4_donne_les_memes_aretes
         page = _page(monde, regle.lecture_id)
         lignes = cs.extraire(page, regle.lignes)
-        assert lignes, f"{regle.id} : aucune ligne à {regle.lignes}"
+        assert lignes, f"{regle.id} : aucune ligne à {regle.lignes}: {page!r}"
         for ligne in lignes:
             assert isinstance(ligne, dict), regle.id
             enfants = cs.extraire(ligne, regle.sous_lignes) if regle.sous_lignes else [ligne]
             assert enfants, f"{regle.id} : aucune sous-ligne à {regle.sous_lignes}"
             for enfant in enfants:
-                for champ in (regle.de_champ, regle.vers_champ):
+                if regle.filtre_sous_ligne is not None:
+                    champ_filtre, valeur_attendue = regle.filtre_sous_ligne
+                    if enfant.get(champ_filtre) != valeur_attendue:
+                        continue
+                champs_source = regle.de_champ if isinstance(regle.de_champ, tuple) else (regle.de_champ,)
+                for champ in (*champs_source, regle.vers_champ):
                     source = ligne if champ.startswith("^") else enfant
                     nom = champ.lstrip("^")
                     assert type(source.get(nom)) is str and source[nom], f"{regle.id} : {champ} absent de la ligne"
@@ -245,7 +261,9 @@ def test_chaque_regle_cite_des_lignes_reelles_portant_ses_deux_champs(monde):
 def test_graphe_construit_depuis_la_chaine_reelle_avec_preuves(monde):
     chaine = monde["chaine"]
     graphe = _graphe(chaine)
-    assert graphe["regles_inconnues"] == []
+    assert {(r["regle"], r["raison"]) for r in graphe["regles_inconnues"]} == {
+        ("m7_campagne_lead_utm", "COUVERTURE_PARTIELLE"),
+    }
     assert {r["regle"] for r in graphe["regles_actives"]} == {r.id for r in REGLES}
     assert all(r["lignes_ecartees"] == 0 for r in graphe["regles_actives"])
     refs = {n["ref"] for n in graphe["noeuds"]}
@@ -253,6 +271,7 @@ def test_graphe_construit_depuis_la_chaine_reelle_avec_preuves(monde):
         f"devis:{DEVIS}", f"chantier:{CHANTIER}", f"intervention:{monde['intervention']}", f"lead:{LEAD}",
         f"wct:{WCT}", "equipe:eq-a", f"rentabilite:{CHANTIER}", f"po:{PO}", "personne:vendeur.fictif",
         f"materiau:{MATERIAU}",  # relié au devis par la ligne manquante IMBRIQUÉE dans sa réservation M6
+        f"campagne:{_id_campagne('google', 'workflow-ravalement-2026')}",
     }
     par_regle = {r.id: r for r in REGLES}
     for arete in graphe["aretes"]:
@@ -265,6 +284,8 @@ def test_graphe_construit_depuis_la_chaine_reelle_avec_preuves(monde):
         assert (("sous_ligne" in preuve) == (regle.sous_lignes is not None)), "la preuve cite l'imbrication"
 
         def valeur(champ, enfant=enfant, ligne=ligne):
+            if isinstance(champ, tuple):
+                return _id_campagne(*(valeur(partie, enfant, ligne) for partie in champ))
             return ligne[champ[1:]] if champ.startswith("^") else enfant[champ]
 
         assert f"{regle.de_kind}:{valeur(regle.de_champ)}" == arete["de"]
@@ -286,7 +307,10 @@ def test_propagation_du_devis_en_rupture_atteint_chantier_wct_lead_et_finances(m
         ("lead", LEAD): 2, ("equipe", "eq-a"): 2, ("rentabilite", CHANTIER): 2, ("po", PO): 2,
         ("personne", "vendeur.fictif"): 3,
     }
-    assert resultat["complet"] is True and resultat["regles_inconnues_pertinentes"] == []
+    assert resultat["complet"] is False
+    assert {(r["regle"], r["raison"]) for r in resultat["regles_inconnues_pertinentes"]} == {
+        ("m7_campagne_lead_utm", "COUVERTURE_PARTIELLE"),
+    }
     assert all(set(i) == {"objet", "distance", "chemin"} for i in resultat["impacts"]), "aucune quantité"
     par_id = {a["id"]: a for a in graphe["aretes"]}
     lead = next(i for i in resultat["impacts"] if i["objet"] == {"kind": "lead", "id": LEAD})
@@ -385,6 +409,7 @@ def test_lecture_absente_rend_la_regle_inconnue_et_la_propagation_incomplete(mon
         ("m4_devis_intervention", "ABSENTE"), ("m4_intervention_lead", "ABSENTE"),
         ("m4_page_devis_intervention", "ABSENTE"), ("m4_page_intervention_lead", "ABSENTE"),
         ("m5_devis_chantier", "ABSENTE"), ("m5_chantier_rentabilite", "ABSENTE"),
+        ("m7_campagne_lead_utm", "COUVERTURE_PARTIELLE"),
     }
     resultat = gi.propager(graphe, "devis", DEVIS)
     atteints = _atteints(resultat)
@@ -405,13 +430,18 @@ def test_lecture_refusee_par_le_producteur_rend_la_regle_inconnue(monde):
     chaine = [c for c in monde["chaine"] if c["lecture_id"] != "m4.cedule_semaine"] + [refusee]
     graphe = _graphe(chaine)
     inconnues = {(r["regle"], r["raison"]) for r in graphe["regles_inconnues"]}
-    assert inconnues == {("m4_cedule_intervention_lead", "REFUSEE"), ("m4_cedule_intervention_equipe", "REFUSEE")}
+    assert inconnues == {
+        ("m4_cedule_intervention_lead", "REFUSEE"), ("m4_cedule_intervention_equipe", "REFUSEE"),
+        ("m7_campagne_lead_utm", "COUVERTURE_PARTIELLE"),
+    }
     assert not any(a["regle"].startswith("m4_cedule") for a in graphe["aretes"])
     resultat = gi.propager(graphe, "devis", DEVIS)
     atteints = _atteints(resultat)
     assert ("equipe", "eq-a") not in atteints and ("lead", LEAD) in atteints, "le lead tient encore par la liste M4"
     assert resultat["complet"] is False, "l'équipe est inconnue : l'absence d'impact sur elle n'est pas affirmée"
-    assert {r["raison"] for r in resultat["regles_inconnues_pertinentes"]} == {"REFUSEE"}
+    assert {r["raison"] for r in resultat["regles_inconnues_pertinentes"]} == {
+        "REFUSEE", "COUVERTURE_PARTIELLE"
+    }
 
 
 # =====================================================================================================
@@ -461,7 +491,8 @@ def test_outils_graphe_sur_le_monde_reel_admin_seulement(tmp_path, monkeypatch):
         assert res["total_aretes"] > 0 and res["noeuds_par_type"]["devis"] == 1
         # La VRAIE capture refusée (cédule d'un mardi) est conservée : ses deux règles sont inconnues, pas effacées.
         assert {(r["regle"], r["raison"]) for r in res["regles_inconnues"]} == {
-            ("m4_cedule_intervention_lead", "REFUSEE"), ("m4_cedule_intervention_equipe", "REFUSEE")}
+            ("m4_cedule_intervention_lead", "REFUSEE"), ("m4_cedule_intervention_equipe", "REFUSEE"),
+            ("m7_campagne_lead_utm", "COUVERTURE_PARTIELLE")}
         assert any("materiau" in m for m in res["manques_connus"])
         propage = appel(
             "m9_propager_impacts", {"connaissance": connaissance, "kind": "devis", "identifiant": DEVIS}
@@ -471,11 +502,27 @@ def test_outils_graphe_sur_le_monde_reel_admin_seulement(tmp_path, monkeypatch):
         for impact in propage["impacts"]:
             for arete_id in impact["chemin"]:
                 assert propage["aretes_citees"][arete_id]["preuve"]["capture_hash"]
-        depuis_materiau = appel(
-            "m9_propager_impacts", {"connaissance": connaissance, "kind": "materiau", "identifiant": MATERIAU}
-        )["resultat"]
+        reponse_materiau = appel("m9_propager_impacts", {
+            "connaissance": connaissance, "kind": "materiau", "identifiant": MATERIAU, "profondeur_max": 3,
+        })
+        assert reponse_materiau["ok"] is True, reponse_materiau
+        depuis_materiau = reponse_materiau["resultat"]
         assert depuis_materiau["accepte"] is True
         assert {"devis", "chantier", "lead"} <= {i["objet"]["kind"] for i in depuis_materiau["impacts"]}
+        campagne = appel("m9_propager_impacts", {
+            "connaissance": connaissance, "kind": "campagne",
+            "identifiant": _id_campagne("google", "workflow-ravalement-2026"),
+            "relations": ["attribue_selon_utm"], "profondeur_max": 1,
+        })
+        assert campagne["ok"] is True, campagne
+        campagne_resultat = campagne["resultat"]
+        assert campagne_resultat["accepte"] is True and campagne_resultat["complet"] is False
+        assert {(i["objet"]["kind"], i["objet"]["id"]) for i in campagne_resultat["impacts"]} == {
+            ("lead", LEAD),
+        }
+        arete_campagne = next(iter(campagne_resultat["aretes_citees"].values()))
+        assert arete_campagne["relation"] == "attribue_selon_utm"
+        assert arete_campagne["preuve"]["capture_hash"]
         # un objet qui n'est pas connu : refus nommé, jamais « aucun impact »
         refus = appel(
             "m9_propager_impacts", {"connaissance": connaissance, "kind": "fournisseur", "identifiant": "F-1"}
