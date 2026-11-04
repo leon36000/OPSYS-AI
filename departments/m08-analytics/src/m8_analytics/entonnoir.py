@@ -29,8 +29,9 @@ gardés ; jamais un contact, le propriétaire du lead, un client, ni un coût.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -63,6 +64,12 @@ _ZERO = Decimal("0")
 _SECONDES_PAR_JOUR = Decimal("86400")
 _MICROSECONDES_PAR_SECONDE = Decimal("1000000")
 _NOMBRE_D_IDENTIFIANTS_CITES = 3
+# RFC 3339 : la fraction de seconde suit les secondes. On la borne à la nanoseconde (9 chiffres) pour que la clé
+# triable reste exacte ; au-delà, ``instant_utc`` refuse plutôt que de tronquer silencieusement.
+_FORMAT_INSTANT = re.compile(
+    r"\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}:\d{2}(?:[.,](\d+))?(?:[Zz]|[+-]\d{2}:\d{2})"
+)
+_PRECISION_FRACTION_MAX = 9
 
 _ORDRE_TYPES = (
     TYPE_LEAD_RECU, TYPE_LEAD_QUALIFIE, TYPE_DEVIS_ENVOYE, TYPE_DEVIS_ACCEPTE, TYPE_DEVIS_SANS_REPONSE,
@@ -245,12 +252,52 @@ def instant_lu(texte: Any) -> datetime | None:
     jamais un fuseau."""
     if not isinstance(texte, str) or not texte:
         return None
-    valeur = texte[:-1] + "+00:00" if texte.endswith("Z") else texte
+    valeur = texte[:-1] + "+00:00" if texte[-1:] in ("Z", "z") else texte
     try:
         lu = datetime.fromisoformat(valeur)
     except ValueError:
         return None
     return lu if lu.tzinfo is not None and lu.utcoffset() is not None else None
+
+
+def instant_utc(texte: Any) -> str | None:
+    """Clé triable d'un instant RFC 3339, normalisée en UTC à la nanoseconde : ``AAAA-MM-JJTHH:MM:SS.NNNNNNNNNZ``.
+
+    La clé est de longueur FIXE : l'ordre lexicographique du texte est alors l'ordre chronologique, y compris quand
+    les décalages sont opposés (``01:30-04:00`` = 05:30 UTC précède ``01:15-05:00`` = 06:15 UTC). C'est cette clé, et
+    non le texte d'origine, que l'historique trie avant ``LIMIT``.
+
+    Refus (``None``) plutôt que correction silencieuse : instant illisible ou sans fuseau, décalage non RFC 3339
+    (secondes ou fraction dans le décalage), fraction de plus de 9 chiffres. Le texte d'origine n'est jamais modifié.
+    """
+    if not isinstance(texte, str) or not texte:
+        return None
+    format_iso = _FORMAT_INSTANT.fullmatch(texte)
+    if format_iso is None:
+        return None
+    valeur = texte[:-1] + "+00:00" if texte[-1:] in ("Z", "z") else texte
+    try:
+        lu = datetime.fromisoformat(valeur)
+    except ValueError:
+        return None
+    if lu is None:
+        return None
+    decalage = lu.utcoffset()
+    if decalage is None or decalage.microseconds or decalage.seconds % 60:
+        return None
+    fraction = format_iso.group(1) or ""
+    if len(fraction) > _PRECISION_FRACTION_MAX:
+        return None
+    nanosecondes = int(fraction.ljust(_PRECISION_FRACTION_MAX, "0")) if fraction else 0
+    try:
+        utc = lu.astimezone(UTC)
+    except OverflowError:
+        # Le décalage peut pousser un datetime aux années 1/9999 hors de la plage représentable.
+        return None
+    return (
+        f"{utc.year:04d}-{utc.month:02d}-{utc.day:02d}T{utc.hour:02d}:{utc.minute:02d}:{utc.second:02d}"
+        f".{nanosecondes:09d}Z"
+    )
 
 
 def _secondes(ecart: Any) -> Decimal:
@@ -630,6 +677,7 @@ __all__ = [
     "fait_lead_qualifie",
     "fait_lead_recu",
     "instant_lu",
+    "instant_utc",
     "mesurer",
     "seuils_ignores",
     "situation",

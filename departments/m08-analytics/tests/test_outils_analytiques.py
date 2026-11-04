@@ -37,6 +37,7 @@ LECTURES = {
     "m8_lire_wallboard",
     "m8_lire_sante_entreprise",
     "m8_lire_entrepot",
+    "m8_lire_tendances",
     "m8_repondre_question",
     "m8_contextualiser_mesure",
     "m8_lire_pont_bi",
@@ -103,7 +104,7 @@ def _appeler(outils, nom, atomique=False, **args):
 def test_la_surface_des_outils_analytiques_niveaux_roles_et_schemas():
     outils, _, _ = _construire()
     nouveaux = {n: o for n, o in outils.items() if n in ECRITURES | LECTURES}
-    assert set(nouveaux) == ECRITURES | LECTURES and len(nouveaux) == 10
+    assert set(nouveaux) == ECRITURES | LECTURES and len(nouveaux) == 11
     for nom, outil in nouveaux.items():
         assert outil.parametres["additionalProperties"] is False and len(outil.description) <= 1024
         if nom in ECRITURES:
@@ -133,6 +134,7 @@ def test_les_neuf_outils_d_agent_sont_fermes_a_toute_identite_d_appareil_meme_ad
         "m8_enregistrer_sante_entreprise": {"maintenant": MAINTENANT},
         "m8_construire_entrepot": {"maintenant": MAINTENANT},
         "m8_lire_entrepot": {},
+        "m8_lire_tendances": {"metric_id": "m8_cash_libre_cad", "maintenant": MAINTENANT},
         "m8_repondre_question": {"question": "Combien de leads ?", "maintenant": MAINTENANT},
         "m8_publier_faits_consolides": {"maintenant": MAINTENANT},
         "m8_contextualiser_mesure": {"metric_id": "m8_cash_libre_cad", "maintenant": MAINTENANT},

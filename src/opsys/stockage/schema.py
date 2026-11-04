@@ -2017,11 +2017,17 @@ M8_ENT_MESURES_HIST = Table(
     Column("construction_id", String(64), ForeignKey("m8_ent_constructions.construction_id"), primary_key=True),
     Column("metric_id", String(80), primary_key=True),
     Column("construit_le", Text, nullable=False),
+    # Clé UTC normalisée à la nanoseconde (``AAAA-MM-JJTHH:MM:SS.NNNNNNNNNZ``) : longueur fixe, donc l'ordre
+    # lexicographique est l'ordre chronologique. Le texte d'origine reste dans ``construit_le`` ; cette colonne est
+    # dérivée et remplacée par la migration 0087 pour les historiques déjà stockés. Nulle seulement pour une ligne
+    # écrite hors du producteur : le lecteur refuse alors de sélectionner (fail-closed).
+    Column("construit_le_utc", Text, nullable=True),
     Column("statut", String(16), nullable=False),
     Column("valeur", Text, nullable=True),
     Column("version_definition", String(64), nullable=False),
     Column("dernier_fait_le", Text, nullable=True),
     Index("ix_m8_ent_mesures_hist_metrique", "metric_id", "construit_le"),
+    Index("ix_m8_ent_mesures_hist_metrique_utc", "metric_id", "construit_le_utc", "construction_id"),
 )
 M8_ENT_DIM_CHANTIER = Table(
     "m8_ent_dim_chantier", META,

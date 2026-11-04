@@ -107,7 +107,7 @@ _JEUX = (
             _c("dernier_fait_le", forme=INSTANT),
         ),
         ("construction_id", "metric_id"),
-        ("construit_le", "construction_id", "metric_id"),
+        ("construit_le_utc", "construction_id", "metric_id"),
         lignes_financieres_par_mesure=True,
     ),
     Jeu(

@@ -196,13 +196,30 @@ def lire_mesures_courantes(cnx: Connection) -> list[dict[str, Any]]:
 
 
 def lire_historique(cnx: Connection, metric_id: str, limite: int = 200) -> list[dict[str, Any]]:
-    """L'historique d'une mesure, du plus récent au plus ancien, borné (jamais tout l'historique)."""
+    """L'historique d'une mesure, du plus récent au plus ancien, borné (jamais tout l'historique).
+
+    La sélection trie ``construit_le_utc`` (clé UTC normalisée à longueur fixe), jamais le texte RFC 3339 d'origine :
+    deux décalages opposés ne peuvent donc pas inverser l'ordre avant ``LIMIT``. À instant égal, l'identifiant de
+    construction tranche (ordre déterministe). Une ligne dont la clé UTC manque (écrite hors du producteur) fait
+    refuser la lecture : mieux vaut un refus qu'un ordre non fiable.
+    """
     if type(limite) is not int or not 1 <= limite <= 1000:
         raise ValueError("REJ-ENTREPOT-LIMITE : la limite d'historique est un entier de 1 à 1000")
+    table = M8_ENT_MESURES_HIST
+    non_normalisee = cnx.execute(
+        select(table.c.construction_id)
+        .where(table.c.metric_id == metric_id, table.c.construit_le_utc.is_(None))
+        .limit(1)
+    ).first()
+    if non_normalisee is not None:
+        raise ValueError(
+            "REJ-ENTREPOT-HISTORIQUE-INSTANT-NON-NORMALISE : au moins une ligne de l'historique n'a pas de clé UTC "
+            "normalisée ; la sélection temporelle serait non fiable"
+        )
     requete = (
-        select(M8_ENT_MESURES_HIST)
-        .where(M8_ENT_MESURES_HIST.c.metric_id == metric_id)
-        .order_by(M8_ENT_MESURES_HIST.c.construit_le.desc(), M8_ENT_MESURES_HIST.c.construction_id)
+        select(table)
+        .where(table.c.metric_id == metric_id)
+        .order_by(table.c.construit_le_utc.desc(), table.c.construction_id)
         .limit(limite)
     )
     return [dict(ligne) for ligne in cnx.execute(requete).mappings()]

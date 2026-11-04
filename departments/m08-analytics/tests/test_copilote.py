@@ -41,10 +41,19 @@ def mesures():
 
 def _repondre(question, mesures, **kw):
     sante_resultat = sante.evaluer(_DEF, mesures, _CFG)
+    version_taux = next(m["version_definition"] for m in mesures if m["metric_id"] == "m8_taux_acceptation_pct")
     historiques = {
         "m8_taux_acceptation_pct": [
-            {"valeur": "50.00", "construit_le": "2026-10-30T20:00:00-04:00"},
-            {"valeur": "40.00", "construit_le": "2026-10-20T20:00:00-04:00"},
+            {
+                "valeur": "50.00", "construit_le": "2026-10-30T20:00:00-04:00",
+                "construit_le_utc": "2026-10-31T00:00:00.000000000Z", "version_definition": version_taux,
+                "statut": "calculee",
+            },
+            {
+                "valeur": "40.00", "construit_le": "2026-10-20T20:00:00-04:00",
+                "construit_le_utc": "2026-10-21T00:00:00.000000000Z", "version_definition": version_taux,
+                "statut": "calculee",
+            },
         ]
     }
     return copilote.repondre(
@@ -216,6 +225,23 @@ def test_la_tendance_sans_historique_le_dit(mesures):
     assert "aucun historique" in reponse["texte"]
     avec = _repondre("Évolution du taux d'acceptation", mesures)
     assert "en hausse" in avec["texte"] and "40.00" in avec["texte"] and "50.00" in avec["texte"]
+
+
+def test_lecture_historique_est_lazy_et_limitee_aux_mesures_demandees(mesures):
+    lues = []
+
+    def lire(metric_id):
+        lues.append(metric_id)
+        return []
+
+    copilote.repondre(
+        "Combien de leads reçus ?", mesures, _CAT, maintenant=_MAINTENANT, historique_lire=lire
+    )
+    assert lues == []
+    copilote.repondre(
+        "Tendance du taux d'acceptation des devis", mesures, _CAT, maintenant=_MAINTENANT, historique_lire=lire
+    )
+    assert lues == ["m8_taux_acceptation_pct"]
 
 
 # ---------------------------------------------------------------------------

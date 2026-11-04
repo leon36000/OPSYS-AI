@@ -84,7 +84,7 @@ mesure. Schéma en étoile dans la base de l'instance (SQLAlchemy Core, **portab
 |---|---|---|
 | `m8_ent_constructions` | journal des constructions : `version_schema`, `version_catalogue`, `empreinte_registres`, instant, comptes | append |
 | `m8_ent_mesures_courantes` | mart : les 56 mesures, source, version de définition, dernier fait, fenêtre déclarée | remplacée en bloc |
-| `m8_ent_mesures_hist` | historique d'une mesure par construction | append |
+| `m8_ent_mesures_hist` | historique d'une mesure par construction, avec sa clé UTC normalisée `construit_le_utc` | append |
 | `m8_ent_dim_chantier` | dimension : durées, verdict de matériaux, marge réelle de M5 (aucun technicien) | remplacée en bloc |
 | `m8_ent_dim_lead`, `m8_ent_fait_devis`, `m8_ent_mart_contenus` | dimension, fait, mart | remplacées en bloc |
 
@@ -93,11 +93,27 @@ mesure. Schéma en étoile dans la base de l'instance (SQLAlchemy Core, **portab
   d'écriture ne laisse ni ancien état perdu ni nouvel état partiel (testé).
 * **Versionné** : `version_schema`, `version_catalogue` (empreinte) et `empreinte_registres` ; `etat` dit `absent`, `a_jour` ou `en_retard`
   (et pourquoi) face aux registres actuels.
+* **Sélection temporelle** : `construit_le` garde le texte RFC 3339 du producteur (décalage compris) ; la colonne
+  dérivée `construit_le_utc` porte une clé UTC à longueur fixe (`AAAA-MM-JJTHH:MM:SS.NNNNNNNNNZ`), donc l'ordre
+  lexicographique est l'ordre chronologique. `lire_historique` trie cette clé **avant** `LIMIT` ; à instant égal,
+  `construction_id` tranche. La migration 0087 remplit les historiques déjà stockés sans réécrire `construit_le` et
+  refuse un instant illisible, sans fuseau, à décalage non RFC 3339 ou d'une précision supérieure à la nanoseconde ;
+  elle valide les lignes avant toute modification du schéma. Une clé absente fait aussi refuser la lecture
+  (fail-closed). Le jeu BI historique trie sur la même clé et conserve ses colonnes visibles ; il ne masque pas les
+  lignes sans clé, dont la position peut différer selon le moteur et dont l'ordre chronologique n'est pas fiable.
+* **Tendances (C8)** : `m8_lire_tendances` lit cet historique par `lire_historique` (borné), puis
+  `tendances.analyser` écarte toute construction STRICTEMENT postérieure au `maintenant` de l'appelant (égal accepté),
+  la compte dans `couverture.futurs_ecartes` et ne l'utilise ni dans la série, ni dans les calculs, ni dans le reçu. La
+  lecture reste bornée AVANT l'analyse : si le futur sature la fenêtre lue, `lecture_bornee` et
+  `anterieures_non_lues_possibles` le disent sans prétendre récupérer les lignes antérieures non lues. La comparaison,
+  le regroupement et la cadence conservent la précision à la nanoseconde ; un `maintenant` non normalisable est refusé.
+  Le copilote ne lit l'historique que pour les mesures demandées dans une question de tendance et exclut les
+  constructions futures, non calculées ou d'une autre version de définition.
 * **Le statut de fraîcheur n'est pas figé** dans l'entrepôt (il dépend de l'heure de la lecture) : seul l'instant du dernier fait et la fenêtre
   déclarée le sont.
 * **Sans personne** : aucune colonne `technicien`, `client`, `contact` (le fait de chantier en porte un : il n'est pas repris). Test.
-* **Portabilité PostgreSQL** : tous les DDL se compilent pour PostgreSQL ; la migration 0046 est montée sur un PostgreSQL éphémère (Docker) par
-  `tests/test_m8_migration.py` quand Docker est disponible. Le *constructeur* n'a pas été exécuté sur PostgreSQL (limite).
+* **Portabilité PostgreSQL** : les migrations 0046 et 0087, le constructeur et la lecture de tendances ont été exercés
+  sur un PostgreSQL éphémère avec des données fictives ; cela ne prouve pas le fonctionnement sur une base réelle.
 * **DuckDB** : non installé, donc non utilisé (stdlib uniquement). Parquet/DuckDB restent « GATED » (hors périmètre v1).
 * **Outils** : `m8_construire_entrepot` (N2), `m8_lire_entrepot` (N0). Planification : `entrepot-et-memoire` (jours ouvrables, 6 h 30).
 * **Retard assumé** : les consommateurs du bus n'écrivent pas dans l'entrepôt (la voie de la vérité reste intacte et rapide) ; l'entrepôt

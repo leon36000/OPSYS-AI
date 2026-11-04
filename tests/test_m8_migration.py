@@ -163,3 +163,65 @@ def test_migration_0046_sur_postgresql(monkeypatch):
         for requete in ("UPDATE pont_bi_acces SET code = 'x'", "DELETE FROM pont_bi_acces"):
             with pytest.raises(DBAPIError, match="immuable"), stockage.transaction() as cnx:
                 cnx.execute(text(requete))
+
+
+@pytest.mark.skipif(_raison_sans_docker() is not None, reason=str(_raison_sans_docker()))
+def test_migration_0087_remplit_un_historique_deja_stocke_sur_postgresql(monkeypatch):
+    """Le chemin PostgreSQL de la colonne dérivée : ADD COLUMN, remplissage des lignes existantes, index."""
+    from memoire.doubles import postgres_ephemere
+    from sqlalchemy import text
+
+    with postgres_ephemere() as url_pg:
+        url = url_pg.replace("postgresql://", "postgresql+psycopg://", 1)
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        cfg = stockage._config()
+        with stockage.moteur(url).begin() as cnx:
+            cfg.attributes["connection"] = cnx
+            command.upgrade(cfg, "0086")
+            # Simule une base réellement migrée avant 0087 : la colonne n'existait pas.
+            cnx.exec_driver_sql("DROP INDEX IF EXISTS ix_m8_ent_mesures_hist_metrique_utc")
+            cnx.exec_driver_sql("ALTER TABLE m8_ent_mesures_hist DROP COLUMN construit_le_utc")
+            cnx.execute(
+                text(
+                    "INSERT INTO m8_ent_constructions (construction_id, version_schema, version_catalogue, "
+                    "empreinte_registres, construit_le, nb_mesures, comptes) VALUES "
+                    "(:cid, 1, 'v', 'e', :instant, 1, '{}')"
+                ),
+                [
+                    {"cid": "c1", "instant": "2026-11-01T01:30:00-04:00"},
+                    {"cid": "c2", "instant": "2026-11-01T01:15:00-05:00"},
+                ],
+            )
+            cnx.execute(
+                text(
+                    "INSERT INTO m8_ent_mesures_hist (construction_id, metric_id, construit_le, statut, valeur, "
+                    "version_definition, dernier_fait_le) VALUES "
+                    "(:cid, 'm8_leads_recus', :instant, 'calculee', :valeur, 'v', NULL)"
+                ),
+                [
+                    {"cid": "c1", "instant": "2026-11-01T01:30:00-04:00", "valeur": "1"},
+                    {"cid": "c2", "instant": "2026-11-01T01:15:00-05:00", "valeur": "2"},
+                ],
+            )
+        with stockage.moteur(url).begin() as cnx:
+            cfg.attributes["connection"] = cnx
+            command.upgrade(cfg, "head")
+        with stockage.transaction() as cnx:
+            lignes = cnx.execute(
+                text(
+                    "SELECT construction_id, construit_le, construit_le_utc FROM m8_ent_mesures_hist "
+                    "ORDER BY construit_le_utc DESC"
+                )
+            ).all()
+            index = cnx.execute(
+                text("SELECT indexname FROM pg_indexes WHERE indexname = 'ix_m8_ent_mesures_hist_metrique_utc'")
+            ).all()
+            from m8_analytics import entrepot_stockage
+
+            historique = entrepot_stockage.lire_historique(cnx, "m8_leads_recus", 50)
+        assert [tuple(ligne) for ligne in lignes] == [
+            ("c2", "2026-11-01T01:15:00-05:00", "2026-11-01T06:15:00.000000000Z"),
+            ("c1", "2026-11-01T01:30:00-04:00", "2026-11-01T05:30:00.000000000Z"),
+        ]
+        assert index == [("ix_m8_ent_mesures_hist_metrique_utc",)]
+        assert [ligne["construction_id"] for ligne in historique] == ["c2", "c1"]
