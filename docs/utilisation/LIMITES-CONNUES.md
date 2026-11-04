@@ -360,9 +360,11 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 
 - **M1-E** : les champs « informations manquantes » et « prochaine action » sont calculés par les règles de M1 ; le
   profil d'entreprise incomplet les dit `non_evalues`, jamais « manquants ». Les événements `m1.transfert_ouvert` et
-  `m1.plainte_ouverte` sont publiés avec un schéma gelé, mais **aucun consommateur M2/M10 n'est livré sur cette
-  branche** : les agents de la vague 14 les branchent sur leurs propres branches. Un schéma consommé doit être traité
-  comme un contrat : le changer cassera leur lecture.
+  `m1.plainte_ouverte` sont publiés avec un schéma gelé. **M10 les consomme depuis M10-02, tranche 1** : un seul fait
+  minimal par transfert, `CLIENT_PRIVATE`, visible seulement dans le paquet d'affaire de M1/M2 ; un transfert sans
+  `lead_id` n'est pas rattaché (reçu explicite `TRANSFERT-SANS-AFFAIRE`, aucun fait). **M2 n'est pas livré sur cette
+  branche.** La clôture, les promesses humaines et le rattachement ultérieur d'un orphelin restent absents. Un schéma
+  consommé est un contrat : le changer cassera la lecture de M10.
   Si le lead ne prouve pas que ses signaux couvrent ceux de la conversation, ou si ses champs ne correspondent plus
   au profil actuel, le service et la ville restent non évalués et une vérification du dossier est demandée ; même un
   nouveau message neutre peut entraîner cette vérification. Les faits rappellent alors que le lead est historique.

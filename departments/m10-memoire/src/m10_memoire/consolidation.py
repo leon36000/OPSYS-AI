@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import classification, etapes
+from . import classification, confidentialite, etapes, transferts
 
 TYPE_ENTREE_FAIT = "fait_consolide"
 
@@ -79,6 +79,12 @@ def _resumer(evenements_du_jour: list[dict]) -> str:
     nb_rentabilite = sum(
         1 for e in evenements_du_jour if classification.type_evenement(e) == classification.TYPE_RENTABILITE
     )
+    nb_plaintes = sum(
+        1 for e in evenements_du_jour if classification.type_evenement(e) == transferts.TYPE_PLAINTE_OUVERTE
+    )
+    nb_transferts = sum(
+        1 for e in evenements_du_jour if classification.type_evenement(e) == transferts.TYPE_TRANSFERT_OUVERT
+    )
 
     # L'amont d'abord, dans l'ordre de l'entonnoir (PLAN T4.18) : un COMPTE par étape, jamais un identifiant, un
     # montant ni un contact. Le maillon compagnon FINANCIAL d'un devis n'est pas une étape de plus : pas compté.
@@ -94,6 +100,10 @@ def _resumer(evenements_du_jour: list[dict]) -> str:
         if nb_variance_critique:
             segment += f" dont {nb_variance_critique} critique(s)"
         segments.append(segment)
+    if nb_plaintes:
+        segments.append(f"{nb_plaintes} plainte(s) ouverte(s)")
+    if nb_transferts:
+        segments.append(f"{nb_transferts} transfert(s) ouvert(s)")
     if nb_rentabilite:
         # Un COMPTE seulement : le fait consolidé n'est pas FINANCIAL, aucun montant n'y entre.
         segments.append(f"{nb_rentabilite} rentabilité(s) de chantier")
@@ -162,6 +172,10 @@ def consolider_affaire(
         "resume": _resumer(evenements_du_jour),
         "sources": sources,
     }
+    if any(transferts.est_maillon(e) for e in evenements_du_jour):
+        # Un transfert ou une plainte est une donnée personnelle du client (Loi 25). Le fait durable qui le
+        # résume reste donc CLIENT_PRIVATE : il ne sort que vers M1/M2, jamais vers M3 ni un autre agent.
+        entree["confidentialite"] = confidentialite.NIVEAU_CLIENT_PRIVE
     ligne_id = registre_affaires.ajouter(entree)
 
     for maillon in registre_affaires.lire():

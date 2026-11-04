@@ -75,6 +75,16 @@ rien ; un fait reçu avant celui qui le précède est gardé sans bloquer l'autr
 nocturne et l'audit « non-oubli » couvrent ces faits. `m3.devis_envoye` (T4.7) s'ajoute par une entrée de la table de
 `etapes.py` et une ligne du manifeste.
 
+M10-02, tranche 1 (2026-11-04) consomme aussi les deux ouvertures de transfert de M1 (`m1.transfert_ouvert`,
+`m1.plainte_ouverte`) par `transferts.py`. M10 garde UN fait canonique par `transfert_id`, avec une liste blanche :
+transfert, lead, type fermé, catégories, niveau et instant. Le pseudonyme de conversation, le canal, le déclencheur,
+le contact et tout texte sont validés puis écartés, jamais recopiés. La spécialisation plainte/urgence et l'ouverture
+générique du même transfert donnent le même maillon quel que soit l'ordre d'arrivée ; le rejeu est un no-op. Le fait est
+`CLIENT_PRIVATE` et ne sort que dans le paquet d'affaire de M1 et M2 ; une consolidation du jour qui en contient un
+reste `CLIENT_PRIVATE`. Un transfert dont `lead_id` est nul n'est jamais rattaché par déduction : le consommateur
+l'acquitte avec `memorise: False` et `TRANSFERT-SANS-AFFAIRE`, sans écrire de fait. La clôture de transfert, les
+promesses humaines et le rattachement ultérieur d'un orphelin ne sont pas livrés par cette tranche.
+
 PLAN T3.3-suite ajoute le dépôt POSTFLIGHT (`faits_candidats.py`, `m10_deposer_faits_candidats`) : après
 un tour d'agent, le core transmet ce que les OUTILS ont fait (outil, résultat ok ou refus, code), jamais
 ce que le modèle a écrit. Chaque fait devient un maillon `fait_candidat` du registre Affaires, en statut

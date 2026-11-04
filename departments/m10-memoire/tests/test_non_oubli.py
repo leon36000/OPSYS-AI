@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from m10_memoire import amont, batterie, registre, rentabilite, variance, wct
+from m10_memoire import amont, batterie, registre, rentabilite, transferts, variance, wct
 
 RACINE = Path(__file__).resolve().parents[1]
 BATTERIE = RACINE / "evals" / "non-oubli.v1.yaml"
@@ -444,6 +444,45 @@ def test_un_registre_vide_donne_un_rappel_nul_et_une_precision_non_evaluable_pas
     assert rapport["couverture"]["valeur_pct"] == 100.0
     assert rapport["couverture_sources"]["valeur"] == 1.0
     assert len(rapport["manquants"]) == 11
+
+
+def test_un_transfert_m10_02_reel_n_altere_pas_les_metriques_du_corpus_sans_rapport():
+    corpus = _mini()
+    sans_transfert = registre.Registre()
+    _lead(sans_transfert, lead_id="A-FICTIF-1")
+    rapport_sans_transfert = batterie.evaluer_batterie(
+        corpus, sans_transfert.lire(), [], ["DOC-A"]
+    )
+
+    avec_transfert = registre.Registre()
+    _lead(avec_transfert, lead_id="A-FICTIF-1")
+    transfert_id = "tr-" + "a" * 20
+    resultat, verdict = transferts.memoriser(
+        transferts.TYPE_TRANSFERT_OUVERT,
+        {
+            "evenement_id": f"m1-transfert-ouvert-{transfert_id}",
+            "transfert_id": transfert_id,
+            "conversation_id": "pseudo-fictif-evaluation",
+            "lead_id": "A-FICTIF-1",
+            "type_transfert": "ventes",
+            "categories": ["insatisfaction"],
+            "niveau": "N4",
+            "canal": "sms",
+            "declenche_par": "regles",
+            "horodatage": HORODATAGE,
+        },
+        avec_transfert,
+    )
+    assert verdict is None and resultat is not None and resultat["ecrit"] is True
+    assert resultat["maillon"] in avec_transfert.lire()
+
+    rapport_avec_transfert = batterie.evaluer_batterie(
+        corpus, avec_transfert.lire(), [], ["DOC-A"]
+    )
+
+    # Le nouvel événement est classifiable et rattaché au lead, mais le corpus ne pose aucune
+    # question sur lui : rappel, précision, couverture et chaque question doivent donc rester stables.
+    assert rapport_avec_transfert == rapport_sans_transfert
 
 
 # ---------------------------------------------------------------------------------------------------------------
