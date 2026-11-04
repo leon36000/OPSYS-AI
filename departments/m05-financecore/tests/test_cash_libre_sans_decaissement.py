@@ -63,10 +63,12 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
         "_cash_libre",
     } <= set(strict["outils"])
     # T4.16-d : la prévision ouvre elle aussi le registre des mouvements pour en tirer le solde (lecture seule) ;
-    # T4.19-b : le constat aussi (`constater_cash_libre`), qui confie son écriture à une fonction en strict
+    # T4.19-b : le constat aussi (`constater_cash_libre`), qui confie son écriture à une fonction en strict ;
+    # C5 : les deux variantes du constat de trésorerie prévue ouvrent le registre pour le solde, jamais pour écrire.
     # moteur de calcul : le Monte-Carlo lit le solde par la prévision existante, comme `prevoir_tresorerie`
     assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre",
-                                      "constater_cash_libre_planifie", "simuler_tresorerie_monte_carlo"}
+                                      "constater_cash_libre_planifie", "constater_tresorerie_prevue",
+                                      "constater_tresorerie_prevue_planifie", "simuler_tresorerie_monte_carlo"}
     assert lecture["soldes"] is None and lecture["etat_financier"] is None
 
 
@@ -205,6 +207,7 @@ _FICHIERS = (
     "cash_libre",
     "prevision",
     "constat_cash_libre",
+    "constat_tresorerie_prevue",
     "analyse",
     "outils",
     "soldes",

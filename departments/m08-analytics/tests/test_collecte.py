@@ -234,6 +234,24 @@ def test_la_liste_de_controle_suit_l_etat_lu_trois_etapes_par_constat():
     assert "a.i" in etapes[("a.i", "activer_en_ombre")]["action"]
 
 
+def test_le_wallboard_collecte_couvre_tous_les_constats_planifies_declares_dont_tresorerie_prevue():
+    """Un témoin par constat déclaré, et pas une liste recopiée : le nouveau constat C5 doit en avoir un."""
+    import yaml
+    from m8_analytics import wallboards
+
+    from opsys.connecteurs_planification import constats as plan_constats
+    from opsys.departements import charger_departements
+
+    definition = yaml.safe_load((wallboards._DOSSIER / "collecte.v1.yaml").read_text(encoding="utf-8"))
+    declarations = plan_constats.declarations(charger_departements())
+    mesures_du_wallboard = {t["mesure"] for t in definition["tuiles"]}
+    for declaration in declarations:
+        assert mesures_du_wallboard & set(declaration.constat.mesures), declaration.nom
+    assert "m5.constat.tresorerie-prevue" in {declaration.nom for declaration in declarations}
+    assert "m8_solde_minimal_prevu_cad" in mesures_du_wallboard
+    assert len(definition["tuiles"]) == len(declarations)
+
+
 def test_un_passage_en_echec_ne_compte_pas_comme_un_premier_passage_reussi():
     etapes = une([], [constat("x.c", dernier_statut="erreur", dernier_code="REJ-X-Y")])["liste_de_controle"]
 

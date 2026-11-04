@@ -15,6 +15,7 @@ Aucun chemin de production n'importe ce module : il sert ``tests/``, ``evals/`` 
 from __future__ import annotations
 
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 from . import cash_libre, contenus, entonnoir, mesures_chantier, operations_recues
@@ -366,19 +367,23 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
 
     def tresorerie_prevue(jour_constat: str, heure: int, soldes: list[str], sequence: int = 1) -> dict[str, Any]:
         horizon = len(soldes)
+        montants = [Decimal(montant) for montant in soldes]
+        minimal = min(montants)
+        version = f"{sequence:064x}"
         serie = [
-            {"semaine": rang, "debut": jour_constat, "fin": jour_constat, "solde_fin_cad": montant,
-             "statut": "CALCULE"}
+            {"semaine": rang, "statut": "CALCULE", "solde_fin_cad": montant}
             for rang, montant in enumerate(soldes, start=1)
         ]
         return ordonne(
             operations_recues.TYPE_TRESORERIE_PREVUE,
             {
-                "evenement_id": f"m5-tresorerie-prevue-{sequence}-{jour_constat}-0123456789abcdef",
+                "evenement_id": f"m5-tresorerie-prevue-{sequence}-{jour_constat}-{version[:16]}",
                 "sequence": sequence, "date_reference": jour_constat, "emise_le": _instant(jour_constat, heure),
-                "version_donnees": "0" * 64, "devise": "CAD", "prevision_id": "0123456789abcdef",
-                "horizon_semaines": horizon, "statut_alerte": "AUCUNE", "seuil_cad": None, "semaines_sous_seuil": [],
-                "solde_minimal_prevu_cad": min(soldes), "semaine_solde_minimal": soldes.index(min(soldes)) + 1,
+                "version_donnees": version, "devise": "CAD", "prevision_id": version,
+                "horizon_semaines": horizon, "statut_alerte": "SEUIL_A_CONFIGURER", "seuil_cad": None,
+                "semaines_sous_seuil": [],
+                "solde_minimal_prevu_cad": format(minimal, "f"),
+                "semaine_solde_minimal": montants.index(minimal) + 1,
                 "non_calculable_a_partir_de": None, "manque": [],
                 "soldes_hebdo": serie, "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste "
                 "requise avant toute décision officielle ou action réelle.",
@@ -538,7 +543,7 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
             },
             7,
         ),
-        tresorerie_prevue(jour, 7, ["19885.02", "15685.02", "22885.02", "31285.02"], sequence=2),
+        tresorerie_prevue(jour, 7, ["19885.02", "15685.02", "22885.02", "100000.00"], sequence=2),
         tresorerie_prevue(il_y_a_six_jours, 7, ["36000.00", "18000.00", "22000.00", "25000.00"], sequence=1),
     ]
 

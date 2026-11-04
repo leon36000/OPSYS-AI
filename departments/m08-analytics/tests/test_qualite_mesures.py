@@ -510,3 +510,44 @@ def test_un_fait_de_type_inattendu_ou_un_registre_vide_ne_fait_pas_tomber_le_con
     vide = copy.deepcopy(_registres())
     vide["operations"], vide["cash_libre"] = [], []
     assert _bloquees(vide) == set()  # rien reçu n'est pas une donnée fausse : la mesure est seulement non calculable
+
+
+def test_un_constat_de_tresorerie_prevue_forge_est_refuse_par_le_catalogue_et_bloque_les_trois_mesures():
+    from m8_analytics import operations_recues
+
+    from opsys.evenements.schemas import erreurs_charge
+
+    charge = {
+        "evenement_id": f"m5-tresorerie-prevue-1-2026-09-29-{'b' * 16}",
+        "sequence": 1,
+        "date_reference": "2026-09-29",
+        "emise_le": "2026-09-29T07:00:00-04:00",
+        "prevision_id": "b" * 64,
+        "version_donnees": "b" * 64,
+        "devise": "CAD",
+        "horizon_semaines": 2,
+        "statut_alerte": "ALERTE",
+        "seuil_cad": "16000.00",
+        "semaines_sous_seuil": [1, 1],
+        "solde_minimal_prevu_cad": "99999.00",
+        "semaine_solde_minimal": 26,
+        "non_calculable_a_partir_de": 2,
+        "manque": [{"code": "REJ-PREVISION-DELAI-FOURNISSEURS-A-DECLARER", "a_partir_de_semaine": 2}],
+        "soldes_hebdo": [
+            {"semaine": 1, "statut": "CALCULE", "solde_fin_cad": "19000.00"},
+            {"semaine": 2, "statut": "NON_CALCULABLE", "solde_fin_cad": "18000.00"},
+        ],
+        "mention": (
+            "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision "
+            "officielle ou action réelle."
+        ),
+    }
+    assert erreurs_charge("m5.tresorerie_prevue_constatee", charge) != []
+    fait = operations_recues.fait(operations_recues.TYPE_TRESORERIE_PREVUE, charge, "2026-09-29T07:00:00-04:00")
+    registres = {"chantier": [], "entonnoir": [], "contenus": [], "cash_libre": [], "operations": [fait]}
+    lues = {m["metric_id"]: m for m in moteur_mesures.lire(registres, CATALOGUE)}
+
+    # Même si un producteur fautif contournait le catalogue, la règle de qualité bloque les trois mesures C5.
+    for metric_id in ("m8_solde_minimal_prevu_cad", "m8_semaines_sous_seuil",
+                      "m8_ecart_tresorerie_prevue_reelle_cad"):
+        assert lues[metric_id]["qualite"]["statut"] == "echec", metric_id

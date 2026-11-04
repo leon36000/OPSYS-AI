@@ -11,7 +11,13 @@ d'événements. Rien n'a été exécuté contre PostgreSQL pour ces mesures, ni 
 M5 PUBLIE en plus son constat de trésorerie prévue (`m5.tresorerie_prevue_constatee`, N3 à la demande + variante N2 planifiée
 `tresorerie-prevue`, inactif par défaut) ; M8 en tire trois mesures — solde minimal prévu, semaines sous le seuil, écart
 prévu-réel — soit **62 mesures**, trois tuiles de plus sur le wallboard finance-opérations (plafond porté de 12 à 16 tuiles)
-et la règle `ALERTE-TRESORERIE-SOUS-SEUIL` enrichie. Contexte : `INTERCONNEXION.md` (le
+et la règle `ALERTE-TRESORERIE-SOUS-SEUIL` enrichie. Précisions C5 (correction du 5 novembre 2026, revue adverse) : l'écart
+prévu-réel vaut **réel moins prévu** (positif quand le réalisé dépasse la prévision) ; le réel est le **premier** constat du cash
+libre, du plus ancien au plus récent, dont le jour atteint la fin de la semaine 1 de l'ancienne prévision ; sa fraîcheur est celle du
+**plus ancien** des trois faits (prévision courante, ancienne prévision, cash libre retenu) et son `empreinte_faits` les couvre tous
+les trois. Le schéma `m5.tresorerie_prevue_constatee` et la règle `Q-TRESORERIE-PREVUE-COHERENTE` refusent un constat forgé (instant
+d'émission impossible, série incomplète ou hors horizon, semaine NON_CALCULABLE qui porte un montant, minimal qui n'est pas le
+minimum, doublon de semaine sous le seuil, statut d'alerte incohérent). Contexte : `INTERCONNEXION.md` (le
 bus), `M8-OLIVIER.md` (la couche analytique).
 
 ## 1. Pourquoi ce chantier

@@ -223,7 +223,7 @@ def test_les_deux_outils_sont_declares_t1_avec_leurs_entrees_et_la_mention(par_n
     planifie = par_nom[OUTIL_PLANIFIE]
     assert planifie.autonomie.name == "T1" and planifie.niveau == Niveau.N2
     assert set(planifie.parametres["required"]) == {"aujourd_hui", "emise_le"}
-    assert "roles_appareil" not in dir(planifie) or True
+    assert planifie.roles_appareil == frozenset()
 
 
 def test_le_cas_fictif_est_constate_et_publie_avec_sa_trace(par_nom, cas_fictif):

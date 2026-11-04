@@ -20,6 +20,7 @@
     },
     "emise_le": {
       "type": "string",
+      "format": "date-time",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[-+][0-9]{2}:[0-9]{2}$"
     },
     "prevision_id": {
@@ -51,6 +52,7 @@
     "semaines_sous_seuil": {
       "type": "array",
       "maxItems": 26,
+      "uniqueItems": true,
       "items": {
         "type": "integer",
         "minimum": 1,
@@ -116,7 +118,22 @@
             "maxLength": 24
           }
         },
-        "required": ["semaine", "statut", "solde_fin_cad"]
+        "required": ["semaine", "statut", "solde_fin_cad"],
+        "allOf": [
+          {
+            "description": "Une semaine CALCULE porte un montant décimal ; une semaine NON_CALCULABLE ne porte aucun chiffre (jamais zéro).",
+            "if": {
+              "properties": {"statut": {"const": "CALCULE"}},
+              "required": ["statut"]
+            },
+            "then": {
+              "properties": {"solde_fin_cad": {"type": "string"}}
+            },
+            "else": {
+              "properties": {"solde_fin_cad": {"type": "null"}}
+            }
+          }
+        ]
       }
     },
     "mention": {
@@ -165,6 +182,56 @@
       },
       "then": {
         "properties": {"seuil_cad": {"type": "null"}, "semaines_sous_seuil": {"maxItems": 0}}
+      }
+    },
+    {
+      "description": "Une alerte nomme au moins une semaine sous le seuil.",
+      "if": {
+        "properties": {"statut_alerte": {"const": "ALERTE"}},
+        "required": ["statut_alerte"]
+      },
+      "then": {
+        "properties": {"semaines_sous_seuil": {"minItems": 1}}
+      }
+    },
+    {
+      "description": "Sans alerte (AUCUNE) ou non évaluée, aucune semaine n'est dite sous le seuil.",
+      "if": {
+        "properties": {"statut_alerte": {"enum": ["AUCUNE", "NON_EVALUEE"]}},
+        "required": ["statut_alerte"]
+      },
+      "then": {
+        "properties": {"semaines_sous_seuil": {"maxItems": 0}}
+      }
+    },
+    {
+      "description": "Hors « seuil à configurer », le seuil est un montant décimal (le propriétaire l'a déclaré).",
+      "if": {
+        "properties": {"statut_alerte": {"enum": ["ALERTE", "AUCUNE", "NON_EVALUEE"]}},
+        "required": ["statut_alerte"]
+      },
+      "then": {
+        "properties": {"seuil_cad": {"type": "string"}}
+      }
+    },
+    {
+      "description": "NON_EVALUEE dit à partir de quelle semaine la série n'a pas pu être évaluée ; AUCUNE n'a aucun blocage.",
+      "if": {
+        "properties": {"statut_alerte": {"const": "NON_EVALUEE"}},
+        "required": ["statut_alerte"]
+      },
+      "then": {
+        "properties": {"non_calculable_a_partir_de": {"type": "integer"}}
+      }
+    },
+    {
+      "description": "AUCUNE signifie que tout l'horizon a été évalué : aucun blocage déclaré.",
+      "if": {
+        "properties": {"statut_alerte": {"const": "AUCUNE"}},
+        "required": ["statut_alerte"]
+      },
+      "then": {
+        "properties": {"non_calculable_a_partir_de": {"type": "null"}}
       }
     }
   ]

@@ -1046,23 +1046,40 @@ def _fin_semaine(date_reference: Any, semaine: int) -> date | None:
     return debut + timedelta(days=7 * semaine - 1)
 
 
+def _cash_libres_chronologiques(faits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Les constats du cash libre, du plus ancien au plus récent, départagés par ``sequence`` puis par l'ordre de
+    réception. Un fait sans jour lisible ne date aucun écart : il est écarté (jamais deviné)."""
+    constats = []
+    for indice, fait in enumerate(faits):
+        if fait.get("type_entree") != cash_libre.TYPE_CONSTAT:
+            continue
+        jour_fait = jour(fait.get("date_reference"))
+        if jour_fait is None:
+            continue
+        sequence = fait.get("sequence")
+        rang = sequence if type(sequence) is int and not isinstance(sequence, bool) else 0
+        constats.append((jour_fait, rang, indice, fait))
+    return [fait for _, _, _, fait in sorted(constats, key=lambda paire: paire[:3])]
+
+
 def _ecart_tresorerie_prevue_reelle_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     """ÉCART DE DÉFINITION entre le PRÉVU et le RÉEL (positif : le réalisé dépasse la prévision ; négatif : la
     prévision dépassait le réalisé). Le PRÉVU : la DERNIÈRE ANCIENNE version de la prévision dont la semaine 1 est
     ÉCHUE le jour du cash libre (la série publiée et gardée, pas une prévision recomputée ; jamais la plus récente si
-    sa semaine 1 n'est pas encore échue). Le RÉEL : le solde du constat du cash libre dont le jour SUIT la fin de
-    cette semaine 1 (le premier réel disponible après l'échéance, pas le plus récent : l'écart est daté). La seule
-    opération de M8 est prévu MOINS réel, en ``Decimal`` : aucun montant de M5 n'est refait."""
+    sa semaine 1 n'est pas encore échue). Le RÉEL : le PREMIER constat du cash libre, du plus ancien au plus récent,
+    dont le jour SUIT la fin de cette semaine 1 (le premier réel disponible après l'échéance, pas le plus récent :
+    l'écart est daté). Sans cash libre qui suive une semaine 1 échue, non calculable. La seule opération de M8 est
+    RÉEL MOINS PRÉVU, en ``Decimal`` : aucun montant de M5 n'est refait. La fraîcheur est celle du plus ancien des
+    faits utilisés (prévision courante, ancienne prévision, cash libre retenu) ; l'empreinte les couvre tous les
+    trois."""
     operations = reg["operations"]
     courant = _dernier_constat_tresorerie_prevue(operations)
     if courant is None:
         return non_calculable([_MANQUE_TRESORERIE_PREVUE])
     instant = _jour_instant(courant.get("date_reference"), reg)
     entrees = _entrees_tresorerie_prevue(courant)
-    reel = cash_libre.constat_courant(reg.get("cash_libre", []))
-    solde_reel = (reel or {}).get("solde") or {}
-    reel_montant = _decimal(solde_reel.get("montant_cad")) if solde_reel.get("statut") == "CALCULE" else None
-    if not isinstance(reel, dict) or reel_montant is None:
+    cash_libres = _cash_libres_chronologiques(reg.get("cash_libre", []))
+    if not cash_libres:
         return non_calculable(
             [
                 manque(
@@ -1075,57 +1092,92 @@ def _ecart_tresorerie_prevue_reelle_cad(reg: dict[str, list[dict[str, Any]]]) ->
             entrees,
             instant,
         )
-    jour_reel = jour(reel.get("date_reference"))
-    anciennes = []
-    for fait in operations:
-        if fait.get("type_entree") != operations_recues.TYPE_TRESORERIE_PREVUE:
+    for reel in cash_libres:
+        jour_reel = jour(reel.get("date_reference"))
+        anciennes = []
+        for fait in operations:
+            if fait.get("type_entree") != operations_recues.TYPE_TRESORERIE_PREVUE:
+                continue
+            fin_semaine_1 = _fin_semaine(fait.get("date_reference"), 1)
+            if jour_reel is None or fin_semaine_1 is None:
+                continue
+            if fin_semaine_1 <= jour_reel:
+                serie = _semaines_calculees(fait)
+                if 1 in serie:
+                    anciennes.append(fait)
+        if not anciennes:
             continue
-        fin_semaine_1 = _fin_semaine(fait.get("date_reference"), 1)
-        if jour_reel is None or fin_semaine_1 is None:
-            continue
-        if fin_semaine_1 <= jour_reel:
-            serie = _semaines_calculees(fait)
-            if 1 in serie:
-                anciennes.append(fait)
-    if not anciennes:
-        return non_calculable(
-            [
-                manque(
-                    "m5.tresorerie_prevue_constatee",
-                    _SOURCE_M5_TRESORERIE_PREVUE,
-                    "aucune prévision dont la semaine 1 est échue le jour du cash libre : l'écart exige "
-                    "l'ancienne série publiée, jamais la plus récente",
-                )
-            ],
-            entrees,
-            instant,
+        ancienne = max(
+            anciennes,
+            key=lambda f: (
+                f.get("sequence") if type(f.get("sequence")) is int else 0,
+                ordre_publication(f, 0)[0],
+            ),
         )
-    ancienne = max(
-        anciennes,
-        key=lambda f: (
-            f.get("sequence") if type(f.get("sequence")) is int else 0,
-            ordre_publication(f, 0)[0],
-        ),
+        solde_reel = reel.get("solde") or {}
+        reel_montant = _decimal(solde_reel.get("montant_cad")) if solde_reel.get("statut") == "CALCULE" else None
+        if reel_montant is None:
+            return non_calculable(
+                [
+                    manque(
+                        "m5.cash_libre_constate",
+                        "M5 (m5.cash_libre_constate)",
+                        "le premier constat du cash libre qui suit l'échéance de la semaine 1 n'a pas de solde "
+                        "calculable : M8 ne peut comparer le prévu à aucun réel",
+                    )
+                ],
+                entrees,
+                _plus_ancien(
+                    [
+                        instant,
+                        _jour_instant(ancienne.get("date_reference"), reg),
+                        _jour_instant(reel.get("date_reference"), reg),
+                    ]
+                ),
+            )
+        prevu = _semaines_calculees(ancienne)[1]
+        ecart = reel_montant - prevu
+        faits_utilises = [courant]
+        if ancienne.get("evenement_id") != courant.get("evenement_id"):
+            faits_utilises.append(ancienne)
+        faits_utilises.append(reel)
+        entrees = {
+            **entrees,
+            "prevision_utilisee": {
+                "date_reference": ancienne.get("date_reference"),
+                "sequence": ancienne.get("sequence"),
+                "version_donnees": ancienne.get("version_donnees"),
+                "prevision_id": ancienne.get("prevision_id"),
+                "semaine_comparee": 1,
+                "solde_prevu_cad": nombres.texte_decimal(prevu),
+            },
+            "reel_utilise": {
+                "date_reference": reel.get("date_reference"),
+                "sequence": reel.get("sequence"),
+                "solde_reel_cad": nombres.texte_decimal(reel_montant),
+            },
+            "empreinte_faits": empreinte_faits(faits_utilises),
+        }
+        instant_ecart = _plus_ancien(
+            [
+                instant,
+                _jour_instant(ancienne.get("date_reference"), reg),
+                _jour_instant(reel.get("date_reference"), reg),
+            ]
+        )
+        return nombres.texte_decimal(ecart), entrees, [], instant_ecart, None, None
+    return non_calculable(
+        [
+            manque(
+                "m5.tresorerie_prevue_constatee",
+                _SOURCE_M5_TRESORERIE_PREVUE,
+                "aucune prévision dont la semaine 1 est échue le jour d'un cash libre : l'écart exige "
+                "l'ancienne série publiée, jamais la plus récente",
+            )
+        ],
+        entrees,
+        instant,
     )
-    prevu = _semaines_calculees(ancienne)[1]
-    ecart = prevu - reel_montant
-    entrees = {
-        **entrees,
-        "prevision_utilisee": {
-            "date_reference": ancienne.get("date_reference"),
-            "sequence": ancienne.get("sequence"),
-            "version_donnees": ancienne.get("version_donnees"),
-            "prevision_id": ancienne.get("prevision_id"),
-            "semaine_comparee": 1,
-            "solde_prevu_cad": nombres.texte_decimal(prevu),
-        },
-        "reel_utilise": {
-            "date_reference": reel.get("date_reference"),
-            "sequence": reel.get("sequence"),
-            "solde_reel_cad": nombres.texte_decimal(reel_montant),
-        },
-    }
-    return nombres.texte_decimal(ecart), entrees, [], instant, None, None
 
 
 # ---------------------------------------------------------------------------
