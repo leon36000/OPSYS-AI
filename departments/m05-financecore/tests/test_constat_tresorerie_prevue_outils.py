@@ -248,6 +248,17 @@ def test_redemander_le_meme_constat_ne_publie_rien(par_nom, cas_fictif):
     assert len(_publies()) == 1 and len(_traces()) == 1
 
 
+def test_le_rejeu_dit_deja_constate_et_non_publie(par_nom, cas_fictif):
+    # Tue les mutants `deja_constate True -> False` et `publie False -> True` du chemin de rejeu (balayage
+    # indépendant de l'architecte : l'auteur n'avait pas balayé `outils.py`).
+    premier = _constat(par_nom)
+    second = _constat(par_nom)
+    assert (premier["deja_constate"], premier["publie"]) == (False, True)
+    assert (second["deja_constate"], second["publie"]) == (True, False)
+    assert second["constat"]["evenement_id"] == premier["constat"]["evenement_id"]
+    assert second["mention"] == MENTION
+
+
 def test_le_planificateur_seul_declenche_la_variante_planifiee_reponse_sans_montant(par_nom, cas_fictif):
     with service_acteur_systeme.contexte_planificateur():
         reponse = executer_atomique(par_nom[OUTIL_PLANIFIE], {"aujourd_hui": AUJOURD_HUI, "emise_le": EMISE_LE})
