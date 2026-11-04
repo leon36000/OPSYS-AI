@@ -372,9 +372,18 @@ def propager(
     if type(profondeur_max) is not int or not 1 <= profondeur_max <= MAX_PROFONDEUR:
         raise ValueError(f"REJ-GRAPHE-PROFONDEUR : entier entre 1 et {MAX_PROFONDEUR} requis")
     depart = _noeud(kind, identifiant)
-    connus = {noeud["ref"] for noeud in graphe["noeuds"]}
-    if depart not in connus:
-        raise ValueError("REJ-GRAPHE-NOEUD-INCONNU : objet absent du graphe connu ; aucun impact n'est affirmé")
+    noeud_depart = next(
+        (noeud for noeud in graphe["noeuds"] if noeud["ref"] == depart), None
+    )
+    if (
+        noeud_depart is None
+        or noeud_depart["kind"] != kind
+        or noeud_depart["id"] != identifiant
+    ):
+        raise ValueError(
+            "REJ-GRAPHE-NOEUD-INCONNU : objet absent du graphe connu ; "
+            "aucun impact n'est affirmé"
+        )
     filtre = set(relations) if relations is not None else None
     adjacence = _voisins(graphe)
     vus = {depart: 0}

@@ -453,3 +453,52 @@ def test_source_refs_non_liste_est_inconnu(refs):
         inconnu["regle"] == regle.id and inconnu["raison"] == "IDENTIFIANT_LIEN_INVALIDE"
         for inconnu in graphe["regles_inconnues"]
     )
+
+
+def test_capture_sans_page_rejetee_et_chaine_invalide():
+    response = {"ok": True, "resultat": {
+        "couverture": "COMPLETE",
+        "campagnes": [{"source": "google", "campagne": "fictif",
+                       "source_refs": [{"type": "m2.client_associe", "reference": "lead-fictif"}]}],
+    }}
+    capture = _capture(response)
+    capture["pages"] = []
+    capture["reponse_sha256"] = cs.empreinte([])
+    capture["hash_maillon"] = cs._hash_maillon(capture)
+    with pytest.raises(ValueError, match="REJ-CAPTURE-PAGES"):
+        cs.valider_capture(capture)
+    assert cs.valider_chaine([capture])[0] is False
+    with pytest.raises(ValueError, match="REJ-CAPTURE-PAGES"):
+        cs.construire(
+            cat.obtenir("m7.performance_campagnes"),
+            {"debut": "2026-10-01", "fin": "2026-10-31"}, [],
+            recu_a=CONNAISSANCE, reference=None, index=0, hash_precedent=cs.HASH_INITIAL,
+        )
+
+
+@pytest.mark.parametrize("pages", [[], ["p"] * (cs.MAX_PAGES + 1)])
+def test_valider_capture_refuse_nombre_pages_hors_bornes(pages):
+    capture = _capture({"ok": True, "resultat": {"couverture": "COMPLETE"}})
+    capture["pages"] = pages
+    capture["reponse_sha256"] = cs.empreinte(pages)
+    capture["hash_maillon"] = cs._hash_maillon(capture)
+    with pytest.raises(ValueError, match="REJ-CAPTURE-PAGES"):
+        cs.valider_capture(capture)
+
+
+def test_constructeur_compte_octets_utf8_et_preserve_budget_personnalise():
+    response = {"ok": True, "resultat": {"texte": "é" * 500_000}}
+    args = {"debut": "2026-10-01", "fin": "2026-10-31"}
+    with pytest.raises(ValueError, match="REJ-CAPTURE-BORNE"):
+        cs.construire(
+            cat.obtenir("m7.performance_campagnes"), args, [response],
+            recu_a=CONNAISSANCE, reference=None, index=0, hash_precedent=cs.HASH_INITIAL,
+        )
+    capture = cs.construire(
+        cat.obtenir("m7.performance_campagnes"), args, [response],
+        recu_a=CONNAISSANCE, reference=None, index=0, hash_precedent=cs.HASH_INITIAL,
+        max_octets=2_000_000,
+    )
+    assert len(cs.canonique(capture["pages"]).encode("utf-8")) > cs.MAX_OCTETS_DEFAUT
+    cs.valider_capture(capture)
+    assert cs.valider_chaine([capture]) == (True, "")

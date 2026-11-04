@@ -543,3 +543,34 @@ def test_outils_graphe_sur_le_monde_reel_admin_seulement(tmp_path, monkeypatch):
         assert appel("m9_apercu_graphe_impacts", {"connaissance": connaissance}, None)["ok"] is False
     finally:
         m2_outils.reinitialiser_registre()
+
+
+def test_propagation_refuse_un_split_de_reference_avec_deux_points(tmp_path, monkeypatch):
+    ident = "foo:bar"
+    monkeypatch.setattr(B, "DEVIS_ID", ident)
+    charge = B.charge_devis_accepte
+    monkeypatch.setattr(B, "charge_devis_accepte", lambda: charge(devis_id=ident))
+    monkeypatch.setattr(sys.modules[__name__], "DEVIS", ident)
+    monkeypatch.setattr(sys.modules[__name__], "ARGUMENTS", {"m4.interventions": {}})
+    intervention = encodage_m4.empreinte("intervention-devis", LEAD, ident)
+    monkeypatch.setattr(sys.modules[__name__], "INTERVENTION", intervention)
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "WCT",
+        encodage_m4.empreinte("wct", intervention, B.HORODATAGE_COMPLETION_OUTIL),
+    )
+    monde = _monter_scenario(tmp_path, monkeypatch)
+    cap = B.capacites(M2, M3, M4, M5, M6, M7, M8)
+    capture = next(c for c in monde["chaine"] if c["lecture_id"] == "m4.interventions")
+    assert any(row.get("devis_id") == ident for row in capture["pages"][0]["resultat"])
+    with B.contexte.appele_par_appareil(B.ADMIN):
+        split = cap.appeler("m9_propager_impacts", {
+            "connaissance": CONNAISSANCE, "kind": "devis:foo", "identifiant": "bar",
+        })
+        correct = cap.appeler("m9_propager_impacts", {
+            "connaissance": CONNAISSANCE, "kind": "devis", "identifiant": ident,
+        })
+    assert split["ok"] is False and "REJ-GRAPHE-NOEUD-INCONNU" in str(split), split
+    assert correct["ok"] is True, correct
+    assert correct["resultat"]["depart"] == {"kind": "devis", "id": ident}
+    assert any(i["objet"]["kind"] == "intervention" for i in correct["resultat"]["impacts"])

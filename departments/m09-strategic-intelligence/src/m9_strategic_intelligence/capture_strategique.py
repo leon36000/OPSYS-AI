@@ -191,9 +191,11 @@ def construire(
     if type(index) is not int or index < 0 or (index == 0) != (hash_precedent == HASH_INITIAL):
         raise _refus("REJ-CAPTURE-CHAINE", "rang et prédécesseur incohérents")
     if not 1 <= len(pages) <= MAX_PAGES:
-        raise _refus("REJ-CAPTURE-PAGES", f"1 à {MAX_PAGES} pages requises")
+        raise _refus(
+            "REJ-CAPTURE-PAGES", f"1 à {MAX_PAGES} pages requises"
+        )
     pages_json = [json.loads(canonique(normaliser(page))) for page in pages]
-    if len(canonique(pages_json)) > max_octets:
+    if len(canonique(pages_json).encode("utf-8")) > max_octets:
         raise _refus(
             "REJ-CAPTURE-BORNE", "réponse au-delà du budget : lire par fenêtres plus étroites, sans troncature"
         )
@@ -301,6 +303,9 @@ def valider_capture(capture: object) -> None:
         raise _refus(
             "REJ-CAPTURE-STRUCTURE", "capture {schema, rang, empreintes, lecture, pages, temps…} exacte requise"
         )
+    pages = capture["pages"]
+    if type(pages) is not list or not 1 <= len(pages) <= MAX_PAGES:
+        raise _refus("REJ-CAPTURE-PAGES", f"1 à {MAX_PAGES} pages requises")
     if capture["verdict"] not in VERDICTS or type(capture["complete"]) is not bool:
         raise _refus("REJ-CAPTURE-STRUCTURE", "verdict ou complétude invalides")
     if not _HEX.fullmatch(str(capture["hash_maillon"])) or capture["hash_maillon"] != _hash_maillon(capture):
