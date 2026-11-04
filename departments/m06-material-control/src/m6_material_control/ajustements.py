@@ -208,7 +208,7 @@ def construire_mouvement(qualifie: Mapping[str, Any]) -> dict[str, Any]:
         "type_mouvement": "AJUSTEMENT",
         "chantier_id": CHANTIER_GLOBAL,
         "materiau_id": qualifie["materiau_id"],
-        "quantite": float(Decimal(qualifie["delta"])),
+        "quantite": Decimal(qualifie["delta"]),
         "cout_unitaire": None,
         "ajustement": audit,
     }
@@ -238,7 +238,7 @@ def construire_transfert(qualifie: Mapping[str, Any]) -> dict[str, Any] | None:
     return {
         "transfert_id": f"{qualifie['ajustement_id']}:emplacement",
         "materiau_id": qualifie["materiau_id"],
-        "quantite": float(quantite),
+        "quantite": quantite,
         "de": origine,
         "vers": destination,
         "acteur": qualifie["acteur"],

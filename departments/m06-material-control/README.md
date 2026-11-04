@@ -289,12 +289,16 @@ externe, aucun envoi, aucune suppression.
 *C10* (`ajustements.py`, pur ; nouvel outil `m6_ajuster_stock`, T1/N3, agent seulement) : un humain corrige le stock avec
 un motif de la liste FERMÉE (`correction`, `stock_retrouve`, `retour_fournisseur`, `erreur_saisie`,
 `inventaire_physique`, `annulation`), une quantité VISÉE (`quantite_apres`, jamais un écart fourni), une preuve CAS
-`fichier:sha256:` FACULTATIVE et un horodatage. L'écart (après - avant) est calculé contre le registre ; il est écrit
-comme mouvement `AJUSTEMENT` et change le stock total, jamais celui d'un chantier (`chantier_id` = `*`). Le maillon
+`fichier:sha256:` FACULTATIVE et un horodatage. L'écart (après - avant) est calculé contre le registre, en `Decimal`
+exact (la quantité écrite n'est jamais un flottant : l'audit égale le stock réel) ; il est écrit comme mouvement
+`AJUSTEMENT` et change le stock total, jamais celui d'un chantier (`chantier_id` = `*`). Le maillon
 porte une extension `ajustement` (identifiant, motif, preuve, emplacement, avant/après, écart, niveau et seuil
 d'approbation, acteur, approbateur, horodatage) qui entre dans son empreinte ; les maillons antérieurs, qui ne la
 portent pas, gardent leur hash à l'octet près. Un ajustement sur un emplacement NOMMÉ écrit en plus un transfert audité
-entre ce lieu et `inconnu`, pour que le lieu porte vraiment la quantité corrigée. Idempotent par `ajustement_id` (même
+entre ce lieu et `inconnu`, pour que le lieu porte vraiment la quantité corrigée ; le transfert est VALIDÉ avant la
+première écriture (tout-ou-rien, aucun `AJUSTEMENT` orphelin). Un ajustement GLOBAL qui rendrait le résidu `inconnu`
+négatif est refusé (`REJ-AJUSTEMENT-STOCK-LOCALISE-INCOHERENT`) : régulariser d'abord l'emplacement. Idempotent par
+`ajustement_id` (même
 demande : aucun second maillon ; même identifiant, autre demande : refus). Seuil DÉCLARÉ
 `m6.seuil_ajustement_stock_quantite` : `abs(écart) <= seuil` reste N3 ; au-delà — ou seuil absent/illisible — il faut
 l'approbation d'un `admin` ou du `nathan_owner` (`approbations.approbateur_en_cours`), une approbation de `manager` ne
@@ -305,14 +309,18 @@ défaut** ; lecture `m6_lire_alertes_approvisionnement`, T0) : le constat calcul
 équipe DÉCLARÉE — variance d'inventaire répétée, pertes/bris répétés, ajustements fréquents —, « commande reçue mais
 stock disparu », « déclaration d'usage manquante » (WCT reçu sans aucun mouvement), « réception de PO en retard »
 (statut `sent_to_supplier`, au-delà STRICT du `delai_habituel_jours` déclaré du fournisseur). Aucun nom d'employé, aucun
-prix, aucun texte libre ; un WCT dont le `technicien_id` n'est pas une équipe déclarée n'est jamais regroupé. La fenêtre
-`m6.alertes_fenetre_jours` et le seuil de répétition `m6.alertes_seuil_repetition` sont DÉCLARÉS (vides à dessein) :
-sans eux, l'instantané porte une entrée `non_evaluees` qui dit quoi déclarer, et les comptes ne sont pas présentés comme
-un verdict. L'instantané est écrit dans un registre chaîné `alertes_approvisionnement` (idempotent par instantané) ; les
+prix, aucun texte libre ; un WCT dont le `technicien_id` n'est pas une équipe déclarée n'est jamais regroupé. La
+fenêtre `m6.alertes_fenetre_jours` (1..365, garde appliquée aussi dans le module pur) et le seuil de répétition
+`m6.alertes_seuil_repetition` sont DÉCLARÉS (vides à dessein) : sans eux, l'instantané porte une entrée `non_evaluees`
+qui dit quoi déclarer, et les comptes ne sont pas présentés comme un verdict. `commande_recue_stock_disparu` est borné
+par la fenêtre pour les réceptions DATÉES ; une réception sans horodatage (forme historique) reste comptée et une
+entrée `non_evaluees` dit quoi corriger. Une quantité illisible (booléen, texte, non fini) n'est jamais comptée ni
+convertie en zéro : mouvement ignoré, règle dépendante `non_evaluees`. L'instantané est écrit dans un registre chaîné
+`alertes_approvisionnement` (idempotent par instantané) ; les
 alertes remontent aussi dans les attentes de l'admin (`attentes()`), 20 au plus, plus une attente « à configurer ».
-Bouts couverts : `tests/test_ajustements_inventaire.py`, `tests/test_alertes_approvisionnement.py` (motifs hostiles,
-preuve mal formée, seuil à la borne, préparation d'approbation N4, rejeu idempotent, empreintes d'avant, emplacement,
-fuite de nom, PO à la borne du délai, fenêtre absente).
+Bouts couverts : `tests/test_ajustements_inventaire.py`, `tests/test_alertes_approvisionnement.py`,
+`tests/test_revue_adverse_c9_c10.py` (motifs hostiles, preuve mal formée, seuil à la borne, préparation d'approbation
+N4, rejeu idempotent, empreintes d'avant, emplacement, fuite de nom, PO à la borne du délai, fenêtre absente, D1-D8).
 Limites : la clôture d'un inventaire physique en lot n'existe pas (l'ajustement se fait article par article) ; le
 rapprochement par emplacement s'appuie sur les transferts, pas sur un comptage multi-emplacements ; le constat ne
 s'active pas seul ; aucune alerte n'est poussée vers un téléphone ou un courriel (« À voir » se lit dans l'app) ; les

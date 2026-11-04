@@ -628,12 +628,12 @@ def _configuration_alertes() -> dict[str, Any]:
     if not isinstance(bloc, dict):
         return {"fenetre_jours": None, "seuil_repetition": None}
     return {
-        "fenetre_jours": _entier_declare(bloc.get("fenetre_jours"), 1),
+        "fenetre_jours": _entier_declare(bloc.get("fenetre_jours"), 1, 365),
         "seuil_repetition": _entier_declare(bloc.get("seuil_repetition"), 2),
     }
 
 
-def _entier_declare(valeur: Any, minimum: int) -> int | None:
+def _entier_declare(valeur: Any, minimum: int, maximum: int | None = None) -> int | None:
     if isinstance(valeur, bool):
         return None
     if isinstance(valeur, str):
@@ -641,7 +641,7 @@ def _entier_declare(valeur: Any, minimum: int) -> int | None:
             valeur = int(valeur)
         except ValueError:
             return None
-    if isinstance(valeur, int) and valeur >= minimum:
+    if isinstance(valeur, int) and valeur >= minimum and (maximum is None or valeur <= maximum):
         return valeur
     return None
 
@@ -1615,6 +1615,37 @@ def ajuster_stock(
             {"materiau_id": qualifie["materiau_id"], "ajustement": qualifie})}
 
     mouvement = ajustements.construire_mouvement(qualifie)
+    total_apres = stock_total + Decimal(qualifie["delta"])
+    registre_emplacements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+    transfert_construit = None
+    if qualifie["emplacement"] is not None:
+        # Le transfert est VALIDÉ avant la première écriture : un refus métier ne laisse jamais un AJUSTEMENT seul.
+        transfert = ajustements.construire_transfert(qualifie)
+        if transfert is not None:
+            construit, verdict = emplacements.construire_transfert(
+                transfert["transfert_id"], transfert["materiau_id"], transfert["quantite"], transfert["de"],
+                transfert["vers"], transfert["acteur"], transfert["motif"], transfert["horodatage"],
+                total_apres, registre_emplacements,
+            )
+            if verdict is not None:
+                return {"accepte": False, "verdict": verdict}
+            transfert_construit = construit
+    else:
+        # Un ajustement global ne déplace rien : il ne doit pas non plus rendre un emplacement négatif. Si le stock
+        # localisé dépasse le total visé, le résidu `inconnu` deviendrait négatif : refus nommé, aucune écriture.
+        repartition_apres = emplacements.repartition(
+            qualifie["materiau_id"], total_apres, registre_emplacements)
+        negatifs = sorted(emplacement for emplacement, quantite in repartition_apres.items() if quantite < 0)
+        if negatifs:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-AJUSTEMENT-STOCK-LOCALISE-INCOHERENT",
+                detail=(
+                    f"le stock localisé de {qualifie['materiau_id']!r} dépasse le stock total visé "
+                    f"({stock.texte_canonique(total_apres)}) : {negatifs} deviendrait négatif. Régulariser d'abord "
+                    "l'emplacement (transfert vers « inconnu »), puis refaire l'ajustement global."
+                ),
+            )}
+
     maillon, erreur = registre_cible.ajouter(mouvement)
     if erreur is not None:
         return {"accepte": False, "verdict": verdicts.construire_verdict(erreur)}
@@ -1623,25 +1654,13 @@ def ajuster_stock(
         "accepte": True, "statut": "enregistre", "ajustement": _vue_ajustement(maillon),
         "hash_maillon": maillon["hash_maillon"],
     }
+    if transfert_construit is not None and not transfert_construit["deja_enregistre"]:
+        registre_emplacements.append(transfert_construit["maillon"])
     if qualifie["emplacement"] is not None:
-        total_apres = stock_total + Decimal(qualifie["delta"])
-        transfert = ajustements.construire_transfert(qualifie)
-        if transfert is not None:
-            registre_emplacements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
-            construit, verdict = emplacements.construire_transfert(
-                transfert["transfert_id"], transfert["materiau_id"], transfert["quantite"], transfert["de"],
-                transfert["vers"], transfert["acteur"], transfert["motif"], transfert["horodatage"],
-                total_apres, registre_emplacements,
-            )
-            if verdict is not None:
-                return {"accepte": False, "verdict": verdict}
-            if not construit["deja_enregistre"]:
-                registre_emplacements.append(construit["maillon"])
         reponse["repartition"] = {
             emplacement: stock.texte_canonique(quantite)
             for emplacement, quantite in emplacements.repartition(
-                qualifie["materiau_id"], total_apres,
-                stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)).items()
+                qualifie["materiau_id"], total_apres, registre_emplacements).items()
         }
     return reponse
 

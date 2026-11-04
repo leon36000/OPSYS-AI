@@ -24,10 +24,11 @@ réseau. Les quantités sont en texte décimal canonique (`stock.texte_canonique
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from . import encodage, stock
@@ -50,10 +51,28 @@ _STATUT_ENVOYE = "sent_to_supplier"
 _ZERO = Decimal(0)
 
 
-def _entier(valeur: Any, minimum: int) -> int | None:
-    if isinstance(valeur, bool) or not isinstance(valeur, int) or valeur < minimum:
+def _entier(valeur: Any, minimum: int, maximum: int | None = None) -> int | None:
+    if (isinstance(valeur, bool) or not isinstance(valeur, int) or valeur < minimum
+            or (maximum is not None and valeur > maximum)):
         return None
     return valeur
+
+
+def _quantite(valeur: Any) -> Decimal | None:
+    """Décimal exact d'une quantité auditable (int, float ou Decimal fini, jamais un booléen ni un texte).
+
+    Un maillon relu peut être corrompu (migration, écriture manuelle, ancien bug) : il ne doit jamais faire lever le
+    constat. `None` dit « quantité illisible », jamais zéro.
+    """
+    if isinstance(valeur, bool) or not isinstance(valeur, (int, float, Decimal)):
+        return None
+    if isinstance(valeur, float) and not math.isfinite(valeur):
+        return None
+    try:
+        decimal = valeur if isinstance(valeur, Decimal) else Decimal(str(valeur))
+    except (InvalidOperation, ValueError):
+        return None
+    return decimal if decimal.is_finite() else None
 
 
 def _instant(valeur: Any) -> datetime | None:
@@ -90,22 +109,31 @@ def _cle_article(alerte: dict[str, Any]) -> tuple[str, str, str]:
 def _compte_par(mouvements: Iterable[Mapping[str, Any]], type_mouvement: str) -> Counter:
     compte: Counter = Counter()
     for mouvement in mouvements:
-        if mouvement.get("type_mouvement") == type_mouvement and isinstance(mouvement.get("materiau_id"), str):
+        if (mouvement.get("type_mouvement") == type_mouvement
+                and isinstance(mouvement.get("materiau_id"), str)
+                and _quantite(mouvement.get("quantite")) is not None):
             compte[mouvement["materiau_id"]] += 1
     return compte
 
 
-def _compte_variance_non_nulle(mouvements: Iterable[Mapping[str, Any]]) -> Counter:
-    """Les constats de variance d'inventaire dont l'écart n'est PAS nul, par article : un écart nul n'est pas un écart
-    répété."""
+def _compte_variance_non_nulle(mouvements: Iterable[Mapping[str, Any]]) -> tuple[Counter, bool]:
+    """Les constats de variance d'inventaire dont l'écart n'est PAS nul, par article, et si une quantité était
+    illisible. Un écart nul n'est pas un écart répété ; une quantité corrompue n'est jamais comptée comme un écart."""
     compte: Counter = Counter()
+    invalide = False
     for mouvement in mouvements:
         if mouvement.get("type_mouvement") != "VARIANCE_INVENTAIRE":
             continue
-        if not isinstance(mouvement.get("materiau_id"), str) or mouvement.get("quantite") == 0:
+        if not isinstance(mouvement.get("materiau_id"), str):
+            continue
+        quantite = _quantite(mouvement.get("quantite"))
+        if quantite is None:
+            invalide = True
+            continue
+        if quantite == 0:
             continue
         compte[mouvement["materiau_id"]] += 1
-    return compte
+    return compte, invalide
 
 
 def calculer(
@@ -122,20 +150,20 @@ def calculer(
 ) -> dict[str, Any]:
     """Les alertes et les règles NON ÉVALUÉES à un instant donné. Aucune écriture, aucun ordre implicite."""
     instant = maintenant if isinstance(maintenant, datetime) else _instant(maintenant)
-    if instant is None or instant.utcoffset() is None:
+    if instant is None or instant.utcoffset() is not None:
         return {"alertes": [], "non_evaluees": [
             _non_evaluee("horodatage", "maintenant", "Fournir un instant ISO 8601 avec fuseau.")]}
     mouvements = list(mouvements)
     bons_commande = list(bons_commande)
     fournisseurs = list(fournisseurs)
     wct_recus = list(wct_recus)
-    fenetre = _entier(fenetre_jours, 1)
+    fenetre = _entier(fenetre_jours, 1, 365)
     seuil = _entier(seuil_repetition, 2)
     non_evaluees: dict[tuple[str, str], dict[str, Any]] = {}
     if fenetre is None:
         non_evaluees[("faits_recents", "configuration.alertes_approvisionnement.fenetre_jours")] = _non_evaluee(
             "faits_recents", "configuration.alertes_approvisionnement.fenetre_jours",
-            "La direction déclare la fenêtre en jours des alertes (réglage de direction).",
+            "La direction déclare la fenêtre en jours des alertes, entre 1 et 365 (réglage de direction).",
         )
     if seuil is None:
         non_evaluees[("repetitions", "configuration.alertes_approvisionnement.seuil_repetition")] = _non_evaluee(
@@ -149,11 +177,20 @@ def calculer(
     base = {"seuil": seuil, "fenetre_jours": fenetre}
 
     if seuil is not None:
-        for type_alerte, compte in (
-            ("ecarts_repetes_article", _compte_variance_non_nulle(mouvements)),
+        variance_compte, variance_invalide = _compte_variance_non_nulle(mouvements)
+        if variance_invalide:
+            non_evaluees[("quantite_variance", "mouvements.quantite")] = _non_evaluee(
+                "ecarts_repetes_article", "mouvements.quantite",
+                "La quantité d'au moins une variance est illisible : les écarts répétés ne sont pas évalués. "
+                "Corriger le maillon (quantité décimale finie).",
+            )
+        comptes = [
             ("items_manquants_repetes_article", _compte_par(mouvements, "PERTE") + _compte_par(mouvements, "BRIS")),
             ("ajustements_frequents_article", _compte_par(mouvements, "AJUSTEMENT")),
-        ):
+        ]
+        if not variance_invalide:
+            comptes.insert(0, ("ecarts_repetes_article", variance_compte))
+        for type_alerte, compte in comptes:
             for materiau_id in sorted(compte):
                 if compte[materiau_id] >= seuil:
                     alertes.append({
@@ -192,22 +229,46 @@ def calculer(
 
     stocks: dict[str, Decimal] = {}
     recus: dict[str, Decimal] = {}
+    quantites_corrompues = 0
+    receptions_sans_date: set[str] = set()
     for mouvement in mouvements:
         type_mouvement = mouvement.get("type_mouvement")
         if type_mouvement not in _TYPES_STOCK or not isinstance(mouvement.get("materiau_id"), str):
             continue
-        quantite = Decimal(str(mouvement["quantite"]))
-        stocks[mouvement["materiau_id"]] = stocks.get(mouvement["materiau_id"], _ZERO) + quantite
+        quantite = _quantite(mouvement.get("quantite"))
+        if quantite is None:
+            quantites_corrompues += 1
+            continue
+        materiau_id = mouvement["materiau_id"]
+        stocks[materiau_id] = stocks.get(materiau_id, _ZERO) + quantite
         if type_mouvement == "RECEPTION" and quantite > 0:
-            recus[mouvement["materiau_id"]] = recus.get(mouvement["materiau_id"], _ZERO) + quantite
-    for materiau_id in sorted(recus):
-        if recus[materiau_id] > 0 and stocks.get(materiau_id, _ZERO) <= 0:
-            alertes.append({
-                "type": "commande_recue_stock_disparu", "materiau_id": materiau_id,
-                "quantite_recue": stock.texte_canonique(recus[materiau_id]),
-                "stock_actuel": stock.texte_canonique(stocks.get(materiau_id, _ZERO)),
-                "fenetre_jours": fenetre,
-            })
+            horodatage = mouvement.get("horodatage")
+            if horodatage is None:
+                receptions_sans_date.add(materiau_id)
+                recus[materiau_id] = recus.get(materiau_id, _ZERO) + quantite
+            elif _borne(horodatage, instant, fenetre):
+                recus[materiau_id] = recus.get(materiau_id, _ZERO) + quantite
+    if quantites_corrompues:
+        non_evaluees[("quantite_stock", "mouvements.quantite")] = _non_evaluee(
+            "commande_recue_stock_disparu", "mouvements.quantite",
+            f"{quantites_corrompues} mouvement(s) de stock ont une quantité illisible : la règle « commande reçue, "
+            "stock disparu » n'est pas évaluée. Corriger ces maillons (quantité décimale finie).",
+        )
+    else:
+        for materiau_id in sorted(recus):
+            if recus[materiau_id] > 0 and stocks.get(materiau_id, _ZERO) <= 0:
+                alertes.append({
+                    "type": "commande_recue_stock_disparu", "materiau_id": materiau_id,
+                    "quantite_recue": stock.texte_canonique(recus[materiau_id]),
+                    "stock_actuel": stock.texte_canonique(stocks.get(materiau_id, _ZERO)),
+                    "fenetre_jours": fenetre,
+                })
+    for materiau_id in sorted(receptions_sans_date):
+        non_evaluees[("faits_recents", f"materiau:{materiau_id}")] = _non_evaluee(
+            "commande_recue_stock_disparu", f"materiau:{materiau_id}",
+            "Une réception de cet article n'a pas d'horodatage : la fenêtre déclarée ne peut pas l'exclure. "
+            "Horodater les mouvements de réception.",
+        )
 
     wct_avec_mouvement = {m.get("wct_id") for m in mouvements if isinstance(m.get("wct_id"), str)}
     for wct in wct_recus:

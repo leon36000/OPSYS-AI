@@ -81,9 +81,11 @@ def _decimal(v: Any, *, texte: bool = False) -> Decimal:
     if texte:
         if not isinstance(v, str) or not _DECIMAL.fullmatch(v):
             raise Refus("REGISTRE-INVALIDE")
-    elif type(v) not in (int, float) or (type(v) is float and not math.isfinite(v)):
+    elif (type(v) not in (int, float, Decimal)
+          or (type(v) is float and not math.isfinite(v))
+          or (isinstance(v, Decimal) and not v.is_finite())):
         raise Refus("REGISTRE-INVALIDE")
-    d = Decimal(str(v))
+    d = v if isinstance(v, Decimal) else Decimal(str(v))
     if not d.is_finite():
         raise Refus("REGISTRE-INVALIDE")
     return d

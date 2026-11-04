@@ -86,8 +86,8 @@ def _instant(valeur: Any) -> datetime:
 
 def _nombre(valeur: Any) -> bool:
     try:
-        return type(valeur) in (int, float) and math.isfinite(valeur)
-    except OverflowError:
+        return type(valeur) in (int, float, Decimal) and math.isfinite(valeur)
+    except (OverflowError, ValueError):
         return False
 
 
