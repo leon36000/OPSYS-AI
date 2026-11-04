@@ -103,6 +103,12 @@ TYPE_EVENEMENT_RECEPTION = "m6.reception_enregistree"
 
 CODE_UNITE_PRIX = "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
 CODE_NUMERO_REPETE = "REJ-AP-FACTURE-NUMERO-REPETE"
+
+
+class RegistreComptesIncoherent(RuntimeError):
+    """Une pièce AP existante vise un état absent ou duplique l'identité d'une facture."""
+
+
 HYPOTHESE_UNITE_PRIX = (
     "l'unité des prix du livre de prix M6 n'est pas déclarée (GATE NATHAN) : chaque montant attendu suppose un prix "
     "par unité de la quantité reçue, sans aucune conversion ; à confirmer avant de s'y fier"
@@ -1163,12 +1169,14 @@ def _etats_factures(maillons: Iterable[Mapping[str, Any]]) -> dict[str, dict[str
         if type_entree == _TYPE_FACTURE:
             identifiant = maillon["facture_fournisseur_id"]
             if identifiant in etats:
-                raise RuntimeError(f"registre des comptes à payer incohérent : facture {identifiant} écrite deux fois")
+                raise RegistreComptesIncoherent(
+                    f"registre des comptes à payer incohérent : facture {identifiant} écrite deux fois"
+                )
             etats[identifiant] = {**maillon, "corrections": 0, "modifications": []}
         elif type_entree in (_TYPE_CORRECTION, _TYPE_ANNULATION):
             etat = etats.get(maillon["facture_fournisseur_id"])
             if etat is None or etat["statut"] == _STATUT_ANNULEE:
-                raise RuntimeError(
+                raise RegistreComptesIncoherent(
                     "registre des comptes à payer incohérent : la pièce "
                     f"{maillon['modification_id']} vise la facture {maillon['facture_fournisseur_id']}, absente ou "
                     "déjà annulée"

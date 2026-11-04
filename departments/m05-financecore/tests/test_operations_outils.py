@@ -560,6 +560,89 @@ def test_depense_d_employe_exige_les_decisions_du_proprietaire_puis_propose_le_b
     )
 
 
+def test_rapprochement_public_identifie_mouvement_taxable_sur_depense_non_taxable(dep, par_nom, declare):
+    """Le zéro de taxes Ops doit rester un attendu typé pour rapprocher un mouvement GL erroné."""
+    declare(CONFIG)
+    depense = _accepte(_appeler(par_nom, "m5_proposer_depense_employe", {
+        "employe_id": "emp-fictif", "reference": "recu-non-taxable-fictif",
+        "date_depense": "2026-10-15", "categorie": "carburant", "description": "dépense fictive",
+        "montant_avant_taxes": "100.00", "taxable": False, "total_recu": "100.00", "horodatage": H,
+    }))
+    assert depense["taxes"] == {} and depense["total_taxes"] == "0.00"
+    _valider(dep, depense["ecriture_id"])
+
+    registre_gl = m5_outils._registre_grand_livre()
+    plan, refus = m5_outils._plan_comptable_effectif()
+    assert refus is None and registre_gl is not None
+    proposition, refus = grand_livre.proposer_ecriture(
+        registre_gl, plan, cle_piece="test:faux-mouvement-taxe:depense-fictive",
+        piece={"type": "depense_employe", "reference": depense["depense_id"]},
+        nature="mouvement taxe fictif", date_effet="2026-10-15", libelle="mouvement fictif",
+        lignes_brutes=[
+            {"compte": "1400", "debit": "5.00", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "5.00"},
+        ], horodatage=H, origine="saisie",
+    )
+    assert refus is None, refus
+    _, refus = grand_livre.valider_ecriture(
+        registre_gl, plan, ecriture_id=proposition["ecriture"]["ecriture_id"],
+        humain={"par": "comptable", "role": "finance", "voie": "approbation"}, horodatage=H,
+    )
+    assert refus is None, refus
+
+    rapprochement = _accepte(_appeler(
+        par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"}
+    ))
+    tps = rapprochement["intrants"]["tps_cti"]
+    assert tps["verdict"] == "ECART"
+    assert tps["ecarts"] == [{
+        "facture_fournisseur_id": depense["depense_id"], "attendu_facture": "0.00",
+        "au_grand_livre": "5.00", "raison": "montant différent",
+    }]
+
+
+def test_autres_pieces_taxees_preserve_roles_inattendus_et_ajoute_les_zeros_attendus():
+    class RegistreNonVide:
+        def taille(self):
+            return 1
+
+    etat_ops = {"par_type": {
+        "op_note_credit_proposee": {"note-fictive": {
+            "note_id": "note-fictive", "genre": "client", "date_effet": "2026-10-15",
+            "taxes": {"role_futur_fictif": "1.25"},
+        }},
+        "op_depense_employe_proposee": {"depense-fictive": {
+            "depense_id": "depense-fictive", "date_depense": "2026-10-15",
+            "taxes": {"role_futur_fictif": "2.50"},
+        }},
+    }}
+    pieces = m5_outils._autres_pieces_taxees(RegistreNonVide(), etat_ops=etat_ops)
+    assert pieces[0]["taxes"] == {
+        "role_futur_fictif": Decimal("-1.25"),
+        "tps_a_percevoir": Decimal("0.00"), "tvq_a_percevoir": Decimal("0.00"),
+    }
+    assert pieces[1]["taxes"] == {
+        "role_futur_fictif": Decimal("2.50"),
+        "tps_cti": Decimal("0.00"), "tvq_rti": Decimal("0.00"),
+    }
+
+
+def test_autres_pieces_taxees_refuse_genre_de_note_inconnu():
+    class RegistreNonVide:
+        def taille(self):
+            return 1
+
+    etat_ops = {"par_type": {
+        "op_note_credit_proposee": {"note-fictive": {
+            "note_id": "note-fictive", "genre": "genre-inattendu-fictif", "date_effet": "2026-10-15",
+            "taxes": {"role_futur_fictif": "1.25"},
+        }},
+        "op_depense_employe_proposee": {},
+    }}
+    with pytest.raises(ValueError, match="genre de note de crédit inconnu"):
+        m5_outils._autres_pieces_taxees(RegistreNonVide(), etat_ops=etat_ops)
+
+
 # ======================================================================================== pièces justificatives
 def test_piece_liee_par_son_empreinte_calculee_et_reutilisation_signalee(par_nom, declare, depot):
     _facturer("F-1")

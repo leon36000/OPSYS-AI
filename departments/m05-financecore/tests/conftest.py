@@ -1,12 +1,49 @@
 """Jeu de données V3 synthétique partagé par les tests de calcul purs."""
 
+import hashlib
+import importlib.util
 import json
+import sys
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 from m5_financecore import cout_reel, encodage
+
+
+def _charger_module_prive(prefixe: str, chemin: Path):
+    """Charge un helper sous un nom privé dérivé de son chemin, sans élargir sys.path."""
+    chemin = chemin.resolve()
+    nom = f"_{prefixe}_{hashlib.sha256(str(chemin).encode('utf-8')).hexdigest()[:16]}"
+    existant = sys.modules.get(nom)
+    if existant is not None and Path(existant.__file__).resolve() == chemin:
+        return existant
+    specification = importlib.util.spec_from_file_location(nom, chemin)
+    if specification is None or specification.loader is None:
+        raise ImportError(f"helper de test introuvable : {chemin.name}")
+    module = importlib.util.module_from_spec(specification)
+    sys.modules[nom] = module
+    try:
+        specification.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(nom, None)
+        raise
+    return module
+
+
+@pytest.fixture(scope="session")
+def m5_test_helpers():
+    return _charger_module_prive(
+        "m5_test_helpers", Path(__file__).with_name("test_grand_livre_fournisseurs_outils.py")
+    )
+
+
+@pytest.fixture(scope="session")
+def m5_postgres_doubles():
+    racine_depot = Path(__file__).resolve().parents[3]
+    chemin_doubles = racine_depot / "tests" / "fixtures" / "memoire" / "doubles.py"
+    return _charger_module_prive("m5_postgres_doubles", chemin_doubles)
 
 
 def _signal_defaut():

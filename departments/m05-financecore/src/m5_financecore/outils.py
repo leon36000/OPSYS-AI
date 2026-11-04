@@ -242,6 +242,7 @@ from . import (
     grand_livre,
     import_quickbooks,
     moteur_calcul,
+    operations_comptables,
     operations_registre,
     outils_base_fiscale,
     plan_comptable,
@@ -7084,22 +7085,105 @@ def _registre_operations() -> registre_module.Registre | None:
     return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS))
 
 
-def _autres_pieces_taxees() -> list[dict[str, Any]]:
+def _verifier_pieces_taxees_operations(etat: Mapping[str, Any]) -> dict[str, str] | None:
+    """Valide les champs des pièces Ops que le rapprochement consomme, selon les contrats des producteurs M5.
+
+    Cette garde ne recalcule aucun taux fiscal : elle vérifie dates, types, rôles de taxes et égalités arithmétiques
+    déjà imposées à l'écriture des notes de crédit et dépenses d'employés.
+    """
+    taxes_par_type = {
+        "op_note_credit_proposee": {
+            "client": frozenset({"tps_a_percevoir", "tvq_a_percevoir"}),
+            "fournisseur": frozenset({"tps_cti", "tvq_rti"}),
+        },
+        "op_depense_employe_proposee": {None: frozenset({"tps_cti", "tvq_rti"})},
+    }
+    champs = {
+        "op_note_credit_proposee": ("note_id", "date_effet"),
+        "op_depense_employe_proposee": ("depense_id", "date_depense"),
+    }
+    for type_entree, champs_id_date in champs.items():
+        for piece in etat["par_type"][type_entree].values():
+            ident, cle_date = champs_id_date
+            jour = grand_livre._date(piece.get(cle_date))
+            if not isinstance(piece.get(ident), str) or jour is None:
+                return verdicts_operations.construire_verdict(
+                    "REJ-OPS-CHAINE-INVALIDE", detail=f"{type_entree} : identifiant ou date de pièce illisible"
+                )
+            genre = piece.get("genre") if type_entree == "op_note_credit_proposee" else None
+            roles_attendus = taxes_par_type[type_entree].get(genre)
+            if roles_attendus is None:
+                return verdicts_operations.construire_verdict(
+                    "REJ-OPS-CHAINE-INVALIDE", detail=f"{type_entree} : genre de pièce illisible"
+                )
+            taxes_piece = piece.get("taxes")
+            if not isinstance(taxes_piece, Mapping) or not set(taxes_piece).issubset(roles_attendus):
+                return verdicts_operations.construire_verdict(
+                    "REJ-OPS-CHAINE-INVALIDE", detail=f"{type_entree} : ventilation de taxes illisible"
+                )
+            taxes_lues: dict[str, Decimal] = {}
+            for role, texte in taxes_piece.items():
+                montant, refus = operations_comptables.montant_texte(
+                    texte, f"{type_entree}.taxes.{role}", nul_permis=True
+                )
+                if refus is not None or montant is None:
+                    return verdicts_operations.construire_verdict(
+                        "REJ-OPS-CHAINE-INVALIDE", detail=f"{type_entree} : montant de taxe illisible"
+                    )
+                taxes_lues[role] = montant
+            montants: dict[str, Decimal] = {}
+            for champ in ("montant_avant_taxes", "total_taxes", "montant_apres_taxes"):
+                montant, refus = operations_comptables.montant_texte(
+                    piece.get(champ), f"{type_entree}.{champ}", nul_permis=champ == "total_taxes"
+                )
+                if refus is not None or montant is None:
+                    return verdicts_operations.construire_verdict(
+                        "REJ-OPS-CHAINE-INVALIDE", detail=f"{type_entree} : total de pièce illisible"
+                    )
+                montants[champ] = montant
+            if (
+                sum(taxes_lues.values(), Decimal("0.00")) != montants["total_taxes"]
+                or montants["montant_avant_taxes"] + montants["total_taxes"]
+                != montants["montant_apres_taxes"]
+            ):
+                return verdicts_operations.construire_verdict(
+                    "REJ-OPS-CHAINE-INVALIDE", detail=f"{type_entree} : totaux de pièce incohérents"
+                )
+    return None
+
+
+def _autres_pieces_taxees(
+    registre_ops: registre_module.Registre | None = None,
+    *,
+    etat_ops: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Les notes de crédit et les dépenses d'employés du registre des opérations, sous la forme que le rapprochement
     TPS/TVQ du grand livre attend (`grand_livre.rapprocher(autres_pieces_taxees=...)`) : sans elles, leurs écritures
     seraient des « écritures non rattachées ». Registre absent ou vide : rien."""
-    registre_ops = _registre_operations()
+    registre_ops = _registre_operations() if registre_ops is None else registre_ops
     if registre_ops is None or registre_ops.taille() == 0:
         return []
-    etat = operations_registre.etat_operations(registre_ops.lire())
+    etat = operations_registre.etat_operations(registre_ops.lire()) if etat_ops is None else etat_ops
     pieces: list[dict[str, Any]] = []
     for note in etat["par_type"]["op_note_credit_proposee"].values():
+        if note["genre"] == "client":
+            roles_taxes = ("tps_a_percevoir", "tvq_a_percevoir")
+        elif note["genre"] == "fournisseur":
+            roles_taxes = ("tps_cti", "tvq_rti")
+        else:
+            raise ValueError("REJ-OPS-CHAINE-INVALIDE : genre de note de crédit inconnu")
+        taxes_note = {role: -Decimal(montant) for role, montant in note["taxes"].items()}
+        for role in roles_taxes:
+            taxes_note.setdefault(role, Decimal("0.00"))
         pieces.append({"piece_type": "note_credit", "reference": note["note_id"], "date_effet": note["date_effet"],
-                       "taxes": {role: -Decimal(montant) for role, montant in note["taxes"].items()}})
+                       "taxes": taxes_note})
     for depense in etat["par_type"]["op_depense_employe_proposee"].values():
+        taxes_depense = {role: Decimal(montant) for role, montant in depense["taxes"].items()}
+        for role in ("tps_cti", "tvq_rti"):
+            taxes_depense.setdefault(role, Decimal("0.00"))
         pieces.append({"piece_type": "depense_employe", "reference": depense["depense_id"],
                        "date_effet": depense["date_depense"],
-                       "taxes": {role: Decimal(montant) for role, montant in depense["taxes"].items()}})
+                       "taxes": taxes_depense})
     return pieces
 
 
@@ -7208,17 +7292,17 @@ def lire_grand_livre_compte(
         etat, plan, compte, debut=debut, fin=fin, depart=bornes[1], limite=n), bornes[0])
 
 
-def _factures_emises() -> list[dict[str, Any]]:
+def _factures_emises(registre_factures: registre_module.Registre | None = None) -> list[dict[str, Any]]:
     """Les factures clientes ÉMISES (ENVOYEE, PAYEE) du registre des factures, à leur état courant."""
-    registre_factures = _registre_factures(None)
+    registre_factures = _registre_factures(None) if registre_factures is None else registre_factures
     return [*facturation.factures_par_statut(registre_factures, "ENVOYEE"),
             *facturation.factures_par_statut(registre_factures, "PAYEE")]
 
 
-def _factures_fournisseurs_vivantes() -> list[dict[str, Any]]:
+def _factures_fournisseurs_vivantes(registre_cible: registre_module.Registre | None = None) -> list[dict[str, Any]]:
     """Les factures fournisseurs VIVANTES (avec ou sans PO) du registre des comptes à payer, à leur état courant
     (`comptes_a_payer.factures_saisies` : une corrigée vaut sa correction, une annulée n'y est pas). Lecture pure."""
-    return comptes_a_payer.factures_saisies(_registre_comptes_a_payer())
+    return comptes_a_payer.factures_saisies(_registre_comptes_a_payer() if registre_cible is None else registre_cible)
 
 
 def _categories_sans_compte(plan: Mapping[str, Any]) -> list[str]:
@@ -7235,17 +7319,57 @@ def _categories_sans_compte(plan: Mapping[str, Any]) -> list[str]:
 def rapprocher_grand_livre(debut: str, fin: str) -> dict[str, Any]:
     """Équilibre débits/crédits, TPS/TVQ à percevoir contre `taxes.py` sur les factures émises de la période, et
     CTI/RTI contre les taxes payées des factures fournisseurs vivantes de la période."""
-    ctx, refus = _contexte_grand_livre()
+    # Une seule instruction SQL capture les quatre registres du rapprochement. Sous READ COMMITTED, les
+    # SELECT successifs verraient des commits différents; toutes les chaînes et tous les calculs ci-dessous
+    # partent donc strictement de ces mêmes listes de maillons.
+    if contexte.identite_appelante() is not None or not _stockage_durable_actif:
+        _, refus = _contexte_grand_livre()
+        return _refus(refus)  # conserve les refus historiques avant toute lecture des registres
+    # Le plan avait priorité sur la lecture/validation du grand livre dans _contexte_grand_livre.
+    # Conserver ce contrat : configuration invalide avant toute capture SQL du rapprochement.
+    plan, refus = _plan_comptable_effectif()
     if refus is not None:
         return _refus(refus)
+    noms = (_NOM_REGISTRE_GRAND_LIVRE, _NOM_REGISTRE_FACTURES,
+            _NOM_REGISTRE_COMPTES_A_PAYER, _NOM_REGISTRE_OPERATIONS)
+    instantane = stockage.lire_instantane_maillons(_DEPARTEMENT, noms)
+    registres = {nom: registre_module.Registre(maillons=instantane[nom]) for nom in noms}
+    valide_gl, raison_gl = registres[_NOM_REGISTRE_GRAND_LIVRE].valider_chaine()
+    if not valide_gl:
+        return _refus(verdicts_grand_livre.construire_verdict(
+            "REJ-GL-CHAINE-INVALIDE", detail=raison_gl))
     dictionnaire, refus = _dictionnaire_taux()
     if refus is not None:
         return _refus(refus)
-    registre_cible, plan = ctx
-    etat = grand_livre.etat_grand_livre(registre_cible.lire())
-    resultat, refus = grand_livre.rapprocher(etat, plan, _factures_emises(), dictionnaire, debut=debut, fin=fin,
-                                             limite_ecarts=6, factures_fournisseurs=_factures_fournisseurs_vivantes(),
-                                             autres_pieces_taxees=_autres_pieces_taxees())
+    for nom in noms[1:]:
+        refus_chaine = _verdict_chaine_financiere(nom, instantane[nom])
+        if refus_chaine is not None:
+            return _refus(refus_chaine)
+    etat_ops = operations_registre.etat_operations(instantane[_NOM_REGISTRE_OPERATIONS])
+    refus_ops = operations_registre.refus_anomalies(etat_ops)
+    if refus_ops is not None:
+        return _refus(refus_ops)
+    refus_pieces_ops = _verifier_pieces_taxees_operations(etat_ops)
+    if refus_pieces_ops is not None:
+        return _refus(refus_pieces_ops)
+    etat = grand_livre.etat_grand_livre(instantane[_NOM_REGISTRE_GRAND_LIVRE])
+    factures_clients = _factures_emises(registres[_NOM_REGISTRE_FACTURES])
+    try:
+        factures_fournisseurs = _factures_fournisseurs_vivantes(
+            registres[_NOM_REGISTRE_COMPTES_A_PAYER]
+        )
+    except comptes_a_payer.RegistreComptesIncoherent:
+        return _refus(verdicts_grand_livre.construire_verdict(
+            "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+        ))
+    resultat, refus = grand_livre.rapprocher(
+        etat, plan, factures_clients, dictionnaire,
+        debut=debut, fin=fin, limite_ecarts=6,
+        factures_fournisseurs=factures_fournisseurs,
+        autres_pieces_taxees=_autres_pieces_taxees(
+            registres[_NOM_REGISTRE_OPERATIONS], etat_ops=etat_ops
+        ),
+    )
     return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
 
 

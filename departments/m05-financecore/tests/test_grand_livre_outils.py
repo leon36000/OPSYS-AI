@@ -16,7 +16,7 @@ from pathlib import Path
 import m5_financecore.outils as m5_outils
 import pytest
 import yaml
-from m5_financecore import analyse, facturation, grand_livre, grand_livre_beancount, taux_fiscaux
+from m5_financecore import analyse, facturation, grand_livre, grand_livre_beancount, operations_registre, taux_fiscaux
 from m5_financecore import registre as registre_module
 from sqlalchemy import func, select
 
@@ -260,6 +260,61 @@ def test_une_facture_emise_non_comptabilisee_est_un_ecart_de_rapprochement(dep, 
                                       {"debut": "2026-10-01", "fin": "2026-10-31"}))
     assert rapprochement["verdict"] == "ECART"
     assert [e["raison"] for e in rapprochement["taxes"]["tvq_a_percevoir"]["ecarts"]] == ["sans écriture définitive"]
+
+
+def test_collision_reelle_note_et_facture_garde_le_brouillon_non_comptabilise(dep, par_nom):
+    facture_note = "F-D2-BASE"
+    reference_note = "NC-D2-COLLISION"
+    identifiant_note = operations_registre.identifiant(
+        "op_note_credit_proposee", f"nc:client:{facture_note}:{reference_note}"
+    )
+    _facturer(facture_note, payer=False)
+    _facturer(identifiant_note, payer=False)
+
+    generation = _generer(dep)
+    etat = _etat_gl()
+    ecriture_facture_base = next(
+        brouillon["ecriture_id"]
+        for brouillon in generation["brouillons_crees"]
+        if etat["ecritures"][brouillon["ecriture_id"]]["piece"]["reference"] == facture_note
+        and etat["ecritures"][brouillon["ecriture_id"]]["nature"] == "facture_emise"
+    )
+    _valider_par_la_file(dep, ecriture_facture_base)
+
+    note = _accepte(
+        _appeler(
+            par_nom,
+            "m5_proposer_note_credit",
+            {
+                "genre": "client",
+                "facture_id": facture_note,
+                "reference": reference_note,
+                "montant_avant_taxes": "100.00",
+                "date_effet": "2026-10-10",
+                "motif": "Avoir fictif pour test de collision",
+                "horodatage": H,
+            },
+        )
+    )
+    assert note["note_id"] == identifiant_note
+    _valider_par_la_file(dep, note["ecriture_id"])
+
+    rapprochement = _accepte(
+        _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    )
+    assert rapprochement["verdict"] == "ECART"
+    assert rapprochement["brouillons_non_comptabilises"] == 1
+    for role, attendu in (("tps_a_percevoir", "30.00"), ("tvq_a_percevoir", "59.85")):
+        result = rapprochement["taxes"][role]
+        assert result["verdict"] == "ECART"
+        assert any(
+            ecart.get("facture_id") == identifiant_note
+            and ecart.get("piece_type") == "facture_client"
+            and ecart.get("attendu_taxes") == attendu
+            and ecart.get("au_grand_livre") == "0.00"
+            and ecart.get("raison") == "sans écriture définitive"
+            for ecart in result["ecarts"]
+        ), result["ecarts"]
 
 
 # ============================================================================================= l'humain exigé

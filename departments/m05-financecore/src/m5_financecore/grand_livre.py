@@ -1034,7 +1034,7 @@ def _rapprocher_taxe(
     periode: list[Mapping[str, Any]],
     compte: str,
     role: str,
-    attendues: Mapping[str, Mapping[str, Decimal]],
+    attendues: Mapping[tuple[str, str], Mapping[str, Decimal]],
     *,
     types_piece: tuple[str, ...],
     debiteur: bool,
@@ -1045,7 +1045,7 @@ def _rapprocher_taxe(
 ) -> tuple[Decimal, Decimal, list[dict[str, Any]]]:
     """Le mouvement net d'un compte de taxe dans la période (débiteur ou créditeur selon le compte), par pièce du type
     `types_piece`, contre ce que chaque pièce attend : `(attendu total, au grand livre total, écarts par pièce)`."""
-    par_piece: dict[str, Decimal] = {}
+    par_piece: dict[tuple[str, str], Decimal] = {}
     autres = _ZERO
     for ecriture in periode:
         net = sum((ligne["credit"] - ligne["debit"] for ligne in ecriture["lignes"] if ligne["compte"] == compte),
@@ -1055,21 +1055,30 @@ def _rapprocher_taxe(
         if net == 0:
             continue
         if ecriture["piece"]["type"] in types_piece:
-            reference = ecriture["piece"]["reference"]
-            par_piece[reference] = par_piece.get(reference, _ZERO) + net
+            identite = (ecriture["piece"]["type"], ecriture["piece"]["reference"])
+            par_piece[identite] = par_piece.get(identite, _ZERO) + net
         else:
             autres += net
     attendu_total = sum((a.get(role, _ZERO) for a in attendues.values()), _ZERO)
     livre_total = sum(par_piece.values(), _ZERO) + autres
     ecarts: list[dict[str, Any]] = []
-    for reference in sorted(set(attendues) | set(par_piece)):
-        attendu = attendues[reference].get(role, _ZERO) if reference in attendues else None
-        au_livre = par_piece.get(reference, _ZERO)
+    identites = set(attendues) | set(par_piece)
+    types_par_reference: dict[str, set[str]] = {}
+    for type_piece, reference in identites:
+        types_par_reference.setdefault(reference, set()).add(type_piece)
+    references_multiples = {reference for reference, types in types_par_reference.items() if len(types) > 1}
+    for type_piece, reference in sorted(identites, key=lambda identite: (identite[1], identite[0])):
+        identite = (type_piece, reference)
+        attendu = attendues[identite].get(role, _ZERO) if identite in attendues else None
+        au_livre = par_piece.get(identite, _ZERO)
+        identifiant = {cle_id: reference}
+        if reference in references_multiples:
+            identifiant["piece_type"] = type_piece
         if attendu is None:
-            ecarts.append({cle_id: reference, "raison": raison_sans_piece, "au_grand_livre": _texte(au_livre)})
+            ecarts.append({**identifiant, "raison": raison_sans_piece, "au_grand_livre": _texte(au_livre)})
         elif attendu != au_livre:
-            ecarts.append({cle_id: reference, cle_attendu: _texte(attendu), "au_grand_livre": _texte(au_livre),
-                           "raison": "sans écriture définitive" if reference not in par_piece
+            ecarts.append({**identifiant, cle_attendu: _texte(attendu), "au_grand_livre": _texte(au_livre),
+                           "raison": "sans écriture définitive" if identite not in par_piece
                            else "montant différent"})
     if autres != 0:
         ecarts.append({cle_id: None, "raison": raison_autre, "au_grand_livre": _texte(autres)})
@@ -1117,7 +1126,7 @@ def rapprocher(
     attendues, illisibles = _taxes_attendues(factures, dictionnaire_taux, jour_debut, jour_fin)
     periode = _definitives_jusqua(etat, jour_fin, jour_debut)
     roles_clients = {"tps_a_percevoir", "tvq_a_percevoir"}
-    supplementaires: dict[str, dict[str, dict[str, Decimal]]] = {"clients": {}, "intrants": {}}
+    supplementaires: dict[str, dict[tuple[str, str], dict[str, Decimal]]] = {"clients": {}, "intrants": {}}
     types_clients, types_intrants = ["facture_client"], ["facture_fournisseur"]
     for piece in autres_pieces_taxees:
         jour_piece = _date(piece.get("date_effet"))
@@ -1125,14 +1134,15 @@ def rapprocher(
             continue
         for role, montant in piece["taxes"].items():
             cote = "clients" if role in roles_clients else "intrants"
-            supplementaires[cote].setdefault(piece["reference"], {})[role] = montant
+            supplementaires[cote].setdefault((piece["piece_type"], piece["reference"]), {})[role] = montant
             liste = types_clients if cote == "clients" else types_intrants
             if piece["piece_type"] not in liste:
                 liste.append(piece["piece_type"])
     taxes_resultat = {}
+    attendues_clients = {("facture_client", reference): taxes for reference, taxes in attendues.items()}
     for role in ("tps_a_percevoir", "tvq_a_percevoir"):
         attendu_total, livre_total, ecarts = _rapprocher_taxe(
-            periode, roles[role], role, {**attendues, **supplementaires["clients"]},
+            periode, roles[role], role, {**attendues_clients, **supplementaires["clients"]},
             types_piece=tuple(types_clients), debiteur=False,
             cle_id="facture_id", cle_attendu="attendu_taxes",
             raison_sans_piece="mouvement de taxe sans facture émise dans la période",
@@ -1146,13 +1156,14 @@ def rapprocher(
             "ecarts_reste": max(0, len(ecarts) - limite_ecarts),
         }
     payees, illisibles_fournisseurs = _taxes_payees(factures_fournisseurs, jour_debut, jour_fin)
+    payees_typed = {("facture_fournisseur", reference): taxes for reference, taxes in payees.items()}
     intrants = {}
     for role in ("tps_cti", "tvq_rti"):
         compte = roles.get(role)
         if compte is None:
             continue
         attendu_total, livre_total, ecarts = _rapprocher_taxe(
-            periode, compte, role, {**payees, **supplementaires["intrants"]},
+            periode, compte, role, {**payees_typed, **supplementaires["intrants"]},
             types_piece=tuple(types_intrants), debiteur=True,
             cle_id="facture_fournisseur_id", cle_attendu="attendu_facture",
             raison_sans_piece="mouvement de taxe sans facture fournisseur vivante datée dans la période",

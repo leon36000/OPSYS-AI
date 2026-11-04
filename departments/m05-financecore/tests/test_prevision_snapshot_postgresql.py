@@ -6,7 +6,6 @@ import threading
 from pathlib import Path
 
 import pytest
-from doubles import postgres_ephemere, raison_sans_docker
 
 from opsys import stockage
 
@@ -29,14 +28,16 @@ CONFIG = {
 
 
 @pytest.fixture
-def postgres_m5_snapshot(monkeypatch):
-    with postgres_ephemere() as url:
+def postgres_m5_snapshot(monkeypatch, m5_postgres_doubles):
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+    with m5_postgres_doubles.postgres_ephemere() as url:
         monkeypatch.setenv(stockage.ENV_URL, url)
         yield url
         stockage.liberer(url)
 
 
-@pytest.mark.skipif(raison_sans_docker() is not None, reason=str(raison_sans_docker()))
 def test_prevision_publique_postgresql_lit_un_seul_etat_maillons(postgres_m5_snapshot, monkeypatch):
     url = postgres_m5_snapshot
     from opsys import approbations, contexte, identite

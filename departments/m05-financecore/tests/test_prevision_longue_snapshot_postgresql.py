@@ -6,7 +6,6 @@ import threading
 from pathlib import Path
 
 import pytest
-from doubles import postgres_ephemere, raison_sans_docker
 from sqlalchemy import select, update
 
 from opsys import stockage
@@ -28,14 +27,16 @@ CONFIGURATION = {
 
 
 @pytest.fixture
-def postgres_long(monkeypatch):
-    with postgres_ephemere() as url:
+def postgres_long(monkeypatch, m5_postgres_doubles):
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+    with m5_postgres_doubles.postgres_ephemere() as url:
         monkeypatch.setenv(stockage.ENV_URL, url)
         yield url
         stockage.liberer(url)
 
 
-@pytest.mark.skipif(raison_sans_docker() is not None, reason=str(raison_sans_docker()))
 def test_prevision_longue_conserve_sources_et_refuse_chaine_corrompue(postgres_long, monkeypatch):
     url = postgres_long
     from m5_financecore import grand_livre
