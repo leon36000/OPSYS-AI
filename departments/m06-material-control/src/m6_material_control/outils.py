@@ -4722,7 +4722,8 @@ def _attentes_po_a_facturer() -> list[dict[str, Any]]:
 
 def _attentes_seuils_variance() -> list[dict[str, Any]]:
     """C7 : le registre des seuils existe mais ne se rejoue pas (maillon retouché, configuration invalide). Aucun
-    seuil n'est alors servi : l'admin doit reconfigurer depuis l'écran « Seuils matériaux ». Lecture seule."""
+    seuil n'est alors servi : l'écran ne peut pas réparer une chaîne retouchée, un administrateur de base doit
+    intervenir hors outil, avec une trace. Lecture seule."""
     if stockage.connexion_courante() is None:
         return []
     registre = list(stockage.maillons(_DEPARTEMENT, seuils_variance.REGISTRE))
@@ -4734,11 +4735,15 @@ def _attentes_seuils_variance() -> list[dict[str, Any]]:
         "id": "seuils_variance_chantier",
         "resume": (
             "Seuils de variance illisibles ou chaîne d'audit invalide : aucun seuil n'est appliqué (les variances "
-            "sortent en « seuil absent »). Reconfigurer depuis l'écran « Seuils matériaux »."
+            "sortent en « seuil absent »). Reconfigurer depuis l'écran n'est pas possible : une chaîne retouchée ne "
+            "sert plus aucune valeur et exige l'intervention d'un administrateur de base, hors outil et tracée."
         ),
         "niveau": "N3",
         "depuis": (dernier or {}).get("horodatage", ""),
-        "action_proposee": "Écran « Seuils matériaux » : enregistrer une configuration complète avec un motif",
+        "action_proposee": (
+            "Intervention d'un administrateur de base (hors outil, tracée) : l'écran ne peut pas réparer une chaîne "
+            "d'audit retouchée"
+        ),
     }]
 
 

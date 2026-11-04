@@ -55,6 +55,33 @@ def meme_etat(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
 _PLUS_ANCIEN = dt.datetime.min.replace(tzinfo=dt.UTC)
 
 
+def _lisible(m: Any) -> bool:
+    """Un maillon COMPLET et lisible : les clés de contenu existent, et les deux clés de tri ont un type sûr.
+
+    Le registre est append-only, mais la base reste éditable hors outil (administrateur de base, migration, ancien
+    format) : une ligne incomplète est ignorée, jamais une exception qui rend toute la file d'attentes inutilisable.
+    """
+    if not isinstance(m, Mapping) or m.get("type_entree") != TYPE_ENTREE:
+        return False
+    if not all(cle in m for cle in _CLES_UNICITE):
+        return False
+    return (
+        isinstance(m.get("facture_fournisseur_id"), str) and bool(m["facture_fournisseur_id"])
+        and isinstance(m.get("date_reference"), str) and bool(m["date_reference"])
+    )
+
+
+def compter_ignores(maillons: Iterable[Mapping[str, Any]]) -> int:
+    """Combien de maillons de CE registre sont incomplets/illisibles (donc ignorés par les lectures ci-dessous).
+
+    Les entrées d'un autre type ne sont pas des maillons de ce registre : elles ne sont pas comptées.
+    """
+    return sum(
+        1 for m in maillons
+        if isinstance(m, Mapping) and m.get("type_entree") == TYPE_ENTREE and not _lisible(m)
+    )
+
+
 def _publie(m: Mapping[str, Any]) -> dt.datetime:
     try:
         instant = dt.datetime.fromisoformat(m["publie_le"])
@@ -64,10 +91,13 @@ def _publie(m: Mapping[str, Any]) -> dt.datetime:
 
 
 def derniers_etats(maillons: Iterable[Mapping[str, Any]]) -> dict[str, Mapping[str, Any]]:
-    """`{facture_fournisseur_id: dernier état}` (date de référence, puis publication, puis ordre d'arrivée)."""
+    """`{facture_fournisseur_id: dernier état}` (date de référence, puis publication, puis ordre d'arrivée).
+
+    Un maillon incomplet est ignoré (voir `compter_ignores`) : il ne peut ni servir d'état ni faire lever la lecture.
+    """
     derniers: dict[str, tuple[tuple[str, dt.datetime, int], Mapping[str, Any]]] = {}
     for rang, m in enumerate(maillons):
-        if m.get("type_entree") != TYPE_ENTREE:
+        if not _lisible(m):
             continue
         cle = (m["date_reference"], _publie(m), rang)
         actuel = derniers.get(m["facture_fournisseur_id"])

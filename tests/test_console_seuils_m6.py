@@ -341,3 +341,61 @@ def test_le_textarea_accepte_une_entree_valide_et_ignore_les_lignes_vides():
 
     assert ui._mappage("REV-FICTIF=0.2\n\n  SOF-FICTIF = 0.25 \n", "revetement") == {
         "REV-FICTIF": "0.2", "SOF-FICTIF": "0.25"}
+
+
+def _retoucher_la_chaine_en_base(valeur="0.01"):
+    from sqlalchemy import select, update
+
+    from opsys.stockage import codec as codec_stockage
+    from opsys.stockage.schema import REGISTRES
+
+    with stockage.transaction() as cnx:
+        brut = cnx.execute(select(REGISTRES.c.maillon).where(
+            (REGISTRES.c.departement == DEPARTEMENT)
+            & (REGISTRES.c.registre == seuils_variance.REGISTRE))).scalar_one()
+        faux = codec_stockage.decoder(brut)
+        faux["apres"]["global_pourcentage"] = valeur
+        cnx.execute(update(REGISTRES).where(
+            (REGISTRES.c.departement == DEPARTEMENT)
+            & (REGISTRES.c.registre == seuils_variance.REGISTRE)).values(
+                maillon=codec_stockage.encoder(faux)))
+
+
+def test_une_chaine_retouchee_ne_se_repare_pas_depuis_l_ecran_et_le_post_dit_quoi_faire(admin):
+    assert _editer(admin).status_code == 303
+    _retoucher_la_chaine_en_base()
+
+    page = admin.get("/seuils-materiaux")
+    texte = html.unescape(page.text)
+
+    assert page.status_code == 200
+    assert "Chaîne d'audit invalide" in texte
+    assert "ne peut pas la réparer" in texte
+    assert "administrateur de base" in texte and "hors outil" in texte
+    assert 'name="version_attendue" value="0"' in page.text
+
+    reponse = _editer(admin, raison="Réparation après retouche", version_attendue="0")
+    detail = reponse.json()["detail"]
+
+    assert reponse.status_code == 409
+    assert "REJ-SEUILS-CHAINE" in detail
+    assert "administrateur de base" in detail and "hors outil" in detail
+    assert _config_en_vigueur() is None
+    assert len(_journal()) == 1, "aucune réparation illusoire n'est écrite"
+
+
+def test_un_maillon_d_audit_malforme_est_ignore_avec_un_bandeau(admin):
+    assert _editer(admin).status_code == 303
+    with stockage.transaction():
+        registre = stockage.maillons(DEPARTEMENT, seuils_variance.REGISTRE)
+        registre.append({"type_entree": seuils_variance.TYPE_ENTREE, "nimporte": "quoi"})
+        registre.append({"type_entree": seuils_variance.TYPE_ENTREE, "version": "1<script>", "apres": {}})
+
+    page = admin.get("/seuils-materiaux")
+    texte = html.unescape(page.text)
+
+    assert page.status_code == 200
+    assert "2 entrée(s) du journal d'audit illisible(s) ignorée(s)" in texte
+    assert "nimporte" not in texte
+    assert "0.25" in texte, "le maillon valide reste lisible"
+    assert "administrateur de base" in texte

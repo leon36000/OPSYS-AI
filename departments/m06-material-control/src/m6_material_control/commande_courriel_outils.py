@@ -156,7 +156,15 @@ def recevoir_commande_envoyee(charge: dict[str, Any]) -> dict[str, Any]:
            autre bon) rien ne change : l'attente N4 « marquer le PO envoyé »
     reste à une personne. Aucun envoi n'est déclenché ici : M6 recopie un fait déjà approuvé."""
     registre = _reg()
-    if any(m.get("type_entree") == cc.TYPE_ENVOI and m["brouillon_id"] == charge["brouillon_id"] for m in registre):
+    # Le brouillon n'est verrouillé que par un constat RÉUSSI pour CE PO : un premier constat raté (texte modifié au
+    # sas) ne doit pas empêcher le même envoi, corrigé, d'être constaté ensuite.
+    if any(
+        m.get("type_entree") == cc.TYPE_ENVOI
+        and m.get("po_id") == charge.get("po_id")
+        and m.get("brouillon_id") == charge["brouillon_id"]
+        and m.get("po_marque_envoye") is True
+        for m in registre
+    ):
         return {"deja_constate": True}
     bons = _registres()["bons_commande"]
     po = bons_commande.lire(bons, charge["po_id"])
@@ -185,7 +193,8 @@ def recevoir_commande_envoyee(charge: dict[str, Any]) -> dict[str, Any]:
             "po_marque_envoye": marque,
         }
     )
-    return {"constate": True, "po_trouve": po is not None, "statut_po": None if po is None else po["statut"],
+    apres = bons_commande.lire(bons, charge["po_id"])
+    return {"constate": True, "po_trouve": po is not None, "statut_po": None if apres is None else apres["statut"],
             "po_marque_envoye": marque}
 
 
@@ -358,15 +367,20 @@ def attentes_courriel() -> list[dict[str, Any]]:
                 }
             )
     bons = _registres()["bons_commande"]
+    vus: set[str] = set()
     for e in (m for m in _reg() if m.get("type_entree") == cc.TYPE_ENVOI):
-        po = bons_commande.lire(bons, e["po_id"])
+        po_id = e.get("po_id")
+        if not isinstance(po_id, str) or not po_id or po_id in vus:
+            continue
+        po = bons_commande.lire(bons, po_id)
         if po is not None and po["statut"] == "email_ready":
+            vus.add(po_id)
             res.append(
                 {
                     "type": "po_envoye_a_marquer",
-                    "id": e["po_id"],
+                    "id": po_id,
                     "niveau": "N4",
-                    "depuis": e["horodatage"],
+                    "depuis": e.get("horodatage", ""),
                     "action_proposee": "m6_marquer_po_envoye",
                     "resume": "Le courriel de commande a été envoyé après approbation : marquer le PO envoyé.",
                 }
