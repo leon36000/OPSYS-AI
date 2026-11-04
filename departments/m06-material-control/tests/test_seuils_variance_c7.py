@@ -716,3 +716,71 @@ def test_une_chaine_retouchee_avec_un_nan_est_invalide_sans_exception():
     assert sv._empreinte({"x": 1}) == sv._empreinte({"x": 1})
     with __import__("pytest").raises(ValueError):
         sv._empreinte({"x": float("nan")})
+
+
+@pytest.mark.parametrize("ratio", ["beaucoup", float("nan"), float("inf"), [0.40], {"ratio": 0.40}, True])
+def test_un_ratio_illisible_rend_un_verdict_non_defini_sans_lever(ratio):
+    """`critique` est publique : un ratio hostile ne doit jamais faire remonter une exception de `decimal`."""
+    resultat = seuils_variance.critique(_verdict(ecart_pourcentage=ratio), seuils_variance.valider_config(_config()))
+
+    assert resultat["critique"] is False and resultat["motif"] == "ratio_non_defini"
+
+
+def test_un_ecart_negatif_est_juge_en_valeur_absolue_dans_les_deux_modes():
+    config = seuils_variance.valider_config(_config())
+    herite = seuils_variance.config_heritee(0.30)
+
+    assert seuils_variance.critique(_verdict(ecart=-40.0, ecart_pourcentage=-0.40), config)["critique"] is True
+    assert seuils_variance.critique(_verdict(ecart=-29.0, ecart_pourcentage=-0.29), config)["critique"] is False
+    assert seuils_variance.critique(_verdict(ecart=-40.0, ecart_pourcentage=-0.40), herite)["critique"] is True
+
+
+def _retoucher_la_chaine_en_base(valeur="0.01"):
+    """Une retouche RÉELLE en base : `registre[0][...] = ...` ne modifierait que la copie décodée (A7)."""
+    from sqlalchemy import select, update
+
+    from opsys.stockage import codec as codec_stockage
+    from opsys.stockage.schema import REGISTRES
+
+    with stockage.transaction() as cnx:
+        brut = cnx.execute(select(REGISTRES.c.maillon).where(
+            (REGISTRES.c.departement == DEPT)
+            & (REGISTRES.c.registre == seuils_variance.REGISTRE))).scalar_one()
+        faux = codec_stockage.decoder(brut)
+        faux["apres"]["global_pourcentage"] = valeur
+        cnx.execute(update(REGISTRES).where(
+            (REGISTRES.c.departement == DEPT)
+            & (REGISTRES.c.registre == seuils_variance.REGISTRE)).values(
+                maillon=codec_stockage.encoder(faux)))
+
+
+def test_une_chaine_retouchee_ne_se_repare_pas_meme_avec_la_bonne_version(base_durable):
+    """Une chaîne retouchée n'est réparable NI par l'outil NI par l'écran : l'écran le dit et l'admin base agit."""
+    from m6_material_control import outils as outils_mod
+
+    with stockage.transaction():
+        registre = stockage.maillons(DEPT, seuils_variance.REGISTRE)
+        maillon, code = seuils_variance.enregistrer(
+            _config(), auteur="admin.fictif", role="admin", motif="Premiers seuils", horodatage=HORO,
+            registre_cible=registre, version_attendue=0)
+        assert code is None and maillon is not None
+    _retoucher_la_chaine_en_base()
+
+    for version in (0, 1):
+        with stockage.transaction():
+            resultat, code = seuils_variance.enregistrer(
+                _config(global_pourcentage="0.25"), auteur="admin.fictif", role="admin",
+                motif="Réparation après retouche", horodatage=HORO,
+                registre_cible=stockage.maillons(DEPT, seuils_variance.REGISTRE), version_attendue=version)
+        assert (resultat, code) == (None, "REJ-SEUILS-CHAINE")
+
+    with stockage.transaction():
+        registre = list(stockage.maillons(DEPT, seuils_variance.REGISTRE))
+        attentes = [a for a in outils_mod.attentes() if a["type"] == "seuils_variance_a_configurer"]
+
+    assert seuils_variance.verifier_chaine(registre) is False
+    assert seuils_variance.config_en_vigueur(registre) is None
+    assert len(attentes) == 1
+    resume = attentes[0]["resume"].lower()
+    assert "reconfigurer" in resume and "n'est pas possible" in resume
+    assert "administrateur de base" in resume and "hors outil" in resume

@@ -263,14 +263,21 @@ def manques_commandabilite(po: Mapping[str, Any]) -> list[str]:
 def _etats_courants(registre_cible: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
     """État courant de chaque PO connu : fusion, dans l'ordre du registre, de son maillon
     ``po_cree`` puis de chacun de ses ``transition_po`` (copie-adaptation de
-    ``m3_estimation.devis_durable._etats_courants``, #109)."""
+    ``m3_estimation.devis_durable._etats_courants``, #109).
+
+    Chaque transition rejouée doit être LÉGALE selon ``contrats.TRANSITIONS_PO`` : le registre reste éditable hors
+    outil (administrateur de base, migration), et une ligne hostile ne doit pas ressusciter un PO fermé ni sauter une
+    étape. Une transition illégale ou illisible est ignorée ; les transitions légales suivantes restent rejouées."""
     etats: dict[str, dict[str, Any]] = {}
     for maillon in registre_cible:
         type_entree = maillon.get("type_entree")
         po_id = maillon.get("po_id")
-        if type_entree == "po_cree":
+        if type_entree == "po_cree" and isinstance(po_id, str):
             etats[po_id] = dict(maillon)
-        elif type_entree == "transition_po" and po_id in etats:
+        elif type_entree == "transition_po" and isinstance(po_id, str) and po_id in etats:
+            statut_cible = maillon.get("statut")
+            if not isinstance(statut_cible, str) or not transition_autorisee(etats[po_id].get("statut"), statut_cible):
+                continue
             etats[po_id] = {**etats[po_id], **maillon}
     return etats
 

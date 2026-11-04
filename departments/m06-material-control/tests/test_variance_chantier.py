@@ -565,3 +565,30 @@ def test_non_prevu_avec_un_reel_fractionnaire_sans_estimation():
     verdicts = variance_chantier.comparer([besoin(quantite_estimee=0.0)], [ligne("non_prevu", quantite=0.5)])
     assert verdicts[0]["verdict_variance"] == "NON_PREVU"
     assert verdicts[0]["ecart_pourcentage"] is None
+
+
+def _verdict_negatif(ratio):
+    return {
+        "materiau_id": "MAT-1",
+        "unite": "boite",
+        "quantite_estimee": 100.0,
+        "quantite_reelle": 10.0,
+        "ecart": -90.0,
+        "ecart_pourcentage": ratio,
+        "verdict_variance": "ECART_REEL_INFERIEUR",
+        "cause_possible": None,
+        "classification_requise": True,
+    }
+
+
+def test_un_ecart_negatif_massif_declenche_le_signal_comme_un_ecart_positif():
+    """La règle porte sur l'AMPLEUR de l'écart : une sous-consommation de 90 % est aussi critique qu'une hausse."""
+    signal = variance_chantier._construire_signal_si_critique("CH-1", [_verdict_negatif(-0.90)], 0.30)
+
+    assert signal is not None
+    assert signal["materiaux_en_ecart_critique"] == ["MAT-1"]
+    assert signal["ecart_maximal_pourcentage"] == 0.90
+
+
+def test_un_ecart_negatif_sous_le_seuil_ne_declenche_rien():
+    assert variance_chantier._construire_signal_si_critique("CH-1", [_verdict_negatif(-0.20)], 0.30) is None

@@ -371,6 +371,22 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - **Arrondis** : les pourcentages sont au centième (`ROUND_HALF_UP`) ; les délais sont des secondes entières. Une
   période sans source rend `null`, jamais 0.
 
+## 7 quinquies. M6 C7/C4 — correction de la revue adverse (3 novembre 2026)
+
+- **Chaîne d'audit retouchée** : elle ne sert plus aucun seuil et l'écran « Seuils matériaux » ne peut pas la réparer.
+  L'attente admin et le POST de réparation le disent ; le seul remède est une intervention d'administrateur de base,
+  hors outil et tracée. Aucun outil de reconstruction de genèse ni de réécriture de maillon n'est livré.
+- **Maillons incomplets en base** : un maillon d'audit sans version lisible est sauté à l'écran (avec un bandeau qui
+  compte les entrées ignorées) ; un maillon de rapprochement M5 incomplet est ignoré et compté
+  (`rapprochements_recus.compter_ignores`), sans faire tomber la file d'attentes M6. Ces lectures robustes ne
+  « réparent » rien : un administrateur de base doit constater et corriger la donnée hors outil.
+- **Transitions de PO hostiles** : `bons_commande.lire` rejoue la machine à états et ignore une transition illégale
+  rangée hors outil ; elle ne ressuscite pas un PO fermé. Aucun outil ne signale cet événement au-delà de l'état
+  inchangé, et PostgreSQL n'a pas été rejoué pour cette correction.
+- **Retouche en test** : les maillons durables décodent à chaque accès et n'ont pas de `__setitem__` ; une affectation
+  Python (`registre[0][...] = ...`) ne modifie PAS la base. Toute preuve de retouche passe donc par un `UPDATE` SQL
+  direct, sinon elle prouve un faux négatif.
+
 ## 8. Écarts de documentation connus et non corrigés
 
 - Les décisions d'architecture (ADR) 0002, 0006, 0007 et 0008 citent `core/UPSTREAM.md` et un outil `scripts/tally.py` qui n'existent pas dans ce

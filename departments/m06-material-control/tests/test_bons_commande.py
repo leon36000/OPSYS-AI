@@ -1058,3 +1058,27 @@ def test_une_reception_avec_detail_ne_manque_pas_de_detail():
     registre = [{"type_entree": "transition_po", "po_id": "P1", "verdict_reception": "CONFORME",
                  "livraison": {"empreinte": "e1"}}]
     assert bons_commande.livraisons_sans_detail(registre, "P1") == 0
+
+
+def test_une_transition_illegale_en_base_n_est_pas_rejouee_par_lire():
+    """Le registre est éditable hors outil : un maillon hostile ne doit pas ressusciter un PO."""
+    _, registre = _creer_po()
+    approuve, verdict = bons_commande.approuver("PO-1", "2026-01-03T00:00:00Z", registre)
+    assert verdict is None and approuve["statut"] == "approved"
+
+    registre.append({"type_entree": "transition_po", "po_id": "PO-1", "statut": "closed",
+                     "horodatage": "2026-01-04T00:00:00Z", "motif_statut": "hostile fictif"})
+
+    assert bons_commande.lire(registre, "PO-1")["statut"] == "approved"
+    annule, verdict = bons_commande.annuler("PO-1", "annulation fictive légitime", "2026-01-05T00:00:00Z", registre)
+    assert verdict is None and annule["statut"] == "cancelled", "une transition hostile ne bloque pas les suivantes"
+
+
+def test_une_transition_illisible_ou_non_textuelle_n_est_pas_rejouee():
+    _, registre = _creer_po()
+    registre.append({"type_entree": "transition_po", "po_id": "PO-1", "statut": ["closed"],
+                     "horodatage": "2026-01-04T00:00:00Z"})
+    registre.append({"type_entree": "transition_po", "po_id": "PO-1", "statut": None,
+                     "horodatage": "2026-01-04T00:00:00Z"})
+
+    assert bons_commande.lire(registre, "PO-1")["statut"] == "draft"

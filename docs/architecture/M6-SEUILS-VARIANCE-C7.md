@@ -34,7 +34,14 @@ et l'admin devait se souvenir de facturer le PO. L'envoi constaté par M1 avait 
   append-only et chaîné (`seuils_variance_chantier`) : version, avant/après, auteur, rôle, motif, horodatage,
   approbation, empreinte et empreinte du précédent. Seuls `admin` et `nathan_owner` éditent ; un `manager`, un employé
   ou un agent est refusé. `version_attendue` empêche une mise à jour perdue entre deux admins. Une chaîne retouchée ne
-  sert plus AUCUN seuil : la variance sort en `seuil_absent` et une attente dit de reconfigurer.
+  sert plus AUCUN seuil : la variance sort en `seuil_absent` et une attente dit qu'**aucune reconfiguration depuis
+  l'écran ne peut la réparer** — une intervention d'administrateur de base, hors outil et tracée, est nécessaire. Le
+  POST de réparation de l'écran refuse avec un message qui dit quoi faire (aucune réparation illusoire n'est écrite).
+- **Lectures robustes** : un maillon d'audit incomplet en base n'empêche pas d'afficher le journal des seuils (il est
+  sauté, avec un bandeau qui dit combien d'entrées sont ignorées) ; un maillon de rapprochement M5 incomplet est ignoré
+  et compté (`rapprochements_recus.compter_ignores`), jamais un `KeyError` qui rend toute la file d'attentes M6
+  inutilisable. Une transition de PO illégale rangée hors outil n'est pas rejouée par `lire` : elle est ignorée, et la
+  machine à états reprend sur le dernier état légal.
 - **Bandeau de valeur initiale** : tant qu'aucune décision n'est au registre, l'écran affiche « valeur initiale
   proposée par l'architecte, à confirmer ». Une valeur adoptée par un admin est dite « adoptée par un administrateur,
   non confirmée par le propriétaire » ; une valeur adoptée par `nathan_owner` est dite confirmée. Le bandeau ne
@@ -92,6 +99,10 @@ sont détaillées dans `RAPPORT.md`.
 - **Le registre d'audit n'a pas d'ancre externe** : une réécriture complète et cohérente de la chaîne par quelqu'un qui
   contrôle la base n'est pas détectable. La chaîne protège contre une retouche partielle, pas contre un administrateur
   de la base.
+- **Aucune procédure de réparation outillée** : une chaîne retouchée ne sert plus aucune valeur et l'écran ne peut pas
+  la réparer. Le seul remède est une intervention d'administrateur de base, hors outil et tracée ; elle n'est ni
+  automatisée, ni proposée par l'écran. Les maillons illisibles sont ignorés et comptés, jamais réparés en silence.
+  Aucun outil ne reconstruit une genèse ni ne réécrit un maillon.
 - **CFG-1 et C7 se superposent** : une fois une décision C7 au registre, elle est autoritaire ; le seuil global adopté
   par CFG-1 n'est plus lu. Il n'existe pas d'écran unique fusionnant les deux journaux.
 - **`invoiced` reste une proposition** : aucune politique permanente n'est codée ; rien ne s'applique sans le geste

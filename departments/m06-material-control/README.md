@@ -337,7 +337,11 @@ pourcentage. Le montant est en décimal exact, au cent, à partir d'une valeur u
 prix) ; sans valeur, le plancher n'est pas inventé : l'écart est marqué critique et une attente dit quel prix déclarer.
 L'écran console « Seuils matériaux » (`/seuils-materiaux`, admin ou propriétaire) écrit un registre append-only et
 chaîné (version, avant/après, auteur, rôle, motif, horodatage, approbation, empreintes) ; une chaîne retouchée ne sert
-plus aucun seuil (`seuil_absent` + attente de reconfiguration). Le message imposé de Nathan est déjà dans l'attente
+plus aucun seuil (`seuil_absent`), l'attente et le POST de réparation disent qu'**aucune reconfiguration depuis l'écran
+ne peut la réparer** et qu'une intervention d'administrateur de base, hors outil et tracée, est nécessaire. Le
+pourcentage est comparé en **valeur absolue** (une sous-consommation compte comme une hausse) et un ratio illisible rend
+`ratio_non_defini`, jamais une exception. Les maillons d'audit ou de rapprochement incomplets sont ignorés et comptés,
+plutôt que de casser le journal ou la file d'attentes. Le message imposé de Nathan est déjà dans l'attente
 `ecart_materiaux_critique` et dans le résultat de `m6_evaluer_variance_chantier`, mot pour mot, sans « vol ». Sans
 décision C7, le mode `herite` conserve le seul seuil global (0.30, valeur d'agent « recommandation, non validée »).
 
@@ -350,4 +354,6 @@ voie d'un envoi hors M1.
 
 Limites : aucun navigateur réel, aucun mobile, PostgreSQL non rejoué ; aucune valeur réelle (seuils, planchers et
 catégories vides tant que la direction ne les déclare pas) ; le plancher en dollars utilise le coût de sortie, pas le
-prix payé ; l'audit n'a pas d'ancre externe ; aucune politique permanente de facturation.
+prix payé ; l'audit n'a pas d'ancre externe et une chaîne retouchée ne se répare que par une intervention
+d'administrateur de base, hors outil et tracée (aucun outil de reconstruction) ; aucune politique permanente de
+facturation.

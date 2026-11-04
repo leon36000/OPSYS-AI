@@ -194,3 +194,65 @@ def test_marquer_a_la_main_reste_possible_pour_un_envoi_hors_m1(m6):
     po = _ok(executer_atomique(m6["m6_marquer_po_envoye"], {"po_id": "PO-ENVOI-1", "horodatage": HORO}))["po"]
 
     assert po["statut"] == "sent_to_supplier" and "envoi_constate" not in {k for m in _registre() for k in m}
+
+
+def test_le_retour_du_constat_donne_le_statut_final_du_po(m6):
+    _po_pret(m6)
+
+    resultat = _recevoir(_constat())
+
+    assert resultat["constate"] is True and resultat["po_trouve"] is True
+    assert resultat["po_marque_envoye"] is True
+    assert resultat["statut_po"] == _po()["statut"] == "sent_to_supplier"
+
+
+def test_un_constat_rate_puis_corrige_avec_le_meme_brouillon_est_accepte(m6):
+    """Le brouillon_id ne verrouille que les constats RÉUSSIS : une correction ne reste pas bloquée à jamais."""
+    _po_pret(m6)
+
+    premier = _recevoir(_constat(contenu_identique=False))
+    assert premier["po_marque_envoye"] is False and _po()["statut"] == "email_ready"
+
+    corrige = _recevoir(_constat())
+
+    assert corrige["po_marque_envoye"] is True and corrige["statut_po"] == "sent_to_supplier"
+    assert _po()["statut"] == "sent_to_supplier"
+    assert len([m for m in _registre() if m.get("type_entree") == "transition_po" and "envoi_constate" in m]) == 1
+
+
+def test_trois_constats_rates_du_meme_po_ne_donnent_qu_une_attente(m6):
+    _po_pret(m6)
+
+    for i in range(3):
+        _recevoir(_constat(brouillon_id=f"brouillon-rate-{i}-fictif", contenu_identique=False))
+
+    attentes = _attentes_envoi()
+
+    assert [a["id"] for a in attentes] == ["PO-ENVOI-1"]
+
+
+def test_deux_po_distincts_gardent_chacun_leur_attente(m6):
+    _po_pret(m6, "PO-ENVOI-1")
+    _po_pret(m6, "PO-ENVOI-2")
+
+    _recevoir(_constat("PO-ENVOI-1", brouillon_id="brouillon-rate-1-fictif", contenu_identique=False))
+    _recevoir(_constat("PO-ENVOI-2", brouillon_id="brouillon-rate-2-fictif", contenu_identique=False))
+
+    assert [a["id"] for a in _attentes_envoi()] == ["PO-ENVOI-1", "PO-ENVOI-2"]
+
+
+def test_un_maillon_d_envoi_avec_po_id_hostile_est_ignore_sans_lever(m6):
+    from m6_material_control import commande_courriel as cc
+
+    with stockage.transaction():
+        stockage.maillons(DEPT, "commandes_courriel").append({
+            "type_entree": cc.TYPE_ENVOI,
+            "horodatage": HORO,
+            "po_id": ["PO-ENVOI-1"],
+            "brouillon_id": "brouillon-hostile-fictif",
+            "empreinte": "b" * 64,
+            "statut_po_au_constat": "email_ready",
+            "po_marque_envoye": False,
+        })
+
+    assert _attentes_envoi() == []

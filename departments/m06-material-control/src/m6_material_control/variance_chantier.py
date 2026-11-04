@@ -237,11 +237,14 @@ def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> 
     moins un matériau atteint ou dépasse `seuil_pourcentage` (toujours fourni par
     l'appelant). Un ecart_pourcentage=None (NON_PREVU/INDETERMINE, ratio non défini) ne
     déclenche jamais automatiquement le signal : seul le seuil décide, rien d'autre codé
-    en dur. M6 signale seulement ; ce signal ne touche jamais un statut de chantier M4."""
+    en dur. La règle porte sur l'AMPLEUR de l'écart (`abs`) : une sous-consommation de
+    40 % est aussi critique qu'une hausse de 40 %. M6 signale seulement ; ce signal ne
+    touche jamais un statut de chantier M4."""
     en_ecart_critique = [
         verdict
         for verdict in verdicts
-        if verdict["ecart_pourcentage"] is not None and verdict["ecart_pourcentage"] >= seuil_pourcentage
+        if verdict["ecart_pourcentage"] is not None
+        and abs(verdict["ecart_pourcentage"]) >= seuil_pourcentage
     ]
 
     if not en_ecart_critique:
@@ -250,7 +253,7 @@ def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> 
     return {
         "chantier_id": chantier_id,
         "seuil_pourcentage": seuil_pourcentage,
-        "ecart_maximal_pourcentage": max(verdict["ecart_pourcentage"] for verdict in en_ecart_critique),
+        "ecart_maximal_pourcentage": max(abs(verdict["ecart_pourcentage"]) for verdict in en_ecart_critique),
         "materiaux_en_ecart_critique": sorted(verdict["materiau_id"] for verdict in en_ecart_critique),
         "verdicts_materiaux": verdicts,
     }
@@ -274,7 +277,7 @@ def _construire_signal_si_critique_c7(
     return {
         "chantier_id": chantier_id,
         "seuil_pourcentage": float(config["global_pourcentage"]),
-        "ecart_maximal_pourcentage": max(verdict["ecart_pourcentage"] for verdict in critiques),
+        "ecart_maximal_pourcentage": max(abs(verdict["ecart_pourcentage"]) for verdict in critiques),
         "materiaux_en_ecart_critique": sorted(verdict["materiau_id"] for verdict in critiques),
         "verdicts_materiaux": verdicts,
         "seuils_appliques": details,

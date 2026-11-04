@@ -45,6 +45,33 @@ _MESSAGES = {
     "deja": ("Ces seuils étaient déjà en vigueur : rien n'a été réécrit.", "ok"),
 }
 _CODE_HTTP = {"REJ-SEUILS-VERSION": 409, "REJ-SEUILS-CHAINE": 409}
+_MESSAGES_REFUS = {
+    "REJ-SEUILS-CHAINE": (
+        "REJ-SEUILS-CHAINE : chaîne d'audit invalide (retouchée ou illisible). Une chaîne retouchée ne sert plus "
+        "aucune valeur et ne se répare pas depuis cet écran : un administrateur de base doit intervenir hors outil, "
+        "avec une trace."
+    ),
+    "REJ-SEUILS-VERSION": (
+        "REJ-SEUILS-VERSION : la version attendue ne correspond plus (un autre administrateur a écrit entre-temps). "
+        "Recharger la page et recommencer."
+    ),
+}
+
+
+def _journal_lisible(maillon: Any) -> bool:
+    """Un maillon assez complet pour être AFFICHÉ : version entière positive et date texte (ou absente)."""
+    if not isinstance(maillon, Mapping):
+        return False
+    version = maillon.get("version")
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        return False
+    return isinstance(maillon.get("horodatage"), (str, type(None)))
+
+
+def _apres(maillon: Mapping[str, Any]) -> Mapping[str, Any]:
+    """L'« après » d'un maillon, ou un objet vide : une valeur absente ou hostile s'affiche « — », sans crash."""
+    apres = maillon.get("apres")
+    return apres if isinstance(apres, Mapping) else {}
 
 
 def _mappage(texte: str, quoi: str) -> dict[str, str]:
@@ -115,8 +142,9 @@ def _bandeau(config: Mapping[str, Any] | None, heritage: float | None, journal: 
     if config is None:
         if journal:
             return pages._badge(
-                "Chaîne d'audit invalide ou illisible : aucun seuil n'est appliqué (seuil absent). "
-                "Reconfigurer ci-dessous.", "badge-danger")
+                "Chaîne d'audit invalide ou illisible : aucun seuil n'est appliqué (seuil absent). Une chaîne "
+                "retouchée ne sert plus aucune valeur et cet écran ne peut pas la réparer : un administrateur de base "
+                "doit intervenir hors outil, avec une trace.", "badge-danger")
         if heritage is None:
             return pages._badge("Aucun seuil global lisible : toute variance sort en « seuil absent »", "badge-danger")
         return pages._badge(
@@ -147,14 +175,21 @@ def rendre(config: Mapping[str, Any] | None, heritage: float | None, journal: li
     if ok in _MESSAGES:
         texte, genre = _MESSAGES[ok]
         bandeau = f'<p class="badge {"badge-ok" if genre == "ok" else "badge-alerte"}">{pages.e(texte)}</p>'
+    lisibles = [maillon for maillon in journal if _journal_lisible(maillon)]
+    ignores = len(journal) - len(lisibles)
+    if ignores:
+        bandeau += (
+            f'<p class="badge badge-danger">{ignores} entrée(s) du journal d\'audit illisible(s) ignorée(s) : un '
+            "administrateur de base doit vérifier le registre (l'écran ne les répare pas).</p>"
+        )
     journal_html = "".join(
-        f"<tr><td>{int(maillon['version'])}</td><td>{pages.e(pages._date(maillon.get('horodatage')))}</td>"
+        f"<tr><td>{maillon['version']}</td><td>{pages.e(pages._date(maillon.get('horodatage')))}</td>"
         f"<td>{pages.e(maillon.get('auteur'))}</td><td>{pages.e(maillon.get('role'))}</td>"
         f"<td>{pages.e(maillon.get('motif'))}</td>"
-        f"<td>{pages.e(_texte_decimal((maillon.get('apres') or {}).get('global_pourcentage')))}</td>"
-        f"<td>{pages.e(_texte_decimal((maillon.get('apres') or {}).get('plancher_quantite')))}</td>"
-        f"<td>{pages.e(_texte_decimal((maillon.get('apres') or {}).get('plancher_dollars')))}</td></tr>"
-        for maillon in journal if isinstance(maillon, Mapping)
+        f"<td>{pages.e(_texte_decimal(_apres(maillon).get('global_pourcentage')))}</td>"
+        f"<td>{pages.e(_texte_decimal(_apres(maillon).get('plancher_quantite')))}</td>"
+        f"<td>{pages.e(_texte_decimal(_apres(maillon).get('plancher_dollars')))}</td></tr>"
+        for maillon in lisibles
     )
     tableau_journal = (
         '<div class="table-defilante"><table><caption>Journal d\'audit des seuils</caption><thead><tr>'
@@ -250,7 +285,7 @@ def creer_router(
             if apres is None or role not in apres.roles:
                 raise HTTPException(403, "administration retirée avant la fin du geste")
         if code is not None:
-            raise HTTPException(_CODE_HTTP.get(code, 400), code)
+            raise HTTPException(_CODE_HTTP.get(code, 400), _MESSAGES_REFUS.get(code, code))
         ok = "deja" if resultat.get("deja_en_vigueur") is True else "enregistre"
         return RedirectResponse(f"{prefixe}{BASE}?ok={ok}", status_code=303, headers={"Cache-Control": "no-store"})
 

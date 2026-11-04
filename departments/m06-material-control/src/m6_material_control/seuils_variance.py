@@ -223,16 +223,23 @@ def critique(
 ) -> dict[str, Any]:
     """La criticité d'UN verdict matériau, planchers compris.
 
-    Le pourcentage non défini (`NON_PREVU`, `INDETERMINE`) ne déclenche jamais la revue à lui seul : il reste visible
-    dans le verdict, mais aucun ratio ne peut être comparé. En mode hérité, seul le pourcentage décide (comportement
-    d'avant C7) ; en mode C7, les DEUX planchers déclarés s'appliquent en plus.
+    Le pourcentage non défini (`NON_PREVU`, `INDETERMINE`) ou ILLISIBLE (texte, NaN, infini, objet hostile) ne
+    déclenche jamais la revue à lui seul : il reste visible dans le verdict, mais aucun ratio ne peut être comparé.
+    La comparaison porte sur l'AMPLEUR de l'écart (`abs`) : une sous-consommation au-delà du seuil est aussi critique
+    qu'une hausse. En mode hérité, seul le pourcentage décide (comportement d'avant C7) ; en mode C7, les DEUX
+    planchers déclarés s'appliquent en plus.
     """
     seuil = seuil_pour(verdict.get("materiau_id"), config)
     ratio = verdict.get("ecart_pourcentage")
     if ratio is None:
         return {"critique": False, "motif": "ratio_non_defini", **seuil}
-    ratio_decimal = Decimal(str(ratio))
-    if ratio_decimal < Decimal(str(seuil["seuil_pourcentage"])):
+    try:
+        ratio_decimal = Decimal(str(ratio))
+    except (InvalidOperation, ValueError, TypeError, OverflowError):
+        return {"critique": False, "motif": "ratio_non_defini", **seuil}
+    if not ratio_decimal.is_finite():
+        return {"critique": False, "motif": "ratio_non_defini", **seuil}
+    if abs(ratio_decimal) < Decimal(str(seuil["seuil_pourcentage"])):
         return {"critique": False, "motif": "sous_seuil", **seuil}
     if config.get("mode") == "herite":
         return {"critique": True, "motif": "au_dessus_du_seuil", **seuil}
