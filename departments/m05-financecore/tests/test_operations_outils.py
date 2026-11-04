@@ -12,6 +12,7 @@ import contextlib
 import dataclasses
 import json
 import os
+import threading
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -1307,6 +1308,19 @@ def _injecter_ap_orpheline(url):
         ))
 
 
+def _corrompre_chaine_registre(url, nom_registre):
+    where = (
+        (REGISTRES.c.departement == DEPARTEMENT)
+        & (REGISTRES.c.registre == nom_registre)
+        & (REGISTRES.c.rang == 0)
+    )
+    with stockage.transaction(url) as cnx:
+        encoded = cnx.execute(select(REGISTRES.c.maillon).where(where)).scalar_one()
+        maillon = decoder(encoded)
+        maillon["type_entree"] = f"{maillon['type_entree']}-alt-mais-non-reeempreinte"
+        cnx.execute(update(REGISTRES).where(where).values(maillon=encoder(maillon)))
+
+
 def test_dossier_cpa_refuse_ap_orpheline_sans_ecriture(base_durable, par_nom, declare, tmp_path):
     _injecter_ap_orpheline(base_durable)
     refus = _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
@@ -1316,6 +1330,158 @@ def test_dossier_cpa_refuse_ap_orpheline_sans_ecriture(base_durable, par_nom, de
     assert not list((tmp_path / "home" / "exports" / "dossier-cpa").glob("**/*"))
 
 
+@pytest.mark.parametrize(
+    ("nom_registre", "preparer_source"),
+    [
+        ("factures", lambda: _facturer("FACT-CHAINE-ALTEREE")),
+        ("comptes_a_payer", lambda: _injecter_ap_orpheline(stockage.url_base())),
+    ],
+)
+def test_dossier_cpa_refuse_chaine_source_alteree_sans_ecriture(
+    base_durable, par_nom, declare, tmp_path, nom_registre, preparer_source
+):
+    preparer_source()
+    _corrompre_chaine_registre(stockage.url_base(), nom_registre)
+    refus = _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
+    assert refus["ok"] is True and refus["resultat"]["accepte"] is False, refus
+    assert refus["resultat"]["verdict"]["code"] == "REJ-GL-SOURCE-ILLISIBLE", refus
+    assert not list((tmp_path / "home" / "exports" / "dossier-cpa").glob("**/*"))
+
+
+def test_dossier_cpa_postgresql_fige_tetes_et_projections_au_meme_snapshot(
+    base_durable, par_nom, declare, monkeypatch, tmp_path, m5_postgres_doubles
+):
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+    from m5_financecore import outils_dossier
+
+    with m5_postgres_doubles.postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        m5_outils.utiliser_stockage_durable()
+        declare(CONFIG)
+
+        reached = threading.Event()
+        appended = threading.Event()
+        errors = []
+        original_control = outils_dossier.controle_taxes_bornes
+        original_snapshot = stockage.lire_instantane_maillons
+        snapshots = []
+
+        def compte_instantane(departement, registres):
+            resultat = original_snapshot(departement, registres)
+            if departement == DEPARTEMENT:
+                snapshots.append(tuple(registres))
+            return resultat
+
+        def append_after_heads():
+            try:
+                if not reached.wait(30):
+                    raise TimeoutError("le dossier CPA n'a pas atteint le contrôle fiscal")
+                _facturer("FACT-CONCURRENT-FICTIVE")
+            except BaseException as exc:  # le thread doit transmettre toute erreur au test principal
+                errors.append(exc)
+            finally:
+                appended.set()
+
+        def controle_apres_append(*args, **kwargs):
+            reached.set()
+            if not appended.wait(60):
+                raise TimeoutError("l'append PostgreSQL concurrent n'a pas terminé")
+            if errors:
+                raise errors[0]
+            return original_control(*args, **kwargs)
+
+        monkeypatch.setattr(outils_dossier, "controle_taxes_bornes", controle_apres_append)
+        monkeypatch.setattr(stockage, "lire_instantane_maillons", compte_instantane)
+        worker = threading.Thread(target=append_after_heads, daemon=True)
+        worker.start()
+        try:
+            dossier = _accepte(_appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args()))
+        finally:
+            worker.join(60)
+            monkeypatch.setattr(outils_dossier, "controle_taxes_bornes", original_control)
+            stockage.liberer(url)
+        assert not worker.is_alive(), "thread timeout"
+        assert not errors, errors
+        assert snapshots == [("grand_livre", "factures", "comptes_a_payer", "operations_comptables")]
+
+        dossier_root = tmp_path / "home" / dossier["chemin"]
+        manifeste = json.loads((dossier_root / "MANIFESTE.json").read_text(encoding="utf-8"))
+        sous_compte = (dossier_root / "10-sous-comptes-clients.csv").read_text(encoding="utf-8")
+        assert manifeste["tetes_des_registres"]["factures"] is None
+        assert "FACT-CONCURRENT-FICTIVE" not in sous_compte
+        points = {p["id"]: p["statut"] for p in dossier["liste_de_controle"]["points"]}
+        assert points["taxes_rapprochees"] == "FAIT", points
+        assert "FACT-CONCURRENT-FICTIVE" in outils_operations._factures_clients_par_id()
+
+
+def test_precloture_postgresql_utilise_un_snapshot_commun_aux_factures_et_taxes(
+    base_durable, par_nom, declare, monkeypatch, m5_postgres_doubles
+):
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+    with m5_postgres_doubles.postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        m5_outils.utiliser_stockage_durable()
+        declare(CONFIG)
+
+        reached = threading.Event()
+        appended = threading.Event()
+        errors = []
+        original_control = outils_operations._controle_taxes
+        original_snapshot = stockage.lire_instantane_maillons
+        snapshots = []
+
+        def compte_instantane(departement, registres):
+            resultat = original_snapshot(departement, registres)
+            if departement == DEPARTEMENT:
+                snapshots.append(tuple(registres))
+            return resultat
+
+        def append_after_snapshot():
+            try:
+                if not reached.wait(30):
+                    raise TimeoutError("la préclôture n'a pas atteint le contrôle fiscal")
+                _facturer("FACT-PRECLOTURE-CONCURRENT-FICTIVE")
+            except BaseException as exc:  # le thread doit transmettre toute erreur au test principal
+                errors.append(exc)
+            finally:
+                appended.set()
+
+        def controle_apres_append(ctx, periode):
+            reached.set()
+            if not appended.wait(60):
+                raise TimeoutError("l'append PostgreSQL concurrent n'a pas terminé")
+            if errors:
+                raise errors[0]
+            return original_control(ctx, periode)
+
+        monkeypatch.setattr(outils_operations, "_controle_taxes", controle_apres_append)
+        monkeypatch.setattr(stockage, "lire_instantane_maillons", compte_instantane)
+        worker = threading.Thread(target=append_after_snapshot, daemon=True)
+        worker.start()
+        try:
+            reponse = _appeler(
+                par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H}
+            )
+        finally:
+            worker.join(60)
+            monkeypatch.setattr(outils_operations, "_controle_taxes", original_control)
+            stockage.liberer(url)
+        assert not worker.is_alive(), "thread timeout"
+        assert not errors, errors
+        assert snapshots == [("grand_livre", "factures", "comptes_a_payer", "operations_comptables")]
+        precloture = _accepte(reponse)
+        controles = {c["controle"]: c for c in precloture["controles"]}
+        assert controles["taxes_rapprochees"]["statut"] == "OK", controles
+        assert controles["factures_clients_sans_ecriture"]["nombre"] == 0, controles
+        assert "FACT-PRECLOTURE-CONCURRENT-FICTIVE" in outils_operations._factures_clients_par_id()
+
+
 def test_dossier_cpa_projection_clients_precede_ap_et_runtime_error_reste_visible(
     base_durable, par_nom, declare, monkeypatch
 ):
@@ -1323,7 +1489,7 @@ def test_dossier_cpa_projection_clients_precede_ap_et_runtime_error_reste_visibl
 
     appels = []
 
-    def erreur_clients():
+    def erreur_clients(*_args, **_kwargs):
         appels.append("clients")
         raise RuntimeError("erreur projection clients")
 
@@ -1340,7 +1506,7 @@ def test_dossier_cpa_projection_clients_precede_ap_et_runtime_error_reste_visibl
     def erreur_programmation(*_args, **_kwargs):
         raise RuntimeError("erreur AP inattendue")
 
-    monkeypatch.setattr(outils_dossier, "_factures_clients_par_id", lambda: {})
+    monkeypatch.setattr(outils_dossier, "_factures_clients_par_id", lambda *_args, **_kwargs: {})
     monkeypatch.setattr(comptes_a_payer, "etats_toutes_les_factures", erreur_programmation)
     with pytest.raises(RuntimeError, match="erreur AP inattendue"):
         _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
@@ -1369,7 +1535,7 @@ def test_precloture_ne_convertit_pas_un_runtime_error_arbitraire(base_durable, p
 def test_precloture_projette_clients_avant_ap(base_durable, par_nom, declare, monkeypatch):
     appels = []
 
-    def erreur_clients():
+    def erreur_clients(*_args, **_kwargs):
         appels.append("clients")
         raise RuntimeError("erreur projection clients")
 
@@ -1716,11 +1882,11 @@ def test_precloture_refuse_ap_incoherente_lors_de_la_seconde_projection(base_dur
         appels.append("precloture")
         return projection_ap(registre)
 
-    def projection_ap_incoherente():
+    def projection_ap_incoherente(*_args, **_kwargs):
         appels.append("controle_taxes")
         raise comptes_a_payer.RegistreComptesIncoherent("AP fictive devenue incohérente")
 
-    def projection_clients_taxes():
+    def projection_clients_taxes(*_args, **_kwargs):
         appels.append("clients_taxes")
         return projection_clients()
 
@@ -1736,7 +1902,7 @@ def test_precloture_refuse_ap_incoherente_lors_de_la_seconde_projection(base_dur
 
 
 def test_precloture_ne_masque_pas_runtime_error_dans_seconde_projection(base_durable, par_nom, declare, monkeypatch):
-    def erreur_inattendue():
+    def erreur_inattendue(*_args, **_kwargs):
         raise RuntimeError("erreur AP inattendue")
 
     monkeypatch.setattr(grand_livre, "fin_de_periode", lambda _periode: date(2026, 10, 31))
@@ -1750,7 +1916,7 @@ def test_controle_taxes_preserve_ordre_clients_ap_ops_du_rapprochement_public(
 ):
     ordre = []
 
-    def factures_clients_precloture():
+    def factures_clients_precloture(*_args, **_kwargs):
         ordre.append("clients_precloture")
         return {}
 
@@ -1758,11 +1924,11 @@ def test_controle_taxes_preserve_ordre_clients_ap_ops_du_rapprochement_public(
         ordre.append("ap_precloture")
         return []
 
-    def factures_clients_taxes():
+    def factures_clients_taxes(*_args, **_kwargs):
         ordre.append("clients_taxes")
         return []
 
-    def factures_ap_taxes():
+    def factures_ap_taxes(*_args, **_kwargs):
         ordre.append("ap_taxes")
         return []
 

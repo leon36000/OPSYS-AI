@@ -192,13 +192,54 @@ def _limite(limite: Any) -> tuple[int | None, dict[str, str] | None]:
     return valeur, None
 
 
-def _factures_clients_par_id() -> dict[str, dict[str, Any]]:
-    registre_factures = _o._registre_factures(None)
+def _factures_clients_par_id(registre_factures: Any | None = None) -> dict[str, dict[str, Any]]:
+    registre_factures = _o._registre_factures(None) if registre_factures is None else registre_factures
     resultat: dict[str, dict[str, Any]] = {}
     for statut in ("BROUILLON", "ENVOYEE", "PAYEE", "ANNULEE"):
         for facture in facturation.factures_par_statut(registre_factures, statut):
             resultat[facture["facture_id"]] = facture
     return resultat
+
+
+def _instantane_cloture(ctx: Mapping[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Capture les registres qui alimentent préclôture/CPA par un seul SELECT.
+
+    Les fichiers de configuration et taux restent lus selon leurs contrats propres; seule la cohérence des lignes
+    SQL de ces quatre registres est couverte.
+    """
+    from . import registre as registre_module
+
+    noms = (
+        _o._NOM_REGISTRE_GRAND_LIVRE,
+        _o._NOM_REGISTRE_FACTURES,
+        _o._NOM_REGISTRE_COMPTES_A_PAYER,
+        _o._NOM_REGISTRE_OPERATIONS,
+    )
+    maillons = stockage.lire_instantane_maillons(_o._DEPARTEMENT, noms)
+    registres = {nom: registre_module.Registre(maillons=maillons[nom]) for nom in noms}
+
+    valide, raison = registres[_o._NOM_REGISTRE_GRAND_LIVRE].valider_chaine()
+    if not valide:
+        return None, verdicts_grand_livre.construire_verdict("REJ-GL-CHAINE-INVALIDE", detail=raison)
+    valide, raison = registres[_o._NOM_REGISTRE_OPERATIONS].valider_chaine()
+    if not valide:
+        return None, _verdict("REJ-OPS-CHAINE-INVALIDE", raison)
+    etat_ops = operations_registre.etat_operations(maillons[_o._NOM_REGISTRE_OPERATIONS])
+    refus = operations_registre.refus_anomalies(etat_ops)
+    if refus is not None:
+        return None, refus
+
+    resultat = dict(ctx)
+    resultat.update(
+        etat_gl=grand_livre.etat_grand_livre(maillons[_o._NOM_REGISTRE_GRAND_LIVRE]),
+        etat_ops=etat_ops,
+        maillons_cloture=maillons,
+        registre_factures_cloture=registres[_o._NOM_REGISTRE_FACTURES],
+        registre_ap_cloture=registres[_o._NOM_REGISTRE_COMPTES_A_PAYER],
+        registre_ops_cloture=registres[_o._NOM_REGISTRE_OPERATIONS],
+        tetes_cloture={nom: registres[nom].tete() for nom in noms},
+    )
+    return resultat, None
 
 
 def _factures_fournisseurs_par_id() -> dict[str, dict[str, Any]]:
@@ -640,15 +681,34 @@ def controle_taxes_bornes(
     dictionnaire, refus = _o._dictionnaire_taux()
     if refus is not None:
         return None, None
-    factures_clients = _o._factures_emises()
+    registre_factures = ctx.get("registre_factures_cloture")
+    if registre_factures is None:
+        factures_clients = _o._factures_emises()
+    else:
+        refus_chaine = _o._verdict_chaine_financiere(
+            _o._NOM_REGISTRE_FACTURES, ctx["maillons_cloture"][_o._NOM_REGISTRE_FACTURES]
+        )
+        if refus_chaine is not None:
+            return None, verdicts_grand_livre.construire_verdict(
+                "REJ-GL-SOURCE-ILLISIBLE", detail="registre factures incohérent; source illisible"
+            )
+        factures_clients = _o._factures_emises(registre_factures)
     try:
-        factures_fournisseurs_vivantes = _o._factures_fournisseurs_vivantes()
+        registre_ap = ctx.get("registre_ap_cloture")
+        if registre_ap is not None:
+            refus_chaine = _o._verdict_chaine_financiere(
+                _o._NOM_REGISTRE_COMPTES_A_PAYER,
+                ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
+            )
+            if refus_chaine is not None:
+                raise comptes_a_payer.RegistreComptesIncoherent("chaîne AP invalide")
+        factures_fournisseurs_vivantes = _o._factures_fournisseurs_vivantes(registre_ap)
     except comptes_a_payer.RegistreComptesIncoherent:
         return None, verdicts_grand_livre.construire_verdict(
             "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
         )
     autres_pieces, refus = _o._autres_pieces_taxees_verifiees(
-        ctx.get("ops"), etat_ops=ctx.get("etat_ops")
+        ctx.get("registre_ops_cloture", ctx.get("ops")), etat_ops=ctx.get("etat_ops")
     )
     if refus is not None:
         return None, refus
@@ -676,9 +736,25 @@ def _controle_taxes(
 
 
 def _precloture_impl(ctx: Mapping[str, Any], periode: Any, horodatage: Any) -> tuple[dict | None, dict | None]:
-    factures_clients = list(_factures_clients_par_id().values())
+    ctx, refus = _instantane_cloture(ctx)
+    if refus is not None:
+        return None, refus
+    refus_chaine = _o._verdict_chaine_financiere(
+        _o._NOM_REGISTRE_FACTURES, ctx["maillons_cloture"][_o._NOM_REGISTRE_FACTURES]
+    )
+    if refus_chaine is not None:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-SOURCE-ILLISIBLE", detail="registre factures incohérent; source illisible"
+        )
+    factures_clients = list(_factures_clients_par_id(ctx["registre_factures_cloture"]).values())
     try:
-        factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(_o._registre_comptes_a_payer())
+        refus_chaine = _o._verdict_chaine_financiere(
+            _o._NOM_REGISTRE_COMPTES_A_PAYER,
+            ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
+        )
+        if refus_chaine is not None:
+            raise comptes_a_payer.RegistreComptesIncoherent("chaîne AP invalide")
+        factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(ctx["registre_ap_cloture"])
     except comptes_a_payer.RegistreComptesIncoherent:
         return None, verdicts_grand_livre.construire_verdict(
             "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"

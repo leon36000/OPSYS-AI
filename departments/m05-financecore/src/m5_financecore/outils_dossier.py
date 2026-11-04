@@ -37,6 +37,7 @@ from .outils_operations import (
     _HORODATAGE,
     _date_valide,
     _factures_clients_par_id,
+    _instantane_cloture,
     _recu_ecriture,
     accepte,
     contexte_operations,
@@ -100,14 +101,16 @@ def preparer_dossier_cpa(debut: str, fin: str, date_reference: str, horodatage: 
         return refuse(refus)
     if not _date_valide(fin) or not _date_valide(debut):
         return refuse(_verdict("REJ-DOSSIER-PERIODE-INVALIDE", "debut et fin AAAA-MM-JJ"))
-    registre_factures, registre_ap = _o._registre_factures(None), _o._registre_comptes_a_payer()
     base, refus_base = base_fiscale.charger_base_par_defaut()
-    maillons_ops = ctx["ops"].lire()
+    ctx, refus = _instantane_cloture(ctx)
+    if refus is not None:
+        return refuse(refus)
+    maillons_ops = ctx["maillons_cloture"][_o._NOM_REGISTRE_OPERATIONS]
     tetes = {
-        "grand_livre": ctx["gl"].tete(),
+        "grand_livre": ctx["tetes_cloture"][_o._NOM_REGISTRE_GRAND_LIVRE],
         "operations": _tete_hors_dossiers(maillons_ops),
-        "factures": registre_factures.tete(),
-        "comptes_a_payer": registre_ap.tete(),
+        "factures": ctx["tetes_cloture"][_o._NOM_REGISTRE_FACTURES],
+        "comptes_a_payer": ctx["tetes_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
     }
     controle = None
     if debut <= fin:
@@ -121,9 +124,24 @@ def preparer_dossier_cpa(debut: str, fin: str, date_reference: str, horodatage: 
             )
         if refus is not None:
             return refuse(refus)
-    factures_clients = list(_factures_clients_par_id().values())
+    refus_chaine = _o._verdict_chaine_financiere(
+        _o._NOM_REGISTRE_FACTURES, ctx["maillons_cloture"][_o._NOM_REGISTRE_FACTURES]
+    )
+    if refus_chaine is not None:
+        return refuse(
+            verdicts_grand_livre.construire_verdict(
+                "REJ-GL-SOURCE-ILLISIBLE", detail="registre factures incohérent; source illisible"
+            )
+        )
+    factures_clients = list(_factures_clients_par_id(ctx["registre_factures_cloture"]).values())
     try:
-        factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(registre_ap)
+        refus_chaine = _o._verdict_chaine_financiere(
+            _o._NOM_REGISTRE_COMPTES_A_PAYER,
+            ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
+        )
+        if refus_chaine is not None:
+            raise comptes_a_payer.RegistreComptesIncoherent("chaîne AP invalide")
+        factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(ctx["registre_ap_cloture"])
     except comptes_a_payer.RegistreComptesIncoherent:
         return refuse(
             verdicts_grand_livre.construire_verdict(
