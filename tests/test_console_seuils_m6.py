@@ -321,3 +321,22 @@ def test_texte_decimal_d_une_valeur_absente_est_un_tiret():
 
     assert ui._texte_decimal(None) == "—"
     assert ui._texte_decimal("0.3") == "0.3"
+
+
+@pytest.mark.parametrize("texte", ["=0.2", "REV-FICTIF=", "=", " = ", "A=0.1\nA=0.2", "A=1=2"])
+def test_le_textarea_refuse_cle_ou_valeur_vide_doublon_et_double_egal_avec_le_code_de_structure(texte):
+    # Pinne le CODE de refus (REJ-SEUILS-STRUCTURE) : sans ce test, deux gardes de `_mappage` (clé vide / valeur
+    # vide) étaient des mutants « équivalents » parce que le refus tardif de valider_config les rattrapait.
+    from opsys.console import seuils_materiaux_ui as ui
+    from m6_material_control import seuils_variance as sv
+
+    with pytest.raises(sv.SeuilsRefuses) as exc:
+        ui._mappage(texte, "revetement")
+    assert "REJ-SEUILS-STRUCTURE" in str(exc.value.args[0] if exc.value.args else exc.value)
+
+
+def test_le_textarea_accepte_une_entree_valide_et_ignore_les_lignes_vides():
+    from opsys.console import seuils_materiaux_ui as ui
+
+    assert ui._mappage("REV-FICTIF=0.2\n\n  SOF-FICTIF = 0.25 \n", "revetement") == {
+        "REV-FICTIF": "0.2", "SOF-FICTIF": "0.25"}
