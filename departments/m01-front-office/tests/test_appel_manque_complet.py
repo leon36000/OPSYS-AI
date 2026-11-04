@@ -209,6 +209,26 @@ def test_contact_reussi_refuse_un_transfert_sans_appel(capacites_m1):
     assert "REJ-RAPPEL-SANS-APPEL" in str(sortie)
 
 
+def test_contact_reussi_sans_appel_rend_un_verdict_structure(capacites_m1):
+    """Le refus métier attendu est structuré, sans convertir le code en erreur de registre."""
+    _sms(capacites_m1, "Bonjour, pouvez-vous me rappeler au sujet de ma demande?")
+    transfert = capacites_m1.appeler(
+        "m1_transferer", {"type_transfert": "ventes", "canal": "sms", "expediteur": NUMERO}
+    )
+    assert transfert.get("ok") is True, transfert
+    transfert_id = transfert["resultat"]["resultat"]["transfert"]["transfert_id"]
+    demande = capacites_m1.appeler(
+        "m1_consigner_contact_reussi",
+        {"transfert_id": transfert_id, "horodatage": "2026-09-29T10:15:00-04:00"},
+    )
+    assert demande.get("statut") == "en_attente_approbation", demande
+    sortie = _decider(capacites_m1, demande["demande_id"])
+    assert sortie["statut"] == "echec"
+    assert sortie["reponse"]["ok"] is True
+    assert sortie["reponse"]["resultat"]["accepte"] is False
+    assert sortie["reponse"]["resultat"]["verdict"]["code"] == "REJ-RAPPEL-SANS-APPEL"
+
+
 def test_contact_reussi_refuse_un_horodatage_anterieur_a_l_appel(capacites_m1):
     resultat = _importer(capacites_m1)
     transfert_id = resultat["tache_rappel"]["transfert_id"]
