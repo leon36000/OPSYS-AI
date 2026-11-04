@@ -403,6 +403,13 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
   injectée. Le mobile n'a pas d'écran « retards » dédié ; la replanification reste un outil admin N3, pas un parcours
   d'appareil.
 
+## 7 septies. État de la vérification de la vague 14 (4 novembre 2026)
+
+- **Relecture adverse par un autre modèle** : faite pour M1-F (muse), M3 estimateurs (muse), M4 P4-04/05 (deepseek), M6 C7/C4 et C9/C10 (muse) et M5→M8 C5 (Gemini Flex) ; les défauts prouvés ont été corrigés. **Pas faite** pour M1-E/M1-G/M1-H (livraison de la vague 14) : M1-G, qui décide ce qu'un client voit de son dossier après vérification d'identité, a des tests d'abus (usurpation, énumération, niveau insuffisant) et 83 mutants tués sur 83, mais aucun autre modèle ne l'a attaquée.
+- **Corrections reprises sans rapport d'agent** : le budget de la clé LiteLLM d'essai a été épuisé pendant les corrections de M4, M6 (deux fois) et M8 ; leurs dossiers ont été repris tels quels et revérifiés par exécution (départements complets, suite du socle, balayages de mutation indépendants des modules nouveaux). Deux défauts introduits par ces corrections ont été trouvés et corrigés à l'intégration (garde « instant avec fuseau » inversée dans les alertes M6 ; fraîcheur de l'écart M8 prise sur des faits historiques).
+- **Non intégré** : les prévisions financières à 6/12/24 mois de M5 (branche locale `claude/ds-w14-m5`, ~2 600 lignes, tests de l'agent verts, mutations et relecture adverse non faites) et la tâche M10 (consolidation nocturne, mémoire des plaintes, audit non-oubli) n'ont pas pu être menées à terme.
+- **Mutations** : balayages ciblés par module (tests du module), pas la suite entière par mutant ; les survivants jugés équivalents l'ont été avec un exemple d'entrée, jamais par principe.
+
 ## 8. Écarts de documentation connus et non corrigés
 
 - Les décisions d'architecture (ADR) 0002, 0006, 0007 et 0008 citent `core/UPSTREAM.md` et un outil `scripts/tally.py` qui n'existent pas dans ce
