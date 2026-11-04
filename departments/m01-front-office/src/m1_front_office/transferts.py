@@ -426,6 +426,38 @@ def _diagnostic_des_messages(
         return None
 
 
+def _valeur_du_lead(lead: Mapping[str, Any] | None, champ: str) -> str | None:
+    """Un champ texte NON VIDE d'un lead déjà validé, ou `None`. Aucune conversion, aucune valeur de repli."""
+    if not isinstance(lead, Mapping):
+        return None
+    valeur = lead.get(champ)
+    return valeur if isinstance(valeur, str) and valeur.strip() else None
+
+
+def _diagnostic_avec_le_lead(
+    diagnostic: dict[str, Any] | None, lead: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Complète le diagnostic des messages avec le `service` et la `ville` d'un lead DÉJÀ VALIDÉ.
+
+    Le texte rassemblé d'une conversation peut encore évoquer les deux services que le client a départagés : le
+    relire seul annoncerait un `service` manquant alors que le lead, lui, l'établit. Le lead est la lecture que M1 a
+    acceptée (`qualification.qualifier`, contrat gelé) : ses deux champs sont réutilisés tels quels, jamais relus dans
+    le texte ni devinés. Un lead absent ou incomplet ne remplace rien ; un profil indisponible garde son diagnostic
+    partiel (`diagnostic_indisponible`), même si un lead existe : le contrat ne comble pas un profil absent.
+    """
+    if lead is None:
+        return diagnostic
+    service, ville = _valeur_du_lead(lead, "service"), _valeur_du_lead(lead, "ville")
+    if diagnostic is None:
+        return None
+    resultat = dict(diagnostic)
+    if service:
+        resultat["service"] = service
+    if ville:
+        resultat["ville"] = ville
+    return resultat
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Écrire : les lignes du registre
 # ---------------------------------------------------------------------------------------------------------------
@@ -520,6 +552,9 @@ def preparer_ouverture(
         lead = None if ouverte.lead is None else ouverte.lead["lead"]
     horodatages = [m["horodatage"] for m in couverts]
     diagnostic = _diagnostic_des_messages(couverts, zone_desservie, services, contact)
+    # Le lead déjà émis est la lecture validée de la conversation : ses champs priment sur un texte rassemblé qui
+    # évoque encore les services départagés. Un lead absent ou incomplet ne comble rien.
+    diagnostic = _diagnostic_avec_le_lead(diagnostic, lead)
     informations = informations_manquantes(diagnostic, contact_present=contact is not None)
     action = prochaine_action_recommandee(type_transfert, informations, retire=retire)
     faits = composer_faits(
