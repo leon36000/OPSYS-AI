@@ -312,12 +312,12 @@ def _tout_lire(deps, **args):
 def test_lire_a_la_livraison_dit_vingt_huit_manquants_avec_ce_que_ca_bloque_et_la_proposition(deps):
     pages = _tout_lire(deps)
     page = pages[0]
-    # 31 réglages vides (M2, M8 dont six seuils d'alerte, M5, M9, trois de M6 pour C9 et C10)
+    # 32 réglages vides (M2, M8 dont six seuils d'alerte, M5, M9, trois de M6 pour C9 et C10, un de M4)
     # + 2 de M6 (C3) déjà valorisés à department.yaml.
-    assert page["accepte"] is True and page["total"] == 34 and page["manquants"] == 31
+    assert page["accepte"] is True and page["total"] == 35 and page["manquants"] == 32
     assert page["chaine"]["valide"] is True and "recommandation, non validée" in page["mention"]
     lignes = [ligne for p in pages for ligne in p["reglages"]]
-    assert len(lignes) == 31 and pages[-1]["prochain_depart"] is None
+    assert len(lignes) == 32 and pages[-1]["prochain_depart"] is None
     assert {r["cle"] for r in lignes if r["departement"] == "m09-strategic-intelligence"} == {
         "m9.plaintes_seuil_nombre", "m9.capacite_utilisation_seuil_pct", "m9.depense_marketing_plafond_cad",
         "m9.leads_plancher_par_semaine", "m9.estimation_ecart_relatif_max", "m9.retard_chantier_jours",
@@ -350,7 +350,7 @@ def test_lire_apres_adoption_ne_liste_plus_le_reglage_comme_manquant_sauf_si_dem
     with stockage.transaction() as cnx:
         aide.resultat(aide.adopter(cnx, deps, CLE, 7))
     manquants = _tout_lire(deps)
-    assert manquants[0]["manquants"] == 30 and CLE not in {r["cle"] for p in manquants for r in p["reglages"]}
+    assert manquants[0]["manquants"] == 31 and CLE not in {r["cle"] for p in manquants for r in p["reglages"]}
     tous = _tout_lire(deps, seulement_manquants=False)
     adopte = next(r for p in tous for r in p["reglages"] if r["cle"] == CLE)
     assert (adopte["statut"], adopte["valeur"], adopte["version"]) == ("adopte", "7", 1)

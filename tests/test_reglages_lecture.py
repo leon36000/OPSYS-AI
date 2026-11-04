@@ -223,7 +223,7 @@ def test_etat_a_la_livraison_tout_manque_avec_proposition_sourcee_et_ce_que_ca_b
     with stockage.transaction():
         etat = lecture.etat_des_reglages(deps)
     # 28 réglages vides (M2, M8 dont six seuils d'alerte, M5, M9) + 2 de M6 (C3) déjà valorisés à department.yaml.
-    assert etat["total"] == 34 and etat["manquants"] == 31 and etat["chaine"]["valide"] is True
+    assert etat["total"] == 35 and etat["manquants"] == 32 and etat["chaine"]["valide"] is True
     par_cle = {r["cle"]: r for r in etat["reglages"]}
     relances = par_cle["m2.jours_entre_relances"]
     assert relances["statut"] == "vide" and relances["manque"] is True and relances["valeur"] is None

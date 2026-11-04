@@ -172,10 +172,10 @@ def test_le_geste_complet_de_la_console_sur_les_deux_moteurs(instance):
                             follow_redirects=False)
         assert refus.status_code == 400 and "HORS-BORNES" in refus.text
         vue = client.get("/api/reglages").json()
-        assert vue["manquants"] == 30 and vue["chaine"]["valide"] is True
+        assert vue["manquants"] == 31 and vue["chaine"]["valide"] is True
         champs["action"] = "revenir"
         champs["version_attendue"] = "1"
         assert client.post("/reglages/geste", data=champs, follow_redirects=False).status_code == 303
-        assert client.get("/api/reglages").json()["manquants"] == 31
+        assert client.get("/api/reglages").json()["manquants"] == 32
     with stockage.transaction(url):
         assert [m["type"] for m in magasin.lire_chaine()] == ["adoption", "retour_arriere"]
