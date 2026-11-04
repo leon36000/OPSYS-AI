@@ -15,6 +15,10 @@ GARDES, toutes fermées :
 - la leçon doit être ACTIVE (`complete` ou `canari`), porter un paramètre décimal lisible, au moins une
   source et une date ISO avec fuseau : une valeur sans ces éléments ne peut pas être CITÉE, donc elle
   n'est pas appliquée ;
+- pour un écart de MATÉRIAU, l'ENTRÉE et la LEÇON doivent porter une unité non vide EXACTEMENT égale :
+  aucune conversion, aucun synonyme. Une unité absente (`unite_entree_absente`, `unite_lecon_absente`)
+  ou différente (`unite_incompatible`) ne corrige rien ; une leçon d'une autre unité ne masque pas une
+  leçon compatible ;
 - deux leçons applicables au même cas ne sont JAMAIS cumulées : `plusieurs_lecons_actives` les refuse
   toutes, ce qui vaut mieux qu'un choix muet de la dernière.
 
@@ -77,6 +81,11 @@ def lire_minimum(reglages: Any) -> tuple[int | None, str | None]:
     if type(valeur) is not int or not _MINIMUM_MIN <= valeur <= _MINIMUM_MAX:
         return None, "minimum_invalide"
     return valeur, None
+
+
+def _unite(valeur: Any) -> str | None:
+    """L'unité EXACTE d'une entrée ou d'une leçon : un texte non vide, sans conversion ni synonyme."""
+    return valeur if isinstance(valeur, str) and valeur.strip() else None
 
 
 def _dec(valeur: Any) -> Decimal | None:
@@ -144,7 +153,7 @@ def _sources(lecon: Mapping[str, Any]) -> list[str] | None:
 
 
 def _verifier(
-    lecon: Any, *, genre: str, cible: str, cle: str, minimum: int
+    lecon: Any, *, genre: str, cible: str, cle: str, minimum: int, unite_attendue: str | None = None
 ) -> tuple[dict[str, Any] | None, str | None]:
     """La forme minimale d'une leçon APPLICABLE, ou la raison NOMMÉE de son refus."""
     if not isinstance(lecon, Mapping):
@@ -164,6 +173,13 @@ def _verifier(
         return None, "parametre_invalide"
     if genre == "ecart_materiau" and parametre <= 0:
         return None, "parametre_invalide"
+    unite_lecon = None
+    if genre == "ecart_materiau":
+        unite_lecon = _unite(contenu.get("unite"))
+        if unite_lecon is None:
+            return None, "unite_lecon_absente"
+        if unite_attendue is not None and unite_lecon != unite_attendue:
+            return None, "unite_incompatible"
     chantiers = contenu.get("chantiers")
     if type(chantiers) is not int:
         return None, "echantillon_invalide"
@@ -186,6 +202,7 @@ def _verifier(
         "mode": GENRES[genre],
         "etat": lecon["etat"],
         "decision": _decision(lecon),
+        **({"unite": unite_lecon} if genre == "ecart_materiau" else {}),
     }, None
 
 
@@ -342,6 +359,7 @@ def appliquer_lignes(
             sortie["lignes"].append(ligne)
             sortie["sans_correction"].append({k: ligne[k] for k in ("cle", "raison")})
             continue
+        unite_entree = _unite(unite)
         candidates = [
             lecon for lecon in lecons_actives
             if isinstance(lecon, Mapping)
@@ -354,18 +372,37 @@ def appliquer_lignes(
             sortie["lignes"].append(ligne)
             sortie["sans_correction"].append({k: ligne[k] for k in ("cle", "raison")})
             continue
+        if genre == "ecart_materiau" and unite_entree is None:
+            ligne = _ligne_non_corrigee(
+                cle, base_texte, "unite_entree_absente", minimum=minimum_echantillon, unite=unite,
+            )
+            sortie["lignes"].append(ligne)
+            sortie["sans_correction"].append({k: ligne[k] for k in ("cle", "raison")})
+            continue
+        # D5 : une leçon apprise sur une autre unité ne doit ni s'appliquer, ni masquer une leçon de la MÊME
+        # unité. `_verifier` refuse une unité absente ou différente ; une candidate compatible reste donc la
+        # seule à pouvoir produire une attribution. Les refus restent visibles dans `lecons_vues`.
         valides: list[dict[str, Any]] = []
         raisons: list[dict[str, Any]] = []
         for candidate in candidates:
-            attribution, raison = _verifier(candidate, genre=genre, cible=cible, cle=cle, minimum=minimum_echantillon)
+            attribution, raison = _verifier(
+                candidate, genre=genre, cible=cible, cle=cle, minimum=minimum_echantillon,
+                unite_attendue=unite_entree,
+            )
             if attribution is None:
-                raisons.append({
+                contenu = candidate.get("contenu")
+                detail = {
                     "lecon_id": candidate.get("lecon_id"),
                     "raison": raison,
-                    "echantillon": (candidate.get("contenu") or {}).get("chantiers")
-                    if isinstance(candidate.get("contenu"), Mapping) else None,
+                    "echantillon": contenu.get("chantiers") if isinstance(contenu, Mapping) else None,
                     "minimum_echantillon": minimum_echantillon,
-                })
+                }
+                if genre == "ecart_materiau" and raison in {"unite_lecon_absente", "unite_incompatible"}:
+                    detail["unite_lecon"] = (
+                        _unite(contenu.get("unite")) if isinstance(contenu, Mapping) else None
+                    )
+                    detail["unite_entree"] = unite_entree
+                raisons.append(detail)
             else:
                 valides.append(attribution)
         if len(valides) > 1:
@@ -419,6 +456,7 @@ def appliquer_lignes(
         elif len(raisons) == 1 and raisons[0] in {
             "cible_invalide", "etat_non_actif", "identifiant_invalide", "mode_invalide",
             "parametre_invalide", "echantillon_invalide", "sources_absentes", "date_invalide",
+            "unite_lecon_absente", "unite_incompatible",
         }:
             sortie["statut"] = "lecon_inapplicable"
         else:

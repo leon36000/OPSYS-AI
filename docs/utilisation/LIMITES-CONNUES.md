@@ -320,10 +320,16 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
   prévision sans changer la cible. Si deux leçons applicables existent pour la même clé, la consommation les refuse toutes
   (`plusieurs_lecons_actives`) au lieu d'en choisir une en silence. Rien de tout cela n'a été exécuté avec un vrai modèle, de
   vraies données ni sur PostgreSQL.
-- **Unité de la leçon non stockée** : la consommation refuse deux unités différentes pour une même clé DANS UN MÊME appel
-  (`unite_ambigue`), mais la leçon ne porte pas l'unité de ses observations. Une leçon apprise sur une unité peut donc encore
-  être proposée pour une autre unité dans une AUTRE estimation. Fermer ce point exige d'ajouter l'unité à la clé ou au contenu
-  de la leçon (M10) et de traiter la compatibilité des leçons existantes ; non fait dans cette correction.
+- **Unité des leçons d'écart de matériau (corrigé le 4 novembre 2026)** : une nouvelle leçon retient l'unité EXACTE non vide de
+  ses observations dans `contenu.unite` et dans son identité (la clé `materiau` ne change pas) ; deux unités du même matériau
+  forment deux cohortes et deux leçons. L'évaluation et la surveillance ne comparent que les observations de la même unité.
+  La consommation M3 ne corrige que si l'unité de l'entrée et celle de la leçon sont présentes et exactement égales ; une leçon
+  d'une autre unité ne masque pas une leçon compatible, et deux leçons valides du même couple (matériau, unité) restent ambiguës
+  (`plusieurs_lecons_actives`). Deux unités dans une même entrée restent refusées (`unite_ambigue`). Une leçon historique sans
+  unité reste lisible et inchangée, mais elle est non évaluable (`unite_absente`) et non applicable (`unite_lecon_absente`) ;
+  aucune migration ni promotion héritée. Aucune conversion ni synonyme (`pi` ≠ `pi2` ≠ `pied`) ; le contrat du bus M6 est
+  inchangé. Limites restantes : aucune donnée réelle, aucun PostgreSQL rejoué pour cette correction, et les leçons historiques
+  sans unité ne peuvent pas être rattachées automatiquement (il faudrait une nouvelle observation sourcée).
 - **Droit aux coûts de la marge corrigée** : le consommateur refuse par défaut de calculer une marge sans `droit_aux_couts`
   explicite (`droit_aux_couts_absent`) ; M5 ne le passe que dans sa vue détaillée déjà autorisée. La politique de qui peut
   voir la marge corrigée, par quels canaux et avec quelle trace reste à trancher par la direction ; aucun écran employé n'a

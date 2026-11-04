@@ -16,7 +16,9 @@ Le cycle, sans raccourci :
   sont des données structurées calculées en `Decimal`, jamais recopiées de tête dans une réponse.
 - **Évaluation hors ligne, en deux parties.** (1) LA MESURE, pour un écart chiffré : le paramètre est ajusté sur les
   chantiers d'ENTRAÎNEMENT et mesuré sur des chantiers distincts, tenus à l'écart (partage par hachage de l'identifiant
-  du chantier) : erreur avant, erreur après, pire dégradation d'un chantier. (2) LA GARDE DU GABARIT, pour toutes : le
+  du chantier) : erreur avant, erreur après, pire dégradation d'un chantier. Pour un écart de matériau, seules les
+  observations de la MÊME unité exacte sont comparées ; une leçon historique sans unité n'est pas évaluable et le dit
+  (`unite_absente`). (2) LA GARDE DU GABARIT, pour toutes : le
   texte de la leçon est ajouté aux réponses de référence du corpus du gabarit commun du département visé, et le rapport
   est comparé à celui sans la leçon (aucune régression, aucun cas bloquant échoué de plus). La garde monte une instance
   fictive : elle ne peut pas tourner dans un appel d'outil (transaction ouverte) ; c'est l'opérateur qui la lance
@@ -102,6 +104,7 @@ class Ecart:
     reel: Decimal
     ligne_id: str
     quand: str
+    unite: str | None = None
 
 
 # -- observations tirées des registres de M10
@@ -115,6 +118,15 @@ def _dec(valeur: Any) -> Decimal | None:
         return None
 
 
+def _unite_lecon(lecon: Mapping[str, Any]) -> str | None:
+    """L'unité EXACTE déclarée par une leçon, ou `None` : aucune conversion, aucun synonyme, aucun défaut."""
+    contenu = lecon.get("contenu")
+    if not isinstance(contenu, Mapping):
+        return None
+    unite = contenu.get("unite")
+    return unite if isinstance(unite, str) and unite.strip() else None
+
+
 def ecarts_materiaux(maillons: Iterable[Mapping[str, Any]]) -> list[Ecart]:
     """Un écart prévu / réel par (chantier, matériau) : la dernière variance ÉVALUÉE de chaque `wct_id`. Une quantité
     prévue nulle ou une ligne sans unité cohérente n'est pas une observation."""
@@ -126,9 +138,19 @@ def ecarts_materiaux(maillons: Iterable[Mapping[str, Any]]) -> list[Ecart]:
     for wct_id, m in derniere.items():
         for ligne in m["lignes"]:
             prevu, reel = _dec(ligne.get("quantite_prevue")), _dec(ligne.get("quantite_reelle"))
-            if ligne.get("unite") is None or prevu is None or reel is None or prevu <= 0 or reel < 0:
+            unite = ligne.get("unite")
+            if (
+                not isinstance(unite, str)
+                or not unite.strip()
+                or prevu is None
+                or reel is None
+                or prevu <= 0
+                or reel < 0
+            ):
                 continue
-            sortie.append(Ecart(wct_id, str(ligne["materiau"]), prevu, reel, m["ligne_id"], m["horodatage"]))
+            sortie.append(
+                Ecart(wct_id, str(ligne["materiau"]), prevu, reel, m["ligne_id"], m["horodatage"], unite)
+            )
     return sortie
 
 
@@ -280,8 +302,9 @@ def etat(registre: Any) -> EtatLecons:
 
 
 def lecon_id(genre: str, cible: str, cle: str, identite: Mapping[str, Any]) -> str:
-    """Identité d'une leçon : ce qu'elle DIT (le paramètre, l'outil et le code, la dimension), pas combien de chantiers
-    l'appuient : de nouvelles observations qui redonnent le même paramètre ne font pas une nouvelle leçon."""
+    """Identité d'une leçon : ce qu'elle DIT (le paramètre, l'unité pour un matériau, l'outil et le code, la dimension),
+    pas combien de chantiers l'appuient : de nouvelles observations qui redonnent le même paramètre et la même unité ne
+    font pas une nouvelle leçon. La clé `materiau` reste inchangée ; l'unité est ajoutée à l'identité, pas à la clé."""
     canon = json.dumps([genre, cible, cle, identite], sort_keys=True, ensure_ascii=False)
     return "lc-" + hashlib.sha256(canon.encode("utf-8")).hexdigest()[:20]
 
@@ -338,6 +361,15 @@ TEXTES_MARKETING = {
 }
 
 
+def _meme_cohorte(autre: Mapping[str, Any], genre: str, contenu: Mapping[str, Any]) -> bool:
+    """Deux leçons d'écart de matériau ne se doublent que dans la MÊME unité ; les autres genres n'en ont pas."""
+    if genre != "ecart_materiau":
+        return True
+    autre_contenu = autre.get("contenu")
+    autre_unite = autre_contenu.get("unite") if isinstance(autre_contenu, Mapping) else None
+    return autre_unite == contenu.get("unite")
+
+
 def _proposer(
     registre: Any,
     st: EtatLecons,
@@ -364,9 +396,10 @@ def _proposer(
             autre["genre"] == genre
             and autre["cible"] == cible
             and autre["cle"] == cle
+            and _meme_cohorte(autre, genre, contenu)
             and st.promotion.etats.get(autre_id) in ("proposee", "canari")
         ):
-            return "en_cours", ident  # une décision attend déjà pour cette clé : on ne la double pas
+            return "en_cours", ident  # une décision attend déjà pour cette cohorte : on ne la double pas
     registre.ajouter(
         {
             "type_entree": TYPE_PROPOSEE,
@@ -382,7 +415,7 @@ def _proposer(
             "propose_par": par,
         }
     )
-    st.lecons[ident] = {"genre": genre, "cible": cible, "cle": cle}
+    st.lecons[ident] = {"genre": genre, "cible": cible, "cle": cle, "contenu": contenu}
     st.promotion = promotion.rejouer(
         [m for m in registre.lire() if m.get("type_entree") in (TYPE_PROPOSEE, TYPE_DECISION)],
         type_proposition=TYPE_PROPOSEE,
@@ -423,11 +456,18 @@ def extraire(
         ("ecart_materiau", "m06-material-control", ecarts_mat),
         ("ecart_marge", "m05-financecore", ecarts_mar),
     ):
-        groupes: dict[str, list[Ecart]] = {}
+        groupes: dict[tuple[str, str | None], list[Ecart]] = {}
         for e in ecarts:
-            groupes.setdefault(e.groupe, []).append(e)
-        for groupe in sorted(groupes):
-            serie = groupes[groupe]
+            # Valider avant de grouper ou trier : l'API Python accepte aussi des écarts construits directement.
+            # Conserver toute unité valide telle quelle : `" pi "` reste distincte de `"pi"`.
+            unite = e.unite if genre == "ecart_materiau" and isinstance(e.unite, str) and e.unite.strip() else None
+            cohorte = (e.groupe, unite)
+            groupes.setdefault(cohorte, []).append(e)
+        for groupe, unite in sorted(groupes, key=lambda c: (c[0], c[1] or "")):
+            if genre == "ecart_materiau" and not unite:
+                bilan["sans_lecon"].append({"genre": genre, "cle": groupe, "raison": "unite_absente"})
+                continue
+            serie = groupes[(groupe, unite)]
             ajuste = ajuster(genre, serie)
             if ajuste is None or not ajuste["lecon"]:
                 bilan["sans_lecon"].append(
@@ -443,9 +483,15 @@ def extraire(
                 "chantiers": ajuste["chantiers"],
                 "coherence": ajuste["coherence"],
                 "empreinte_observations": hashlib.sha256(
-                    json.dumps(sorted([e.chantier, str(e.prevu), str(e.reel)] for e in serie)).encode()
+                    json.dumps(
+                        sorted([e.chantier, str(e.prevu), str(e.reel), e.unite or ""] for e in serie)
+                    ).encode()
                 ).hexdigest(),
             }
+            identite = {"parametre": ajuste["parametre"]}
+            if genre == "ecart_materiau":
+                contenu["unite"] = unite
+                identite["unite"] = unite
             sources = sorted({e.ligne_id for e in serie})
             note(
                 _proposer(
@@ -455,7 +501,7 @@ def extraire(
                     cible=cible,
                     cle=groupe,
                     contenu=contenu,
-                    identite={"parametre": ajuste["parametre"]},
+                    identite=identite,
                     sources=sources,
                     par=par,
                     horodatage=horodatage,
@@ -561,8 +607,18 @@ def evaluer_mesure(
         raise ErreurMnemo(codes.LECON_INCONNUE, "leçon introuvable")
     genre = lecon["genre"]
     if genre in GENRES_CHIFFRES:
-        serie = [e for e in (ecarts_mat if genre == "ecart_materiau" else ecarts_mar) if e.groupe == lecon["cle"]]
-        mesure = mesurer(genre, lecon["contenu"]["parametre"], serie)
+        if genre == "ecart_materiau":
+            unite = _unite_lecon(lecon)
+            if unite is None:
+                mesure = {"mesurable": False, "raison": "unite_absente"}
+            else:
+                serie = [
+                    e for e in ecarts_mat if e.groupe == lecon["cle"] and e.unite == unite
+                ]
+                mesure = mesurer(genre, lecon["contenu"]["parametre"], serie)
+        else:
+            serie = [e for e in ecarts_mar if e.groupe == lecon["cle"]]
+            mesure = mesurer(genre, lecon["contenu"]["parametre"], serie)
     else:
         mesure = {"mesurable": False, "raison": "aucune mesure chiffrée possible hors ligne pour ce genre"}
     registre.ajouter(
@@ -622,6 +678,8 @@ def verdict_evaluation(st: EtatLecons, ident: str, empreinte_garde: str) -> dict
     parties = st.evaluations.get(ident, {})
     raisons: list[str] = []
     mesure, garde = parties.get("mesure"), parties.get("gabarit")
+    if genre == "ecart_materiau" and _unite_lecon(st.lecons[ident]) is None:
+        raisons.append("unite_absente")
     if genre in GENRES_CHIFFRES:
         if mesure is None:
             raisons.append("mesure_manquante")
@@ -793,11 +851,25 @@ def surveiller(registre: Any, ecarts_mat: Sequence[Ecart], ecarts_mar: Sequence[
         if lc["genre"] not in GENRES_CHIFFRES:
             continue
         promue = max((d["horodatage"] for d in st.decisions[ident] if d["etape"] == "complete"), key=_instant)
-        serie = [
-            e
-            for e in (ecarts_mat if lc["genre"] == "ecart_materiau" else ecarts_mar)
-            if (lc["genre"] == "ecart_marge" or e.groupe == lc["cle"]) and _instant(e.quand) > _instant(promue)
-        ]
+        if lc["genre"] == "ecart_materiau":
+            unite = _unite_lecon(lc)
+            if unite is None:
+                rapport.append(
+                    {
+                        "lecon_id": ident,
+                        "statut": "unite_absente",
+                        "raison": "unite_absente",
+                        "chantiers_depuis_promotion": 0,
+                    }
+                )
+                continue
+            serie = [
+                e
+                for e in ecarts_mat
+                if e.groupe == lc["cle"] and e.unite == unite and _instant(e.quand) > _instant(promue)
+            ]
+        else:
+            serie = [e for e in ecarts_mar if _instant(e.quand) > _instant(promue)]
         if len({e.chantier for e in serie}) < TEST_MIN:
             rapport.append({"lecon_id": ident, "statut": "insuffisant", "chantiers_depuis_promotion": len(serie)})
             continue

@@ -657,6 +657,7 @@ def test_le_parcours_complet_d_une_lecon_de_l_extraction_a_la_lecture_par_le_dep
     [ident] = bilan["proposees"]
     lc = _ok(m10.appeler("m10_lire_lecons", {}))["lecons"][0]
     assert lc["etat"] == "proposee" and lc["cible"] == M6 and lc["genre"] == "ecart_materiau"
+    assert lc["contenu"]["unite"] == "u"
     # rien n'est applicable : proposée seulement
     assert _ok(_caps(deps, M6).appeler("opsys_lecons_actives", {"cle_application": "chantier-1"}))["lecons"] == []
     # sans évaluation complète, pas de canari
