@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 from m5_financecore import import_quickbooks as qbo
@@ -48,8 +49,11 @@ def _classeur(reference: str) -> bytes:
 
 
 def _lire_sous_plafond(reference: str) -> dict:
+    env = os.environ.copy()
+    racine_m5 = str(Path(qbo.__file__).resolve().parents[1])
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, (racine_m5, env.get("PYTHONPATH", ""))))
     sortie = subprocess.run([sys.executable, "-c", _ENFANT, _classeur(reference).hex()], capture_output=True,
-                            text=True, timeout=120, env=os.environ.copy(), check=False)
+                            text=True, timeout=120, env=env, check=False)
     assert sortie.returncode == 0, sortie.stderr[-500:]
     return json.loads(sortie.stdout.strip().splitlines()[-1])
 
