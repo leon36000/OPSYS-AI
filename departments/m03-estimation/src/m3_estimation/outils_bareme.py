@@ -38,6 +38,7 @@ from . import (
     conditions_soumission,
     contrats,
     entrees_declarees,
+    estimateurs_service,
     estimation,
     mesure_declaree,
     registre,
@@ -48,6 +49,7 @@ __all__ = [
     "ENV_VOIE_LIBRE",
     "VALEUR_VOIE_LIBRE",
     "arguments_libres_presents",
+    "calculer_estimation_service",
     "conditions_pour_devis",
     "construire_declaration",
     "outils_bareme",
@@ -219,6 +221,7 @@ def _resume_version(version: dict[str, Any], rejoue: bool | None = None) -> dict
         "valide": version["valide"],
         "nombre_lignes": len(version["lignes"]),
         "services": sorted({ligne["service"] for ligne in version["lignes"] if ligne["genre"] == "ouvrage"}),
+        "services_avec_estimateur": sorted(version["parametres"].get("estimateurs") or {}),
         "plancher_rentable_declare": "plancher_rentable_cad" in version["parametres"],
         "declaree_par": version["auteur"]["personne"],
         "declaree_le": version["horodatage"],
@@ -405,6 +408,44 @@ def rejouer_estimation(estimation_id: str) -> dict[str, Any]:
     return {"accepte": True, "resultat": {"estimation_id": estimation_id, **rapport}}
 
 
+# -- estimateurs par service (M3.8b) -------------------------------------------------------------------------------
+def calculer_estimation_service(
+    lead_id: str, service: str, bareme_ref: Any, mesures_ref: Any,
+) -> dict[str, Any]:
+    """Compose et chiffre l'estimation d'un service à partir du barème et des mesures DÉCLARÉS (M3.8b).
+
+    Lecture seule : le barème est résolu dans la version en vigueur (validée, empreinte vérifiée si donnée), chaque
+    mesure est résolue pour CE lead et CE service (même règle que ``m3_estimer_projet``), puis le module pur compose
+    les quantités et calcule les montants. Aucune écriture, aucun évènement, aucun prix inventé."""
+    maintenant = horloge.maintenant()
+    version, verdict = bareme_registre.resoudre(journal_bareme(), bareme_ref, maintenant)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    _, verdict = estimateurs_service.estimateur(version, service)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    if type(mesures_ref) is not list or not mesures_ref:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-ESTIMATEUR-INVALIDE",
+            detail=(
+                "mesures_ref : une liste non vide de références {mesure_id} est attendue ; une estimation par "
+                "service se compose de la mesure de chacune de ses grandeurs déclarées"
+            ),
+        )}
+    mesures = []
+    for reference in mesures_ref:
+        mesure, verdict = mesure_declaree.resoudre(journal_mesures(), reference, lead_id, service)
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+        mesures.append(mesure)
+    resultat, verdict = estimateurs_service.estimer(
+        version=version, service=service, lead_id=lead_id, mesures=mesures, maintenant=maintenant,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return {"accepte": True, "resultat": resultat}
+
+
 # -- déclaration des outils ----------------------------------------------------------------------------------------
 def _schema(proprietes: dict[str, Any], requis: list[str]) -> dict[str, Any]:
     return {"type": "object", "properties": proprietes, "required": requis, "additionalProperties": False}
@@ -430,6 +471,22 @@ _LIGNE_BAREME = {
     },
     "required": ["service", "genre", "element", "unite", "source_ecrite"],
     "additionalProperties": False,
+}
+
+
+_BAREME_REF_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "bareme_id": {"type": "string"}, "version": {"type": "integer", "minimum": 1},
+        "empreinte": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    },
+    "required": ["bareme_id", "version"], "additionalProperties": False,
+}
+_MESURE_REF_SCHEMA = {
+    "type": "object",
+    "properties": {"mesure_id": {"type": "string"}, "revision": {"type": "integer", "minimum": 1},
+                   "empreinte": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "required": ["mesure_id"], "additionalProperties": False,
 }
 
 
@@ -526,5 +583,22 @@ def outils_bareme() -> tuple[Outil, ...]:
             ),
             parametres=_schema({"estimation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, ["estimation_id"]),
             fonction=rejouer_estimation,
+        ),
+        Outil(
+            nom="m3_calculer_estimation_service",
+            description=(
+                "Calcule l'estimation d'un service à partir du barème déclaré (parametres.estimateurs) et d'une mesure "
+                "déclarée par composante (grandeur). Chiffres en Decimal, arrondis au cent ROUND_HALF_UP, reçu de "
+                "calcul rejouable. Refus qui liste les mesures ou déclarations manquantes ; aucun prix n'est inventé : "
+                "le coût probable et le prix exigent le mode et le taux de marge normal déclarés. Lecture seule."
+            ),
+            parametres=_schema({
+                "lead_id": ident, "service": ident, "bareme_ref": _BAREME_REF_SCHEMA,
+                "mesures_ref": {
+                    "type": "array", "items": _MESURE_REF_SCHEMA, "minItems": 1,
+                    "maxItems": estimateurs_service.MAX_COMPOSANTES,
+                },
+            }, ["lead_id", "service", "bareme_ref", "mesures_ref"]),
+            fonction=calculer_estimation_service,
         ),
     )

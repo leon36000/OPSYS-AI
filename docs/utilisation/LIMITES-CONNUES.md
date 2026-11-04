@@ -172,10 +172,12 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - Seuils dormant_lead et quote_stale (configuration.segments vide à dessein)
 - Seuils d'échantillon (20 résolus, 10 convertis, 12 semaines, 20 événements) : valeurs initiales déclarées dans previsions.SEUILS, relevables par l'appelant, à confirmer
 
-**M3 (7)**
+**M3 (9)**
 - Budgets API géospatiaux
 - Validation de la politique photos
 - GPU et budgets pour SAM2
+- Valeurs réelles des estimateurs par service (coefficients signés, facteurs de conversion, minimum de quantité, temps minimum) : déclarées par le propriétaire, jamais fournies par le code.
+- Ouverture éventuelle de m3_calculer_estimation_service aux appareils seller/admin : décision d'architecte (outil aujourd'hui fermé aux appareils).
 - Confirmation de l'unité des prix M6
 - minimum_rentable_cad, taux et scénarios de prix
 - Seuils de validation obligatoire
@@ -228,12 +230,14 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - Politique de consentement SMS en PROPOSITION (validation écrite de Nathan)
 - Envoi réel T2.1-c inexistant
 
-**M3 (8)**
+**M3 (10)**
 - Budgets d'API externes (géocodage, Street View)
 - Politique photos non contractuelles : STATUT_VALIDATION = proposition (aucune collecte réelle tant que non valide)
 - SAM2 en production sur GPU
 - Budgets d'API externes
 - Barème, seuils de revue, taux et minimum rentable vides à dessein (configuration M3)
+- Coefficients, conversions, minimums de quantité et temps minimums des estimateurs par service non fournis (valeurs de Nathan)
+- Intégration de l'estimation composite à m3_estimer_projet (Monte Carlo, plancher, scénarios, registre des estimations, contrat gelé) non faite
 - Unité des prix M6 non déclarée
 - Coût réel certifié M4→M5 non routé en production
 - Cognee en production (non décidé)
@@ -325,6 +329,24 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
   été testé avec cette valeur.
 - **Arrondi et proposition** : les valeurs corrigées sont arrondies au cent (`ROUND_HALF_UP`, marge) ou à 4 décimales
   (quantité), mais restent des propositions N4 : aucune n'est écrite dans un registre, un devis, un prix ou une marge calculée.
+
+## 7 ter. Estimateurs par service M3 (M3.8b, 3 novembre 2026)
+
+- **M3** : `m3_calculer_estimation_service` compose la quantité d'un service (gouttières, revêtement, soffite/fascia,
+  réparation) à partir de mesures déclarées et de coefficients **déclarés** dans `parametres.estimateurs` du barème ;
+  aucun prix, taux ni coefficient n'est dans le code. Il rend des coûts min/probable/max au cent (`ROUND_HALF_UP`), un
+  prix recommandé seulement si le mode et le taux normal sont déclarés, et un reçu vérifiable par recalcul.
+- **Non branché à `m3_estimer_projet`** : le Monte Carlo, le plancher, les scénarios, le registre des estimations et le
+  contrat gelé `EstimationV1` restent ceux de la voie mono-mesure. La quantité composée doit encore être déclarée comme
+  mesure par une personne avant l'estimation gouvernée ; l'intégration directe est un chantier suivant.
+- **Une seule ligne d'ouvrage par service** : les composantes sont agrégées dans l'unité de cette ligne ; des coûts
+  unitaires distincts par élément (gouttière, descente, coin) exigeraient plusieurs lignes d'ouvrage, ce que le registre
+  interdit encore.
+- **Aucune valeur réelle, aucun écran, PostgreSQL non éprouvé** : les estimateurs se déclarent par `m3_declarer_bareme`
+  (appareil admin) ; le reçu n'est pas signé (son empreinte détecte une modification interne, pas une réécriture
+  cohérente des registres).
+- **Facteurs absents** : distance, déplacement, saison, urgence et pertes de main-d'œuvre ne sont pas dans la
+  composition ; le modèle de perte reste celui des lignes de matériau (`taux_perte`).
 
 ## 8. Écarts de documentation connus et non corrigés
 

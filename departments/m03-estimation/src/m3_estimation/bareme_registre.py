@@ -45,6 +45,8 @@ from .devis_durable import _ajouter
 from .registre import _encoder_canonique
 
 __all__ = [
+    "MAX_COMPOSANTES",
+    "MAX_ESTIMATEURS",
     "MAX_LIGNES",
     "MAX_MAILLONS",
     "REGISTRE",
@@ -67,6 +69,8 @@ TYPE_VALIDATION = "bareme_validation"
 MAX_MAILLONS = 2000
 MAX_LIGNES = 200
 MAX_TEXTES = 30
+MAX_ESTIMATEURS = 20
+MAX_COMPOSANTES = 16
 
 # Qui peut signer un barème : le propriétaire ou un administrateur. Les rôles d'agent et de client n'y sont jamais.
 ROLES_AUTEUR = frozenset({"nathan_owner", "admin"})
@@ -76,6 +80,9 @@ _ID_BAREME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,39}")
 _CODE = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 _IDENTIFIANT = re.compile(r"[A-Za-z0-9_.:@-]{1,200}")
 _DECIMAL = re.compile(r"[0-9]{1,9}(?:\.[0-9]{1,6})?")
+# Un coefficient d'estimateur peut être NÉGATIF : c'est une soustraction déclarée (ouvertures, surface déduite).
+# Zéro est refusé : un terme qui ne contribue à rien est une déclaration trompeuse, pas une simplification.
+_DECIMAL_SIGNE = re.compile(r"-?[0-9]{1,9}(?:\.[0-9]{1,6})?")
 _DATE = re.compile(
     r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})"
 )
@@ -92,9 +99,11 @@ SEMANTIQUE_TEMPS_QUALIFIEE = "duree_ecoulee_intervention"
 _CLES_OUVRAGE_REQUISES = ("cout_unitaire_min", "cout_unitaire_max")
 _CLES_MATERIAU = ("quantite_par_unite", "taux_perte", "sku")
 _CLES_MATERIAU_REQUISES = ("quantite_par_unite",)
-_CLES_PARAMETRES = ("plancher_rentable_cad", "taux_marge", "seuils_revue", "mesure")
+_CLES_PARAMETRES = ("plancher_rentable_cad", "taux_marge", "seuils_revue", "mesure", "estimateurs")
 _SCENARIOS = ("prudent", "normal", "agressif")
 _CLES_MESURE = ("largeur_relative_revue", "largeur_relative_max_prix", "validite_jours")
+_CLES_ESTIMATEUR = ("unite_ouvrage", "composantes", "quantite_minimum", "temps_minimum_minutes")
+_CLES_COMPOSANTE = ("grandeur", "unite", "coefficient", "facteur_conversion", "source_ecrite")
 _CLES_SOUMISSION = ("exclusions", "hypotheses", "validite_jours")
 _CLES_MAILLON_VERSION = frozenset({
     "type_entree", "rang", "precedent", "bareme_id", "version", "lignes", "parametres", "soumission",
@@ -237,6 +246,104 @@ def _valider_lignes(lignes: Any) -> None:
         raise _invalide(f"matériaux sans ligne d'ouvrage pour le service : {orphelins}")
 
 
+def _decimal_signe(valeur: Any, champ: str) -> Decimal:
+    """Un coefficient SIGNÉ : positif (ajout) ou négatif (soustraction déclarée), jamais zéro."""
+    if type(valeur) is not str or _DECIMAL_SIGNE.fullmatch(valeur) is None:
+        raise _invalide(
+            f"{champ} : un texte décimal signé est attendu (ex. \"1\" ou \"-1\", jusqu'à 6 décimales), jamais un nombre"
+        )
+    lu = Decimal(valeur)
+    if lu == 0:
+        raise _invalide(f"{champ} : un coefficient nul ne contribue à rien ; le retirer de la déclaration")
+    return lu
+
+
+def _valider_composante(etiquette: str, composante: Any, unite_ouvrage: str) -> None:
+    _fermer(composante, _CLES_COMPOSANTE, ("grandeur", "unite", "coefficient", "source_ecrite"), etiquette)
+    if type(composante["grandeur"]) is not str or _CODE.fullmatch(composante["grandeur"]) is None:
+        raise _invalide(
+            f"{etiquette}.grandeur : un code de grandeur est attendu (lettres, chiffres, _ . -), jamais un texte libre"
+        )
+    if not _texte(composante["unite"], 24):
+        raise _invalide(f"{etiquette}.unite : un texte non vide de 24 caractères au plus est attendu")
+    _decimal_signe(composante["coefficient"], f"{etiquette}.coefficient")
+    if not _texte(composante["source_ecrite"], 300):
+        raise _invalide(
+            f"{etiquette}.source_ecrite : la source écrite du coefficient est obligatoire (nom du document, date, "
+            "auteur)"
+        )
+    if composante["unite"] != unite_ouvrage:
+        if "facteur_conversion" not in composante:
+            raise _invalide(
+                f"{etiquette} ({composante['grandeur']!r}) : la composante se mesure en {composante['unite']!r}, "
+                f"l'ouvrage en {unite_ouvrage!r} ; un facteur_conversion déclaré est obligatoire (aucune conversion "
+                "n'est devinée)"
+            )
+        _decimal(composante["facteur_conversion"], f"{etiquette}.facteur_conversion", strict_positif=True)
+    elif "facteur_conversion" in composante:
+        raise _invalide(
+            f"{etiquette} ({composante['grandeur']!r}) : facteur_conversion est interdit quand la composante et "
+            "l'ouvrage partagent la même unité (la conversion serait ambiguë)"
+        )
+
+
+def _valider_estimateurs(estimateurs: Any) -> None:
+    """Les estimateurs par service : des coefficients DÉCLARÉS, chacun avec sa source écrite.
+
+    Aucune formule ni aucun coefficient n'est écrit dans le code. La structure est fermée : une clé inconnue, une
+    grandeur en double, une conversion implicite ou un coefficient nul sont refusés à la déclaration."""
+    if type(estimateurs) is not dict or len(estimateurs) > MAX_ESTIMATEURS:
+        raise _invalide(f"parametres.estimateurs : un objet d'au plus {MAX_ESTIMATEURS} services est attendu")
+    for service, estimateur in estimateurs.items():
+        if type(service) is not str or _CODE.fullmatch(service) is None:
+            raise _invalide("parametres.estimateurs : chaque clé doit être un code de service")
+        etiquette = f"parametres.estimateurs.{service}"
+        _fermer(estimateur, _CLES_ESTIMATEUR, ("unite_ouvrage", "composantes"), etiquette)
+        if not _texte(estimateur["unite_ouvrage"], 24):
+            raise _invalide(f"{etiquette}.unite_ouvrage : un texte non vide de 24 caractères au plus est attendu")
+        composantes = estimateur["composantes"]
+        if (
+            type(composantes) is not list or not 0 < len(composantes) <= MAX_COMPOSANTES
+        ):
+            raise _invalide(
+                f"{etiquette}.composantes : une liste de 1 à {MAX_COMPOSANTES} composantes est attendue"
+            )
+        grandeurs: set[str] = set()
+        for index, composante in enumerate(composantes):
+            sous_etiquette = f"{etiquette}.composantes[{index}]"
+            _valider_composante(sous_etiquette, composante, estimateur["unite_ouvrage"])
+            if composante["grandeur"] in grandeurs:
+                raise _invalide(
+                    f"{sous_etiquette}.grandeur : la grandeur {composante['grandeur']!r} est déclarée en double "
+                    "(une seule mesure par grandeur)"
+                )
+            grandeurs.add(composante["grandeur"])
+        for nom in ("quantite_minimum", "temps_minimum_minutes"):
+            if nom in estimateur:
+                _decimal(estimateur[nom], f"{etiquette}.{nom}", strict_positif=True)
+
+
+def _verifier_estimateurs_avec_lignes(lignes: Any, parametres: Any) -> None:
+    """Un estimateur ne peut chiffrer que le service dont le barème porte une ligne d'ouvrage, dans SON unité."""
+    estimateurs = parametres.get("estimateurs") if isinstance(parametres, dict) else None
+    if not isinstance(estimateurs, dict):
+        return
+    ouvrages = {ligne["service"]: ligne for ligne in lignes if ligne.get("genre") == "ouvrage"}
+    for service, estimateur in estimateurs.items():
+        ligne = ouvrages.get(service)
+        if ligne is None:
+            raise _invalide(
+                f"parametres.estimateurs.{service} : aucune ligne d'ouvrage pour ce service dans la même version ; "
+                "l'estimateur ne pourrait chiffrer aucun coût"
+            )
+        if estimateur["unite_ouvrage"] != ligne["unite"]:
+            raise _invalide(
+                f"parametres.estimateurs.{service}.unite_ouvrage : {estimateur['unite_ouvrage']!r} diffère de l'unité "
+                f"de la ligne d'ouvrage ({ligne['unite']!r}) ; les deux doivent être identiques"
+            )
+
+
+
 def _valider_parametres(parametres: Any) -> None:
     _fermer(parametres, _CLES_PARAMETRES, (), "parametres")
     if "plancher_rentable_cad" in parametres:
@@ -280,6 +387,8 @@ def _valider_parametres(parametres: Any) -> None:
             type(mesure["validite_jours"]) is not int or not 0 < mesure["validite_jours"] <= 3650
         ):
             raise _invalide("parametres.mesure.validite_jours : un nombre entier de jours entre 1 et 3650 est attendu")
+    if "estimateurs" in parametres:
+        _valider_estimateurs(parametres["estimateurs"])
 
 
 def _valider_soumission(soumission: Any) -> None:
@@ -321,6 +430,7 @@ def _valider_contenu(contenu: dict[str, Any]) -> tuple[datetime, datetime | None
         )
     _valider_lignes(contenu["lignes"])
     _valider_parametres(contenu["parametres"])
+    _verifier_estimateurs_avec_lignes(contenu["lignes"], contenu["parametres"])
     _valider_soumission(contenu["soumission"])
     if type(contenu["a_valider"]) is not bool:
         raise _invalide("a_valider : un booléen est attendu")
