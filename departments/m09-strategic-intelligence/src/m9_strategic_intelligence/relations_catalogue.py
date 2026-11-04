@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from .graphe_impacts import Regle
 
-CATALOGUE_RELATIONS_VERSION = "2026-11-04.2"
+CATALOGUE_RELATIONS_VERSION = "2026-11-04.3"
 _R = "resultat.resultat"  # la réponse du dispatcher est {"ok": true, "resultat": <réponse de l'outil>}
 
 REGLES: tuple[Regle, ...] = (
@@ -54,6 +54,8 @@ REGLES: tuple[Regle, ...] = (
         ),
         couverture_complete=("resultat.couverture", "COMPLETE"), lien_invalide_inconnu=True,
         lignes_liste_obligatoire=True, sous_lignes_liste_obligatoire=True,
+        vers_max_octets=2048,
+        composite_absent_legitime=("couverture", "INCONNUE", "manque", "ATTRIBUTION_ABSENTE"),
     ),
 )  # fmt: skip
 
@@ -77,8 +79,10 @@ LIMITES: dict[str, str] = {
     "m5_chantier_po": "comptes[*].chantier_id/po_id ; vient de la réception du PO, pas du devis ; pas de matériau.",
     "m2_lead_proprietaire": "leads[*].proprietaire ; M2 n'expose pas le devis (statut seulement) ; pagine (decalage).",
     "m7_campagne_lead_utm": "couple M7 (source,campagne), identifiant opaque SHA-256 du tuple JSON canonique, vers "
-    "les seules références source_refs typées m2.client_associe ; les types M3/M5 connus sont ignorés et un type "
-    "inconnu laisse la règle inconnue ; le lien décrit l'attribution UTM observée, jamais "
+    "les seules références source_refs typées m2.client_associe (lead_id jusqu'à 2048 octets UTF-8, borne M7) ; "
+    "les types M3/M5 connus sont ignorés et un type inconnu laisse la règle inconnue ; un bucket nul marqué "
+    "ATTRIBUTION_ABSENTE reste sans arête et conserve une couverture INCONNUE ; "
+    "le lien décrit l'attribution UTM observée, jamais "
     "une causalité. Une couverture M7 autre que COMPLETE, absente ou non déclarée conserve les arêtes observées mais "
     "laisse la règle inconnue.",
 }

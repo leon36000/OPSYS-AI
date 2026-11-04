@@ -21,6 +21,12 @@ from .outils_tissu import DEPARTEMENT, borner, exiger_admin_strict
 REGISTRE_CAPTURES = "captures_strategiques"
 _INSTANT = {"type": "string", "description": "Instant RFC 3339 à fuseau explicite (M9 n'a pas d'horloge)."}
 _ID = {"type": "string", "minLength": 1, "maxLength": 128}
+_IDENTIFIANT = {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 2048,
+    "description": "Identifiant exact; maximum effectif 2048 octets UTF-8.",
+}
 RELATIONS = frozenset(regle.relation for regle in relations_catalogue.REGLES)
 
 
@@ -119,7 +125,7 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
             {
                 "connaissance": _INSTANT,
                 "kind": _ID,
-                "identifiant": _ID,
+                "identifiant": _IDENTIFIANT,
                 "relations": {"type": "array", "items": {"type": "string", "maxLength": 64}, "maxItems": 32},
                 "profondeur_max": {"type": "integer", "minimum": 1, "maximum": graphe_impacts.MAX_PROFONDEUR},
             },

@@ -63,6 +63,10 @@ class Regle:
     couverture_complete: tuple[str, str] | None = None
     lien_invalide_inconnu: bool = False
     sous_lignes_liste_obligatoire: bool = False
+    # Borne d’octets du champ cible pour les contrats qui documentent une valeur plus large que 128.
+    vers_max_octets: int | None = None
+    # Marqueur producteur d’un composite explicitement absent mais non malformé : couverture + manque déclaré.
+    composite_absent_legitime: tuple[str, str, str, str] | None = None
 
     def __post_init__(self) -> None:
         if self.sens not in SENS:
@@ -105,6 +109,17 @@ class Regle:
             raise ValueError(f"{self.id} : indicateur de lien invalide")
         if self.sous_lignes_liste_obligatoire and self.sous_lignes is None:
             raise ValueError(f"{self.id} : liste enfant obligatoire sans chemin")
+        if self.vers_max_octets is not None and (
+            type(self.vers_max_octets) is not int or self.vers_max_octets < 1
+        ):
+            raise ValueError(f"{self.id} : borne cible invalide")
+        marqueur = self.composite_absent_legitime
+        if marqueur is not None and (
+            not isinstance(marqueur, tuple) or len(marqueur) != 4
+            or not all(type(v) is str and v for v in marqueur)
+            or not isinstance(self.de_champ, tuple)
+        ):
+            raise ValueError(f"{self.id} : marqueur composite absent invalide")
 
 
 def _noeud(kind: str, identifiant: str) -> str:
@@ -116,12 +131,34 @@ def _champ(nom: str, enfant: Mapping, parent: Mapping) -> object:
     return parent.get(nom[1:]) if nom.startswith("^") else enfant.get(nom)
 
 
-def _texte_id(valeur: object) -> str | None:
-    if type(valeur) is int:
+def _texte_id(valeur: object, *, max_octets: int | None = None) -> str | None:
+    if type(valeur) is int and max_octets is None:
         return str(valeur)
-    if type(valeur) is str and valeur.strip() == valeur and 0 < len(valeur) <= 128:
-        return valeur
-    return None
+    if type(valeur) is not str or not valeur:
+        return None
+    if max_octets is None:
+        return valeur if valeur.strip() == valeur and len(valeur) <= 128 else None
+    try:
+        encoded_length = len(valeur.encode("utf-8"))
+    except UnicodeError:
+        return None
+    # M7 admet les espaces de bord mais pas une valeur composée uniquement d’espaces.
+    return valeur if valeur.strip() and encoded_length <= max_octets else None
+
+
+def _composite_absent_legitime(regle: Regle, ligne: Mapping) -> bool:
+    """Accepte uniquement le bucket nul explicitement marqué par le contrat M7."""
+    marqueur = regle.composite_absent_legitime
+    if marqueur is None or not isinstance(regle.de_champ, tuple):
+        return False
+    couverture_champ, couverture_attendue, manque_champ, manque_attendu = marqueur
+    noms = tuple(champ[1:] if champ.startswith("^") else champ for champ in regle.de_champ)
+    return (
+        all(nom in ligne and ligne[nom] is None for nom in noms)
+        and ligne.get(couverture_champ) == couverture_attendue
+        and type(ligne.get(manque_champ)) is list
+        and manque_attendu in ligne[manque_champ]
+    )
 
 
 def _identifiant_champ(
@@ -187,6 +224,7 @@ def construire(captures: Sequence[Mapping], regles: Sequence[Regle], *, connaiss
         for derniere in groupes:
             liens_invalides = False
             types_liens_inconnus = False
+            composite_absent = False
             raison = None
             if derniere["verdict"] != "ACCEPTEE":
                 raison = "REFUSEE"
@@ -244,6 +282,9 @@ def construire(captures: Sequence[Mapping], regles: Sequence[Regle], *, connaiss
                         enfants = list(enumerate(cs.extraire(ligne, regle.sous_lignes)))
                     identifiant_de, _identite_parent = _identifiant_champ(regle.de_champ, ligne, ligne)
                     if isinstance(regle.de_champ, tuple) and identifiant_de is None:
+                        if _composite_absent_legitime(regle, ligne):
+                            composite_absent = True
+                            continue
                         ecartees += 1
                         liens_invalides = liens_invalides or regle.lien_invalide_inconnu
                         continue
@@ -252,7 +293,9 @@ def construire(captures: Sequence[Mapping], regles: Sequence[Regle], *, connaiss
                             ecartees += 1
                             liens_invalides = liens_invalides or regle.lien_invalide_inconnu
                             continue
-                        vers = _texte_id(_champ(regle.vers_champ, enfant, ligne))
+                        vers = _texte_id(
+                            _champ(regle.vers_champ, enfant, ligne), max_octets=regle.vers_max_octets
+                        )
                         if vers is None:
                             ecartees += 1
                             liens_invalides = liens_invalides or regle.lien_invalide_inconnu
@@ -273,6 +316,9 @@ def construire(captures: Sequence[Mapping], regles: Sequence[Regle], *, connaiss
                                 continue
                         de, identite_composite = _identifiant_champ(regle.de_champ, enfant, ligne)
                         if de is None:
+                            if _composite_absent_legitime(regle, ligne):
+                                composite_absent = True
+                                continue
                             ecartees += 1
                             liens_invalides = liens_invalides or regle.lien_invalide_inconnu
                             continue
@@ -310,6 +356,11 @@ def construire(captures: Sequence[Mapping], regles: Sequence[Regle], *, connaiss
                                 },
                             }
                             creees += 1
+            if composite_absent and not any(
+                item["regle"] == regle.id and item["raison"] == "COUVERTURE_INCONNUE"
+                and item["arguments_sha256"] == derniere["arguments_sha256"] for item in inconnues
+            ):
+                inconnues.append(_inconnue(regle, "COUVERTURE_INCONNUE", derniere["arguments_sha256"]))
             if liens_invalides:
                 inconnues.append(_inconnue(regle, "IDENTIFIANT_LIEN_INVALIDE", derniere["arguments_sha256"]))
             if types_liens_inconnus:
@@ -371,6 +422,10 @@ def propager(
     Un nœud de départ absent du graphe est REFUSÉ (« inconnu »), jamais rendu comme « aucun impact »."""
     if type(profondeur_max) is not int or not 1 <= profondeur_max <= MAX_PROFONDEUR:
         raise ValueError(f"REJ-GRAPHE-PROFONDEUR : entier entre 1 et {MAX_PROFONDEUR} requis")
+    if _texte_id(kind) is None:
+        raise ValueError("REJ-GRAPHE-KIND : identifiant de type invalide")
+    if _texte_id(identifiant, max_octets=2048) is None:
+        raise ValueError("REJ-GRAPHE-ID : identifiant invalide ou au-delà de 2048 octets UTF-8")
     depart = _noeud(kind, identifiant)
     noeud_depart = next(
         (noeud for noeud in graphe["noeuds"] if noeud["ref"] == depart), None
