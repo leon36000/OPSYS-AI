@@ -202,9 +202,10 @@ def test_les_mesures_declarees_sont_exactement_celles_que_m8_tire_de_l_evenement
         for mesure in yaml.safe_load(fichier.read_text(encoding="utf-8")).get("metrics", []):
             if f"{TYPE} (" in mesure.get("source_donnees", ""):
                 tirees.add(mesure["id"])
-    assert tirees == set(QUATRE), tirees
+    # L'écart prévu contre réel lit AUSSI le cash libre (il est déclaré par le constat « tresorerie-prevue »).
+    assert tirees == set(QUATRE) | {"m8_ecart_tresorerie_prevue_reelle_cad"}, tirees
     (declare,) = [c for c in charger_departements()[pm.M5].constats_planifies if c.nom == "cash-libre"]
-    assert set(declare.mesures) == tirees
+    assert set(declare.mesures) | {"m8_ecart_tresorerie_prevue_reelle_cad"} == tirees
 
 
 def test_la_cadence_est_derivee_du_catalogue_et_suit_une_declaration_du_proprietaire(monde, monkeypatch):

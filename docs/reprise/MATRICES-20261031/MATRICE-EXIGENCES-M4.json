@@ -650,7 +650,7 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Retard mesurable sur la cédule datée (P4-04) : minutes exactes au-delà de la tolérance DÉCLARÉE par la direction (fail-closed « non évalué » sinon, attente `tolerance_retard_a_configurer`), brouillon ETA à M1 (jamais envoyé, consentement Loi 25), aucun nom d'employé ni position ; demandes d'écart avec revue humaine ; avenants absents (0 occurrence) ; incidents peu structurés. Relecture adverse P4-04 (A3-A6) corrigée : plan appliqué non daté compté `sans_date` (jamais zéro), calendrier civil illisible refusé (`REJ-REGISTRE-INVALIDE`), clé historique absente quand le bloc mesure, borne `0..480` appliquée à la lecture et au calcul.",
+   "limite": "Retard mesurable sur la cédule datée (P4-04) : minutes exactes au-delà de la tolérance DÉCLARÉE par la direction (fail-closed « non évalué » sinon, qui dit quoi déclarer ; aucune attente permanente dans la file de l admin), brouillon ETA à M1 (jamais envoyé, consentement Loi 25), aucun nom d'employé ni position ; demandes d'écart avec revue humaine ; avenants absents (0 occurrence) ; incidents peu structurés. Relecture adverse P4-04 (A3-A6) corrigée : plan appliqué non daté compté `sans_date` (jamais zéro), calendrier civil illisible refusé (`REJ-REGISTRE-INVALIDE`), clé historique absente quand le bloc mesure, borne `0..480` appliquée à la lecture et au calcul.",
    "verification": "grep avenant dans src M4 : 0"
   },
   {

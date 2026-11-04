@@ -76,7 +76,8 @@ def test_m1_declare_le_canal_sms_et_garde_son_identite(m1):
     # puis le tri et la commande par courriel (M1.6, M6.6)
     # puis le constat de plaintes pour l'entrepôt M8 (phase 2)
     assert set(m1.evenements_publie[7:]) == {
-        "m1.courriel_aiguille", "m1.commande_courriel_envoyee", "m1.plaintes_constatees"}
+        "m1.courriel_aiguille", "m1.commande_courriel_envoyee", "m1.plaintes_constatees",
+        "m1.transfert_ouvert", "m1.plainte_ouverte", "m1.reception_constatee"}
 
 
 def test_un_canal_inconnu_ou_double_dans_un_manifeste_est_refuse(tmp_path):

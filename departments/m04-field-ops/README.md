@@ -281,8 +281,8 @@ statut courant : une intervention `planifiee` ou `en_route` dont la fin du crén
 `horodatage_reference`, au-delà de la tolérance DÉCLARÉE par la direction
 (`configuration.retard_cedule.tolerance_minutes`, réglage CFG-1 `m4.tolerance_retard_cedule_minutes`, entière ≥ 0,
 N3), est « en retard » (minutes entières au-delà de la tolérance) ; sinon « à l'heure ». Tolérance absente ou
-illisible : la règle est « non évaluée » (fail-closed, jamais 0 ni « tout va bien ») et la file de l'admin porte
-l'attente `tolerance_retard_a_configurer` (quoi déclarer, geste N3). Le retard alimente la chaîne ETA existante :
+illisible : la règle est « non évaluée » (fail-closed, jamais 0 ni « tout va bien ») et dit quoi déclarer (geste N3) ;
+aucune attente permanente n'est ajoutée à la file de l'admin. Le retard alimente la chaîne ETA existante :
 `retards_declares_minutes` dans `m4_preparer_message_eta_client` (brouillon à M1, jamais envoyé par M4, consentement
 Loi 25 exigé), aucun nom d'employé, aucune position.
 

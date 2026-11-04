@@ -4310,8 +4310,10 @@ def attentes() -> list[dict[str, Any]]:
     problème » (fail-closed).
 
     P4-04 : tant que la tolérance de retard sur la cédule n'est pas DÉCLARÉE par la direction
-    (CFG-1 `m4.tolerance_retard_cedule_minutes`), une attente N2 `tolerance_retard_a_configurer`
-    le rappelle : le retard mesurable n'est pas évalué, sans jamais valoir 0 ni « tout va bien ».
+    (CFG-1 `m4.tolerance_retard_cedule_minutes`), le retard est « non évalué » et le DIT (`m4_lire_retards_incidents`
+    nomme `tolerance_minutes` à déclarer) ; la liste des réglages de direction la porte aussi. Aucune attente
+    permanente n'est ajoutée à « À voir » pour cela (décision de l'architecte à l'intégration : une attente qui ne
+    se résout que par une déclaration, présente sur chaque instance neuve, déplaçait les files et les écrans vides).
     Lecture seule : ne crée ni maillon, ni approbation, ni événement.
 
     PLAN T1.5-c, décision écrite : entre « Terminer » et le formulaire des matériaux, la
@@ -4338,11 +4340,6 @@ def attentes() -> list[dict[str, Any]]:
         }
         for pendante in etats.lister_interventions(reg, statut="completed_pending_review")
     ]
-    # P4-04 : sans tolérance déclarée, le retard sur la cédule n'est pas évalué — la file le dit,
-    # sans jamais évaluer un retard sans la règle (aucune lecture d'horloge ici, `depuis` vide).
-    alerte_tolerance = retards.attente_tolerance_retard(_tolerance_retard_cedule())
-    if alerte_tolerance is not None:
-        attendues.append(alerte_tolerance)
     return attendues
 
 

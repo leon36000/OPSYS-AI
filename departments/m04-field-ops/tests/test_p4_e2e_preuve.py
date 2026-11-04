@@ -1,8 +1,8 @@
 """P4-04 + P4-05, preuve de bout en bout (vrais outils, base migrée, bus, file N3).
 
 Chaîne, monde Repentigny→Joliette daté au lundi 2030-06-03 :
-  1. sans tolérance déclarée : `m4_lire_retards_incidents` rend `retards_cedule` « non évalué »
-     et la file du propriétaire porte l'attente `tolerance_retard_a_configurer` (quoi déclarer) ;
+  1. sans tolérance déclarée : `m4_lire_retards_incidents` rend `retards_cedule` « non évalué » et dit quoi
+     déclarer ; AUCUNE attente permanente n'encombre la file du propriétaire ;
   2. tolérance déclarée (30 min) : le même outil mesure le retard daté (en retard, minutes exactes) ;
   3. le retard mesuré alimente `m4_preparer_message_eta_client` (retards_declares_minutes) : brouillon
      PUBLIÉ à M1 (jamais envoyé par M4), consentement actif exigé, aucun nom d'employé ni position ;
@@ -175,9 +175,7 @@ def test_sans_tolerance_le_releve_dit_non_evalue_et_la_file_dit_quoi_declarer(pa
     assert "aucun retard" not in json.dumps(releve, ensure_ascii=False).lower()
     with stockage.transaction() as cnx:
         file = approbations.file_proprietaire(cnx, {M4: charger_departements()[M4]})
-    [attente] = [a for a in file if a["id"] == "tolerance_retard_a_configurer"]
-    assert attente["niveau"] == "N2" and "tolerance" in attente["resume"].lower()
-    assert "N3" in attente["action_proposee"]
+    assert [a for a in file if a["id"] == "tolerance_retard_a_configurer"] == []
 
 
 # P4-04 : tolérance déclarée, retard mesuré, puis brouillon consenti qui reprend le retard

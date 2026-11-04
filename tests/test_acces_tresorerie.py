@@ -50,7 +50,8 @@ OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturati
                              "m5_prevoir_tresorerie",
                              # T4.19-b : le constat du cash libre publié au bus (T1, N3 : l'admin, avec le droit de
                              # voir les coûts ; departments/m05-financecore/tests/test_constat_cash_libre_outils.py)
-                             "m5_constater_cash_libre", "m5_preparer_decision_capital",
+                             "m5_constater_cash_libre", "m5_constater_tresorerie_prevue",
+                             "m5_preparer_decision_capital",
                              "m5_preparer_dossier_decision_cfo",
                              # M5.4.a : source salariale privée; les écritures exigent une décision N4, la lecture T0
                              # revalide le principal humain et la cible employee avant d'ouvrir le registre.

@@ -345,7 +345,9 @@ def test_rien_d_externe_ne_part_et_rien_n_est_approuve(plan, monkeypatch):
         publies = {r[0] for r in cnx.execute(select(EVENEMENTS_SORTANTS.c.type_evenement))}
         apres = {t: cnx.execute(select(func.count()).select_from(t)).scalar_one() for t in (APPROBATIONS,)}
     assert appels == [] and apres == avant == {APPROBATIONS: 0}  # aucune demande d'approbation, aucune notification
-    assert publies <= {"m1.lead_qualifie"}, publies  # seul le lead de la réception ; aucun courriel, brouillon ni envoi
+    # le lead de la réception et, pour un transfert ou une plainte ouverts, les événements minimaux de M1-E
+    # (identifiants et catégorie seulement) ; aucun courriel, brouillon ni envoi
+    assert publies <= {"m1.lead_qualifie", "m1.plainte_ouverte", "m1.transfert_ouvert"}, publies
     assert types_avant is None
     # Un tour de routines seules ne publie AUCUN événement.
     w.rembobiner(plan, w.ROUTINES_M1)

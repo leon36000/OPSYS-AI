@@ -199,6 +199,15 @@ TOURS: tuple[Tour, ...] = (
          "Variante planifiée (planificateur seulement, sans droit d'appareil, réponse sans montant) ; l'outil N3 "
          "m5_constater_cash_libre reste celui de l'admin. Aucun mouvement, paiement ni écriture comptable. "
          "À valider auprès d'un comptable (CPA) / professionnel qualifié.", "m5.constat.cash-libre"),
+    Tour("m5.constater_tresorerie_prevue", "M5 : trésorerie prévue à 13 semaines (constat pour M8)",
+         _OPS + "m05-financecore/src/m5_financecore/outils.py", "constater_tresorerie_prevue_planifie", "N2",
+         "un constat par jour de référence et par version des données, registre propre à ce constat : le redire à "
+         "l'identique ne publie rien (même rang), un changement de version prend le rang suivant", "aucun",
+         "brancher_maintenant",
+         "Variante planifiée (planificateur seulement, sans droit d'appareil, réponse sans montant) ; l'outil N3 "
+         "m5_constater_tresorerie_prevue reste celui de l'admin. Sans seuil déclaré l'alerte est non évaluée. Aucun "
+         "mouvement, paiement ni écriture comptable. À valider auprès d'un comptable (CPA) / professionnel "
+         "qualifié.", "m5.constat.tresorerie-prevue"),
     Tour("m5.constater_preaudit", "M5 : pré-audit, comptes de constats par règle et par gravité (constat pour M8)",
          _OPS + "m05-financecore/src/m5_financecore/outils_rapports.py", "constater_preaudit", "N2",
          "l'instant du constat entre dans l'identifiant : le redire à l'identique ne publie rien", "aucun",

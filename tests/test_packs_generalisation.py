@@ -54,7 +54,9 @@ SOUL_AVANT = {
     "m01-front-office": "d8344b1aa73f688582fd813e908f22f04c66254ad090cef5c080f83cc66cb131",
     "m02-revenue-crm": "a96b26c92a38015c544c87556ad9b07c8c5e65a6ec3daa959f15a609cce4e932",
     "m03-estimation": "552ae4994c671bb7bc37b5ed5ed4e06773be5e580375a49abbc32a3298012f26",
-    "m04-field-ops": "85e7ff89e5f82809c31467efc3a6d6e53f0d6ba310954c7ba36d9079f771179b",
+    # M4 (P4-04/P4-05, relecture adverse A3/A4) : le SOUL dit qu'un bloc `retards_cedule` « non évalué » n'est jamais
+    # « aucun retard » et que `sans_date` n'est jamais zéro (aucun terme sectoriel).
+    "m04-field-ops": "ee1be90d44af245e483aa6672848ab0ffd53c0c5679609ae254af77a9cc5a89a",
     "m05-financecore": "aed5c1a15fb01e0c572c1120160eee182619ac1fa318edada5cafa317121608b",
     "m06-material-control": "5104a1c724c3e3afb1c3125879949cad55c2d96e661592ae25a23e7a5ae989ef",
     "m07-marketing": "04424e6974a3833c00753ba2d3a0eccfc6130fdebf761f561275f158e073a8f0",
@@ -66,7 +68,9 @@ SOUL_AVANT = {
 # Empreinte du skill M3 rendu avec le pack rénovation. Changée par M3-C1/M3-C2 (barème et mesure déclarés) : le skill
 # dit maintenant de passer bareme_ref et mesure_ref au lieu du barème, de la quantité et du plancher libres. Le SOUL.md
 # de M3 n'a pas bougé (SOUL_AVANT intact) ; seule cette ligne change, avec le texte du skill.
-SKILL_M3_AVANT = "b106e53ec2b9e60b8fb62e9a8b8286e8f4601858fab2ac61441f312d885833d5"
+# Changée aussi par M3.8b (estimateurs par service : le skill dit d'utiliser m3_calculer_estimation_service quand le
+# barème déclare un estimateur pour le service ; aucun terme sectoriel).
+SKILL_M3_AVANT = "b9a7c3117c23683b2aa3238898128df4e9ee07cee9e2ddef811754443c9c1f63"
 
 PALIERS = {
     "rapide": {"provider": "anthropic", "model": "claude-haiku-4-5-20251001"},

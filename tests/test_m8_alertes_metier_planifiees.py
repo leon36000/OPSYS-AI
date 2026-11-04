@@ -154,8 +154,11 @@ def test_tresorerie_sous_seuil_alerte_avec_action_et_proprietaire_accuse_report_
     assert "m05-financecore" in alerte["action_recommandee"] and "CPA" in alerte["action_recommandee"]
     assert "27 861,98" in alerte["pourquoi"] and "30 000,00" in alerte["pourquoi"]
     assert not any("cause" in cle or "responsable" in cle for cle in alerte)
+    # + les trois mesures de la trésorerie prévue (C5), liées à la même alerte de trésorerie sous le seuil
     assert set(alerte["mesures_liees"]) == {"m8_solde_tresorerie_cad", "m8_comptes_a_payer_cad",
-                                            "m8_taxes_a_remettre_cad", "m8_creances_ouvertes_cad"}
+                                            "m8_taxes_a_remettre_cad", "m8_creances_ouvertes_cad",
+                                            "m8_solde_minimal_prevu_cad", "m8_semaines_sous_seuil",
+                                            "m8_ecart_tresorerie_prevue_reelle_cad"}
     assert next(r for r in vue["regles"] if r["regle"] == TRESORERIE)["franchies"] == 1
 
     # -- M9 la reçoit par le bus (une seule fois), avec l'action et le destinataire
