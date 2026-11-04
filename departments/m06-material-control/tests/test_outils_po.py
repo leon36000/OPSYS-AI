@@ -8,6 +8,7 @@ Identifiants et coordonnées fictifs (DEFINITION-PRODUIT §1, AGENTS.md « ficti
 from __future__ import annotations
 
 import copy
+import importlib.util
 from pathlib import Path
 
 import m6_material_control.outils as m6_outils
@@ -411,6 +412,143 @@ def test_manager_peut_approuver_et_generer_le_courriel_n3(dep, personnes):
     )
     assert courriel["ok"] is True and "demande_id" not in courriel, "le courriel est une tâche interne (N2)"
     assert _statut_po("PO-N3") == "email_ready"
+
+
+def test_approbation_lot_inventaire_rejoue_exactement_la_charge_complete(dep, personnes):
+    """Le socle persiste le lot complet et la décision exécute ces arguments persistés, sous
+    l'identité signataire existante. Ce test passe par Capacites et approbations.decider."""
+    from opsys.stockage import codec
+
+    aide_path = _RACINE_M6 / "tests" / "test_reservation_outils.py"
+    spec = importlib.util.spec_from_file_location("fixture_lot_approbation", aide_path)
+    aide = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(aide)
+    outils_m6 = {outil.nom: outil for outil in m6_outils.outils()}
+    aide._recevoir(outils_m6, "gouttiere-5po", 10.0, "PO-LOT-APPROBATION-FICTIF")
+
+    charge = {"ajustements": [{
+        "ajustement_id": "AJUST-LOT-APPROUVE-FICTIF",
+        "materiau_id": "gouttiere-5po",
+        "motif": "inventaire_physique",
+        "quantite_apres": 8,
+        "preuve": None,
+        "horodatage": "2026-10-08T10:00:00-04:00",
+        "emplacement": None,
+    }]}
+    capacites = Capacites({_DEPARTEMENT: dep}, stockage.transaction)
+    demande = capacites.appeler("m6_clore_inventaire_physique", charge)
+
+    assert demande["ok"] is True and demande["statut"] == "en_attente_approbation"
+    with stockage.transaction() as cnx:
+        persistante = opsys_approbations.lire(cnx, demande["demande_id"])
+    assert persistante["outil"] == "m6_clore_inventaire_physique"
+    assert persistante["departement"] == _DEPARTEMENT
+    assert persistante["arguments"] == charge
+
+    disponibles = outils_executables({_DEPARTEMENT: dep}, stockage.transaction)
+    with stockage.transaction() as cnx:
+        decision = opsys_approbations.decider(
+            cnx, demande["demande_id"], True, personnes["admin"], disponibles, {_DEPARTEMENT: dep}
+        )
+
+    assert decision["statut"] == "executee"
+    resultat = decision["reponse"]["resultat"]
+    assert resultat["accepte"] is True and resultat["statut"] == "enregistre"
+    assert resultat["ajustements"][0]["ajustement"]["ajustement_id"] == "AJUST-LOT-APPROUVE-FICTIF"
+    assert codec.decoder(codec.encoder(persistante["arguments"])) == charge
+    with stockage.transaction():
+        disponibilite = m6_outils.lire_disponibilite(["gouttiere-5po"])
+    assert disponibilite["resultat"]["articles"][0]["stock_theorique"] == "8"
+
+
+def test_capacite_propage_et_reinitialise_le_quota_uniquement_pour_la_cloture(dep, base_durable, monkeypatch):
+    from decimal import Decimal
+
+    from opsys import contexte
+
+    spec = importlib.util.spec_from_file_location(
+        "fixture_quota_cloture", _RACINE_M6 / "tests" / "test_reservation_outils.py"
+    )
+    aide = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(aide)
+    outils_m6 = {outil.nom: outil for outil in m6_outils.outils()}
+    aide._recevoir(outils_m6, "gouttiere-5po", 10.0, "PO-QUOTA-CLOTURE-FICTIF")
+    monkeypatch.setattr(m6_outils, "_seuil_ajustement_stock", lambda: Decimal("5"))
+    with stockage.transaction() as cnx:
+        opsys_approbations.fixer_mode(cnx, _DEPARTEMENT, "autonome", "nathan-fictif")
+
+    capacites = Capacites({_DEPARTEMENT: dep}, stockage.transaction, limite_sortie=300)
+    cloture = {"ajustements": [{
+        "ajustement_id": "AJUST-QUOTA-CLOTURE-FICTIF", "materiau_id": "gouttiere-5po",
+        "motif": "inventaire_physique", "quantite_apres": 8, "horodatage": "2026-10-08T10:00:00-04:00",
+    }]}
+    refus = capacites.appeler("m6_clore_inventaire_physique", cloture)
+    assert refus["ok"] is False and refus["erreur"] == "refus_metier"
+    assert refus["details"].startswith("REJ-AJUSTEMENT-LOT-SORTIE-TROP-VOLUMINEUSE:")
+    assert contexte.limite_sortie() is None
+    assert _statut_stock_fixture("gouttiere-5po") == "10"
+
+    # Un outil M6 existant ne reçoit pas cette borne côté contexte : la propagation est limitée
+    # au nom du nouvel outil, pas au répartiteur commun.
+    response = capacites.appeler("m6_ajuster_stock", {"ajustement": {
+        "ajustement_id": "AJUST-QUOTA-NOOP-FICTIF", "materiau_id": "gouttiere-5po",
+        "motif": "correction", "quantite_apres": 10, "horodatage": "2026-10-08T10:00:00-04:00",
+    }})
+    assert response["ok"] is True
+    assert contexte.limite_sortie() is None
+
+
+def test_decision_approbation_lot_hors_quota_rend_un_refus_et_annule_le_lot(dep, base_durable, personnes,
+                                                                            monkeypatch):
+    """Demande N3 puis décision publique : l'accusé trop gros refuse l'exécution et ne garde rien."""
+    from decimal import Decimal
+
+    spec = importlib.util.spec_from_file_location(
+        "fixture_quota_approbation_lot", _RACINE_M6 / "tests" / "test_reservation_outils.py"
+    )
+    aide = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(aide)
+    outils_m6 = {outil.nom: outil for outil in m6_outils.outils()}
+    monkeypatch.setattr(m6_outils, "_seuil_ajustement_stock", lambda: Decimal("5"))
+
+    materiaux = [f"MAT-APPROB-QUOTA-{index:02}" for index in range(50)]
+    for index, materiau in enumerate(materiaux):
+        aide._recevoir(outils_m6, materiau, 1.0, f"PO-APPROB-QUOTA-{index:02}")
+    with stockage.transaction():
+        principal_avant = list(stockage.maillons(_DEPARTEMENT, "principal"))
+        emplacements_avant = list(stockage.maillons(_DEPARTEMENT, "emplacements"))
+
+    charge = {"ajustements": [{
+        "ajustement_id": f"AJUST-APPROB-QUOTA-{index:02}",
+        "materiau_id": materiau,
+        "motif": "inventaire_physique",
+        "quantite_apres": 0,
+        "horodatage": "2026-10-08T10:00:00-04:00",
+        "emplacement": None,
+    } for index, materiau in enumerate(materiaux)]}
+    capacites = Capacites({_DEPARTEMENT: dep}, stockage.transaction)
+    demande = capacites.appeler("m6_clore_inventaire_physique", charge)
+    assert demande["ok"] is True and demande["statut"] == "en_attente_approbation"
+
+    disponibles = outils_executables({_DEPARTEMENT: dep}, stockage.transaction)
+    with stockage.transaction() as cnx:
+        decision = opsys_approbations.decider(
+            cnx, demande["demande_id"], True, personnes["admin"], disponibles, {_DEPARTEMENT: dep}
+        )
+
+    assert decision["statut"] == "echec"
+    assert decision["reponse"]["ok"] is False and decision["reponse"]["erreur"] == "refus_metier"
+    assert decision["reponse"]["details"].startswith("REJ-AJUSTEMENT-LOT-SORTIE-TROP-VOLUMINEUSE:")
+    with stockage.transaction():
+        assert list(stockage.maillons(_DEPARTEMENT, "principal")) == principal_avant
+        assert list(stockage.maillons(_DEPARTEMENT, "emplacements")) == emplacements_avant
+        assert all(m6_outils.lire_disponibilite([m])["resultat"]["articles"][0]["stock_theorique"] == "1"
+                   for m in materiaux)
+
+
+def _statut_stock_fixture(materiau_id):
+    with stockage.transaction():
+        return m6_outils.lire_disponibilite([materiau_id])["resultat"]["articles"][0]["stock_theorique"]
 
 
 def test_provenance_prix_publique_cap_native_sans_recriture(base_durable, dep, personnes):

@@ -1768,6 +1768,11 @@ class Capacites:
                                    "présente pas comme faite."}
         origine = self.appelant.id if self.appelant else None
         with appeler_en_tant_que(departement.id, origine=origine):
+            if nom == "m6_clore_inventaire_physique":
+                # La clôture vérifie sa confirmation DANS la transaction métier. Propager la borne du
+                # répartiteur avant l'exécution empêche qu'une réponse tronquée masque une écriture.
+                with contexte_appel.sortie_bornee(min(5400, self._limite)):
+                    return self._tronquer(executer_atomique(outil, arguments), nom)
             return self._tronquer(executer_atomique(outil, arguments), nom)
 
     def _outils_du_role(self, role: str) -> frozenset[str]:

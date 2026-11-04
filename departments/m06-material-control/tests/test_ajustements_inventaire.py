@@ -73,6 +73,35 @@ def _stock(materiau=GOUTTIERE):
     return resultat["articles"][0]
 
 
+def _ligne_inventaire(identifiant, materiau, quantite, emplacement):
+    ligne = _demande(
+        ajustement_id=identifiant,
+        materiau_id=materiau,
+        motif="inventaire_physique",
+        quantite_apres=quantite,
+        emplacement=emplacement,
+    )
+    ligne.pop("acteur")  # L'acteur est toujours repris de l'identité d'appel, jamais du payload.
+    return ligne
+
+
+def _lot(ajustements):
+    outil = next(o for o in aide.m6_outils.outils() if o.nom == "m6_clore_inventaire_physique")
+    return executer_atomique(outil, {"ajustements": ajustements})
+
+
+def _localiser(materiau, quantite, emplacement, transfert_id):
+    return _outil("m6_transferer_stock", {
+        "transfert_id": transfert_id,
+        "materiau_id": materiau,
+        "quantite": quantite,
+        "de": {"type": "inconnu"},
+        "vers": emplacement,
+        "motif": "ranger pour inventaire fictif",
+        "horodatage": H_ADJUST,
+    })
+
+
 # --------------------------------------------------------------------------------------------- module pur
 def test_les_six_motifs_types_sont_acceptes_et_aucun_autre():
     assert set(ajustements.MOTIFS_AJUSTEMENT) == {
@@ -471,3 +500,278 @@ def test_l_ajustement_ne_porte_aucun_texte_libre_de_client(base, m6, monkeypatch
     texte = " ".join(codec.decoder(ligne.maillon).__repr__() for ligne in lignes)
     for interdit in ("client", "adresse", "telephone", "@"):
         assert interdit not in texte.lower()
+
+
+def test_un_lot_inventaire_multi_articles_et_multi_emplacements_rejouable(base, m6, monkeypatch):
+    monkeypatch.setattr(aide.m6_outils, "_seuil_ajustement_stock", lambda: Decimal("5"))
+    aide._recevoir(m6, GOUTTIERE, 10.0, "PO-LOT-GOUTTIERE")
+    aide._recevoir(m6, aide.VIS, 20.0, "PO-LOT-VIS")
+    _localiser(GOUTTIERE, 6.0, {"type": "depot"}, "T-LOT-G-D")
+    _localiser(GOUTTIERE, 4.0, {"type": "camion", "reference": "CAM-FICT-1"}, "T-LOT-G-C")
+    _localiser(aide.VIS, 12.0, {"type": "depot"}, "T-LOT-V-D")
+    _localiser(aide.VIS, 8.0, {"type": "camion", "reference": "CAM-FICT-1"}, "T-LOT-V-C")
+    lignes = [
+        _ligne_inventaire("AJUST-LOT-G-D", GOUTTIERE, 5.0, {"type": "depot"}),
+        _ligne_inventaire("AJUST-LOT-G-C", GOUTTIERE, 5.0, {"type": "camion", "reference": "CAM-FICT-1"}),
+        _ligne_inventaire("AJUST-LOT-V-D", aide.VIS, 10.0, {"type": "depot"}),
+        _ligne_inventaire("AJUST-LOT-V-C", aide.VIS, 10.0, {"type": "camion", "reference": "CAM-FICT-1"}),
+    ]
+
+    premier = _lot(lignes)
+
+    assert premier["ok"] is True, premier
+    assert premier["resultat"]["accepte"] is True
+    assert [ligne["ajustement"]["delta"] for ligne in premier["resultat"]["ajustements"]] == ["-1", "1", "-2", "2"]
+    assert _stock(GOUTTIERE)["stock_theorique"] == "10"
+    assert _stock(GOUTTIERE)["par_emplacement"] == {
+        "depot": "5", "camion:CAM-FICT-1": "5", "inconnu": "0",
+    }
+    assert _stock(aide.VIS)["stock_theorique"] == "20"
+    assert _stock(aide.VIS)["par_emplacement"] == {
+        "depot": "10", "camion:CAM-FICT-1": "10", "inconnu": "0",
+    }
+    principal = _maillons()
+    emplacements_avant_rejeu = _maillons("emplacements")
+    assert [m["ajustement"]["ajustement_id"] for m in principal if "ajustement" in m] == [
+        "AJUST-LOT-G-D", "AJUST-LOT-G-C", "AJUST-LOT-V-D", "AJUST-LOT-V-C",
+    ]
+    assert ajustements.verifier_chaine(principal) == (True, "")
+
+    rejoue = _lot(lignes)
+
+    assert rejoue["ok"] is True and rejoue["resultat"]["accepte"] is True
+    assert all(ligne["statut"] == "deja_enregistre" for ligne in rejoue["resultat"]["ajustements"])
+    assert _maillons() == principal
+    assert _maillons("emplacements") == emplacements_avant_rejeu
+
+    conflit = _lot([{**lignes[0], "quantite_apres": 4}, *lignes[1:]])
+    assert conflit["ok"] is True and conflit["resultat"]["accepte"] is False
+    assert conflit["resultat"]["verdict"]["code"] == "REJ-AJUSTEMENT-ID-DEJA-UTILISE"
+    assert _maillons() == principal
+    assert _maillons("emplacements") == emplacements_avant_rejeu
+
+    # Une autre opération légitime change ensuite l'état du même emplacement. Le rejeu ancien
+    # doit rester un no-op et ne pas ramener le comptage physique précédent.
+    _outil("m6_ajuster_stock", {"ajustement": _demande(
+        ajustement_id="AJUST-CONCURRENT-FICTIF", motif="correction", quantite_apres=4,
+        emplacement={"type": "depot"},
+    )})
+    principal_apres_concurrent = _maillons()
+    emplacements_apres_concurrent = _maillons("emplacements")
+    assert _stock(GOUTTIERE)["par_emplacement"]["depot"] == "4"
+
+    rejoue_apres_concurrent = _lot(lignes)
+
+    assert rejoue_apres_concurrent["ok"] is True
+    assert all(ligne["statut"] == "deja_enregistre"
+               for ligne in rejoue_apres_concurrent["resultat"]["ajustements"])
+    assert _maillons() == principal_apres_concurrent
+    assert _maillons("emplacements") == emplacements_apres_concurrent
+    assert _stock(GOUTTIERE)["par_emplacement"]["depot"] == "4"
+
+
+def test_un_lot_ne_publie_que_l_etat_final_des_reservations(base, m6, monkeypatch):
+    """Deux comptages locaux inverses sont atomiques : M4 ne reçoit aucun état intermédiaire du lot."""
+    monkeypatch.setattr(aide.m6_outils, "_seuil_ajustement_stock", lambda: Decimal("5"))
+    aide._recevoir(m6, GOUTTIERE, 10.0, "PO-LOT-RESERVATION-FICTIF")
+    _localiser(GOUTTIERE, 5.0, {"type": "depot"}, "T-LOT-RESERVATION-DEPOT-FICTIF")
+    _localiser(
+        GOUTTIERE, 5.0, {"type": "camion", "reference": "CAM-LOT-FICTIF"},
+        "T-LOT-RESERVATION-CAMION-FICTIF",
+    )
+    aide._accepter(aide._devis("DEVIS-LOT-RESERVATION-FICTIF", "CH-LOT-RESERVATION-FICTIF", "10", None))
+    evenements_initiaux = aide._publies("DEVIS-LOT-RESERVATION-FICTIF")
+    assert len(evenements_initiaux) == 1 and evenements_initiaux[0]["statut"] == "pret"
+
+    # La première ligne ferait tomber le stock total et la réservation à 7; la seconde le
+    # rétablit à 10. Aucun de ces états intermédiaires n'est visible hors de la transaction.
+    lot = _lot([
+        _ligne_inventaire("AJUST-LOT-RESERVATION-DEPOT", GOUTTIERE, 2.0, {"type": "depot"}),
+        _ligne_inventaire(
+            "AJUST-LOT-RESERVATION-CAMION", GOUTTIERE, 8.0,
+            {"type": "camion", "reference": "CAM-LOT-FICTIF"},
+        ),
+    ])
+
+    assert lot["ok"] is True and lot["resultat"]["accepte"] is True, lot
+    assert _stock()["en_main"] == "10" and _stock()["reserve"] == "10"
+    assert aide._publies("DEVIS-LOT-RESERVATION-FICTIF") == evenements_initiaux
+    assert len(_maillons("reservations")) == 1
+
+    # Une baisse qui reste après le lot doit, elle, produire exactement un événement final.
+    lot_baisse = _lot([
+        _ligne_inventaire("AJUST-LOT-RESERVATION-DEPOT-2", GOUTTIERE, 1.0, {"type": "depot"}),
+        _ligne_inventaire(
+            "AJUST-LOT-RESERVATION-CAMION-2", GOUTTIERE, 7.0,
+            {"type": "camion", "reference": "CAM-LOT-FICTIF"},
+        ),
+        {
+            **_ligne_inventaire("AJUST-LOT-RESERVATION-VIS-SANS-ECART", aide.VIS, 0.0, None),
+            "horodatage": "2026-10-08T11:00:00-04:00",
+        },
+    ])
+    evenements_finaux = aide._publies("DEVIS-LOT-RESERVATION-FICTIF")
+    assert lot_baisse["ok"] is True and lot_baisse["resultat"]["accepte"] is True
+    assert len(evenements_finaux) == 2
+    assert (evenements_finaux[-1]["statut"], evenements_finaux[-1]["revision"]) == ("partiel", 2)
+    assert evenements_finaux[-1]["lignes"][0]["quantite_reservee"] == "8"
+    assert evenements_finaux[-1]["horodatage"] == H_ADJUST
+    assert lot_baisse["resultat"]["evenements_materiel_pret"] == [evenements_finaux[-1]["evenement_id"]]
+    assert _stock()["en_main"] == "8" and _stock()["reserve"] == "8"
+
+
+def test_un_refus_n4_tardif_annule_tout_le_lot(base, m6, monkeypatch):
+    monkeypatch.setattr(aide.m6_outils, "_seuil_ajustement_stock", lambda: Decimal("1"))
+    aide._recevoir(m6, GOUTTIERE, 10.0, "PO-LOT-REFUS-GOUTTIERE")
+    aide._recevoir(m6, aide.VIS, 20.0, "PO-LOT-REFUS-VIS")
+    _localiser(GOUTTIERE, 10.0, {"type": "depot"}, "T-LOT-REFUS-G")
+    _localiser(aide.VIS, 20.0, {"type": "depot"}, "T-LOT-REFUS-V")
+    principal_avant = _maillons()
+    emplacements_avant = _maillons("emplacements")
+
+    reponse = _lot([
+        _ligne_inventaire("AJUST-LOT-AVANT-REFUS", GOUTTIERE, 9.5, {"type": "depot"}),
+        _ligne_inventaire("AJUST-LOT-N4-REFUSE", aide.VIS, 17.0, {"type": "depot"}),
+    ])
+
+    assert reponse["ok"] is False, reponse
+    assert _maillons() == principal_avant
+    assert _maillons("emplacements") == emplacements_avant
+    assert _stock(GOUTTIERE)["stock_theorique"] == "10"
+    assert _stock(aide.VIS)["stock_theorique"] == "20"
+
+
+def test_une_approbation_admin_n4_est_liee_au_nom_du_lot_complet(base, m6, monkeypatch):
+    from opsys import contexte
+
+    monkeypatch.setattr(aide.m6_outils, "_seuil_ajustement_stock", lambda: Decimal("1"))
+    aide._recevoir(m6, GOUTTIERE, 10.0, "PO-LOT-APPROBATION")
+    appels = []
+
+    def approbateur(cnx, outil, departement, roles=None):
+        appels.append((outil, departement, roles))
+        return contexte.IdentiteAppelante("admin-fictif", "admin")
+
+    monkeypatch.setattr(aide.m6_outils.approbations, "approbateur_en_cours", approbateur)
+    reponse = _lot([_ligne_inventaire("AJUST-LOT-N4", GOUTTIERE, 7.0, {"type": "depot"})])
+
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True
+    assert appels == [("m6_clore_inventaire_physique", aide._DEPARTEMENT, None)]
+    assert reponse["resultat"]["ajustements"][0]["ajustement"]["niveau_approbation"] == "N4"
+
+
+def test_le_lot_garde_le_niveau_et_la_garde_d_appareil_de_l_ajustement_individuel(base, m6, monkeypatch):
+    from m6_material_control import acces
+
+    individuel, lot = m6["m6_ajuster_stock"], m6["m6_clore_inventaire_physique"]
+    assert (lot.autonomie, lot.niveau_effectif, lot.roles_appareil, lot.frontiere_humaine) == (
+        individuel.autonomie, individuel.niveau_effectif, individuel.roles_appareil, individuel.frontiere_humaine,
+    )
+    monkeypatch.setattr(
+        aide.m6_outils, "_declarant_appareil", lambda: (acces.Acteur("employe-fictif", "employee"), None)
+    )
+    avant = (_maillons(), _maillons("emplacements"))
+
+    reponse = _lot([_ligne_inventaire("AJUST-LOT-EMPLOYE", GOUTTIERE, 0, {"type": "depot"})])
+
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert (_maillons(), _maillons("emplacements")) == avant
+
+
+def test_un_lot_refuse_un_article_emplacement_duplique_avant_toute_ecriture(base, m6, monkeypatch):
+    monkeypatch.setattr(aide.m6_outils, "_seuil_ajustement_stock", lambda: Decimal("5"))
+    aide._recevoir(m6, GOUTTIERE, 10.0, "PO-LOT-CIBLE-DUPLIQUE")
+    avant = (_maillons(), _maillons("emplacements"))
+
+    reponse = _lot([
+        _ligne_inventaire("AJUST-LOT-DUPLIQUE-A", GOUTTIERE, 9.0, {"type": "depot"}),
+        _ligne_inventaire("AJUST-LOT-DUPLIQUE-B", GOUTTIERE, 8.0, {"type": "depot"}),
+    ])
+
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-AJUSTEMENT-CIBLE-DUPLIQUE-LOT"
+    assert (_maillons(), _maillons("emplacements")) == avant
+
+
+def test_un_lot_ne_melange_pas_stock_total_et_comptage_local_du_meme_article(base, m6):
+    aide._recevoir(m6, GOUTTIERE, 10.0, "PO-LOT-MODES")
+    avant = (_maillons(), _maillons("emplacements"))
+
+    reponse = _lot([
+        _ligne_inventaire("AJUST-LOT-GLOBAL", GOUTTIERE, 9.0, None),
+        _ligne_inventaire("AJUST-LOT-LOCAL", GOUTTIERE, 8.0, {"type": "depot"}),
+    ])
+
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-AJUSTEMENT-MODE-CIBLE-DUPLIQUE-LOT"
+    assert (_maillons(), _maillons("emplacements")) == avant
+
+
+def test_un_lot_hors_borne_est_annule_avant_confirmation_tronquee(base, m6, monkeypatch):
+    from opsys import contexte
+
+    monkeypatch.setattr(aide.m6_outils, "_seuil_ajustement_stock", lambda: Decimal("5"))
+    aide._recevoir(m6, GOUTTIERE, 10.0, "PO-LOT-SORTIE-BORNE")
+    principal_avant = _maillons()
+    emplacements_avant = _maillons("emplacements")
+    monkeypatch.setattr(contexte, "limite_sortie", lambda: 200)
+
+    reponse = _lot([_ligne_inventaire("AJUST-LOT-SORTIE-BORNE", GOUTTIERE, 8.0, None)])
+
+    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier"
+    assert reponse["details"].startswith("REJ-AJUSTEMENT-LOT-SORTIE-TROP-VOLUMINEUSE:")
+    assert _maillons() == principal_avant
+    assert _maillons("emplacements") == emplacements_avant
+    assert _stock(GOUTTIERE)["stock_theorique"] == "10"
+
+
+def test_lot_de_cinquante_lignes_ne_commit_pas_si_l_accuse_complet_depasse_la_borne(base, m6, monkeypatch):
+    monkeypatch.setattr(aide.m6_outils, "_seuil_ajustement_stock", lambda: Decimal("5"))
+    materiaux = [f"MAT-FICT-{index:02}" for index in range(50)]
+    for index, materiau in enumerate(materiaux):
+        aide._recevoir(m6, materiau, 1.0, f"PO-LOT-BORNE-{index:02}")
+    principal_avant = _maillons()
+    emplacements_avant = _maillons("emplacements")
+    lignes = [
+        _ligne_inventaire(f"AJUST-LOT-BORNE-{index:02}", materiau, 0, None)
+        for index, materiau in enumerate(materiaux)
+    ]
+
+    reponse = _lot(lignes)
+
+    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier"
+    assert reponse["details"].startswith("REJ-AJUSTEMENT-LOT-SORTIE-TROP-VOLUMINEUSE:")
+    assert _maillons() == principal_avant
+    assert _maillons("emplacements") == emplacements_avant
+    assert all(_stock(materiau)["stock_theorique"] == "1" for materiau in materiaux)
+
+
+def test_borne_sortie_est_scoped_reentrant_et_isolee_entre_threads():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from opsys import contexte
+
+    assert contexte.limite_sortie() is None
+    with contexte.sortie_bornee(5400):
+        assert contexte.limite_sortie() == 5400
+        with contexte.sortie_bornee(1200):
+            assert contexte.limite_sortie() == 1200
+        assert contexte.limite_sortie() == 5400
+        barriere = Barrier(2)
+
+        def limite_dans_thread(limite):
+            with contexte.sortie_bornee(limite):
+                barriere.wait(timeout=2)
+                return contexte.limite_sortie()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            resultats = list(pool.map(limite_dans_thread, (100, 200)))
+        assert resultats == [100, 200]
+    assert contexte.limite_sortie() is None
+
+    import pytest
+    with pytest.raises(RuntimeError, match="fictif"), contexte.sortie_bornee(300):
+        raise RuntimeError("fictif")
+    assert contexte.limite_sortie() is None

@@ -94,6 +94,7 @@ from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.reglages import lecture as reglages_lecture
 from opsys.stockage import codec
+from opsys.stockage.concurrence import verrou_consultatif
 from opsys.stockage.maillons import EcritureConcurrente
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 
@@ -152,6 +153,7 @@ _NOM_REGISTRE_RESERVATIONS = "reservations"
 _NOM_REGISTRE_EMPLACEMENTS = "emplacements"
 _NOM_REGISTRE_ACHATS_TERRAIN = "achats_terrain"
 _NOM_REGISTRE_ALERTES = "alertes_approvisionnement"
+_VERROU_STOCK_DURABLE = "m06-material-control.stock-et-emplacements"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _TYPE_EVENEMENT_WCT = "m4.travaux_termines"
 
@@ -385,6 +387,8 @@ _AJUSTEMENT = {
     "additionalProperties": False,
 }
 
+MAX_AJUSTEMENTS_INVENTAIRE_LOT = 50
+
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
     """Reconstruit le registre M6 en rejouant l'historique fourni par l'appelant
     (mêmes maillons, même ordre -> mêmes hachages : reconstruction fidèle, pas une
@@ -444,6 +448,18 @@ def _etat_registre(registre_cible: registre_module.Registre) -> dict[str, Any]:
     if stockage.connexion_courante() is not None:
         return {"registre": {"taille": registre_cible.taille(), "hash_tete": registre_cible.hash_tete()}}
     return {"registre_historique": registre_cible.lire()}
+
+
+def _verrouiller_stock_durable() -> None:
+    """Sérialise les lectures-suivies-d'écriture des registres de stock et d'emplacements.
+
+    Sous PostgreSQL READ COMMITTED, le verrou est pris avant le premier snapshot et gardé jusqu'au commit;
+    toute mutation durable M6 de ces registres doit appeler cette fonction avant de lire son état. SQLite
+    est déjà sérialisé par BEGIN IMMEDIATE; hors transaction, le mode mémoire n'a rien à verrouiller.
+    """
+    cnx = stockage.connexion_courante()
+    if cnx is not None:
+        verrou_consultatif(cnx, _VERROU_STOCK_DURABLE)
 
 
 # --------------------------------------------------------------------------------------- T1.2-b
@@ -1002,6 +1018,7 @@ def _reserver_pour_devis(
     Statut rendu (`statut`) : `creee`, `deja_reservee` (aucun double), `deja_traitee` (libérée ou clôturée, et
     `re_reservation` faux), `aucun_besoin_connu` (prévu vide : rien n'est dit, jamais « prêt » par défaut),
     `chantier_deja_declare` ; ou un verdict de refus."""
+    _verrouiller_stock_durable()
     if isinstance(devis_id, str) and devis_id and _chantier_deja_declare(devis_id):
         return {"accepte": True, "statut": "chantier_deja_declare"}
     prevu = besoins_prevus.pour_devis(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_PREVUS))
@@ -1137,6 +1154,7 @@ def receptionner_commande(
     `REJ-RECEPTION-PREUVE-MANQUANTE`, `REJ-RECEPTION-STATUT-INCONNU`, `REJ-RECEPTION-LIEU-INVALIDE` —
     AVANT toute écriture au stock, puis recopiés dans la réponse (`details_lignes`, `lieu`,
     `signaux_prix_bl`). Quand ils sont absents, le comportement est inchangé (contrats gelés)."""
+    _verrouiller_stock_durable()
     bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
     details_valides = None
     if details_reception is not None:
@@ -1380,6 +1398,7 @@ def consommer_materiaux(
             "verdict": {"code": "REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE"},
         }
 
+    _verrouiller_stock_durable()
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.consommer_materiaux(
         wct_canonique, formulaire, registre_cible, wct_id=wct_id
@@ -1498,6 +1517,7 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
                and ligne["unite"] != unites_prevues[ligne["materiau_id"]]
                for ligne in formulaire["lignes_materiaux"]):
             return {"accepte": False, "verdict": {"code": "REJ-FORMULAIRE-MATERIAUX-UNITE-INCOHERENTE"}}
+    _verrouiller_stock_durable()
     registre_cible = _registre_de_l_appel(None)
     resultat, code = materiel.soumettre_materiaux_utilises(
         wct, formulaire, registre_cible, livre_prix=_livre_prix_de_l_appel(None))
@@ -1547,6 +1567,16 @@ def _vue_ajustement(maillon: dict[str, Any]) -> dict[str, Any]:
 def ajuster_stock(
     ajustement: dict[str, Any], registre_historique: list[dict[str, Any]] | None = None
 ) -> dict[str, Any]:
+    return _ajuster_stock(ajustement, registre_historique, outil_approbation="m6_ajuster_stock")
+
+
+def _ajuster_stock(
+    ajustement: dict[str, Any],
+    registre_historique: list[dict[str, Any]] | None = None,
+    *,
+    outil_approbation: str,
+    reconcilier: bool = True,
+) -> dict[str, Any]:
     """C10 (M6.14) : ajuste le stock d'un article avec un motif TYPÉ, en gardant acteur, avant et après.
 
     `quantite_apres` est la quantité VISÉE (le stock total, ou celui de `emplacement` s'il est nommé) ; l'écart
@@ -1573,6 +1603,7 @@ def ajuster_stock(
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
 
+    _verrouiller_stock_durable()
     registre_cible = _registre_de_l_appel(registre_historique)
     mouvements = list(registre_cible.lire())
     deja = ajustements.deja_enregistre(normalisee["ajustement_id"], mouvements)
@@ -1600,7 +1631,7 @@ def ajuster_stock(
         return {"accepte": False, "verdict": verdict}
     if qualifie["niveau_approbation"] == "N4":
         signataire = approbations.approbateur_en_cours(
-            stockage.connexion_courante(), "m6_ajuster_stock", _DEPARTEMENT)
+            stockage.connexion_courante(), outil_approbation, _DEPARTEMENT)
         if signataire is None or signataire.role not in {"admin", "nathan_owner"}:
             return {"accepte": False, "verdict": verdicts.construire_verdict(
                 "REJ-AJUSTEMENT-APPROBATION-ADMIN-REQUISE",
@@ -1662,6 +1693,114 @@ def ajuster_stock(
             for emplacement, quantite in emplacements.repartition(
                 qualifie["materiau_id"], total_apres, registre_emplacements).items()
         }
+    if reconcilier:
+        reponse["evenements_materiel_pret"] = _reconcilier_reservations(
+            [qualifie["materiau_id"]], qualifie["horodatage"]
+        )
+    return reponse
+
+
+def clore_inventaire_physique(ajustements: Any) -> dict[str, Any]:
+    """Clôture un lot borné de comptages physiques dans la transaction de l'outil.
+
+    Chaque ligne reprend exactement le contrat de ``m6_ajuster_stock`` (quantité visée, motif typé, unité et seuil
+    par article, preuve CAS facultative, identifiant idempotent). Le lot refuse les lignes répétées pour le même
+    article/emplacement. Les formes et motifs sont vérifiés pour tout le lot avant la première écriture; une
+    approbation N4, si une ligne la requiert, est recherchée pour cet outil et lie donc l'ensemble de ses arguments.
+    Un refus pendant l'application d'une ligne tardive lève pour que ``executer_atomique`` annule les deux registres.
+    Les réservations ne sont réconciliées qu'après toutes les écritures : l'outbox ne publie que leur état final,
+    jamais les étapes intermédiaires du lot atomique.
+    """
+    if stockage.connexion_courante() is None:
+        return _hors_transaction() or {}
+    acteur, refus_acteur = _acteur_admin_ou_agent()
+    if refus_acteur is not None:
+        return {"accepte": False, "verdict": refus_acteur}
+    if not isinstance(ajustements, list) or not 1 <= len(ajustements) <= MAX_AJUSTEMENTS_INVENTAIRE_LOT:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-AJUSTEMENT-LOT-FORME",
+            detail=f"un lot de 1 à {MAX_AJUSTEMENTS_INVENTAIRE_LOT} comptages est requis",
+        )}
+
+    demandes: list[dict[str, Any]] = []
+    identifiants: set[str] = set()
+    cibles: set[tuple[str, str | None]] = set()
+    modes_par_materiau: dict[str, str] = {}
+    from . import ajustements as regles_ajustement
+
+    for indice, demande in enumerate(ajustements):
+        if not isinstance(demande, dict) or demande.get("motif") != "inventaire_physique":
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-AJUSTEMENT-LOT-FORME",
+                detail=f"la ligne {indice + 1} doit être un ajustement d'inventaire physique",
+            )}
+        normalisee, refus = regles_ajustement.valider_demande({**demande, "acteur": acteur})
+        if refus is not None:
+            return {"accepte": False, "verdict": refus}
+        identifiant = normalisee["ajustement_id"]
+        cible = (
+            normalisee["materiau_id"],
+            None if normalisee["emplacement"] is None else emplacements.cle(normalisee["emplacement"]),
+        )
+        mode = "total" if normalisee["emplacement"] is None else "emplacement"
+        mode_existant = modes_par_materiau.get(normalisee["materiau_id"])
+        if mode_existant is not None and mode_existant != mode:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-AJUSTEMENT-MODE-CIBLE-DUPLIQUE-LOT",
+                detail=f"ne pas mêler stock total et emplacements pour le même article (ligne {indice + 1})",
+            )}
+        if identifiant in identifiants:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-AJUSTEMENT-ID-DUPLIQUE-LOT", detail=f"ajustement_id répété à la ligne {indice + 1}")}
+        if cible in cibles:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-AJUSTEMENT-CIBLE-DUPLIQUE-LOT",
+                detail=f"article/emplacement répété à la ligne {indice + 1}",
+            )}
+        identifiants.add(identifiant)
+        cibles.add(cible)
+        modes_par_materiau[normalisee["materiau_id"]] = mode
+        demandes.append(demande)
+
+    resultats: list[dict[str, Any]] = []
+    materiaux_modifies: set[str] = set()
+    horodatage_dernier_enregistre: str | None = None
+    for indice, demande in enumerate(demandes):
+        resultat = _ajuster_stock(
+            demande, outil_approbation="m6_clore_inventaire_physique", reconcilier=False
+        )
+        if not resultat.get("accepte"):
+            if indice == 0:
+                return resultat
+            code = (resultat.get("verdict") or {}).get("code", "REJ-AJUSTEMENT-LOT-REFUSE")
+            raise ValueError(f"clôture du lot refusée à la ligne {indice + 1} : {code}")
+        resultats.append(resultat)
+        if resultat.get("statut") == "enregistre":
+            materiaux_modifies.add(demande["materiau_id"])
+            horodatage_dernier_enregistre = demande["horodatage"]
+
+    statuts = [resultat.get("statut") for resultat in resultats]
+    if "enregistre" in statuts:
+        statut_lot = "enregistre"
+    elif all(statut == "deja_enregistre" for statut in statuts):
+        statut_lot = "deja_enregistre"
+    else:
+        statut_lot = "aucun_ecart"
+    reponse = {"accepte": True, "statut": statut_lot, "ajustements": resultats}
+    evenements_materiel_pret = _reconcilier_reservations(
+        sorted(materiaux_modifies), horodatage_dernier_enregistre
+    ) if materiaux_modifies else []
+    reponse["evenements_materiel_pret"] = evenements_materiel_pret
+    # Le répartiteur générique peut tronquer une réponse après validation de la transaction. Une
+    # clôture ne doit jamais être écrite si son accusé complet, enveloppe comprise, ne tient pas.
+    import json
+
+    limite = min(contexte.limite_sortie() or 5400, 5400)
+    cadres = ({"ok": True, "resultat": reponse, "rejoue": rejoue} for rejoue in (False, True))
+    if any(len(json.dumps(cadre, ensure_ascii=False, allow_nan=False)) > limite for cadre in cadres):
+        raise ValueError(
+            "REJ-AJUSTEMENT-LOT-SORTIE-TROP-VOLUMINEUSE: la confirmation complète dépasse la borne"
+        )
     return reponse
 
 
@@ -1763,6 +1902,7 @@ def lire_alertes_approvisionnement(decalage: int = 0, limite: int = 20) -> dict[
 def soumettre_comptage(
     comptage: dict[str, Any], registre_historique: list[dict[str, Any]] | None = None
 ) -> dict[str, Any]:
+    _verrouiller_stock_durable()
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.soumettre_comptage(comptage, registre_cible)
     if code is not None:
@@ -2461,6 +2601,7 @@ def liberer_reservation(devis_id: str, motif: str, horodatage: str) -> dict[str,
     acteur, verdict = _acteur_admin_ou_agent()
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    _verrouiller_stock_durable()
     registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)
     resultat, verdict = reservations.liberer(devis_id, motif, acteur, horodatage, registre)
     if verdict is not None:
@@ -2492,6 +2633,7 @@ def transferer_stock(
     acteur, verdict = _acteur_admin_ou_agent()
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    _verrouiller_stock_durable()
     registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
     stock_total = (
         stock.deriver_stock_articles([materiau_id], stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))[materiau_id]
@@ -2968,6 +3110,7 @@ def _postflight_preuves(reponse):
 def declarer_materiaux_avec_preuves_appareil(wct_id: str, formulaire: dict[str, Any], preuves_lignes: list):
     p = preuves_pertes_bris_appareil
     try:
+        _verrouiller_stock_durable()
         acteur, wct, nombre_sources, _ = autoriser_declaration_preuves(wct_id, formulaire)
         plan, code = preuves_pertes_bris.valider_preuves_lignes(formulaire["lignes_materiaux"], preuves_lignes)
         if code:
@@ -3630,6 +3773,32 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=ajuster_stock,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+        ),
+        Outil(
+            nom="m6_clore_inventaire_physique",
+            description=(
+                "M6.14 : applique atomiquement un lot borné de comptages physiques d'articles et d'emplacements. "
+                "Chaque ligne conserve la sémantique de m6_ajuster_stock : motif inventaire_physique, quantité "
+                "visée, seuil déclaré par article, audit hash-chaîné et identifiant idempotent. Si une ligne dépasse "
+                "le seuil (ou si le seuil manque), l'approbation admin/propriétaire doit porter sur ce lot complet. "
+                "Aucune suppression ni modification des droits existants."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "ajustements": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": MAX_AJUSTEMENTS_INVENTAIRE_LOT,
+                        "items": _AJUSTEMENT,
+                    },
+                },
+                "required": ["ajustements"],
+                "additionalProperties": False,
+            },
+            fonction=clore_inventaire_physique,
             autonomie=Autonomie.T1,
             niveau=Niveau.N3,
         ),
