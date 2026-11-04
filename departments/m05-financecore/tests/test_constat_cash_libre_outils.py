@@ -288,7 +288,7 @@ def test_m5_declare_publier_le_constat_et_le_catalogue_le_connait(dep):
     assert dep.evenements_publie[2:] == ("m5.creance_relance_preparee", "m5.mesures_comptables_constatees",
                                          "m5.rapprochement_po_constate", "m5.dossier_cpa_scelle",
                                          "m5.depense_publicitaire_constatee", "m5.facture_emise_constatee",
-                                         "m5.preaudit_constate")
+                                         "m5.preaudit_constate", "m5.tresorerie_prevue_constatee")
     assert TYPE in evenements.types_connus()
     assert evenements.verifier_coherence({DEPARTEMENT: dep}) == []
 

@@ -227,6 +227,7 @@ from . import (
     clients_recus,
     comptes_a_payer,
     constat_cash_libre,
+    constat_tresorerie_prevue,
     contrats_salaries_horaires,
     cout_reel,
     couts_marketing,
@@ -287,6 +288,9 @@ _NOM_REGISTRE_COMPTES_A_PAYER = "comptes_a_payer"
 # version, statut, identifiant). Toujours durable, comme `rentabilite` : l'état vient des registres lus, la charge
 # complète est au bus.
 _NOM_REGISTRE_CONSTATS = "constats_cash_libre"
+# C5 : registre DÉRIVÉ des constats de trésorerie prévue publiés au bus (un maillon par constat : rang, jour, version,
+# statut d'alerte, identifiant). Toujours durable : l'état vient de la prévision lue, la charge complète est au bus.
+_NOM_REGISTRE_CONSTATS_TRESORERIE_PREVUE = "constats_tresorerie_prevue"
 # M5.4.a : données salariales privées, sur un flux durable séparé des mouvements et des obligations.
 _NOM_REGISTRE_CONTRATS_SALARIES = "contrats_salaries_horaires"
 # M5.8a : journal append-only des échéanciers commerciaux validés par un humain.
@@ -3691,6 +3695,185 @@ def constater_cash_libre_planifie(aujourd_hui: str) -> dict[str, Any]:
     }
 
 
+# ------------------------------------------------- constat de trésorerie prévue au bus (C5)
+def _constater_tresorerie_prevue(
+    registre_mouvements: registre_module.Registre, jour: date, emise_le: str
+) -> dict[str, Any]:
+    """Calcule la prévision, la trace et la publie : `{"deja_constate", "publie", "constat"}`. Écrit, donc jamais
+    appelée par une lecture : seuls `constater_tresorerie_prevue` et `constater_tresorerie_prevue_planifie`
+    l'appellent, après tous leurs refus.
+
+    La prévision vient du MÊME instantané que celle de `m5_prevoir_tresorerie` (`_lectures_finance`,
+    `_flux_connus_prevue` : aucun calcul de plus). Le registre des mouvements arrive déjà ouvert : cette fonction
+    ne le nomme pas et n'y écrit rien. Un horizon ou des réglages non déclarés par le propriétaire (GATE NATHAN)
+    ne sont jamais devinés : le constat reprend la prévision telle que `prevision.assembler` la rend, y compris
+    « non calculable, manque X ».
+
+    Un constat par date de référence et par version des données : si le DERNIER constat du registre
+    `constats_tresorerie_prevue` porte ce jour et cette version, rien n'est écrit ni publié (`deja_constate`,
+    l'identifiant de ce constat est rendu) ; sinon le constat prend le rang suivant, est tracé, et
+    `m5.tresorerie_prevue_constatee` part dans la MÊME transaction (une charge qui ne tient pas au catalogue
+    LÈVE : ni trace ni événement, jamais un constat à demi publié). La comparaison est avec le DERNIER constat
+    seulement : un retour à une version antérieure est un nouveau constat, au rang suivant, que le bus ne peut
+    donc pas avaler comme un doublon. Deux appels simultanés au même rang : le second lève
+    (`EcritureConcurrente`), l'appel est à rejouer."""
+    reglages, verdict = _reglages_prevision(jour.isoformat(), None, None, 0)
+    if verdict is not None:
+        return {"refus": verdict}
+    lectures = _lectures_finance(registre_mouvements, reglages["configuration"])
+    cash, flux, seuil, verdict_seuil = _flux_connus_prevision(lectures, reglages)
+    resultat = prevision.assembler(
+        reglages["aujourd_hui"],
+        reglages["horizon"],
+        cash["solde"],
+        flux,
+        seuil=seuil,
+        verdict_seuil=verdict_seuil,
+        cash_libre_resultat=cash,
+    )
+    constats = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONSTATS_TRESORERIE_PREVUE)
+    rang = len(constats)
+    dernier = constats[-1] if rang else None
+    if dernier is not None and (dernier["date_reference"], dernier["version_donnees"]) == (
+        jour.isoformat(),
+        resultat["prevision_id"],
+    ):
+        charge = constat_tresorerie_prevue.charge_evenement(resultat, jour, dernier["sequence"], emise_le)
+        resume = {**constat_tresorerie_prevue.resume(charge), "evenement_id": dernier["evenement_id"]}
+        return {"deja_constate": True, "publie": False, "constat": resume}
+    charge = constat_tresorerie_prevue.charge_evenement(resultat, jour, rang + 1, emise_le)
+    constats.append(constat_tresorerie_prevue.construire_trace(charge))
+    evenements.publier(
+        constat_tresorerie_prevue.TYPE_EVENEMENT_TRESORERIE_PREVUE,
+        _DEPARTEMENT,
+        charge,
+        evenement_id=charge["evenement_id"],
+    )
+    return {"deja_constate": False, "publie": True, "constat": constat_tresorerie_prevue.resume(charge)}
+
+
+def constater_tresorerie_prevue(
+    aujourd_hui: str,
+    emise_le: str,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """L'outil `m5_constater_tresorerie_prevue` (T1, N3, `admin`) : fait constater la prévision de trésorerie des
+    flux CONNUS et DATÉS et la publie au bus (`m5.tresorerie_prevue_constatee`), pour que M8 montre le solde
+    minimal prévu, les semaines sous le seuil et l'écart prévu/réel (`constat_tresorerie_prevue.py`).
+
+    Écriture INTERNE non finale (T1) : le constat et son événement, dans la même transaction. Aucun mouvement,
+    aucune facture, aucun paiement, aucune remise : le registre des mouvements est ouvert pour en tirer le solde,
+    jamais écrit. La prévision reprise est celle de `m5_prevoir_tresorerie` (même instantané, mêmes flux, même
+    horizon déclaré par le propriétaire) : un horizon ou des réglages non déclarés donnent un refus nommé, jamais
+    un horizon deviné ; une donnée inconnue donne des semaines « non calculables », jamais un zéro.
+
+    Même contrôle d'accès que les autres lectures financières : pour un appel d'appareil, l'identité confirmée en
+    base (`admin` seulement) ; la vue vient du rôle authentifié. Un constat PUBLIE des montants : sans le droit de
+    voir les coûts (un `autorise_couts` faux, ou un rôle qui ne l'a pas), il est refusé (`REJ-CONSTAT-COUTS-REQUIS`),
+    jamais publié sans montant.
+
+    `aujourd_hui` (`AAAA-MM-JJ`, date de référence) et `emise_le` (instant ISO 8601 avec fuseau, instant
+    d'émission) sont requis : M5 n'a pas d'horloge. Hors du stockage durable, il n'y a ni registre réel ni bus où
+    publier : refusé (`REJ-CONSTAT-STOCKAGE-NON-DURABLE`), jamais une prévision sur un registre qui n'a simplement
+    pas été lu."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-CONSTAT-COUTS-REQUIS",
+                detail="un constat de trésorerie prévue publie des montants : il exige le droit de voir les "
+                "coûts (autorise_couts vrai)",
+            )
+        )
+    jour, verdict = constat_tresorerie_prevue.lire_jour(aujourd_hui)
+    if verdict is not None:
+        return _refus(verdict)
+    instant, verdict = constat_tresorerie_prevue.lire_emission(emise_le)
+    if verdict is not None:
+        return _refus(verdict)
+    if not _stockage_durable_actif:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-CONSTAT-STOCKAGE-NON-DURABLE",
+                detail="le registre des mouvements n'est pas adossé au stockage durable : aucun registre réel à "
+                "constater, aucun bus où publier",
+            )
+        )
+    constat = _constater_tresorerie_prevue(_registre_mouvements(None), jour, instant)
+    if "refus" in constat:
+        return _refus(constat["refus"])
+    return {"accepte": True, "resultat": analyse.avec_mention({"role": vue["role"], **constat})}
+
+
+def constater_tresorerie_prevue_planifie(aujourd_hui: str, emise_le: str) -> dict[str, Any]:
+    """L'outil `m5_constater_tresorerie_prevue_planifie` (T1, N2, agent seulement) : la variante PLANIFIÉE du
+    constat de trésorerie prévue. Le planificateur durable la déclenche (bloc `constats_planifies` du manifeste,
+    PLANIFICATION.md §9) pour que les mesures de trésorerie prévue de M8 (solde minimal prévu, semaines sous le
+    seuil, écart prévu/réel) se remplissent sans qu'un humain ait à y penser.
+
+    POURQUOI UNE VARIANTE, et pourquoi N2 ici alors que `m5_constater_tresorerie_prevue` reste N3. Le calcul et la
+    publication sont les MÊMES (`_constater_tresorerie_prevue` : un seul code écrit la trace et l'événement, donc
+    un seul registre de constats, un seul rang, une seule règle « un constat par jour et par version des données »).
+    Ce qui diffère est ce que le N3 PROTÈGE : (1) l'outil N3 rend les MONTANTS à l'appelant et accepte une identité
+    d'appareil, donc il exige le droit de voir les coûts et la validation humaine « au départ » quand c'est un
+    agent qui le demande ; (2) ici, la validation humaine est l'activation du constat par un admin (ombre puis
+    actif, motif, 90 jours, consignés à `planificateur_executeurs` et au journal), l'appel vient de l'identité
+    SYSTÈME du planificateur, et la réponse ne porte AUCUN montant (`constat_tresorerie_prevue.entete`) : rien de
+    plus que ce que le bus reçoit déjà ne sort de M5. Aucune écriture comptable, aucun mouvement, aucun paiement,
+    aucune remise, aucune sortie externe : une trace dérivée et un événement interne.
+
+    Seul le planificateur la déclenche : `service_acteur_systeme.planificateur_en_cours` (acteur système opaque, de
+    portée `planificateur`, dans le fil du tour, hors requête HTTP/MCP et hors identité d'appel). Un agent par le
+    MCP, la console ou un appareil est refusé (`REJ-CONSTAT-PLANIFICATEUR-SEULEMENT`), AVANT la lecture du moindre
+    registre : la variante n'est donc pas une porte dérobée pour contourner la validation humaine du N3.
+
+    `aujourd_hui` (`AAAA-MM-JJ`) et `emise_le` (instant ISO 8601 avec fuseau) sont requis : M5 n'a pas d'horloge ;
+    le planificateur les calcule sur le CRÉNEAU (jour local), donc deux déclenchements du même créneau donnent le
+    même jour et, si les données n'ont pas changé, le même constat (`deja_constate`, rien n'est publié). Hors du
+    stockage durable : refusé, jamais un constat sur un registre qui n'a pas été lu."""
+    if not service_acteur_systeme.planificateur_en_cours():
+        return _refus(
+            verdicts_operations.construire_verdict(
+                "REJ-CONSTAT-PLANIFICATEUR-SEULEMENT",
+                detail="cette variante n'est déclenchée que par le planificateur durable ; pour un constat à la "
+                "demande, m5_constater_tresorerie_prevue",
+            )
+        )
+    jour, verdict = constat_tresorerie_prevue.lire_jour(aujourd_hui)
+    if verdict is not None:
+        return _refus(verdict)
+    instant, verdict = constat_tresorerie_prevue.lire_emission(emise_le)
+    if verdict is not None:
+        return _refus(verdict)
+    if not _stockage_durable_actif:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-CONSTAT-STOCKAGE-NON-DURABLE",
+                detail="le registre des mouvements n'est pas adossé au stockage durable : aucun registre réel à "
+                "constater, aucun bus où publier",
+            )
+        )
+    constat = _constater_tresorerie_prevue(_registre_mouvements(None), jour, instant)
+    if "refus" in constat:
+        return _refus(constat["refus"])
+    return {
+        "accepte": True,
+        "resultat": analyse.avec_mention(
+            {
+                "deja_constate": constat["deja_constate"],
+                "publie": constat["publie"],
+                "constat": constat_tresorerie_prevue.entete(constat["constat"]),
+            }
+        ),
+    }
+
+
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m6.variance_chantier` (PLAN T1.3-c point 4, catalogue existant, M6 en est
     propriétaire) : garde le DERNIER signal connu par wct_id (`variance_recus.py`) — jamais un
@@ -5680,6 +5863,87 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
             # N2 (tâche interne, automatique) : une trace dérivée et un événement interne, comme les trois constats
             # frères de M5. Agent seulement : AUCUN droit d'appareil (le téléphone de l'admin garde
             # m5_constater_cash_libre, N3) ; et le corps refuse tout appelant qui n'est pas le planificateur.
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+        ),
+        Outil(
+            nom="m5_constater_tresorerie_prevue",
+            description=(
+                "Constate la prévision de trésorerie des flux CONNUS et DATÉS (T1) et la publie au bus "
+                "(m5.tresorerie_prevue_constatee) : les montants semaine par semaine, chacun avec son statut "
+                "(CALCULE ou NON_CALCULABLE), ou « non calculable, manque X ». Un constat par jour de référence "
+                "et par version des données : redemander sans changement ne publie rien. aujourd_hui et emise_le "
+                "requis (M5 n'a pas d'horloge). Horizon, seuil et délais non déclarés (GATE NATHAN) : refus nommé. "
+                "Admin seulement, droit de voir les coûts requis. Mention obligatoire."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "description": (
+                            "Jour de référence du constat, AAAA-MM-JJ (jamais deviné : M5 n'a pas d'horloge)."
+                        ),
+                    },
+                    "emise_le": {
+                        "type": "string",
+                        "description": (
+                            "Instant d'émission du constat, ISO 8601 avec fuseau (jamais deviné : M5 n'a pas "
+                            "d'horloge)."
+                        ),
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": {
+                        "type": ["boolean", "null"],
+                        "description": (
+                            "Appel d'appareil : omis, il vaut le droit du rôle ; faux est refusé (un constat publie "
+                            "des montants : REJ-CONSTAT-COUTS-REQUIS) ; vrai sans ce droit est refusé "
+                            "(REJ-ROLE-ELARGI). Sans appareil (agent, console) : obligatoire, et vrai."
+                        ),
+                    },
+                },
+                "required": ["aujourd_hui", "emise_le"],
+                "additionalProperties": False,
+            },
+            fonction=constater_tresorerie_prevue,
+            # T1 -> N3 (par défaut, jamais posé à la main ici, là où les constats frères posent N2) : écriture interne
+            # non finale, sur un registre dérivé et au bus ; ne touche jamais les mouvements. Un appel d'appareil
+            # `admin` confirmé en base s'exécute (validation humaine au départ, ADR-0009 §4) ; un appel d'agent part
+            # en file d'approbation en mode `ombre` (`n3` : finance ou propriétaire). NIVEAU CONSERVÉ (même patron
+            # que `m5_constater_cash_libre`) : cet outil rend les MONTANTS à son appelant et accepte une identité
+            # d'appareil, ce que le N3 encadre ; le rafraîchissement automatique passe par la variante N2
+            # `m5_constater_tresorerie_prevue_planifie` (planificateur seulement, réponse sans montant).
+            autonomie=Autonomie.T1,
+            # §9.5 M5 (trésorerie et cash libre réel) : l'admin seul, comme la prévision lue. Identité confirmée en
+            # base.
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_constater_tresorerie_prevue_planifie",
+            description=(
+                "Variante PLANIFIÉE du constat de trésorerie prévue (T1, N2) : le planificateur durable seul la "
+                "déclenche. Même constat, même événement, même règle « un constat par jour et par version ». "
+                "La réponse ne porte AUCUN montant. aujourd_hui et emise_le requis. Mention obligatoire."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "description": "Jour de référence du constat, AAAA-MM-JJ (calculé sur le créneau).",
+                    },
+                    "emise_le": {
+                        "type": "string",
+                        "description": "Instant d'émission du constat, ISO 8601 avec fuseau (calculé sur le créneau).",
+                    },
+                },
+                "required": ["aujourd_hui", "emise_le"],
+                "additionalProperties": False,
+            },
+            fonction=constater_tresorerie_prevue_planifie,
+            # N2 (tâche interne, automatique) : une trace dérivée et un événement interne, comme les constats
+            # planifiés de M5. Agent seulement : AUCUN droit d'appareil (le téléphone de l'admin garde
+            # m5_constater_tresorerie_prevue, N3) ; et le corps refuse tout appelant qui n'est pas le planificateur.
             autonomie=Autonomie.T1,
             niveau=Niveau.N2,
         ),

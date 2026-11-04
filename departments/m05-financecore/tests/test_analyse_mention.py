@@ -77,6 +77,8 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
         "m5_prevoir_tresorerie",
         # T4.19-b : le cash libre constaté et publié au bus (le même calcul que l'état de trésorerie)
         "m5_constater_cash_libre", "m5_constater_cash_libre_planifie", "m5_preparer_decision_capital",
+        # C5 : la prévision constatée et publiée au bus (le même calcul que la prévision lue, à la demande et planifiée)
+        "m5_constater_tresorerie_prevue", "m5_constater_tresorerie_prevue_planifie",
         # M5.16 : dossier stratégique préparatoire depuis les sources FinanceCore
         "m5_preparer_dossier_decision_cfo", "m5_preparer_brut_regulier", "m5_preparer_dossier_webras",
         "m5_prevoir_tresorerie_contrats"}
@@ -210,6 +212,9 @@ def _appels(ident, revision=None):
         "m5_prevoir_tresorerie": {"aujourd_hui": "2026-09-29", "horizon_semaines": 4},
         "m5_constater_cash_libre": {"aujourd_hui": "2026-09-29"},
         "m5_constater_cash_libre_planifie": {"aujourd_hui": "2026-09-29"},
+        "m5_constater_tresorerie_prevue": {"aujourd_hui": "2026-09-29", "emise_le": "2026-09-29T07:00:00-04:00"},
+        "m5_constater_tresorerie_prevue_planifie": {"aujourd_hui": "2026-09-29",
+                                                    "emise_le": "2026-09-29T07:00:00-04:00"},
         "m5_preparer_decision_capital": {
             "actif": "équipement", "prix": "50000.00", "source_prix": "Offre fournisseur Q-52",
             "prix_valide_jusqua": "2026-10-30",
@@ -309,7 +314,7 @@ def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, n
         reponse = _appeler(par_nom, nom, arguments, OWNER_CONSOLE)
     elif nom == "m5_prevoir_tresorerie_contrats":
         reponse = _appeler(par_nom, nom, _appels(ident)[nom], OWNER_CONSOLE)
-    elif nom == "m5_constater_cash_libre_planifie":
+    elif nom in {"m5_constater_cash_libre_planifie", "m5_constater_tresorerie_prevue_planifie"}:
         # variante PLANIFIÉE : seul un tour du planificateur la déclenche (acteur système, sans identité d'appel)
         with service_acteur_systeme.contexte_planificateur():
             reponse = executer_atomique(par_nom[nom], _appels(ident, revision)[nom])

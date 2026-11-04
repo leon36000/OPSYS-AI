@@ -116,6 +116,8 @@ ADMIN_SEUL = frozenset({
     "m5_enregistrer_contrat_horaire", "m5_revoquer_contrat_horaire", "m5_lire_contrat_horaire",
     # le cash libre constaté et publié au bus pour M8 : écriture interne (T1, N3), l'admin qui voit les coûts
     "m5_constater_cash_libre",
+    # C5 : la trésorerie prévue constatée et publiée au bus pour M8 (même discipline que le cash libre)
+    "m5_constater_tresorerie_prevue",
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
     # réservation, emplacements, disponibilité : l'admin seulement (T4.14) ; jamais l'employé ni le vendeur

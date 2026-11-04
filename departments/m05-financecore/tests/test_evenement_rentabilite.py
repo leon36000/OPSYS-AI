@@ -363,8 +363,8 @@ def test_m5_declare_publier_la_rentabilite():
     assert publie[2:] == ("m5.creance_relance_preparee", "m5.mesures_comptables_constatees",
                           "m5.rapprochement_po_constate", "m5.dossier_cpa_scelle",
                           "m5.depense_publicitaire_constatee", "m5.facture_emise_constatee",
-                          "m5.preaudit_constate"), \
-        "puis les opérations comptables"
+                          "m5.preaudit_constate", "m5.tresorerie_prevue_constatee"), \
+        "puis les opérations comptables (et la trésorerie prévue, C5)"
 
 
 def test_une_trace_partielle_publie_les_inconnus_dans_la_meme_transaction(base_durable, taux_configure):

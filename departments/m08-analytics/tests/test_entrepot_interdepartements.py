@@ -7,7 +7,7 @@ Prouve :
   lisait pas) ;
 - la fenêtre de fraîcheur que le département SOURCE déclare (M7) s'ajoute à celles du catalogue et de l'appelant : la
 plus stricte des trois l'emporte, avec son origine ;
-- l'entrepôt reconstruit porte les 59 mesures avec valeur, source, version, dernier fait ; une valeur à couverture
+- l'entrepôt reconstruit porte les 62 mesures avec valeur, source, version, dernier fait ; une valeur à couverture
 partielle garde sa valeur ET le dit dans `detail` ; une mesure sans source reste sans valeur ; rien de personnel ;
 - le wallboard « finance et opérations » montre les valeurs exactes, marque une tuile partielle et ne dit pas « ok » ;
 - le copilote répond avec la valeur, dit la couverture partielle, et reste en lecture seule (« comptes à payer » est une
@@ -201,7 +201,7 @@ def test_l_entrepot_porte_les_cinquante_neuf_mesures_sans_personne_ni_zero_inven
     registres = jeux_fictifs.registres_fictifs(avec_operations=True)
     resultat = entrepot.construire(registres, CAT, construit_le=INSTANT, rang_precedent=0)
     lignes = {ligne["metric_id"]: ligne for ligne in resultat["tables"][entrepot.TABLE_MESURES]}
-    assert len(lignes) == resultat["construction"]["nb_mesures"] == 59
+    assert len(lignes) == resultat["construction"]["nb_mesures"] == 62
     assert lignes["m8_creances_ouvertes_cad"]["valeur"] == "7210.55"
     assert lignes["m8_creances_ouvertes_cad"]["source"].startswith("M5 m5.mesures_comptables_constatees")
     assert lignes["m8_ecart_depense_pub_comptabilisee_cad"]["valeur"] == "113.75"
@@ -348,7 +348,7 @@ def test_l_ecart_de_depense_est_nomme_et_sa_couverture_partielle_est_dite_par_le
 
 
 def test_toutes_les_mesures_disent_leur_couverture():
-    """Complète quand calculée, inconnue quand non calculable : la même forme pour les 59 mesures."""
+    """Complète quand calculée, inconnue quand non calculable : la même forme pour les 62 mesures."""
     lues = {
         m["metric_id"]: m
         for m in moteur_mesures.lire(jeux_fictifs.registres_fictifs(cash_libre_cad=None, avec_operations=True), CAT)

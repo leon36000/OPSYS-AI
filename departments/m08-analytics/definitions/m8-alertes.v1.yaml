@@ -58,7 +58,9 @@ regles:
     reglage: tresorerie_sous_seuil
     gravite: critique
     action: examiner_tresorerie
-    mesures_liees: [m8_solde_tresorerie_cad, m8_comptes_a_payer_cad, m8_taxes_a_remettre_cad, m8_creances_ouvertes_cad]
+    mesures_liees: [m8_solde_tresorerie_cad, m8_solde_minimal_prevu_cad, m8_semaines_sous_seuil,
+                    m8_ecart_tresorerie_prevue_reelle_cad, m8_comptes_a_payer_cad, m8_taxes_a_remettre_cad,
+                    m8_creances_ouvertes_cad]
     libelle: "Le cash libre atteint ou passe sous le seuil que la direction a déclaré."
   - id: ALERTE-CREANCES-90-JOURS
     genre: seuil
@@ -109,6 +111,9 @@ regles:
     genre: peremption
     mesures:
       - m8_cash_libre_cad
+      - m8_solde_minimal_prevu_cad
+      - m8_semaines_sous_seuil
+      - m8_ecart_tresorerie_prevue_reelle_cad
       - m8_creances_ouvertes_cad
       - m8_pipeline_leads_ouverts
       - m8_articles_en_rupture

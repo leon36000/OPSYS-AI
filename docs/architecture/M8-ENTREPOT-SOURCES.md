@@ -7,7 +7,11 @@ d'appareil, sans nouvel outil, sans migration et sans écriture dans un autre d�
 décisions D1 à D7 de l'architecte (r10, §5) : sept départements PUBLIENT un résumé agrégé et minimisé sur le bus et M8 le consomme
 (59 mesures depuis M5-PRE-AUDIT) ; **sept outils de constat** (huit avec le filet anti-perte de M2, neuf avec le pré-audit de M5) (T1/N2, agent seulement, **aucun droit d'appareil**), **aucune migration**, aucune lecture
 croisée. Prouvé sur le **vrai bus**, les `consommateurs()` réels et une base SQLite migrée, avec des charges conformes au catalogue
-d'événements. Rien n'a été exécuté contre PostgreSQL pour ces mesures, ni contre un service externe. Contexte : `INTERCONNEXION.md` (le
+d'événements. Rien n'a été exécuté contre PostgreSQL pour ces mesures, ni contre un service externe. Chantier C5 (2026-11-04) :
+M5 PUBLIE en plus son constat de trésorerie prévue (`m5.tresorerie_prevue_constatee`, N3 à la demande + variante N2 planifiée
+`tresorerie-prevue`, inactif par défaut) ; M8 en tire trois mesures — solde minimal prévu, semaines sous le seuil, écart
+prévu-réel — soit **62 mesures**, trois tuiles de plus sur le wallboard finance-opérations (plafond porté de 12 à 16 tuiles)
+et la règle `ALERTE-TRESORERIE-SOUS-SEUIL` enrichie. Contexte : `INTERCONNEXION.md` (le
 bus), `M8-OLIVIER.md` (la couche analytique).
 
 ## 1. Pourquoi ce chantier
@@ -17,7 +21,7 @@ n'alimentaient pas l'entrepôt : ils arrivaient bien chez M8 (registre `faits_op
 `operations_recues` de la vue exécutive. Le catalogue fermé n'avait que 18 mesures, aucune ne venait de la marge, des créances, des
 comptes à payer, des relevés publicitaires, des réceptions de matériaux ni des demandes de M1.
 
-Il en a maintenant **59** (18 + 20 + 21 de la phase 2, dont deux pour le filet anti-perte de M2 et une pour le pré-audit de M5), lues par le **même moteur** (`moteur_mesures.lire`) que les wallboards, le score de santé, le
+Il en a maintenant **62** (18 + 20 + 21 de la phase 2 + 3 du chantier C5, dont deux pour le filet anti-perte de M2 et une pour le pré-audit de M5), lues par le **même moteur** (`moteur_mesures.lire`) que les wallboards, le score de santé, le
 copilote, la mémoire (M10) et le pont BI : une mesure n'a qu'une valeur, qu'une provenance et qu'une fraîcheur, quelle que soit la
 surface qui la montre.
 

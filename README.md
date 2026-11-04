@@ -55,14 +55,14 @@ catalogue de fournisseurs : un chiffre périmé fait échouer le test.
 | Chiffre | Valeur |
 |---|---|
 | Départements | 10 |
-| Outils | 696 |
-| Outils ouverts aux appareils | 257 |
+| Outils | 698 |
+| Outils ouverts aux appareils | 258 |
 | Avatars | 10 |
 | Packs sectoriels | 2 |
 | Fichiers de migration | 50 |
 | Tête alembic | 0086 |
-| Révision du registre MCP | 35 |
-| Outils scellés au registre MCP | 719 |
+| Révision du registre MCP | 36 |
+| Outils scellés au registre MCP | 721 |
 | Lignes du catalogue de fournisseurs | 66 |
 <!-- chiffres:fin -->
 

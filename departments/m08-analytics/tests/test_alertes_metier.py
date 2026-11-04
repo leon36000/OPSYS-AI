@@ -434,7 +434,9 @@ def test_une_alerte_porte_courant_reference_action_departement_et_mesures_liees_
     assert "CPA" in entree["action"] and "M8 n'exécute aucune action" in entree["action"]
     assert entree["departement"] == "m05-financecore" and entree["gravite"] == "critique"
     assert set(entree["mesures_liees"]) == {"m8_solde_tresorerie_cad", "m8_comptes_a_payer_cad",
-                                            "m8_taxes_a_remettre_cad", "m8_creances_ouvertes_cad"}
+                                            "m8_taxes_a_remettre_cad", "m8_creances_ouvertes_cad",
+                                            "m8_solde_minimal_prevu_cad", "m8_semaines_sous_seuil",
+                                            "m8_ecart_tresorerie_prevue_reelle_cad"}
     vue = alertes_metier.vue_episode(alertes_metier.episodes([entree])[entree["alerte_id"]], MAINTENANT)
 
     def cles(objet):

@@ -31,7 +31,7 @@ PUBLIE = "2026-10-30T07:00:00-04:00"
 
 # ================================================================================================ types de constats
 def test_les_neuf_types_de_la_phase_2_sont_declares_avec_leur_evenement_et_leur_cle_de_contenu():
-    assert len(op.EVENEMENT_PAR_TYPE) == 17
+    assert len(op.EVENEMENT_PAR_TYPE) == 18  # 17 de la phase 2 + 1 (C5)
     attendus = {
         "m5.depense_publicitaire_constatee": op.TYPE_DEPENSE_COMPTABILISEE,
         "m5.facture_emise_constatee": op.TYPE_FACTURE_EMISE,

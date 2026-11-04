@@ -6,7 +6,7 @@ Statut au 1er octobre 2026 : **PARTIEL — consolidation requise**. Les opérati
 rapports préparatoires sont raccordés, mais le périmètre CFO complet n'est pas livré. Le comptage
 historique au commit `2e56c0d` (17 outils) et le constat initial DEP-001 ne décrivent plus l'arbre
 courant : DEP-001 est corrigé localement, avec régression en mémoire et sur stockage durable
-(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**109 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
+(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**111 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
 `opsys-metier verifier` confirme les nombres de départements, outils et portées d'appareil dans sa preuve de cette tranche. Voir le [périmètre cible](../../docs/produit/PERIMETRE-MODULES.md), la
 [recherche actuelle](../../docs/research/R16-2026-09-30/recherche-m5.md) et le
 [bilan intégré](../../docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md).
@@ -330,6 +330,17 @@ quelle fréquence, un bouton du profil admin ?) ; (2) la date de référence est
 porte est celle qu'on lui a donnée ; (3) le constat vieillit : M8 dit son âge, aucun seuil de péremption n'est inventé (GATE
 NATHAN) ; (4) les hypothèses du calcul (crédits de taxes récupérables à 100 %) voyagent avec le constat et restent à valider par
 le CPA ; (5) deux appels simultanés pour le même rang : le second échoue (écriture concurrente) et se rejoue sans dégât.
+
+PLAN C5 (constat de la trésorerie prévue, `constat_tresorerie_prevue.py`, `m5_constater_tresorerie_prevue`) : M5 PUBLIE
+la prévision au bus (`m5.tresorerie_prevue_constatee`, catalogue du socle, schéma fermé) pour que M8 affiche le solde
+minimal prévu, les semaines sous le seuil et l'écart prévu-réel. Le déclencheur est un outil T1 DÉDIÉ (N3, `admin`),
+plus sa VARIANTE T1/N2 planifiée (`tresorerie-prevue`, inactif par défaut, `REJ-CONSTAT-PLANIFICATEUR-SEULEMENT` pour
+tout autre appelant) ; même registre, même rang, même règle « un constat par jour et par version ». Le constat reprend
+`prevision.assembler` tel quel (flux connus et datés, horizon 1–26 semaines, seuil et délais GATE NATHAN) : solde minimal
+et sa semaine, semaines sous le seuil (vides quand le seuil n'est pas configuré), série hebdomadaire pour le
+prévu-contre-réel de M8, instant d'émission donné par l'appelant. Aucun montant n'est recalculé. Seule exception au
+gel de `validation.py` (épinglé par le contrat d'admission paie) : le verdict propre `REJ-CONSTAT-EMISSION-INVALIDE`
+vit dans le module C5, même forme que `validation.construire_verdict`.
 
 M5.10.a (intégré localement le 1er octobre 2026, décision capital) :
 `m5_preparer_decision_capital` accepte facultativement

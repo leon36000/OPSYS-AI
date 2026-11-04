@@ -115,7 +115,7 @@ def test_une_definition_mal_formee_est_refusee(mutation, fragment):
 
 
 def test_trop_de_tuiles_est_refuse():
-    tuiles = [{"id": f"t{i}", "mesure": "m8_leads_recus", "titre": "x"} for i in range(13)]
+    tuiles = [{"id": f"t{i}", "mesure": "m8_leads_recus", "titre": "x"} for i in range(17)]
     with pytest.raises(wallboards.WallboardRefuse, match="tuiles"):
         wallboards.valider(_definition(tuiles=tuiles), _CAT)
 

@@ -20,6 +20,9 @@ tuiles:
   - {id: creances-vieilles, mesure: m8_creances_90_jours_plus_cad, titre: "Créances de 90 jours et plus", page: 2}
   - {id: a-payer, mesure: m8_comptes_a_payer_cad, titre: "Comptes à payer", page: 2}
   - {id: solde, mesure: m8_solde_tresorerie_cad, titre: "Solde de trésorerie", page: 2}
+  - {id: solde-minimal-prevu, mesure: m8_solde_minimal_prevu_cad, titre: "Solde minimal prévu", page: 2}
+  - {id: semaines-sous-seuil, mesure: m8_semaines_sous_seuil, titre: "Semaines prévues sous le seuil", page: 2}
+  - {id: ecart-prevu-reel, mesure: m8_ecart_tresorerie_prevue_reelle_cad, titre: "Écart prévu-réel de trésorerie", page: 2}
   - {id: heures, mesure: m8_heures_sur_site_chantiers, titre: "Heures sur site", page: 3}
   - {id: receptions, mesure: m8_receptions_materiaux, titre: "Réceptions de matériaux", page: 3}
   - {id: receptions-ecart, mesure: m8_receptions_avec_ecart, titre: "Réceptions avec écart", page: 3}

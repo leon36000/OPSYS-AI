@@ -327,8 +327,9 @@ def test_texte_decimal_d_une_valeur_absente_est_un_tiret():
 def test_le_textarea_refuse_cle_ou_valeur_vide_doublon_et_double_egal_avec_le_code_de_structure(texte):
     # Pinne le CODE de refus (REJ-SEUILS-STRUCTURE) : sans ce test, deux gardes de `_mappage` (clé vide / valeur
     # vide) étaient des mutants « équivalents » parce que le refus tardif de valider_config les rattrapait.
-    from opsys.console import seuils_materiaux_ui as ui
     from m6_material_control import seuils_variance as sv
+
+    from opsys.console import seuils_materiaux_ui as ui
 
     with pytest.raises(sv.SeuilsRefuses) as exc:
         ui._mappage(texte, "revetement")

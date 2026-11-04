@@ -170,3 +170,9 @@ regles:
     bloque: [m8_cash_libre_cad, m8_solde_tresorerie_cad, m8_comptes_a_payer_cad, m8_taxes_a_remettre_cad]
     libelle: "Un constat du cash libre calculé porte un montant lisible, son drapeau de déficit correspond au signe de ce montant, et les comptes à payer ne sont pas négatifs."
     correction: "Faire refaire le constat du cash libre par M5 après vérification du solde et des obligations."
+  - id: Q-TRESORERIE-PREVUE-COHERENTE
+    type: controle
+    controle: tresorerie_prevue_coherente
+    bloque: [m8_solde_minimal_prevu_cad, m8_semaines_sous_seuil, m8_ecart_tresorerie_prevue_reelle_cad]
+    libelle: "Un constat de trésorerie prévue porte un solde minimal lisible quand sa semaine est connue (jamais un zéro par défaut), des semaines ordonnées dans l'horizon déclaré, et une série d'autant de semaines que l'horizon."
+    correction: "Faire refaire le constat de la trésorerie prévue par M5 (m5_constater_tresorerie_prevue) après vérification de la prévision."
