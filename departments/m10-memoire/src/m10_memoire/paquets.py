@@ -69,7 +69,18 @@ import json
 from datetime import datetime
 from typing import Any
 
-from . import affaire, amont, classification, confidentialite, consolidation, decisions, etapes, registre, signaux
+from . import (
+    affaire,
+    amont,
+    classification,
+    confidentialite,
+    consolidation,
+    decisions,
+    etapes,
+    registre,
+    signaux,
+    transferts,
+)
 
 BUDGET_CARACTERES_DEFAUT = 4000
 NB_FAITS_MAX_PAR_COUCHE_DEFAUT = 5
@@ -183,6 +194,10 @@ def _resume_evenement(maillon: dict, type_evenement: str | None, identifiant: st
         # Jamais un montant : l'entrée est FINANCIAL et ne sort dans aucun paquet ; ce résumé n'en porte pas
         # non plus, pour qu'un marquage manquant ne puisse pas devenir une fuite.
         return f"Rentabilité {identifiant} : {maillon.get('verdict')}"
+    if transferts.type_du_maillon(maillon) is not None:
+        # M10-02 : ouverture d'un transfert ou d'une plainte, CLIENT_PRIVATE (M1/M2 seulement). Le résumé ne
+        # porte ni pseudonyme de conversation, ni canal, ni texte.
+        return transferts.resume(maillon)
     # Un fait de l'amont (PLAN T4.18) : son résumé est écrit dans `etapes.py`, sans montant ni texte libre.
     return etapes.resume(maillon) or "événement non classifié"
 

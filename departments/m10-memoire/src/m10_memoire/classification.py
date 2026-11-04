@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from . import etapes
+from . import etapes, transferts
 
 TYPE_WCT = "m4.travaux_termines"
 TYPE_VARIANCE = "m6.variance_chantier"
@@ -49,6 +49,9 @@ def type_evenement(maillon: dict) -> str | None:
         return TYPE_WCT
     if _CLE_DISCRIMINANTE[TYPE_RENTABILITE] in maillon:
         return TYPE_RENTABILITE
+    type_transfert = transferts.type_du_maillon(maillon)
+    if type_transfert is not None:
+        return type_transfert
     return etapes.type_du_maillon(maillon)
 
 
@@ -61,6 +64,8 @@ def identifiant(maillon: dict) -> str | None:
         return None
     if type_ in _CLE_IDENTIFIANT:
         return maillon.get(_CLE_IDENTIFIANT[type_])
+    if type_ in transferts.TYPES:
+        return maillon.get("transfert_id")
     return etapes.cle_du_maillon(maillon)
 
 
@@ -82,6 +87,8 @@ def lead_id(maillon: dict, index_wct: dict[str, str]) -> str | None:
     ``wct_id`` pour une variance ou une rentabilité ; ``None`` si non résolvable (événement reçu avant son WCT, ou
     WCT jamais mémorisé) — jamais deviné."""
     type_ = type_evenement(maillon)
+    if type_ in transferts.TYPES:
+        return maillon.get("lead_id")
     if type_ == TYPE_WCT or etapes.type_du_maillon(maillon) is not None:
         return maillon.get("lead_id")
     if type_ in (TYPE_VARIANCE, TYPE_RENTABILITE):

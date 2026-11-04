@@ -95,7 +95,8 @@ class TestManifeste:
             "m9.fait_strategique",
             "m3.catalogue_reference", "m6.catalogue_reference",
             "m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier",
-            "m1.lead_qualifie", "m2.client_associe", "m2.contact_corrige", "m6.note_commande_referencee",
+            "m1.lead_qualifie", "m1.transfert_ouvert", "m1.plainte_ouverte",
+            "m2.client_associe", "m2.contact_corrige", "m6.note_commande_referencee",
             "m3.devis_envoye", "m3.devis_accepte", "m3.devis_sans_reponse",
             "m2.profil_propriete_confirme",  # Mnémo : ne nourrit que le graphe (tests/test_mnemo_outils.py)
             "m5.dossier_cpa_scelle",  # interconnexion M5 -> M10 : mémoire des dossiers scellés

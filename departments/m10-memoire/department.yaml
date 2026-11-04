@@ -140,6 +140,11 @@ evenements:
     - m6.variance_chantier
     - m5.rentabilite_chantier
     - m1.lead_qualifie
+    # M10-02, tranche 1 : ouverture d'un transfert et spécialisation plainte/urgence (M1-E). M10 garde UN fait
+    # minimal par transfert (identifiants, type, catégories, niveau, instant), CLIENT_PRIVATE, et ne copie jamais
+    # conversation_id, canal, contact ni texte. Un transfert sans lead_id est acquitté explicitement sans fait.
+    - m1.transfert_ouvert
+    - m1.plainte_ouverte
     - m2.client_associe
     - m2.contact_corrige
     - m6.note_commande_referencee

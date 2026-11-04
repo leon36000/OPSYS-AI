@@ -84,6 +84,7 @@ from . import (
     signaux,
     soi_graphe,
     strategique,
+    transferts,
     validation,
     variance,
     wct,
@@ -395,6 +396,71 @@ def _consommateur_amont(type_evenement: str) -> Callable[[dict], dict]:
     return recevoir
 
 
+# ---------------------------------------------------------------------------
+# Consommateurs d'événements (M10-02, tranche 1) : ouverture d'un transfert et d'une plainte
+# ---------------------------------------------------------------------------
+# Seul producteur déclaré au catalogue socle pour ces deux types (src/opsys/evenements/catalogue/
+# m1.transfert_ouvert.json et m1.plainte_ouverte.json : « Émis par M1 »).
+_PRODUCTEUR_TRANSFERT = "m01-front-office"
+
+
+class TransfertRefuse(ValueError):
+    """Une charge d'ouverture de transfert est invalide, ou un second événement contredit le fait déjà gardé pour le
+    même ``transfert_id``. Le message nomme le code et le CHAMP, jamais une valeur (conversation, contact, texte).
+    Le répartiteur réessaie puis met en quarantaine (ADR-0009 §3), visible par un humain."""
+
+
+def _consommateur_transfert(type_evenement: str) -> Callable[[dict], dict]:
+    """Le consommateur de ``m1.transfert_ouvert`` ou ``m1.plainte_ouverte`` (`transferts.py`).
+
+    Un transfert sans ``lead_id`` est acquitté avec un résultat EXPLICITE (``memorise: False``,
+    ``TRANSFERT-SANS-AFFAIRE``) : M1 publie légitimement une plainte sans lead, et M10 ne déduit jamais un lien du
+    pseudonyme de conversation. Une charge invalide ou contradictoire lève : rien n'est écrit, le reçu reste en échec
+    et la quarantaine est visible. Le rejeu des deux événements d'une même plainte est un no-op par ``transfert_id``.
+    """
+
+    def recevoir(charge: dict[str, Any]) -> dict[str, Any]:
+        resultat, verdict = transferts.memoriser(type_evenement, dict(charge), _REGISTRE_EVENEMENTS)
+        if resultat is None:
+            raise TransfertRefuse(
+                f"{type_evenement} : fait refusé par M10 : {verdict['code']} ({verdict['detail']})"
+            )
+        if not resultat["identique"]:
+            raise TransfertRefuse(
+                f"{type_evenement} : fait contradictoire pour le transfert {resultat['transfert_id']}"
+            )
+        if not resultat["rattachee"]:
+            return {
+                "memorise": False,
+                "rattachee": False,
+                "type_evenement": resultat["type_evenement"],
+                "identifiant": resultat["transfert_id"],
+                "transfert_id": resultat["transfert_id"],
+                "lead_id": None,
+                "producteur": _PRODUCTEUR_TRANSFERT,
+                "deja_memorise": resultat["deja_memorise"],
+                "identique": resultat["identique"],
+                "verdict": resultat["verdict"],
+            }
+        maillon = resultat["maillon"]
+        return {
+            "memorise": True,
+            "rattachee": True,
+            "type_evenement": resultat["type_evenement"],
+            "identifiant": resultat["transfert_id"],
+            "transfert_id": resultat["transfert_id"],
+            "lead_id": maillon["lead_id"],
+            "ligne_id": maillon["ligne_id"],
+            "producteur": _PRODUCTEUR_TRANSFERT,
+            "deja_memorise": resultat["deja_memorise"],
+            "identique": resultat["identique"],
+            "verdict": None,
+        }
+
+    recevoir.__name__ = "recevoir_" + type_evenement.replace(".", "_")
+    return recevoir
+
+
 def _consommateur_configuration(type_evenement):
     def recevoir(charge):
         from . import references_configuration as references
@@ -548,6 +614,8 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         **{type_evenement: (soi_graphe.avec_graphe(type_evenement, _consommateur_amont(type_evenement))
                             if type_evenement == etapes.TYPE_CLIENT_ASSOCIE else _consommateur_amont(type_evenement))
            for type_evenement in etapes.types_consommes()},
+        transferts.TYPE_TRANSFERT_OUVERT: _consommateur_transfert(transferts.TYPE_TRANSFERT_OUVERT),
+        transferts.TYPE_PLAINTE_OUVERTE: _consommateur_transfert(transferts.TYPE_PLAINTE_OUVERTE),
         "m2.profil_propriete_confirme": soi_graphe.recevoir_profil_propriete,
         analytique.TYPE_EVENEMENT: _recevoir_faits_consolides,
         strategique.TYPE_EVENEMENT: _recevoir_faits_strategiques,
