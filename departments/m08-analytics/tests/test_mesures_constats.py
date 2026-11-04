@@ -1074,7 +1074,7 @@ def test_toutes_les_mesures_de_la_phase_2_sont_calculees_sur_l_entreprise_fictiv
     registres = jeux_fictifs.registres_fictifs(avec_operations=True)
     mesures = {m["metric_id"]: m for m in mi.mesurer(registres, definitions)}
     nouvelles = [i for i in mesures_constats.CALCULS]
-    assert len(nouvelles) == 22 and set(nouvelles) <= set(mesures)
+    assert len(nouvelles) == 25 and set(nouvelles) <= set(mesures)  # 22 de la phase 2 + 3 (C5)
     assert all(mesures[i]["statut"] == "calculee" for i in nouvelles), [
         i for i in nouvelles if mesures[i]["statut"] != "calculee"
     ]

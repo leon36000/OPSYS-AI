@@ -29,10 +29,11 @@ ont pas.
 from __future__ import annotations
 
 from collections import Counter
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from . import entonnoir, nombres, operations_recues, synthese
+from . import cash_libre, entonnoir, nombres, operations_recues, synthese
 from .mesures_communes import (
     Resultat,
     de_type,
@@ -68,6 +69,7 @@ _SOURCE_M6 = "M6 (m6.disponibilite_constatee)"
 _SOURCE_M1 = "M1 (m1.plaintes_constatees)"
 _SOURCE_M2_FILET = "M2 (m2.filet_anti_perte_constate)"
 _SOURCE_M5_PREAUDIT = "M5 (m5.preaudit_constate)"
+_SOURCE_M5_TRESORERIE_PREVUE = "M5 (m5.tresorerie_prevue_constatee)"
 
 
 def _decimal(valeur: Any) -> Decimal | None:
@@ -922,6 +924,211 @@ def _constats_preaudit(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
 
 
 # ---------------------------------------------------------------------------
+# M5 (C5) : trésorerie prévue — le solde minimal prévu, les semaines sous le seuil, l'écart prévu/réel
+# ---------------------------------------------------------------------------
+_MANQUE_TRESORERIE_PREVUE = manque(
+    "m5.tresorerie_prevue_constatee",
+    _SOURCE_M5_TRESORERIE_PREVUE,
+    "aucun constat de trésorerie prévue reçu : M5 n'en a publié aucun (m5_constater_tresorerie_prevue, constat "
+    "planifié inactif par défaut), ou rien livré par le bus",
+)
+
+
+def _dernier_constat_tresorerie_prevue(operations: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Le dernier constat de trésorerie prévue de M5 : le plus grand ``sequence``, puis la publication la plus
+    récente, puis le dernier reçu. Quel que soit l'ordre de livraison du bus."""
+    constats = [
+        (indice, fait)
+        for indice, fait in enumerate(operations)
+        if fait.get("type_entree") == operations_recues.TYPE_TRESORERIE_PREVUE
+    ]
+    lisibles = [
+        (i, f) for i, f in constats if type(f.get("sequence")) is int and not isinstance(f.get("sequence"), bool)
+    ]
+    if not lisibles:
+        return None
+    return max(lisibles, key=lambda paire: (paire[1]["sequence"], *ordre_publication(paire[1], paire[0])))[1]
+
+
+dernier_constat_tresorerie_prevue = _dernier_constat_tresorerie_prevue
+
+
+def _entrees_tresorerie_prevue(constat: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "date_reference": constat.get("date_reference"),
+        "emise_le": constat.get("emise_le"),
+        "sequence": constat.get("sequence"),
+        "version_donnees": constat.get("version_donnees"),
+        "prevision_id": constat.get("prevision_id"),
+        "horizon_semaines": constat.get("horizon_semaines"),
+        "statut_alerte": constat.get("statut_alerte"),
+        "seuil_cad": constat.get("seuil_cad"),
+        "semaine_solde_minimal": constat.get("semaine_solde_minimal"),
+        "semaines_sous_seuil": constat.get("semaines_sous_seuil"),
+        "non_calculable_a_partir_de": constat.get("non_calculable_a_partir_de"),
+        "manque": constat.get("manque"),
+        "empreinte_faits": empreinte_faits([constat]),
+    }
+
+
+def _solde_minimal_prevu_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    """Le solde minimal prévu que M5 a constaté en dernier, TEL QUEL : aucun calcul, aucun arrondi. ``None`` quand M5
+    n'a pu chiffrer aucune semaine (« non calculable, manque X » : jamais zéro)."""
+    constat = _dernier_constat_tresorerie_prevue(reg["operations"])
+    if constat is None:
+        return non_calculable([_MANQUE_TRESORERIE_PREVUE])
+    entrees = _entrees_tresorerie_prevue(constat)
+    instant = _jour_instant(constat.get("date_reference"), reg)
+    montant = _decimal(constat.get("solde_minimal_prevu_cad"))
+    if montant is None or type(constat.get("semaine_solde_minimal")) is not int:
+        codes = [str(m.get("code")) for m in constat.get("manque") or [] if isinstance(m, dict)]
+        return non_calculable(
+            [
+                manque(
+                    "solde_minimal_prevu_cad",
+                    _SOURCE_M5_TRESORERIE_PREVUE,
+                    "M5 n'a pu chiffrer aucune semaine de son horizon" + (
+                        f" (codes de M5 : {', '.join(codes)})" if codes else ""),
+                )
+            ],
+            entrees,
+            instant,
+        )
+    return nombres.texte_decimal(montant), entrees, [], instant, None, None
+
+
+def _semaines_sous_seuil(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    """Le NOMBRE de semaines prévues sous le seuil que M5 a constaté en dernier, TEL QUEL (jamais inventé : vide quand
+    le seuil n'est pas configuré chez M5). La liste des semaines est dans les entrées."""
+    constat = _dernier_constat_tresorerie_prevue(reg["operations"])
+    if constat is None:
+        return non_calculable([_MANQUE_TRESORERIE_PREVUE])
+    entrees = _entrees_tresorerie_prevue(constat)
+    instant = _jour_instant(constat.get("date_reference"), reg)
+    semaines = constat.get("semaines_sous_seuil")
+    if not isinstance(semaines, list) or any(type(semaine) is not int for semaine in semaines):
+        return non_calculable(
+            [manque("semaines_sous_seuil", _SOURCE_M5_TRESORERIE_PREVUE, "le constat est illisible")],
+            entrees,
+            instant,
+        )
+    return (
+        str(len(semaines)),
+        {**entrees, "semaines": semaines},
+        [],
+        instant,
+        None,
+        None,
+    )
+
+
+def _semaines_calculees(constat: dict[str, Any]) -> dict[int, Decimal]:
+    """Les soldes de fin CALCULÉS de la série publiée (semaine -> solde), dans l'ordre. Illisible : vide."""
+    soldes = constat.get("soldes_hebdo")
+    if not isinstance(soldes, list):
+        return {}
+    serie = {}
+    for ligne in soldes:
+        if not isinstance(ligne, dict):
+            return {}
+        semaine, statut, montant = ligne.get("semaine"), ligne.get("statut"), _decimal(ligne.get("solde_fin_cad"))
+        if type(semaine) is not int or semaine < 1 or statut != "CALCULE" or montant is None:
+            continue
+        serie[semaine] = montant
+    return serie
+
+
+def _fin_semaine(date_reference: Any, semaine: int) -> date | None:
+    """La fin de la semaine `semaine` (1 = les 7 jours qui commencent à `date_reference`)."""
+    debut = jour(date_reference)
+    if debut is None or type(semaine) is not int or semaine < 1:
+        return None
+    return debut + timedelta(days=7 * semaine - 1)
+
+
+def _ecart_tresorerie_prevue_reelle_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    """ÉCART DE DÉFINITION entre le PRÉVU et le RÉEL (positif : le réalisé dépasse la prévision ; négatif : la
+    prévision dépassait le réalisé). Le PRÉVU : la DERNIÈRE ANCIENNE version de la prévision dont la semaine 1 est
+    ÉCHUE le jour du cash libre (la série publiée et gardée, pas une prévision recomputée ; jamais la plus récente si
+    sa semaine 1 n'est pas encore échue). Le RÉEL : le solde du constat du cash libre dont le jour SUIT la fin de
+    cette semaine 1 (le premier réel disponible après l'échéance, pas le plus récent : l'écart est daté). La seule
+    opération de M8 est prévu MOINS réel, en ``Decimal`` : aucun montant de M5 n'est refait."""
+    operations = reg["operations"]
+    courant = _dernier_constat_tresorerie_prevue(operations)
+    if courant is None:
+        return non_calculable([_MANQUE_TRESORERIE_PREVUE])
+    instant = _jour_instant(courant.get("date_reference"), reg)
+    entrees = _entrees_tresorerie_prevue(courant)
+    reel = cash_libre.constat_courant(reg.get("cash_libre", []))
+    solde_reel = (reel or {}).get("solde") or {}
+    reel_montant = _decimal(solde_reel.get("montant_cad")) if solde_reel.get("statut") == "CALCULE" else None
+    if not isinstance(reel, dict) or reel_montant is None:
+        return non_calculable(
+            [
+                manque(
+                    "m5.cash_libre_constate",
+                    "M5 (m5.cash_libre_constate)",
+                    "aucun constat du cash libre reçu, ou son solde est non calculable : M8 ne peut comparer le "
+                    "prévu à aucun réel",
+                )
+            ],
+            entrees,
+            instant,
+        )
+    jour_reel = jour(reel.get("date_reference"))
+    anciennes = []
+    for fait in operations:
+        if fait.get("type_entree") != operations_recues.TYPE_TRESORERIE_PREVUE:
+            continue
+        fin_semaine_1 = _fin_semaine(fait.get("date_reference"), 1)
+        if jour_reel is None or fin_semaine_1 is None:
+            continue
+        if fin_semaine_1 <= jour_reel:
+            serie = _semaines_calculees(fait)
+            if 1 in serie:
+                anciennes.append(fait)
+    if not anciennes:
+        return non_calculable(
+            [
+                manque(
+                    "m5.tresorerie_prevue_constatee",
+                    _SOURCE_M5_TRESORERIE_PREVUE,
+                    "aucune prévision dont la semaine 1 est échue le jour du cash libre : l'écart exige "
+                    "l'ancienne série publiée, jamais la plus récente",
+                )
+            ],
+            entrees,
+            instant,
+        )
+    ancienne = max(
+        anciennes,
+        key=lambda f: (
+            f.get("sequence") if type(f.get("sequence")) is int else 0,
+            ordre_publication(f, 0)[0],
+        ),
+    )
+    prevu = _semaines_calculees(ancienne)[1]
+    ecart = prevu - reel_montant
+    entrees = {
+        **entrees,
+        "prevision_utilisee": {
+            "date_reference": ancienne.get("date_reference"),
+            "sequence": ancienne.get("sequence"),
+            "version_donnees": ancienne.get("version_donnees"),
+            "prevision_id": ancienne.get("prevision_id"),
+            "semaine_comparee": 1,
+            "solde_prevu_cad": nombres.texte_decimal(prevu),
+        },
+        "reel_utilise": {
+            "date_reference": reel.get("date_reference"),
+            "sequence": reel.get("sequence"),
+            "solde_reel_cad": nombres.texte_decimal(reel_montant),
+        },
+    }
+    return nombres.texte_decimal(ecart), entrees, [], instant, None, None
+
+
+# ---------------------------------------------------------------------------
 # M6 : disponibilité du matériel
 # ---------------------------------------------------------------------------
 _MANQUE_DISPONIBILITE = manque(
@@ -1301,6 +1508,9 @@ CALCULS = {
     "m8_violations_sla_commercial": _violations_sla_commercial,
     "m8_anomalies_integrite_crm": _anomalies_integrite_crm,
     "m8_constats_preaudit": _constats_preaudit,
+    "m8_solde_minimal_prevu_cad": _solde_minimal_prevu_cad,
+    "m8_semaines_sous_seuil": _semaines_sous_seuil,
+    "m8_ecart_tresorerie_prevue_reelle_cad": _ecart_tresorerie_prevue_reelle_cad,
     "m8_articles_en_rupture": _articles_en_rupture,
     "m8_articles_sur_reserves": _articles_sur_reserves,
     "m8_reservations_incompletes": _reservations_incompletes,
@@ -1309,4 +1519,4 @@ CALCULS = {
     "m8_cout_par_lead_pub_cad": _cout_par_lead_pub_cad,
 }
 
-__all__ = ["CALCULS", "declarations_canaux"]
+__all__ = ["CALCULS", "declarations_canaux", "dernier_constat_tresorerie_prevue", "factures_courantes"]

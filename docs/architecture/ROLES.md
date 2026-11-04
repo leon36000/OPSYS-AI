@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 255 outils sur 691 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 256 outils sur 693 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -131,7 +131,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (254 outils) : §9.5 + employé + vendeur
+### `admin` (255 outils) : §9.5 + employé + vendeur
 
 Les 17 outils de l'employé, les 29 du vendeur également permis à l'admin, et :
 
@@ -178,6 +178,7 @@ Les 17 outils de l'employé, les 29 du vendeur également permis à l'admin, et 
 | M5 | `m5_enregistrer_contrat_horaire`, `m5_revoquer_contrat_horaire` (T2, N4), `m5_lire_contrat_horaire` (T0) | Contrat individuel et taux horaire privé déclaré en CAD, avec source/date humaines et révision/tête attendues. L'admin appareil peut proposer les écritures N4; elles exigent la décision humaine active de finance ou nathan_owner. La lecture exige une identité admin confirmée, ou le propriétaire via console, et une seule révision couvrant la période. Aucun employee/seller ni grant CFO supplémentaire. La source citée n'est pas authentifiée par OPSYS; aucune paie, retenue ou cotisation calculée. |
 | M5 | `m5_prevoir_tresorerie` (T0) | §7 M5.7 « prévision de trésorerie » (T4.16-d) : semaine par semaine, sur un horizon borné (1 à 26 semaines), à partir du solde du registre et des seuls flux CONNUS et DATÉS (factures clients envoyées, factures et attendus fournisseurs, taxes TPS/TVQ à leur limite de paiement, paies, DAS et dettes déclarées), chaque ligne avec sa source. Un flux inconnu donne « non calculable à partir de la semaine X, manque Y », jamais 0 ni une moyenne ; aucune projection statistique. L'alerte se déclenche sous un seuil que le propriétaire fournit (`department.yaml`, GATE NATHAN) : absent, « seuil à configurer ». L'horizon, les délais de paiement des clients et des fournisseurs et les dates de sortie des paies, DAS et dettes sont au propriétaire aussi (aucune échéance n'existe sur les factures) : sans horizon, refus nommé qui dit quoi déclarer ; sans délai ni date, les flux concernés sont « non calculables », avec ce qu'il faut déclarer, jamais une date supposée. Lecture pure et calcul : rien n'est écrit, ni paiement, ni remise, ni déclaration (la garde anti-décaissement couvre le module). Même règle d'accès que la trésorerie (identité confirmée en base, la vue vient du rôle, `autorise_couts` ne peut que restreindre : sans droit, aucun montant) ; `aujourd_hui` est un argument requis (M5 n'a pas d'horloge) ; aucun montant ni date d'échéance ne se passe en argument. L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. Sortie marquée « Analyse préparatoire IA ». |
 | M5 | `m5_constater_cash_libre` (T1, N3) | §7 M5 « source de vérité financière » et §7 M8 « pour la finance, M8 consomme M5 et ne recalcule pas » (T4.19-b) : l'admin fait constater le cash libre réel du jour ; M5 le calcule (le même calcul que `m5_etat_tresorerie`) et le publie au bus (`m5.cash_libre_constate`) pour la vue exécutive de M8. Écriture INTERNE (T1) : la trace du constat et l'événement partent dans la même transaction ; aucun mouvement, aucun paiement, aucune remise. Règles plus bas (« Le constat du cash libre »). |
+| M5 | `m5_constater_tresorerie_prevue`, `m5_constater_tresorerie_prevue_planifie` (T1, N3 / N2) | Chantier C5 de l'analyse M8 : la prévision des flux connus et datés constatée et publiée au bus (`m5.tresorerie_prevue_constatee`) pour les trois mesures de M8. Même discipline que le cash libre (outil N3 `admin`, variante N2 planifiée, `REJ-CONSTAT-PLANIFICATEUR-SEULEMENT`). Voir « Le constat de la trésorerie prévue » plus bas. |
 | M5 | `m5_constater_cash_libre_planifie` (T1, **N2**, aucun droit d'appareil) | Chantier C1 de l'analyse M8 : la variante PLANIFIÉE du constat précédent. Seul le planificateur durable la déclenche (constat `m5.constat.cash-libre`, inactif par défaut) ; la réponse ne porte aucun montant. Aucun droit d'appareil n'est ajouté ni retiré : le téléphone de l'admin garde `m5_constater_cash_libre`. Voir « La variante planifiée » plus bas et [M5-CASH-LIBRE-PLANIFIE](../../departments/m05-financecore/docs/M5-CASH-LIBRE-PLANIFIE.md). |
 | M5 | `m5_lire_rentabilite_chantier`, `m5_lire_comptes_a_recevoir` | §6 « travaux terminés », §9.5 M5 : coût réel et marge par chantier, comptes à recevoir (factures envoyées). Lecture pure, même règle d'accès que la trésorerie (T1.5-d) : coûts, marges et créances sont des finances, jamais pour l'employé ni le vendeur (§9.2, §9.4) ; aucun montant, prix ni taux ne se passe en argument. |
 | M5 | `m5_lister_comptes_a_payer` (T0), `m5_saisir_facture_fournisseur` (T1, N3) | §7 M5.2 « comptes à payer », M6.16, §9.5 M5 « dépenses à valider » (T4.15) : ce que l'entreprise doit aux fournisseurs, par PO reçu (l'« à payer attendu » de ce que M6 a réceptionné, le facturé, le rapprochement PROPOSÉ avec ses écarts), et la saisie d'une facture fournisseur, repli documenté de l'OCR fermé. Finances : jamais pour l'employé ni le vendeur (§9.2, §9.4). La lecture a la même règle d'accès que la trésorerie et rend des pages sous la limite de 6 000 caractères ; la saisie exige un HUMAIN (section plus bas). Depuis T4.15-c, la lecture rend l'état COURANT des factures et compte les factures sans PO ; `sans_po=true` les liste une à une. Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA. |
@@ -325,6 +326,22 @@ Limites : la date de référence est celle de l'appelant (un agent en mode `supe
 file, avec la date qu'il donne : la date est dite dans l'événement et M8 en montre l'âge) ; ce constat-ci ne se déclenche pas tout
 seul (le digest de 7 h ne l'appelle pas : GATE NATHAN ; le rafraîchissement automatique est la variante ci-dessous, inactive par
 défaut) ; deux constats simultanés au même rang : le second lève, l'appel est à rejouer.
+
+### Le constat de la trésorerie prévue (chantier C5 de l'analyse M8)
+
+`m5_constater_tresorerie_prevue` fait constater la prévision des flux connus et datés et la publie au bus
+(`m5.tresorerie_prevue_constatee`) : c'est ce que M8 montre (solde minimal prévu, semaines sous le seuil, écart prévu-réel).
+Même discipline que le cash libre : outil T1 DÉDIÉ (N3, `admin`), jamais `m5_prevoir_tresorerie` (T0) ; `aujourd_hui` requis
+(`REJ-CONSTAT-DATE-INVALIDE`), instant d'émission `emise_le` donné par l'appelant (`REJ-CONSTAT-EMISSION-INVALIDE`, verdict
+propre au module C5 car `validation.py` est épinglé par le contrat d'admission paie) ; stockage durable requis ; un constat par
+date de référence et par version des données (`deja_constate`), rang dans l'identifiant ; trace et événement dans la même
+transaction ; un horizon « non calculable, manque X » est publié tel quel, jamais un zéro ; rien de personnel ni de libre ne
+sort (le schéma fermé du catalogue le refuse aussi) ; aucun paiement, aucune écriture aux mouvements
+(`conformite.verifier_aucun_decaissement` couvre les deux fonctions). La variante planifiée
+`m5_constater_tresorerie_prevue_planifie` (T1/N2, aucun droit d'appareil, `REJ-CONSTAT-PLANIFICATEUR-SEULEMENT`, constat
+`m5.constat.tresorerie-prevue` inactif par défaut) suit le même patron que celle du cash libre. GATE NATHAN : horizon 1–26
+semaines, seuil d'alerte, délais d'encaissement et de paiement (`configuration.prevision`), jamais inventés ; M8 reprend le
+constat tel quel et ne recalcule aucun montant.
 
 #### La variante planifiée (chantier C1 de l'analyse M8)
 

@@ -364,6 +364,28 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
     def ordonne(type_entree: str, charge: dict[str, Any], heure: int) -> dict[str, Any]:
         return operations_recues.fait(type_entree, charge, _instant(jour, heure))
 
+    def tresorerie_prevue(jour_constat: str, heure: int, soldes: list[str], sequence: int = 1) -> dict[str, Any]:
+        horizon = len(soldes)
+        serie = [
+            {"semaine": rang, "debut": jour_constat, "fin": jour_constat, "solde_fin_cad": montant,
+             "statut": "CALCULE"}
+            for rang, montant in enumerate(soldes, start=1)
+        ]
+        return ordonne(
+            operations_recues.TYPE_TRESORERIE_PREVUE,
+            {
+                "evenement_id": f"m5-tresorerie-prevue-{sequence}-{jour_constat}-0123456789abcdef",
+                "sequence": sequence, "date_reference": jour_constat, "emise_le": _instant(jour_constat, heure),
+                "version_donnees": "0" * 64, "devise": "CAD", "prevision_id": "0123456789abcdef",
+                "horizon_semaines": horizon, "statut_alerte": "AUCUNE", "seuil_cad": None, "semaines_sous_seuil": [],
+                "solde_minimal_prevu_cad": min(soldes), "semaine_solde_minimal": soldes.index(min(soldes)) + 1,
+                "non_calculable_a_partir_de": None, "manque": [],
+                "soldes_hebdo": serie, "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste "
+                "requise avant toute décision officielle ou action réelle.",
+            },
+            heure,
+        )
+
     lundi = (date.fromisoformat(jour) - timedelta(days=date.fromisoformat(jour).weekday())).isoformat()
     il_y_a_six_jours = (date.fromisoformat(jour) - timedelta(days=6)).isoformat()
 
@@ -516,6 +538,8 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
             },
             7,
         ),
+        tresorerie_prevue(jour, 7, ["19885.02", "15685.02", "22885.02", "31285.02"], sequence=2),
+        tresorerie_prevue(il_y_a_six_jours, 7, ["36000.00", "18000.00", "22000.00", "25000.00"], sequence=1),
     ]
 
 

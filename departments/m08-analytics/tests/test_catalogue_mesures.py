@@ -4,7 +4,7 @@ Prouve : le catalogue est fermé et validé (clé inconnue, énuméré hors list
 invalide,
 métrique non définie = refus typé) ; chaque entrée tient nom, unité, propriétaire et version de sa définition
 gouvernée ;
-le moteur lit les 59 mesures depuis les registres fictifs avec leur provenance, sans jamais inventer un zéro ; les
+le moteur lit les 62 mesures depuis les registres fictifs avec leur provenance, sans jamais inventer un zéro ; les
 mesures
 de synthèse (chantiers, écart d'équipe, signal de matériaux, cash libre) reprennent les verdicts des départements.
 """
@@ -35,7 +35,7 @@ def brut():
 def test_le_catalogue_livre_est_valide_ferme_et_complet():
     catalogue = catalogue_mesures.charger()
     ids = [entree["metric_id"] for entree in catalogue["mesures"]]
-    assert len(ids) == len(set(ids)) == 59  # 18 de la tranche 1 + 20 interdépartements + 21 de la phase 2
+    assert len(ids) == len(set(ids)) == 62  # 18 de la tranche 1 + 20 interdépartements + 21 de la phase 2 + 3 (C5)
     assert set(ids) == set(catalogue_mesures.definitions_gouvernees())  # toute métrique gouvernée est au catalogue
     assert len(catalogue["version_catalogue"]) == 64
     for entree in catalogue["mesures"]:
@@ -53,6 +53,7 @@ def test_aucune_mesure_du_catalogue_n_est_personnelle():
         "m8_releves_depense_pub_cad", "m8_ecart_depense_pub_comptabilisee_cad", "m8_solde_tresorerie_cad",
         "m8_taxes_a_remettre_cad", "m8_depense_pub_comptabilisee_cad", "m8_facturation_emise_cad",
         "m8_valeur_ponderee_pipeline_cad", "m8_cout_par_lead_pub_cad",
+        "m8_solde_minimal_prevu_cad", "m8_ecart_tresorerie_prevue_reelle_cad",
     }
     for entree in catalogue["mesures"]:
         assert "technicien" not in entree["metric_id"] and "client" not in entree["metric_id"]
@@ -132,7 +133,7 @@ def test_la_normalisation_replie_accents_casse_et_ponctuation():
 def test_le_moteur_lit_les_cinquante_neuf_mesures_avec_provenance():
     mesures = moteur_mesures.lire(jeux_fictifs.registres_fictifs())
     par_id = {m["metric_id"]: m for m in mesures}
-    assert len(mesures) == 59
+    assert len(mesures) == 62
     assert par_id["m8_leads_recus"]["valeur"] == "20" and par_id["m8_devis_acceptes"]["valeur"] == "6"
     assert par_id["m8_taux_acceptation_pct"]["valeur"] == "50.00"
     assert par_id["m8_carnet_signe_cad"]["valeur"] == "25000.00"  # 6 devis acceptés − 4 chantiers terminés = 2 × 12500

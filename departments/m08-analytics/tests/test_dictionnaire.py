@@ -148,6 +148,8 @@ def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_ch
         "m8_violations_sla_commercial", "m8_anomalies_integrite_crm",
         # M5-PRE-AUDIT : les constats du pré-audit de M5, tirés de son constat planifié
         "m8_constats_preaudit",
+        # C5 : la trésorerie prévue constatée de M5 (solde minimal, semaines sous seuil, écart prévu-réel)
+        "m8_solde_minimal_prevu_cad", "m8_semaines_sous_seuil", "m8_ecart_tresorerie_prevue_reelle_cad",
     }
     assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
 

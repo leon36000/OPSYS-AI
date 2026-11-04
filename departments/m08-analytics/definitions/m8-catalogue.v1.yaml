@@ -251,6 +251,24 @@ mesures:
     sensibilite: financier
     fraicheur: {fenetre_s: 86400, cadence_s: null}
     synonymes: ["taxes à remettre", "TPS et TVQ à remettre", "taxes de vente à remettre"]
+  - metric_id: m8_solde_minimal_prevu_cad
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["solde minimal prévu", "plus bas solde prévu", "trésorerie minimale prévue", "creux de trésorerie prévu"]
+  - metric_id: m8_semaines_sous_seuil
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["semaines sous le seuil", "semaines prévues sous le seuil", "alertes de trésorerie prévue"]
+  - metric_id: m8_ecart_tresorerie_prevue_reelle_cad
+    domaine: finance
+    sens: neutre
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400, cadence_s: null}
+    synonymes: ["écart prévu-réel de trésorerie", "trésorerie prévue contre réelle", "fiabilité de la prévision"]
   - metric_id: m8_depense_pub_comptabilisee_cad
     domaine: marketing
     sens: neutre

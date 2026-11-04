@@ -49,6 +49,9 @@ IDS = [
     "m8_comptes_a_payer_cad",
     "m8_solde_tresorerie_cad",
     "m8_taxes_a_remettre_cad",
+    "m8_solde_minimal_prevu_cad",
+    "m8_semaines_sous_seuil",
+    "m8_ecart_tresorerie_prevue_reelle_cad",
     "m8_releves_depense_pub_cad",
     "m8_conversions_hors_ligne",
     "m8_anomalies_depense_critiques",
@@ -408,7 +411,7 @@ def _vide(definitions):
 
 
 # ================================================================================================ définitions
-def test_quarante_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
+def test_quarante_trois_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
     assert list(definitions) == IDS
     for metric_id, definition in definitions.items():
         assert definition["proprietaire"].startswith("m0") and definition["definition"]

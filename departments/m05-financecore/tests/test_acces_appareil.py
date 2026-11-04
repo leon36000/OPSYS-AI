@@ -211,8 +211,9 @@ def test_l_outil_ne_declare_que_l_admin_comme_role_d_appareil(par_nom):
                 "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur",  # les trois : T4.15-c
                 "m5_annuler_facture_fournisseur",
                 "m5_prevoir_tresorerie",  # la prévision de trésorerie : T4.16-d
-                    "m5_constater_cash_libre", "m5_preparer_decision_capital",
-                    "m5_preparer_dossier_decision_cfo"}  # T4.19-b, décision capital et dossier CFO préparatoires
+                    "m5_constater_cash_libre", "m5_constater_tresorerie_prevue",
+                    "m5_preparer_decision_capital",
+                    "m5_preparer_dossier_decision_cfo"}  # T4.19-b, C5, décision capital et dossier CFO préparatoires
     lectures |= {
         "m5_enregistrer_contrat_horaire", "m5_revoquer_contrat_horaire", "m5_lire_contrat_horaire",
     }  # M5.4.a : lecture privée et mutations N4 accessibles à l'admin appareil seulement

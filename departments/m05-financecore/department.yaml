@@ -49,7 +49,8 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
   # consommateurs (M2, M8, M6, M10) les déclarent dans leur propre `evenements.consomme`.
   publie: [m5.rentabilite_chantier, m5.cash_libre_constate, m5.creance_relance_preparee, m5.mesures_comptables_constatees,
            m5.rapprochement_po_constate, m5.dossier_cpa_scelle,
-           m5.depense_publicitaire_constatee, m5.facture_emise_constatee, m5.preaudit_constate]
+           m5.depense_publicitaire_constatee, m5.facture_emise_constatee, m5.preaudit_constate,
+           m5.tresorerie_prevue_constatee]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
   n3: [finance, nathan_owner]                        # M5-FACT-1 : déclarer / révoquer un plan de facturation par jalons
   n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture : numéro et échéance fixés à l'émission,
@@ -241,6 +242,21 @@ constats_planifies:
     appels:
       - aujourd_hui: {calcul: jour}
         horodatage: {calcul: instant}
+  # La trésorerie prévue (C5) : la variante PLANIFIÉE du constat à la demande de l'admin (m5_constater_tresorerie_prevue
+  # reste N3 et son droit d'appareil intact). Même constat, même événement, même règle « un constat par jour et par
+  # version des données » ; la réponse ne porte aucun montant. Les trois mesures sont celles que M8 tire de
+  # m5.tresorerie_prevue_constatee (catalogue de M8) : leur fenêtre de fraîcheur commande la cadence, rien n'est
+  # recopié ici. Inactif par défaut comme tout constat.
+  - nom: tresorerie-prevue
+    outil: m5_constater_tresorerie_prevue_planifie
+    mesures: [m8_solde_minimal_prevu_cad, m8_semaines_sous_seuil, m8_ecart_tresorerie_prevue_reelle_cad]
+    description: >-
+      Prévision de trésorerie des flux connus et datés (solde minimal prévu, semaines sous le seuil, série
+      hebdomadaire pour le prévu-contre-réel), ou « non calculable, manque X » : jamais un zéro. Aucun paiement,
+      aucune écriture comptable.
+    appels:
+      - aujourd_hui: {calcul: jour}
+        emise_le: {calcul: instant}
 # Rapports financiers et pré-audit (M5-RAPPORTS-1, M5-PRE-AUDIT ; docs/architecture/M5-RAPPORTS-PREAUDIT.md). Ce que la direction décide
 # et que M5 ne devine jamais (GATE NATHAN) ; relu à chaque appel. Absent, la règle ou la ligne du rapport est « non calculable /
 # non évaluée » et dit quoi déclarer, jamais un zéro.

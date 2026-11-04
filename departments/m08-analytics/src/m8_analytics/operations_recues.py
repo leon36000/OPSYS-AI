@@ -94,6 +94,7 @@ TYPE_DISPONIBILITE = "disponibilite_materiel"
 TYPE_PLAINTES = "plaintes_constatees"
 TYPE_FILET = "filet_anti_perte"
 TYPE_PREAUDIT = "preaudit_constate"
+TYPE_TRESORERIE_PREVUE = "tresorerie_prevue_constatee"
 
 EVENEMENT_PAR_TYPE = {
     "m7.signaux_marketing_constates": TYPE_SIGNAUX,
@@ -113,6 +114,7 @@ EVENEMENT_PAR_TYPE = {
     "m1.plaintes_constatees": TYPE_PLAINTES,
     "m2.filet_anti_perte_constate": TYPE_FILET,
     "m5.preaudit_constate": TYPE_PREAUDIT,
+    "m5.tresorerie_prevue_constatee": TYPE_TRESORERIE_PREVUE,
 }
 _EVENEMENT_DU_TYPE = {type_entree: evenement for evenement, type_entree in EVENEMENT_PAR_TYPE.items()}
 
@@ -145,6 +147,7 @@ _CLES_UNICITE = {
     TYPE_PLAINTES: ("date_reference", "jours", "empreinte_contenu"),
     TYPE_FILET: ("date_reference", "version_donnees", "constate_le"),
     TYPE_PREAUDIT: ("date_reference", "version_donnees", "constate_le"),
+    TYPE_TRESORERIE_PREVUE: ("date_reference", "version_donnees", "sequence"),
 }
 # Les types dont deux versions du même objet ne s'ordonnent que par l'instant de PUBLICATION donné par le bus
 # (`publie_le`).
@@ -160,6 +163,7 @@ _TYPES_ORDONNES_PAR_PUBLICATION = frozenset(
         TYPE_PLAINTES,
         TYPE_FILET,
         TYPE_PREAUDIT,
+        TYPE_TRESORERIE_PREVUE,
     }
 )
 # Phase 2 : ce que M8 garde de chaque résumé, exactement les propriétés fermées du catalogue d'événements (une propriété
@@ -258,6 +262,25 @@ _CLES_PHASE_2 = {
         "constats_par_gravite",
         "regles_non_evaluees",
         "regles_partielles",
+    ),
+    TYPE_TRESORERIE_PREVUE: (
+        "evenement_id",
+        "sequence",
+        "date_reference",
+        "emise_le",
+        "prevision_id",
+        "version_donnees",
+        "devise",
+        "horizon_semaines",
+        "statut_alerte",
+        "seuil_cad",
+        "semaines_sous_seuil",
+        "solde_minimal_prevu_cad",
+        "semaine_solde_minimal",
+        "non_calculable_a_partir_de",
+        "manque",
+        "soldes_hebdo",
+        "mention",
     ),
 }
 # Ce que M8 garde d'une mesure de vision : ni la photo, ni le modèle, ni l'empreinte de décision.
@@ -603,6 +626,7 @@ __all__ = [
     "TYPE_PLAINTES",
     "TYPE_FILET",
     "TYPE_PREAUDIT",
+    "TYPE_TRESORERIE_PREVUE",
     "TYPE_RECEPTION",
     "TYPE_SIGNAUX",
     "TYPES_PHASE_2",

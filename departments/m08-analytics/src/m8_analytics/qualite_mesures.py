@@ -145,10 +145,41 @@ def _cash_libre_coherent(registres: dict[str, list[dict[str, Any]]]) -> list[str
     return []
 
 
+def _tresorerie_prevue_coherente(registres: dict[str, list[dict[str, Any]]]) -> list[str] | None:
+    """Le dernier constat de trésorerie prévue : minimal lisible quand sa semaine est connue, semaines ordonnées dans
+    l'horizon déclaré, série hebdomadaire d'autant de semaines que l'horizon. ``None`` sans constat (rien à vérifier).
+    M8 reprend M5 tel quel : un écart à l'invariant bloque les trois mesures C5, il ne corrige jamais le constat."""
+    constat = mesures_constats.dernier_constat_tresorerie_prevue(registres["operations"])
+    if constat is None:
+        return None
+    reference = (
+        f"tresorerie-prevue:{constat.get('date_reference')}-s{constat.get('sequence')}"
+    )
+    minimal, semaine = nombres.decimal_lu(constat.get("solde_minimal_prevu_cad")), constat.get("semaine_solde_minimal")
+    if (minimal is None) != (not isinstance(semaine, int) or isinstance(semaine, bool)):
+        return [reference]
+    horizon = constat.get("horizon_semaines")
+    semaines = constat.get("semaines_sous_seuil")
+    serie = constat.get("soldes_hebdo")
+    if (
+        type(horizon) is not int
+        or horizon < 1
+        or not isinstance(semaines, list)
+        or not isinstance(serie, list)
+        or any(type(s) is not int or isinstance(s, bool) or s < 1 or s > horizon for s in semaines)
+        or sorted(semaines) != semaines
+        or len(serie) != horizon
+        or [ligne.get("semaine") for ligne in serie if isinstance(ligne, dict)] != list(range(1, horizon + 1))
+    ):
+        return [reference]
+    return []
+
+
 _VERIFICATIONS: dict[str, Verification] = {
     "creances_total_egale_tranches": _creances_total_egale_tranches,
     "factures_emises_coherentes": _factures_emises_coherentes,
     "cash_libre_coherent": _cash_libre_coherent,
+    "tresorerie_prevue_coherente": _tresorerie_prevue_coherente,
 }
 
 

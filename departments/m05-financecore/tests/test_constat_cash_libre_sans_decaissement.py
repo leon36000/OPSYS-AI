@@ -93,13 +93,25 @@ def test_le_module_pur_ne_fait_aucune_arithmetique_sur_un_montant():
 def test_seul_l_outil_ouvre_le_registre_des_mouvements_et_le_passe_a_la_fonction_qui_ecrit():
     outils = (_PAQUET / "outils.py").read_text(encoding="utf-8")
     ecrit = outils[outils.index("def _constater_cash_libre("):outils.index("def constater_cash_libre(")]
-    outil = outils[outils.index("def constater_cash_libre("):outils.index("def _recevoir_variance_chantier(")]
+    outil = outils[outils.index("def constater_cash_libre("):outils.index("def _constater_tresorerie_prevue(")]
 
     assert "_registre_mouvements" not in ecrit and "enregistrer_mouvement" not in ecrit
     assert "principal" not in ecrit and "_NOM_REGISTRE_MOUVEMENTS" not in ecrit
     assert "_NOM_REGISTRE_CONSTATS" in ecrit and ".append(" in ecrit and "evenements.publier(" in ecrit
     assert "_constater_cash_libre(_registre_mouvements(None), jour)" in outil
     assert ".append(" not in outil and "evenements.publier(" not in outil, "la lecture seule n'écrit pas"
+
+    ecrit_c5 = outils[outils.index("def _constater_tresorerie_prevue("):outils.index(
+        "def constater_tresorerie_prevue(")]
+    outil_c5 = outils[outils.index("def constater_tresorerie_prevue("):outils.index(
+        "def _recevoir_variance_chantier(")]
+
+    assert "_registre_mouvements" not in ecrit_c5 and "enregistrer_mouvement" not in ecrit_c5
+    assert "principal" not in ecrit_c5 and "_NOM_REGISTRE_MOUVEMENTS" not in ecrit_c5
+    assert "_NOM_REGISTRE_CONSTATS_TRESORERIE_PREVUE" in ecrit_c5 and ".append(" in ecrit_c5
+    assert "evenements.publier(" in ecrit_c5
+    assert "_constater_tresorerie_prevue(_registre_mouvements(None), jour, instant)" in outil_c5
+    assert ".append(" not in outil_c5 and "evenements.publier(" not in outil_c5, "la lecture seule n'écrit pas"
 
 
 # -------------------------------------------------------- 2. régime STRICT, sur du code inventé (le module pur)

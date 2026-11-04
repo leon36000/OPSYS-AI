@@ -24,6 +24,9 @@ proprietaires:
   m8_ecritures_en_attente: m05-financecore
   m8_comptes_a_payer_cad: m05-financecore
   m8_solde_tresorerie_cad: m05-financecore
+  m8_solde_minimal_prevu_cad: m05-financecore
+  m8_semaines_sous_seuil: m05-financecore
+  m8_ecart_tresorerie_prevue_reelle_cad: m05-financecore
   m8_taxes_a_remettre_cad: m05-financecore
   m8_releves_depense_pub_cad: m07-marketing
   m8_conversions_hors_ligne: m07-marketing
@@ -126,6 +129,27 @@ metrics:
     unite: "CAD"
     source_donnees: "M5 m5.cash_libre_constate (composantes.taxes_a_remettre, manque, sequence, date_reference)"
     frequence: "à chaque constat du cash libre demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_solde_minimal_prevu_cad
+    nom: "Solde minimal prévu de la trésorerie"
+    definition: "Le plus bas solde de fin de semaine de l'horizon que M5 a constaté en dernier (m5.tresorerie_prevue_constatee : le constat de plus grand `sequence`), tel que M5 l'a publié : aucun calcul, aucun arrondi. La semaine de ce minimal est dans les entrées. Si M5 n'a pu chiffrer aucune semaine, non calculable avec le code de M5 (« non calculable, manque X », jamais zéro) ; aucun constat reçu : non calculable. Ce n'est PAS de l'argent disponible, c'est une prévision de flux connus et datés à revalider chaque semaine. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.tresorerie_prevue_constatee (solde_minimal_prevu_cad, semaine_solde_minimal, horizon_semaines, date_reference, sequence)"
+    frequence: "à chaque constat de la trésorerie prévue demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_semaines_sous_seuil
+    nom: "Semaines prévues sous le seuil de trésorerie"
+    definition: "Le nombre de semaines de l'horizon dont le solde de fin prévu passe sous le seuil que le propriétaire a déclaré chez M5 (m5.tresorerie_prevue_constatee : le constat de plus grand `sequence`), tel que M5 l'a compté : aucun calcul de M8 (M8 compte le nombre d'éléments de la liste publiée). La liste des semaines est dans les entrées. Seuil non configuré chez M5 : zéro semaine, jamais inventé par M8. Aucun constat reçu, ou constat illisible : non calculable. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "semaines"
+    source_donnees: "M5 m5.tresorerie_prevue_constatee (semaines_sous_seuil, statut_alerte, seuil_cad, date_reference, sequence)"
+    frequence: "à chaque constat de la trésorerie prévue demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_ecart_tresorerie_prevue_reelle_cad
+    nom: "Écart prévu-réel de la trésorerie"
+    definition: "Écart de définition entre le PRÉVU et le RÉEL : le solde de fin que la DERNIÈRE ANCIENNE version de la prévision de M5 a donné pour sa semaine 1, moins le solde réel du constat du cash libre dont le jour suit la fin de cette semaine (m5.tresorerie_prevue_constatee et m5.cash_libre_constate). Positif : le réalisé dépasse la prévision. La prévision utilisée est gardée, jamais recomputée ; sans prévision échue ou sans cash libre, non calculable. La seule opération de M8 est prévu moins réel. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.tresorerie_prevue_constatee (soldes_hebdo, date_reference, sequence) ; M5 m5.cash_libre_constate (solde, date_reference, sequence)"
+    frequence: "à chaque constat de la trésorerie prévue demandé à M5"
     consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
   - id: m8_releves_depense_pub_cad
     nom: "Somme des relevés de dépense publicitaire reçus"
