@@ -459,8 +459,8 @@ def construire_performance(faits: Sequence[dict[str, Any]], debut: date, fin: da
     if leads_inconnus:
         unknown_lead_ids = set(leads_inconnus)
         unknown_devis = {id_: charge for id_, charge in devis.items() if charge.get("lead_id") in unknown_lead_ids}
-        unknown_refs = [{"type": "m2.client_associe", "reference": lead_id} for lead_id in unknown_lead_ids]
-        unknown_refs.extend({"type": "m3.devis_accepte", "reference": devis_id} for devis_id in unknown_devis)
+        unknown_refs = [{"type": "m2.client_associe", "reference": lead_id} for lead_id in sorted(unknown_lead_ids)]
+        unknown_refs.extend({"type": "m3.devis_accepte", "reference": devis_id} for devis_id in sorted(unknown_devis))
         unknown_bucket = {
             "source": None, "campagne": None, "leads_associes_observes": len(leads_inconnus),
             "devis_acceptes": len(unknown_devis), "chantiers_marge_constatee": 0, "marge_constatee_M5_cad": None,
