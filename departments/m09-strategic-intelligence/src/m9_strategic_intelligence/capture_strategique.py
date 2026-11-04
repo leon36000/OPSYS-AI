@@ -70,7 +70,13 @@ def normaliser(valeur: object, _profondeur: int = 0) -> object:
     tuples en listes, clés en texte. Tout autre type (ensemble, objet) est refusé plutôt que converti à l'aveugle."""
     if _profondeur > 64:
         raise _refus("REJ-CAPTURE-JSON", "profondeur excessive")
-    if valeur is None or isinstance(valeur, (bool, int, str)):
+    if isinstance(valeur, str):
+        try:
+            valeur.encode("utf-8")
+        except UnicodeError as exc:
+            raise _refus("REJ-CAPTURE-JSON", "texte UTF-8 valide requis") from exc
+        return valeur
+    if valeur is None or isinstance(valeur, (bool, int)):
         return valeur
     if isinstance(valeur, float):
         if valeur != valeur or valeur in (float("inf"), float("-inf")):
@@ -85,6 +91,11 @@ def normaliser(valeur: object, _profondeur: int = 0) -> object:
     if isinstance(valeur, Mapping):
         if not all(isinstance(cle, str) for cle in valeur):
             raise _refus("REJ-CAPTURE-JSON", "clés textuelles requises")
+        for cle in valeur:
+            try:
+                cle.encode("utf-8")
+            except UnicodeError as exc:
+                raise _refus("REJ-CAPTURE-JSON", "clé UTF-8 valide requise") from exc
         return {cle: normaliser(element, _profondeur + 1) for cle, element in valeur.items()}
     if isinstance(valeur, (list, tuple)):
         return [normaliser(element, _profondeur + 1) for element in valeur]
@@ -93,7 +104,10 @@ def normaliser(valeur: object, _profondeur: int = 0) -> object:
 
 def canonique(valeur: object) -> str:
     try:
-        return json.dumps(valeur, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+        resultat = json.dumps(valeur, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+        resultat.encode("utf-8")
+        return resultat
+    # UnicodeError hérite de ValueError ; l'attraper séparément serait redondant.
     except (TypeError, ValueError, RecursionError, OverflowError) as exc:
         raise _refus("REJ-CAPTURE-JSON", "JSON fini et représentable requis") from exc
 

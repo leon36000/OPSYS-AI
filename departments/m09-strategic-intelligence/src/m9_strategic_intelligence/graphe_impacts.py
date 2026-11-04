@@ -136,12 +136,18 @@ def _texte_id(valeur: object, *, max_octets: int | None = None) -> str | None:
         return str(valeur)
     if type(valeur) is not str or not valeur:
         return None
-    if max_octets is None:
-        return valeur if valeur.strip() == valeur and len(valeur) <= 128 else None
+    # Tout caractère UTF-8 occupe au moins un octet : rejeter les tailles impossibles avant encodage.
+    limite = 128 if max_octets is None else max_octets
+    if len(valeur) > limite:
+        return None
+    if max_octets is None and valeur.strip() != valeur:
+        return None
     try:
         encoded_length = len(valeur.encode("utf-8"))
     except UnicodeError:
         return None
+    if max_octets is None:
+        return valeur
     # M7 admet les espaces de bord mais pas une valeur composée uniquement d’espaces.
     return valeur if valeur.strip() and encoded_length <= max_octets else None
 

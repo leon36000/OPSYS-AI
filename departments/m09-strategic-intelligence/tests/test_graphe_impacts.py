@@ -4,6 +4,7 @@ import pytest
 from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
 from m9_strategic_intelligence import graphe_impacts as gi
+from m9_strategic_intelligence import relations_catalogue as rc
 
 FICTIF = True
 T0 = "2026-10-21T12:00:00Z"
@@ -112,6 +113,18 @@ def test_propagation_rupture_materiau_vers_chantiers_devis_et_lead_sans_quantite
     assert resultat["complet"] is True
     lead = gi.propager(graphe, "lead", "L1")
     assert {(i["objet"]["kind"], i["objet"]["id"]) for i in lead["impacts"]} == {("devis", "D1")}
+
+
+def test_surrogate_dans_identifiant_simple_est_ecarte_sans_exception_brute():
+    capture = _capture("m2.leads", _ok(leads=[{"lead_id": "L-fictif", "proprietaire": "P-fictif"}], suivant=None))
+    capture["pages"][0]["resultat"]["resultat"]["leads"][0]["lead_id"] = "\ud800"
+    regle = next(r for r in rc.REGLES if r.id == "m2_lead_proprietaire")
+
+    assert gi._texte_id("\ud800") is None
+    graphe = gi.construire([capture], [regle], connaissance=T0)
+    assert graphe["aretes"] == []
+    active = next(item for item in graphe["regles_actives"] if item["regle"] == regle.id)
+    assert active["lignes_ecartees"] == 1
 
 
 def test_profondeur_et_filtre_de_relations_bornent_la_propagation():

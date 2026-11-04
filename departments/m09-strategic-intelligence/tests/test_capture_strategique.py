@@ -103,6 +103,23 @@ def test_aucune_troncature_budget_et_pages_bornes():
         _capture([{"ok": True, "resultat": float("nan")}])
 
 
+def test_surrogates_json_echappes_refuses_par_normalisation_et_empreinte():
+    import json
+
+    surrogate = json.loads('"\\ud800"')
+    assert type(surrogate) is str
+    for valeur in (surrogate, {surrogate: "fictif"}):
+        with pytest.raises(ValueError, match="REJ-CAPTURE-JSON"):
+            cs.normaliser(valeur)
+    with pytest.raises(ValueError, match="REJ-CAPTURE-JSON"):
+        cs.empreinte({"valeur": surrogate})
+
+
+def test_capture_refuse_surrogate_sans_exception_unicode_brute():
+    with pytest.raises(ValueError, match="REJ-CAPTURE-JSON"):
+        _capture([_reponse(leads=[{"id": "\ud800"}])])
+
+
 def test_chaine_et_monotonie_de_la_reception():
     a = _capture([_reponse()])
     b = _capture(
