@@ -38,7 +38,7 @@ cas sont des exceptions nommées de la garde (ci-dessous), pas du texte de promp
 - **Hors périmètre de la garde (dette recensée)**, après généralisation, en fichiers texte portant au moins un terme :
   `departments/*/tests` 283 fichiers, `tests/` du socle 165, `docs/` 92, `mobile/` 40 (données de test, un commentaire),
   `departments/*/fixtures` 18, `core/` 9 (fixtures de test), `departments/*/evals` 9 (corpus : les cas sectoriels sont
-  étiquetés), `departments/*/docs` 4. Dans le cœur lui-même il reste 15 fichiers, tous des exceptions nommées de la garde.
+  étiquetés), `departments/*/docs` 4. Dans le cœur lui-même il reste 18 fichiers, tous des exceptions nommées de la garde.
 
 ## Ce que le cœur garantit
 
@@ -194,9 +194,10 @@ renommer un identifiant technique ; citer une entreprise ou une personne réelle
 `test_aucun_terme_sectoriel_dans_les_fichiers_du_coeur_hors_des_exceptions_explicites` balaie `src/opsys`, `deploy`,
 `install`, `scripts`, `outils` et, pour chaque département, tout sauf `tests/`, `fixtures/`, `docs/`, `evals/` et le
 `README.md`. Les exceptions (liste dans le test, chacune avec fichier, termes permis, lignes permises et raison) sont :
-le catalogue de services hérité de `taxonomie.py` ; les motifs du garde-fou d'engagements ; les six copies de l'énuméré v1
-gelé (`type_travaux`) et les trois contrats YAML ; le calendrier saisonnier de M7 ; l'icône de toit et le slug de démo du
-site M7 ; le parseur de scénarios de M9. Chacune est une dette ou un identifiant technique, pas un texte de prompt.
+le catalogue de services hérité de `taxonomie.py` ; les motifs du garde-fou d'engagements ; le lexique de noms du
+voicemail M1 (dette fonctionnelle d'externalisation) ; les six copies de l'énuméré v1 gelé (`type_travaux`) et les
+trois contrats YAML ; le calendrier saisonnier de M7 ; l'icône de toit et le slug de démo du site M7 ; le parseur de
+scénarios de M9. Chacune est une dette ou un identifiant technique, pas un texte de prompt.
 
 ## Évaluation (gabarit commun)
 
@@ -217,6 +218,11 @@ générique 108/108 sur le sous-ensemble neutre, 22 écartés. Le corpus et son 
   générique tant que `pack:` n'est pas écrit : **les instances existantes du premier client doivent ajouter
   `pack: renovation-exterieure-qc` à leur profil** (`opsys-metier pack choisir`) pour retrouver le texte d'avant.
 - **Données encore dans le cœur** (exceptions de la garde) : calendrier saisonnier de M7, regex de matériaux/métiers de M9.
+- **Lexique d'extraction du voicemail M1** : `voicemail_intelligent.py` garde « toiture » dans `_MOTS_NON_NOM` pour ne pas
+  extraire un ouvrage comme nom de personne. L'exception de la garde est limitée à cette ligne et aux correspondances
+  `toit`/`toiture`. Dette : externaliser ce lexique dans un contrat de pack distinct, avec parité de comportement testée.
+  `termes_sectoriels` sert à la garde contre les fuites, et `services.mots_cles` au diagnostic du service ; aucun des deux
+  n'est actuellement un contrat de mots à exclure des noms.
 - **Gabarits, exemples et barèmes ne sont consommés par aucun outil** : seuls les blocs de prompt, le vocabulaire et les
   services du pack sont lus aujourd'hui (SOUL.md). Les gabarits sont des points de départ documentaires.
 - **Corpus d'évaluation générique** : le pack générique évalue 98 cas ; les 22 cas sectoriels n'ont pas d'équivalent neutre.

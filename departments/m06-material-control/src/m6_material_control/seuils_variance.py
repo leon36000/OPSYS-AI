@@ -1,9 +1,9 @@
 """C7 — les seuils de variance de chantier DÉCLARÉS, par matériau, par catégorie et avec des planchers.
 
-Avant C7, un seul nombre global vivait dans `department.yaml` (`seuil_variance_chantier_pourcentage`) : une vis de
-plus et une feuille de revêtement de plus déclenchaient la même revue, et un écart de 0,1 unité sur un article à
-2 000 $ était traité comme 0,1 unité sur une boîte de vis. Aucun non-développeur ne pouvait changer ces valeurs sans
-éditer le manifeste, et rien ne gardait QUI avait changé QUOI.
+Avant C7, un seul nombre global vivait dans `department.yaml` (`seuil_variance_chantier_pourcentage`) : un
+consommable de plus et un autre composant de plus déclenchaient la même revue, et un écart de 0,1 unité sur un article
+à valeur élevée était traité comme 0,1 unité sur un article à valeur faible. Un non-développeur ne pouvait changer ces
+valeurs sans éditer le manifeste, et rien ne gardait QUI avait changé QUOI.
 
 Ce module porte :
 - la sélection du seuil applicable : **matériau > catégorie > global** ; une catégorie n'est appliquée que si le

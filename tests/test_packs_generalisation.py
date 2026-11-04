@@ -343,6 +343,10 @@ EXCEPTIONS: dict[str, tuple[frozenset[str], int, str]] = {
         frozenset({"fascia", "gouttière", "revêtement", "soffite"}), 1,
         "contrat v2 : la contrainte cite le catalogue de référence, épinglée à `taxonomie.codes_catalogue()` par "
         "test_taxonomie_derive.py (identifiants de service)"),
+    "departments/m01-front-office/src/m1_front_office/voicemail_intelligent.py": (
+        frozenset({"toit", "toiture"}), 1,
+        "lexique fonctionnel `_MOTS_NON_NOM` : « toiture » évite d'extraire un ouvrage comme nom de personne. "
+        "Le retirer changerait le résultat M1. Dette : externaliser via un contrat de pack distinct."),
     "departments/m01-front-office/src/m1_front_office/contrats.py": (
         frozenset({"isolation thermique", "ravalement", "rénovation"}), 3, _CONTRAT_V1 + " (copie M1)"),
     "departments/m02-revenue-crm/src/m2_revenue_crm/contrats.py": (

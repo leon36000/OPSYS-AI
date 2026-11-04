@@ -1,10 +1,9 @@
 """ESTIMATEURS PAR SERVICE (M3.8b) : la quantité d'un service est composée de mesures DÉCLARÉES.
 
 Le barème déclaré (M3-C1) portait **un** coût unitaire par service ; la mesure déclarée (M3-C2) portait **une**
-quantité. Un service réel ne se mesure pas d'un seul nombre : une gouttière se compose d'une longueur de bordure,
-de descentes, de coins ; un revêtement se compose d'une surface brute MOINS ses ouvertures ; une réparation a un
-minimum facturable et un temps minimum. Ce module ajoute la composition, sans jamais inventer ni formule chiffrée
-ni coefficient :
+quantité. Un ouvrage peut nécessiter plusieurs mesures : certaines composantes s'ajoutent et d'autres se soustraient
+selon l'estimateur déclaré. Les minimums de quantité et de durée restent déclarés. Ce module ajoute la composition,
+sans jamais inventer ni formule chiffrée ni coefficient :
 
 - la STRUCTURE de l'estimateur est déclarée dans ``parametres.estimateurs.<service>`` de la version de barème
   (``bareme_registre._valider_estimateurs``) : unité de l'ouvrage, liste ordonnée de composantes, minimum de
