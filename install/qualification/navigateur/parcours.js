@@ -16,6 +16,7 @@ const chromium = pw[MOTEUR];
 const CONTROLES = fs.readFileSync(path.join(__dirname, "controles_a11y.js"), "utf8");
 const B = cfg.base; // ex. http://127.0.0.1:18700/opsys
 const ORIGINE = new URL(B).origin;
+const ORIGINES_AUTORISEES = new Set([ORIGINE, ...(cfg.origines || []).map((o) => new URL(o).origin)]);
 const ids = JSON.parse(fs.readFileSync(path.join(cfg.dossier, "identifiants.json"), "utf8"));
 const GROUPES = cfg.groupes && cfg.groupes.length ? new Set(cfg.groupes) : null;
 
@@ -35,6 +36,43 @@ async function cap(page, nom) {
 }
 const SECRET_FICTIF = "fictif-" + require("crypto").randomBytes(18).toString("hex"); // valeur fictive, jamais écrite ailleurs
 
+// APIRequestContext ne reprend pas uniformément le cookie du navigateur selon la version de
+// Playwright. Les appels authentifiés joignent explicitement le cookie fictif seulement à l'origine
+// locale du banc. Les attaques intersites restent des formulaires soumis par Chromium.
+async function requeteLocaleAvecSession(ctx, methode, url, options = {}) {
+  const cible = new URL(url, B);
+  const hote = cible.hostname.replace(/^\[|\]$/g, "");
+  if (cible.origin !== ORIGINE || !["127.0.0.1", "localhost", "::1"].includes(hote)) {
+    throw new Error("requête authentifiée hors origine locale refusée");
+  }
+  const chemin = cible.pathname;
+  const cookie = (await ctx.cookies()).find((c) => {
+    const domaine = String(c.domain || "").replace(/^\./, "");
+    const cheminCookie = c.path || "/";
+    const cheminCorrespond = cheminCookie === "/" || caminoCoincide(chemin, cheminCookie);
+    return c.name === "opsys_session" && domaine === hote && cheminCorrespond;
+  });
+  const headers = { ...(options.headers || {}) };
+  for (const cle of Object.keys(headers)) if (cle.toLowerCase() === "cookie") delete headers[cle];
+  if (cookie) headers.Cookie = `${cookie.name}=${cookie.value}`;
+  return ctx.request[methode.toLowerCase()](cible.href, { ...options, headers, maxRedirects: 0 });
+}
+
+function caminoCoincide(chemin, cheminCookie) {
+  return caminoCookieValide(cheminCookie) &&
+    (chemin === cheminCookie || chemin.startsWith(cheminCookie.endsWith("/") ? cheminCookie : cheminCookie + "/"));
+}
+function caminoCookieValide(cheminCookie) {
+  return typeof cheminCookie === "string" && cheminCookie.startsWith("/");
+}
+function autoriserUrlNavigateur(brute) {
+  if (brute.startsWith("data:") || brute.startsWith("about:")) return true;
+  let cible;
+  try { cible = new URL(brute); } catch { return false; }
+  const hote = cible.hostname.replace(/^\[|\]$/g, "");
+  return ORIGINES_AUTORISEES.has(cible.origin) && ["127.0.0.1", "localhost", "::1"].includes(hote);
+}
+
 // -- contexte et espion réseau --------------------------------------------------------------------------------------
 async function nouveauContexte(br, opts) {
   const ctx = await br.newContext(Object.assign({ viewport: { width: 1100, height: 640 }, locale: "fr-CA", serviceWorkers: "block" }, opts || {}));
@@ -42,7 +80,7 @@ async function nouveauContexte(br, opts) {
   const espion = { corps: [], urls: [], locations: [], consoles: [], violationsCsp: [], documents: [], dialogues: [], echecs: [] };
   await ctx.route("**/*", (route) => {
     const u = route.request().url();
-    if (u.startsWith(ORIGINE) || (cfg.origines || []).some((o) => u.startsWith(o)) || u.startsWith("data:") || u.startsWith("about:")) return route.continue();
+    if (autoriserUrlNavigateur(u)) return route.continue();
     reseauExterne.push(u);
     return route.abort();
   });
@@ -98,6 +136,21 @@ async function g_connexion(br) {
   }));
   constat(G, "page", "page de connexion : h1, lang=fr, deux champs étiquetés, mot de passe masqué",
     r1.h1 === "Connexion" && r1.lang === "fr" && r1.labels.length === 2 && r1.labels.every((l) => l[1]) && r1.mdp === "password" && r1.requis, r1);
+  const urlMalformee = "http://127.0.0.1:1234@attaquant.invalid/x";
+  constat(G, "origine-exacte", "le filtrage refuse une URL avec identifiants loopback mais une origine externe, sans envoyer de requête",
+    !autoriserUrlNavigateur(urlMalformee) && !autoriserUrlNavigateur("http://127.0.0.1.evil.invalid/x") && autoriserUrlNavigateur(B + "/connexion"),
+    { origineMalveillante: new URL(urlMalformee).origin, origineConsole: ORIGINE });
+  constat(G, "chemin-cookie-exact", "le cookie /opsys ne couvre pas /opsys-x, mais couvre /opsys/connexion",
+    !caminoCoincide("/opsys-x/connexion", "/opsys") && caminoCoincide("/opsys/connexion", "/opsys"), null);
+  let optionsRedirection;
+  let appelsRedirection = 0;
+  const fauxContexte = { cookies: async () => [{ name: "opsys_session", value: "session-fictive", domain: "127.0.0.1", path: "/opsys" }],
+    request: { get: async (_url, options) => { appelsRedirection++; optionsRedirection = options; return { status: () => 302, headers: () => ({ location: "https://exemple.invalid/" }) }; } } };
+  const reponseRedirection = await requeteLocaleAvecSession(fauxContexte, "get", B + "/connexion", { maxRedirects: 5 });
+  constat(G, "redirection-sans-transfert", "une redirection simulée est rendue sans suivi : le cookie reste cantonné à la requête locale",
+    appelsRedirection === 1 && optionsRedirection.maxRedirects === 0 && reponseRedirection.status() === 302 &&
+      optionsRedirection.headers.Cookie === "opsys_session=session-fictive",
+    { appels: appelsRedirection, maxRedirects: optionsRedirection.maxRedirects, statut: reponseRedirection.status() });
   await cap(p, "01-connexion");
 
   await p.click("button[type=submit]");
@@ -164,8 +217,10 @@ async function g_tableau(br) {
     pastille: ((document.querySelector(".pastille") || {}).textContent) || null,
     session: (document.querySelector(".session span") || {}).textContent,
   }));
-  constat(G, "structure", "tableau de bord : h1, 18 onglets, onglet courant, une carte par département (10 réels + 1 fictif)",
-    d.h1 === "Départements" && d.nav.length === 18 && d.courant === "Départements" && d.cartes === 11, d);
+  const sectionsRequises = ["Départements", "CRM", "Approbations", "Réglages de direction", "Plateforme", "Observabilité", "Wallboards"];
+  constat(G, "structure", "tableau de bord : h1, navigation complète, onglet courant et 10 départements réels plus la fixture fictive",
+    d.h1 === "Départements" && d.nav.length === 21 && sectionsRequises.every((s) => d.nav.some((n) => n.startsWith(s))) &&
+      d.courant === "Départements" && d.cartes === 11, d);
   constat(G, "pastille", "la pastille d'approbations annonce les 4 demandes en attente", d.pastille === "4", d.pastille);
   constat(G, "session-nommee", "la personne connectée est nommée", /proprio-fictif/.test(d.session || ""), d.session);
   await cap(p, "04-tableau-de-bord");
@@ -209,7 +264,8 @@ async function g_approbations(br) {
   // rejeu d'une décision déjà prise : on réutilise le formulaire de la dernière demande en double soumission
   await p.goto(B + "/approbations?statut=en_attente");
   const cible = await p.evaluate(() => { const f = [...document.querySelectorAll("article.carte")].find((c) => c.textContent.includes("Note fictive C du banc")).querySelector("form"); return { action: f.getAttribute("action"), csrf: f.querySelector("[name=csrf]").value }; });
-  const envoi = () => ctx.request.post(new URL(cible.action, ORIGINE).href, { form: { csrf: cible.csrf, decision: "approuver", motif: "double" }, maxRedirects: 0 });
+  const envoi = () => requeteLocaleAvecSession(ctx, "post", new URL(cible.action, ORIGINE).href,
+    { form: { csrf: cible.csrf, decision: "approuver", motif: "double" }, maxRedirects: 0 });
   const [da, db] = await Promise.all([envoi(), envoi()]);
   const doubles = [da.status(), db.status()];
   const apres = lireEffets();
@@ -247,14 +303,14 @@ async function g_plateforme(br) {
   constat(G, "fournisseurs", "registre de fournisseurs : tableau rempli, « à mesurer », profil client absent annoncé", f.lignes > 20 && f.amesurer && f.profilAbsent, f);
   await cap(p, "08-plateforme-fournisseurs");
   // Sous-navigation : chacune des cinq pages Plateforme expose les cinq sections (aucune impasse) et marque la page courante.
-  const sections = ["fournisseurs", "secrets", "avatars", "connaissances", "connecteurs"];
+  const sections = ["fournisseurs", "modeles", "secrets", "avatars", "connaissances", "mnemo", "connecteurs"];
   const impasses = [];
   for (const s of sections) {
     await p.goto(B + "/plateforme/" + s);
     const nav = await p.evaluate(() => { const n = document.querySelector('nav[aria-label="Plateforme"]'); return n ? { liens: [...n.querySelectorAll("a")].map((a) => a.getAttribute("href").split("/plateforme/")[1]), courant: [...n.querySelectorAll("a[aria-current=page]")].map((a) => a.getAttribute("href").split("/plateforme/")[1]) } : null; });
     if (!nav || JSON.stringify(nav.liens) !== JSON.stringify(sections) || JSON.stringify(nav.courant) !== JSON.stringify([s])) impasses.push(s + ": " + JSON.stringify(nav));
   }
-  constat(G, "sous-navigation", "les cinq pages Plateforme portent la même navigation nommée (5 sections, page courante marquée) : aucune impasse", impasses.length === 0, impasses);
+  constat(G, "sous-navigation", "les sept pages Plateforme portent la même navigation nommée (7 sections, page courante marquée) : aucune impasse", impasses.length === 0, impasses);
   await p.goto(B + "/plateforme/fournisseurs");
   // profil puis activation refusée avec son code
   await p.locator('input[name=usage_commercial]').check();
@@ -293,7 +349,7 @@ async function g_plateforme(br) {
   await p.goto(B + "/api/plateforme/secrets");
   const api = await p.content();
   constat(G, "secret-api-masquee", "l'API JSON des secrets ne porte pas la valeur", !api.includes(SECRET_FICTIF) && /mistral\.ocr/.test(api), null);
-  const rev = await p.request.get(B + "/api/plateforme/secrets/mistral.ocr/valeur");
+  const rev = await requeteLocaleAvecSession(ctx, "get", B + "/api/plateforme/secrets/mistral.ocr/valeur");
   constat(G, "secret-valeur-fermee", "la lecture directe de la valeur d'un secret est refusée à la console (aucune route de lecture en clair)", rev.status() >= 400 && !(await rev.text()).includes(SECRET_FICTIF), rev.status());
   // Avatars, connaissances, connecteurs, observabilité
   const visites = [["plateforme/avatars", "Plateforme — avatars", "11-plateforme-avatars"], ["plateforme/connaissances", "Plateforme — connaissances", "12-plateforme-connaissances"],
@@ -328,7 +384,13 @@ async function g_wallboards(br) {
   await p.goto(B + "/wallboards");
   const ligne = await p.locator("tbody tr").count();
   const lien = await p.locator("tbody a").first().getAttribute("href");
-  constat(G, "liste", "liste des wallboards : deux tableaux, lien de chaque ligne", ligne === 2 && /\/wallboards\//.test(lien), { ligne, lien });
+  const liensLignes = await p.locator("tbody tr").evaluateAll((lignes) => lignes.map((tr) => tr.querySelector("a")?.getAttribute("href") || null));
+  const attendus = ["acquisition", "collecte", "direction", "equipes-materiel", "finance-operations", "marketing", "ventes-clientele"]
+    .map((id) => "/opsys/wallboards/" + id).sort();
+  constat(G, "liste", "la liste contient une fois chacun des sept wallboards de l'inventaire et aucun lien arbitraire",
+    ligne === attendus.length && liensLignes.length === ligne && liensLignes.every((href) => typeof href === "string" && /^\/opsys\/wallboards\/[a-z0-9][a-z0-9-]*$/.test(href)) &&
+      [...liensLignes].sort().join("\n") === attendus.join("\n") && new Set(liensLignes).size === liensLignes.length,
+    { ligne, liens: liensLignes, attendus });
   await p.goto(B + lien.replace("/opsys", ""));
   const etat1 = await p.evaluate(() => ({ banniere: document.getElementById("banniere").className, tuiles: [...document.querySelectorAll(".tuile")].map((t) => t.className), mise: document.getElementById("mise-a-jour").textContent }));
   constat(G, "rendu-initial", "rendu serveur initial sans JS : bannière et tuiles présentes", etat1.tuiles.length >= 6 && /banniere-/.test(etat1.banniere), etat1);
@@ -371,7 +433,8 @@ async function g_wallboards(br) {
   await page2.goto(B + lien.replace("/opsys", ""));
   await page2.waitForFunction(() => /Connecté/.test(document.querySelector('[data-champ="connexion"]').textContent), null, { timeout: 12000 }).catch(() => {});
   await ctx.setOffline(true);
-  await page2.clock.fastForward(130000);
+  // Acquisition : trois battements de 60 s et 5 s de grâce avant « déconnecté ».
+  await page2.clock.fastForward(190000);
   await dormir(800);
   const perdu = await page2.evaluate(() => ({ deconnectes: document.querySelectorAll(".tuile.deconnecte").length, conn: document.querySelector('[data-champ="connexion"]').textContent,
     banniere: document.querySelector('#banniere [data-champ="messages"]').innerText }));
@@ -461,7 +524,7 @@ async function g_expiration(br) {
     await c2.addCookies([{ name: "opsys_session", value: valeur, url: B + "/", httpOnly: true, secure: true, sameSite: "Strict" }]);
     const q = await c2.newPage();
     const r = await q.goto(B + "/departements");
-    const api = await q.request.get(B + "/api/session");
+    const api = await requeteLocaleAvecSession(c2, "get", B + "/api/session");
     constat(G, nom, "cookie " + nom + " : page renvoyée à la connexion et API en 401", q.url().endsWith("/connexion") && api.status() === 401, { url: q.url(), api: api.status(), refusePar: attendu });
     await c2.close();
   }
@@ -472,8 +535,8 @@ async function g_csrf(br) {
   const ctx = await nouveauContexte(br, { baseURL: undefined });
   const p = await seConnecter(ctx, "proprio-fictif");
   const csrf = await p.evaluate(() => document.querySelector("input[name=csrf]").value);
-  const post = async (chemin, form) => { const r = await ctx.request.post(B + chemin, { form: form, maxRedirects: 0 }); return { s: r.status(), t: (await r.text()).slice(0, 300) }; };
-  const put = async (entetes) => (await ctx.request.put(B + "/api/agents-plafonds", { data: { budget_jour: 1, budget_mois: 2, revision_attendue: 0 }, headers: entetes, maxRedirects: 0 })).status();
+  const post = async (chemin, form) => { const r = await requeteLocaleAvecSession(ctx, "post", B + chemin, { form: form, maxRedirects: 0 }); return { s: r.status(), t: (await r.text()).slice(0, 300) }; };
+  const put = async (entetes) => (await requeteLocaleAvecSession(ctx, "put", B + "/api/agents-plafonds", { data: { budget_jour: 1, budget_mois: 2, revision_attendue: 0 }, headers: entetes, maxRedirects: 0 })).status();
   const essais = {
     sansJeton: await post("/deconnexion", {}),
     jetonFaux: await post("/deconnexion", { csrf: "faux" }),
@@ -487,7 +550,7 @@ async function g_csrf(br) {
   constat(G, "decision-sans-jeton", "décision d'approbation sans jeton : 403", essais.decisionSansJeton.s === 403, essais.decisionSansJeton);
   constat(G, "secret-sans-jeton", "enregistrement d'un secret sans jeton : 403 et valeur non réécho", essais.plateformeSansJeton.s === 403 && !essais.plateformeSansJeton.t.includes(SECRET_FICTIF), essais.plateformeSansJeton.s);
   constat(G, "api-sans-jeton", "écriture de l'API JSON sans en-tête X-CSRF-Token : 403 (jeton faux aussi)", essais.apiSansJeton === 403 && essais.apiJetonFaux === 403, [essais.apiSansJeton, essais.apiJetonFaux]);
-  const encore = await p.request.get(B + "/api/session");
+  const encore = await requeteLocaleAvecSession(ctx, "get", B + "/api/session");
   constat(G, "session-intacte", "après ces refus, la session reste valide et le jeton inchangé", encore.status() === 200 && (await encore.json()).csrf === csrf, encore.status());
   // Attaque inter-sites réelle : une page « attaquante » (autre site) soumet un formulaire vers la console.
   const attaquant = await ctx.newPage();
@@ -500,7 +563,7 @@ async function g_csrf(br) {
   await attaquant.waitForLoadState();
   await dormir(500);
   const entetesEnvoyes = requetesVersConsole.length ? await requetesVersConsole[0].allHeaders() : {};
-  const encore2 = await p.request.get(B + "/api/session");
+  const encore2 = await requeteLocaleAvecSession(ctx, "get", B + "/api/session");
   constat(G, "inter-sites-samesite", "formulaire soumis depuis un AUTRE SITE avec le bon jeton : le navigateur n'envoie PAS le cookie (SameSite=Strict) et la session survit",
     requetesVersConsole.length >= 1 && !("cookie" in entetesEnvoyes) && encore2.status() === 200, { posts: requetesVersConsole.length, cookieEnvoye: "cookie" in entetesEnvoyes, session: encore2.status(), urlFinale: attaquant.url() });
   await attaquant.close();
@@ -691,6 +754,70 @@ async function g_responsive(br) {
   for (const c of ["departements", "approbations", "plateforme/secrets"]) { await p.goto(B + "/" + c); const m = await p.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]); if (m[0] > m[1]) d.push(c + " " + m.join(">")); }
   constat(G, "largeur-320", "à 320 px (équivalent d'un zoom 400 %, 1.4.10) : pas de défilement horizontal de la page", d.length === 0, d);
   await ctx.close();
+
+  // Navigation réellement utilisable au clavier sur téléphone, avec amélioration progressive sans JavaScript.
+  const mobile = await nouveauContexte(br, { viewport: { width: 375, height: 800 } });
+  const pageMobile = await seConnecter(mobile, "admin-fictif");
+  await pageMobile.goto(B + "/departements");
+  const etatMobile = await pageMobile.evaluate(() => ({ largeur: document.documentElement.clientWidth,
+    defilement: document.documentElement.scrollWidth, liens: document.querySelectorAll("#navigation-sections a").length,
+    courant: document.querySelectorAll("#navigation-sections a[aria-current=page]").length,
+    bouton: document.querySelectorAll(".bouton-sections").length,
+    boutonCache: document.querySelector(".bouton-sections")?.hidden,
+    developpe: document.querySelector(".bouton-sections")?.getAttribute("aria-expanded"),
+    navCachee: document.querySelector("#navigation-sections")?.hidden }));
+  constat(G, "navigation-mobile-375", "à 375 px, les 21 liens restent présents et la navigation est repliée sans débordement",
+    etatMobile.largeur === 375 && etatMobile.defilement === 375 && etatMobile.liens === 21 && etatMobile.courant === 1 &&
+      etatMobile.bouton === 1 && etatMobile.boutonCache === false && etatMobile.developpe === "false" && etatMobile.navCachee === true,
+    etatMobile);
+  if (etatMobile.bouton === 1 && etatMobile.liens === 21) {
+    const bouton = pageMobile.locator(".bouton-sections");
+    const premierLien = pageMobile.locator("#navigation-sections a").first();
+    await bouton.focus(); await pageMobile.keyboard.press("Space");
+    await pageMobile.waitForFunction(() => document.querySelector("#navigation-sections") && !document.querySelector("#navigation-sections").hidden);
+    const ouvertEspace = await pageMobile.evaluate(() => ({ ouvert: !document.querySelector("#navigation-sections").hidden,
+      developpe: document.querySelector(".bouton-sections").getAttribute("aria-expanded"), focusLien: document.activeElement === document.querySelector("#navigation-sections a") }));
+    constat(G, "navigation-clavier-ouverture", "Espace ouvre la navigation et place le focus sur le premier lien",
+      ouvertEspace.ouvert && ouvertEspace.developpe === "true" && ouvertEspace.focusLien, ouvertEspace);
+    await pageMobile.keyboard.press("Escape");
+    const fermeEscape = await pageMobile.evaluate(() => ({ ferme: document.querySelector("#navigation-sections").hidden,
+      developpe: document.querySelector(".bouton-sections").getAttribute("aria-expanded"), focusBouton: document.activeElement === document.querySelector(".bouton-sections") }));
+    constat(G, "navigation-clavier-escape", "Échap ferme le menu et rend le focus au bouton",
+      fermeEscape.ferme && fermeEscape.developpe === "false" && fermeEscape.focusBouton, fermeEscape);
+
+    // Bouton mobile → bureau, puis lien bureau → mobile : le focus suit ce qui devient visible.
+    await pageMobile.setViewportSize({ width: 768, height: 800 });
+    await pageMobile.waitForFunction(() => !matchMedia("(max-width: 600px)").matches);
+    await pageMobile.waitForTimeout(50);
+    const bureau = await pageMobile.evaluate(() => ({ largeur: innerWidth, navVisible: !document.querySelector("#navigation-sections").hidden,
+      boutonCache: document.querySelector(".bouton-sections").hidden, focusLien: document.activeElement === document.querySelector("#navigation-sections a") }));
+    await premierLien.focus();
+    await pageMobile.setViewportSize({ width: 375, height: 800 });
+    await pageMobile.waitForFunction(() => matchMedia("(max-width: 600px)").matches);
+    await pageMobile.waitForTimeout(50);
+    const mobileApresResize = await pageMobile.evaluate(() => ({ largeur: innerWidth, navCachee: document.querySelector("#navigation-sections").hidden,
+      focusBouton: document.activeElement === document.querySelector(".bouton-sections"), boutonCache: document.querySelector(".bouton-sections").hidden }));
+    constat(G, "navigation-focus-redimensionnement", "le focus suit les éléments visibles lors des redimensionnements dans les deux sens",
+      bureau.largeur === 768 && bureau.navVisible && bureau.boutonCache && bureau.focusLien && mobileApresResize.largeur === 375 &&
+        mobileApresResize.navCachee && mobileApresResize.focusBouton && !mobileApresResize.boutonCache,
+      { bureau, mobile: mobileApresResize });
+  } else {
+    for (const id of ["navigation-clavier-ouverture", "navigation-clavier-escape", "navigation-focus-redimensionnement"])
+      constat(G, id, "navigation mobile au clavier indisponible : contrôles absents", false, etatMobile);
+  }
+
+  const sansJs = await nouveauContexte(br, { viewport: { width: 375, height: 800 }, javaScriptEnabled: false });
+  await sansJs.addCookies(await mobile.cookies());
+  const pageSansJs = await sansJs.newPage();
+  await pageSansJs.goto(B + "/departements");
+  const etatSansJs = await pageSansJs.evaluate(() => ({ liens: document.querySelectorAll("#navigation-sections a").length,
+    courant: document.querySelectorAll("#navigation-sections a[aria-current=page]").length,
+    navVisible: !!document.querySelector("#navigation-sections") && !document.querySelector("#navigation-sections").hidden,
+    boutonCache: document.querySelector(".bouton-sections")?.hidden }));
+  constat(G, "navigation-sans-javascript", "sans JavaScript, les 21 liens restent visibles et le bouton de bascule est masqué",
+    etatSansJs.liens === 21 && etatSansJs.courant === 1 && etatSansJs.navVisible && etatSansJs.boutonCache === true, etatSansJs);
+  await sansJs.close();
+  await mobile.close();
 }
 
 async function g_reglages(br) {
@@ -708,10 +835,14 @@ async function g_reglages(br) {
     propositions: [...document.querySelectorAll(".proposition")].map((x) => x.textContent.replace(/\s+/g, " ")),
     resume: (document.querySelector("main > p") || {}).textContent,
   }));
-  constat(G, "structure", "écran des réglages : h1, onglet courant, 10 réglages « À décider » (4 de M2, 6 de M8), un bouton d'adoption N3 chacun",
-    d.h1 === "Réglages de direction" && d.courant === "Réglages de direction" && d.cartes === 10 && d.adopter === 10 && d.statuts.length === 10 && d.statuts.every((x) => x === "À décider"), d);
-  constat(G, "propositions", "trois propositions seulement (les délais de M2), chacune étiquetée « recommandation, non validée » avec sa source ; aucune pour M8",
-    d.propositions.length === 3 && d.propositions.every((x) => /recommandation, non validée/.test(x) && /Source :/.test(x)), d.propositions);
+  constat(G, "structure", "écran des réglages : inventaire courant, statut de chaque carte et geste N3 disponible",
+    d.h1 === "Réglages de direction" && d.courant === "Réglages de direction" && d.cartes === 35 && d.adopter === 35 &&
+      d.statuts.length === 35 && d.statuts.filter((x) => x === "À décider").length === 32 &&
+      d.statuts.filter((x) => x === "Valeur du fichier du département").length === 3, d);
+  constat(G, "propositions", "les six propositions documentées restent des recommandations sourcées et aucune valeur M8 n'est proposée",
+    d.propositions.length === 6 && d.propositions.every((x) => /recommandation, non validée/.test(x) && /Source :/.test(x)) &&
+      d.propositions.some((x) => /m02-/i.test(x)) && d.propositions.some((x) => /m06-/i.test(x)) &&
+      d.propositions.every((x) => !/m8\./i.test(x)), d.propositions);
   await cap(p, "30-reglages-a-decider");
 
   // Accessibilité : les règles maison sur la page avec formulaires, trois largeurs, deux thèmes.
@@ -743,29 +874,29 @@ async function g_reglages(br) {
   await Promise.all([p.waitForURL(/ok=adopte/), carte().getByRole("button", { name: /Adopter \(N3/ }).click()]);
   const apres = await p.evaluate(() => ({ bandeau: (document.querySelector(".message") || {}).textContent, role: (document.querySelector(".message") || {}).getAttribute && document.querySelector(".message").getAttribute("role"),
     texte: document.body.innerText.replace(/\s+/g, " ") }));
-  constat(G, "adoption", "adopter : redirection, bandeau « Valeur adoptée (N3) » annoncé poliment, carte « Adopté », 9 réglages restants, journal rempli",
-    /Valeur adoptée \(N3\)/.test(apres.bandeau || "") && apres.role === "status" && /Adopté/.test(apres.texte) && /9 réglage\(s\) à décider sur 10/.test(apres.texte) && /Adoption.*aucune → 7/.test(apres.texte), { bandeau: apres.bandeau, role: apres.role });
+  constat(G, "adoption", "adopter : redirection, bandeau « Valeur adoptée (N3) » annoncé poliment, carte « Adopté », 31 réglages à décider, journal rempli",
+    /Valeur adoptée \(N3\)/.test(apres.bandeau || "") && apres.role === "status" && /Adopté/.test(apres.texte) && /31 réglage\(s\) à décider sur 35/.test(apres.texte) && /Adoption.*aucune → 7/.test(apres.texte), { bandeau: apres.bandeau, role: apres.role });
   await cap(p, "31-reglages-adopte");
 
   // Hors bornes : le serveur refuse (400) et la page d'erreur est lisible ; rien n'est adopté.
   const csrf = await p.evaluate(() => document.querySelector("input[name=csrf]").value);
-  const horsBornes = await ctx.request.post(B + "/reglages/geste", { form: { csrf: csrf, action: "adopter", cle: "m2.jours_soumission_perimee", saisie: "0", raison: "Essai hors bornes", version_attendue: "0" }, maxRedirects: 0 });
+  const horsBornes = await requeteLocaleAvecSession(ctx, "post", B + "/reglages/geste", { form: { csrf: csrf, action: "adopter", cle: "m2.jours_soumission_perimee", saisie: "0", raison: "Essai hors bornes", version_attendue: "0" }, maxRedirects: 0 });
   const texteRefus = await horsBornes.text();
   constat(G, "hors-bornes", "valeur hors bornes : 400 et motif lisible (REJ-REGLAGE-HORS-BORNES), rien n'est adopté", horsBornes.status() === 400 && /HORS-BORNES/.test(texteRefus), { statut: horsBornes.status() });
-  const sansJeton = await ctx.request.post(B + "/reglages/geste", { form: { action: "adopter", cle: "m2.jours_soumission_perimee", saisie: "14", raison: "Essai sans jeton", version_attendue: "0" }, maxRedirects: 0 });
+  const sansJeton = await requeteLocaleAvecSession(ctx, "post", B + "/reglages/geste", { form: { action: "adopter", cle: "m2.jours_soumission_perimee", saisie: "14", raison: "Essai sans jeton", version_attendue: "0" }, maxRedirects: 0 });
   constat(G, "csrf", "adoption sans jeton CSRF : 403, rien n'est adopté", sansJeton.status() === 403, sansJeton.status());
-  const api = await ctx.request.get(B + "/api/reglages");
+  const api = await requeteLocaleAvecSession(ctx, "get", B + "/api/reglages");
   const etat = await api.json();
-  constat(G, "etat-serveur", "l'état du serveur après ces essais : 9 manquants, une seule valeur adoptée (jours_entre_relances), chaîne valide, une ligne au journal",
-    etat.manquants === 9 && etat.chaine.valide && etat.chaine.maillons === 1 && etat.journal.length === 1 && etat.journal[0].cle === "m2.jours_entre_relances", { manquants: etat.manquants, chaine: etat.chaine });
+  constat(G, "etat-serveur", "l'état du serveur après ces essais : 31 manquants, une seule valeur adoptée, chaîne valide, une ligne au journal",
+    etat.manquants === 31 && etat.chaine.valide && etat.chaine.maillons === 1 && etat.journal.length === 1 && etat.journal[0].cle === "m2.jours_entre_relances", { manquants: etat.manquants, chaine: etat.chaine });
 
   // Retour arrière en un geste.
   await p.goto(B + "/reglages");
   await carte().locator("form").filter({ hasText: "Revenir en arrière" }).locator("input[name=raison]").fill("Retour au point de départ du banc");
   await Promise.all([p.waitForURL(/ok=retour_arriere/), carte().getByRole("button", { name: "Revenir en arrière" }).click()]);
   const retour = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
-  constat(G, "retour-arriere", "revenir en arrière : la valeur est retirée, 10 réglages à décider de nouveau, le retour figure au journal",
-    /10 réglage\(s\) à décider sur 10/.test(retour) && /Retour arrière.*7 → aucune/.test(retour), null);
+  constat(G, "retour-arriere", "revenir en arrière : la valeur est retirée, 32 réglages à décider de nouveau, le retour figure au journal",
+    /32 réglage\(s\) à décider sur 35/.test(retour) && /Retour arrière.*7 → aucune/.test(retour), null);
   await ctx.close();
 
   // L'administrateur (sans le rôle propriétaire) voit l'écran mais ne peut pas agir.
@@ -774,7 +905,7 @@ async function g_reglages(br) {
   await a.goto(B + "/reglages");
   const vueA = await a.evaluate(() => ({ champs: document.querySelectorAll("input[name=saisie]").length, boutons: [...document.querySelectorAll("button")].filter((b) => /Adopter/.test(b.textContent)).length, note: document.body.innerText.includes("Seul le propriétaire adopte ou annule") }));
   const csrfA = await a.evaluate(() => document.querySelector("input[name=csrf]").value);
-  const refusA = await ctxA.request.post(B + "/reglages/geste", { form: { csrf: csrfA, action: "adopter", cle: "m2.jours_entre_relances", saisie: "7", raison: "Essai par un administrateur", version_attendue: "0" }, maxRedirects: 0 });
+  const refusA = await requeteLocaleAvecSession(ctxA, "post", B + "/reglages/geste", { form: { csrf: csrfA, action: "adopter", cle: "m2.jours_entre_relances", saisie: "7", raison: "Essai par un administrateur", version_attendue: "0" }, maxRedirects: 0 });
   constat(G, "administrateur", "l'administrateur voit l'écran sans formulaire (note « Seul le propriétaire… ») et son POST direct est refusé (403)", vueA.champs === 0 && vueA.boutons === 0 && vueA.note && refusA.status() === 403, { vueA, statut: refusA.status() });
   await ctxA.close();
 }

@@ -31,7 +31,7 @@ ICI = Path(__file__).resolve().parent
 RACINE = ICI.parents[2]
 FRAIS = "2026-10-30T20:00:00-04:00"  # instant de référence des faits fictifs de M8 (les mesures sont fraîches)
 REGISTRES = {"chantier": "faits_chantier", "entonnoir": "faits_entonnoir", "contenus": "faits_contenus",
-             "cash_libre": "faits_cash_libre"}
+             "cash_libre": "faits_cash_libre", "operations": "faits_operations"}
 PERSONNES = (("proprio-fictif", "Propriétaire fictif", ["nathan_owner"]),
              ("admin-fictif", "Administratrice fictive", ["admin"]),
              ("employe-fictif", "Employé fictif", ["employee"]))
@@ -67,6 +67,28 @@ def initialiser(dossier: Path) -> dict[str, str]:
     from opsys.capacites import Capacites
     from opsys.secrets_coffre import cle_maitresse
 
+    # Profil d'entreprise FICTIF de cette instance jetable : seule la correspondance des canaux est
+    # nécessaire pour que le wallboard Acquisition puisse calculer ses leads publicitaires. Aucun
+    # profil ni renseignement d'affaires de l'hôte n'est lu.
+    racine_jetable = dossier.resolve()
+    opsys_home = Path(os.environ["OPSYS_HOME"]).resolve()
+    home_attendu = (racine_jetable / "opsys-home").resolve()
+    if opsys_home != home_attendu or not opsys_home.is_relative_to(racine_jetable):
+        raise SystemExit("amorçage : OPSYS_HOME doit rester dans le dossier jetable de l'instance")
+    profil_fictif = opsys_home / "entreprise.yaml"
+    profil_fictif.parent.mkdir(parents=True, exist_ok=True)
+    if profil_fictif.exists() and profil_fictif.resolve().parent != opsys_home:
+        raise SystemExit("amorçage : le profil fictif sort du dossier jetable")
+    profil_contenu = json.dumps({"canaux_marketing": jeux_fictifs.CANAUX_FICTIFS}).encode("utf-8")
+    try:
+        descripteur = os.open(profil_fictif, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        if profil_fictif.read_bytes() != profil_contenu:
+            raise SystemExit("amorçage : profil préexistant différent; refus de l'écraser") from None
+    else:
+        with os.fdopen(descripteur, "wb") as profil:
+            profil.write(profil_contenu)
+
     fichier = Path(os.environ["OPSYS_COFFRE_CLE_FICHIER"])
     if not fichier.exists():
         cle_maitresse.generer_fichier(fichier)
@@ -86,7 +108,7 @@ def initialiser(dossier: Path) -> dict[str, str]:
     with stockage.transaction() as cnx:
         for ident, nom, roles in PERSONNES:
             identite.creer_personne(cnx, ident, nom, identifiants[ident], roles)
-        registres = jeux_fictifs.registres_fictifs()
+        registres = jeux_fictifs.registres_fictifs(avec_operations=True)
         for cle, nom in REGISTRES.items():
             cible = stockage.maillons("m08-analytics", nom)
             for fait in registres[cle]:

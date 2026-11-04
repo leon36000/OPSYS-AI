@@ -126,7 +126,8 @@ def test_chaque_injection_cible_des_constats_qui_existent(lancer, injections):
             assert attendu.split("/")[0] in {  # le groupe joué doit contenir le constat attendu
                 {"connexion": "connexion", "csrf": "csrf", "deconnexion": "deconnexion", "plateforme": "plateforme",
                  "a11y": "accessibilite", "entetes": "entetes-securite", "clavier": "clavier",
-                 "responsive": "responsive"}[g] for g in groupes}, (nom, attendu, groupes)
+                 "responsive": "responsive", "reglages": "reglages", "approbations": "approbations"}[g]
+                for g in groupes}, (nom, attendu, groupes)
 
 
 def test_les_groupes_de_parcours_sont_ceux_que_les_injections_demandent(injections):

@@ -17,6 +17,10 @@ def _csrf_retire() -> None:
     securite.csrf_valide = lambda fourni, session: True  # type: ignore[assignment]
 
 
+def _csrf_retire_reglages() -> None:
+    _csrf_retire()
+
+
 def _cookie(**forces: Any) -> Callable[[], None]:
     def appliquer() -> None:
         from starlette.responses import Response
@@ -110,14 +114,57 @@ def _secret_en_clair() -> None:
     application.creer_application = fabrique
 
 
+def _reglages_formulaire_admin_visible() -> None:
+    """Mutation du banc : expose les formulaires au rôle admin sans lever le contrôle serveur."""
+    from opsys.console import reglages_ui
+
+    original = reglages_ui._page
+
+    def page(vue, entrees, deps, prefixe, session, proprietaire, bandeau):
+        if session.utilisateur == "admin-fictif":
+            proprietaire = True
+        return original(vue, entrees, deps, prefixe, session, proprietaire, bandeau)
+
+    reglages_ui._page = page
+
+
+def _reglages_bornes_retirees() -> None:
+    """Mutation du banc : retire les validations de bornes à l'entrée et à l'écriture durable."""
+    from opsys.console import reglages_ui
+    from opsys.reglages import magasin
+
+    reglages_ui.valider_valeur = lambda reglage, valeur: valeur  # type: ignore[assignment]
+    magasin.valider_valeur = lambda reglage, valeur: valeur  # type: ignore[assignment]
+
+
+def _effet_fictif_double() -> None:
+    """Mutation du banc : l'outil fictif écrit deux fois lors d'une seule exécution."""
+    from dataclasses import replace
+
+    import qualif_outils
+
+    def publier_deux_fois(titre: str) -> dict:
+        resultat = qualif_outils.publier_note(titre)
+        qualif_outils.publier_note(titre)
+        return resultat
+
+    qualif_outils.OUTILS = tuple(replace(outil, fonction=publier_deux_fois) for outil in qualif_outils.OUTILS)
+
+
 # nom -> (application, groupes à jouer, constats attendus en échec : au moins UN doit échouer pour que l'injection soit « tuée »)
 INJECTIONS: dict[str, tuple[Callable[[], None], list[str], list[str]]] = {
     "csrf-retire": (_csrf_retire, ["csrf"], ["csrf/post-sans-jeton", "csrf/post-jeton-faux", "csrf/api-sans-jeton", "csrf/inter-sites-samesite"]),
+    "csrf-retire-reglages": (_csrf_retire_reglages, ["reglages"], ["reglages/csrf"]),
     "cookie-sans-httponly": (_cookie(httponly=False), ["connexion"], ["connexion/cookie-drapeaux", "connexion/cookie-invisible-js"]),
     "cookie-sans-secure": (_cookie(secure=False), ["connexion"], ["connexion/cookie-drapeaux"]),
     "cookie-samesite-none": (_cookie(samesite="none"), ["connexion", "csrf"], ["connexion/cookie-drapeaux", "csrf/inter-sites-samesite"]),
     "cookie-non-efface": (_cookie_non_efface, ["deconnexion"], ["deconnexion/cookie-efface"]),
     "secret-en-clair": (_secret_en_clair, ["plateforme"], ["plateforme/secret-jamais-reaffiche", "plateforme/secret-aucune-reponse"]),
+    "reglages-formulaire-admin-visible": (
+        _reglages_formulaire_admin_visible, ["reglages"], ["reglages/administrateur"]
+    ),
+    "reglages-bornes-retirees": (_reglages_bornes_retirees, ["reglages"], ["reglages/hors-bornes"]),
+    "effet-fictif-double": (_effet_fictif_double, ["approbations"], ["approbations/approuver-effet"]),
     "etiquette-retiree": (_etiquette_retiree, ["a11y"], ["accessibilite/regle-champs-etiquetes"]),
     "lang-retire": (_lang_retire, ["a11y"], ["accessibilite/regle-lang-fr"]),
     "csp-affaiblie": (_csp_affaiblie, ["entetes"], ["entetes-securite/pages", "entetes-securite/csp-bloque-script-en-ligne"]),
