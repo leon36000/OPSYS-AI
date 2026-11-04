@@ -115,6 +115,9 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
     # test_rapports_outils.py.
     attendues |= analyse.SORTIES_RAPPORTS
     assert len(analyse.SORTIES_RAPPORTS) == 10
+    # Prévision longue (M5-PREV-2) : mêmes deux mentions, prouvées par test_prevision_longue_outils.py ; corpus dédié.
+    attendues |= analyse.SORTIES_PREVISION_LONGUE
+    assert len(analyse.SORTIES_PREVISION_LONGUE) == 2
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert analyse.SORTIES_CALCUL <= analyse.SORTIES_D_ANALYSE
     assert analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
@@ -276,7 +279,7 @@ def _la_mention(reponse, nom):
                                        - analyse.SORTIES_ONBOARDING - analyse.SORTIES_CALCUL
                                        - analyse.SORTIES_FISCALES - analyse.SORTIES_OPERATIONS
                                        - analyse.SORTIES_CONSEIL - analyse.SORTIES_FACTURATION
-                                       - analyse.SORTIES_RAPPORTS))
+                                       - analyse.SORTIES_RAPPORTS - analyse.SORTIES_PREVISION_LONGUE))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
     ident, revision = _preparer_une_facture(par_nom)

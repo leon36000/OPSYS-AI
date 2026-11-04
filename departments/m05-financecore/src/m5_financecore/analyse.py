@@ -17,7 +17,8 @@ from typing import Any
 
 __all__ = [
     "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_CALCUL", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
-    "SORTIES_FACTURATION", "SORTIES_RAPPORTS", "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE",
+    "SORTIES_FACTURATION", "SORTIES_PREVISION_LONGUE", "SORTIES_RAPPORTS", "SORTIES_FISCALES",
+    "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE",
     "SORTIES_OPERATIONS",
     "SORTIES_CONSEIL",
     "avec_mention", "avec_mention_comptable",
@@ -115,6 +116,12 @@ SORTIES_FACTURATION = frozenset({
 # `docs/architecture/M5-RAPPORTS-PREAUDIT.md`) :
 # états en BROUILLON tirés du grand livre, contrôles déterministes et constats, sous les deux mentions, prouvés par
 # `tests/test_rapports_outils.py` sur chaque sortie acceptée.
+SORTIES_PREVISION_LONGUE = frozenset({
+    # prévision 6/12/24 mois : sources réelles, hypothèses déclarées, scénarios nommés, reçu rejouable
+    "m5_prevoir_tresorerie_longue",
+    "m5_rejouer_prevision_longue",  # vérification et rejeu d'un reçu de prévision longue
+})
+
 SORTIES_RAPPORTS = frozenset({
     # état des résultats en brouillon : produits, charges, résultat avant impôts, reçu rejouable
     "m5_etat_des_resultats",
@@ -172,7 +179,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
 }) | (
     SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL | SORTIES_FISCALES | SORTIES_OPERATIONS | SORTIES_CONSEIL
-    | SORTIES_FACTURATION | SORTIES_RAPPORTS)
+    | SORTIES_FACTURATION | SORTIES_RAPPORTS | SORTIES_PREVISION_LONGUE)
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
