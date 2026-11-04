@@ -1149,6 +1149,17 @@ def test_pour_un_appel_d_appareil_l_heure_du_serveur_borne_recueilli_le(par_nom,
     assert resultat["enregistre_le"] == "2026-09-20T14:00:00+00:00"
 
 
+@pytest.mark.parametrize("instant", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"])
+def test_un_consentement_avec_instant_hors_plage_utc_est_refuse_sans_ecriture(par_nom, monde, instant):
+    avant = _instantane_base()
+    arguments = _arguments_consentement("lead-un", "sms", recueilli_le=instant)
+    reponse = _appeler(par_nom, "m2_enregistrer_consentement_contact", arguments, VENDEUR_UN,
+                       recu_le="2026-09-20T14:00:00+00:00")
+    assert _verdict(reponse)["code"] == "REJ-HORODATAGE-INVALIDE"
+    assert _instantane_base() == avant
+    assert _journal_consentements() == []
+
+
 def test_un_retrait_ne_se_leve_jamais_aucun_consentement_n_est_inscrit_apres_un_stop(par_nom, monde):
     _stop(["lead-un"])
     avant = _instantane_base()

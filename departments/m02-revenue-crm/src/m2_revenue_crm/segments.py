@@ -269,7 +269,12 @@ def instant_utc(valeur: Any) -> datetime:
     instant = datetime.fromisoformat(valeur)
     if instant.tzinfo is None or instant.tzinfo.utcoffset(instant) is None:
         raise ValueError(f"horodatage sans fuseau : {valeur!r}")
-    return instant.astimezone(UTC)
+    try:
+        return instant.astimezone(UTC)
+    except OverflowError:
+        # L'offset peut déplacer un instant valide au format ISO hors de datetime.min/max en UTC.
+        # Le contrat de cette frontière est un refus de valeur, jamais une exception technique brute.
+        raise ValueError("horodatage hors de la plage UTC représentable") from None
 
 
 def _jours_entiers(secondes: float) -> int:

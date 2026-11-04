@@ -166,7 +166,14 @@ def construire_consentement(
         except ValueError:
             return None, verdicts.construire_verdict(
                 "REJ-HORODATAGE-INVALIDE", detail=f"{nom} : ISO-8601 avec fuseau attendu")
-    if segments.instant_utc(recueilli_le) > segments.instant_utc(enregistre_le):
+    try:
+        recueilli_utc = segments.instant_utc(recueilli_le)
+        enregistre_utc = segments.instant_utc(enregistre_le)
+    except (TypeError, ValueError):
+        return None, verdicts.construire_verdict(
+            "REJ-HORODATAGE-INVALIDE", detail="recueilli_le ou enregistre_le : instant UTC non représentable",
+        )
+    if recueilli_utc > enregistre_utc:
         return _invalide("recueilli_le : le consentement ne peut pas être postérieur à son inscription")
     if not _non_vide(enregistre_par):
         return _invalide("enregistre_par : la personne qui inscrit le consentement")
@@ -206,9 +213,12 @@ def construire_retrait(
         return _invalide("signal_id : l'identifiant du signal du retrait chez M1")
     try:
         _horodatage.valider_horodatage(horodatage)
-    except ValueError:
+        segments.instant_utc(horodatage)
+    except (TypeError, ValueError):
         return None, verdicts.construire_verdict(
-            "REJ-HORODATAGE-INVALIDE", detail="horodatage : ISO-8601 avec fuseau attendu (l'heure du retrait)")
+            "REJ-HORODATAGE-INVALIDE",
+            detail="horodatage : ISO-8601 avec fuseau et instant UTC représentable attendus (l'heure du retrait)",
+        )
     return {
         "type_entree": TYPE_RETRAIT,
         "retrait_id": _identifiant(TYPE_RETRAIT, lead_id=lead_id, signal_id=signal_id),

@@ -279,6 +279,8 @@ class TestRefus:
         ({"signal_id": ""}, "signal_id"), ({"signal_id": None}, "signal_id"),
         ({"horodatage": "hier"}, "horodatage"), ({"horodatage": "2026-09-25T09:00:00"}, "horodatage"),
         ({"horodatage": None}, "horodatage"),
+        ({"horodatage": "0001-01-01T00:00:00+01:00"}, "horodatage"),
+        ({"horodatage": "9999-12-31T23:59:59-01:00"}, "horodatage"),
     ])
     def test_un_champ_illisible_refuse_tout_le_retrait_sans_ecriture(self, base_durable, surcharge, mot):
         with pytest.raises(outils.RetraitIllisible, match=mot):
@@ -294,6 +296,18 @@ class TestRefus:
         # Une charge que le catalogue refuserait ne se publie pas ; on la rend illisible par ce que le schéma laisse
         # passer : une heure sans fuseau (le catalogue ne demande qu'un texte non vide).
         identifiant = _publier(["lead-1"], horodatage="2026-09-25T09:00:00")
+
+        total = _repartir_jusqu_au_bout()
+
+        assert (total["traites"], total["quarantaines"]) == (0, 1) and total["echecs"] >= 4
+        assert _journal() == []
+        (quarantaine,) = evenements.etat()["quarantaine"]
+        assert quarantaine["evenement_id"] == identifiant
+        assert "REJ-HORODATAGE-INVALIDE" in quarantaine["derniere_erreur"]
+
+    @pytest.mark.parametrize("instant", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"])
+    def test_un_stop_hors_plage_utc_finit_en_quarantaine_sans_append(self, base_durable, instant):
+        identifiant = _publier(["lead-1"], horodatage=instant)
 
         total = _repartir_jusqu_au_bout()
 

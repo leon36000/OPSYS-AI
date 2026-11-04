@@ -486,6 +486,12 @@ def test_un_instant_sans_fuseau_ou_illisible_est_refuse_jamais_le_fuseau_de_la_m
         segments.segmenter(_lead("qualifie"), _faits(maintenant=maintenant), SEUILS_OK)
 
 
+@pytest.mark.parametrize("instant", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"])
+def test_instant_utc_hors_plage_devient_un_refus_de_valeur(instant):
+    with pytest.raises(ValueError, match="plage UTC"):
+        segments.instant_utc(instant)
+
+
 def test_le_module_est_pur_aucun_import_opsys_ni_horloge():
     source = (Path(segments.__file__)).read_text(encoding="utf-8")
     assert not re.search(r"^\s*(from|import) opsys", source, re.M)

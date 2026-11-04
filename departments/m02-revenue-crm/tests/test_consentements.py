@@ -144,6 +144,11 @@ def test_un_instant_sans_fuseau_ou_illisible_est_refuse(champ, valeur):
     assert _code(_consentement(**{champ: valeur})) == "REJ-HORODATAGE-INVALIDE"
 
 
+@pytest.mark.parametrize("instant", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"])
+def test_un_instant_iso_qui_deborde_utc_est_refuse_comme_horodatage(instant):
+    assert _code(_consentement(recueilli_le=instant, enregistre_le=instant)) == "REJ-HORODATAGE-INVALIDE"
+
+
 def test_un_consentement_ne_peut_pas_etre_recueilli_apres_son_inscription():
     assert _code(_consentement(recueilli_le="2026-09-20T10:05:01-04:00")) == "REJ-CONSENTEMENT-INVALIDE"
     # Pile à l'instant de l'inscription, c'est permis ; les instants sont comparés en UTC, pas en texte.
@@ -203,6 +208,11 @@ def test_un_retrait_mal_forme_est_refuse(surcharge):
 @pytest.mark.parametrize("valeur", ["", "hier", "2026-09-25", "2026-09-25T09:00:00", None, 7])
 def test_un_retrait_sans_heure_lisible_avec_fuseau_est_refuse(valeur):
     assert _code(_retrait(horodatage=valeur)) == "REJ-HORODATAGE-INVALIDE"
+
+
+@pytest.mark.parametrize("instant", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"])
+def test_un_retrait_hors_plage_utc_est_refuse_comme_horodatage(instant):
+    assert _code(_retrait(horodatage=instant)) == "REJ-HORODATAGE-INVALIDE"
 
 
 # ---------------------------------------------------------------------------------------------------------

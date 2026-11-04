@@ -174,7 +174,9 @@ validation humaine au départ), §9.4 « relances autorisées ». Déclarés dan
   date l'APPROBATION de l'envoi, pas sa livraison (T2.1-c) : chaque relance de devis le dit.
 - **Le STOP** : M2 consomme `m1.retrait_consentement` (`_recevoir_retrait_consentement`) : un retrait par lead, le
   `lead_id` du client et jamais son numéro. Il vaut pour la PERSONNE (les leads d'un même client) et pour ses deux
-  canaux écrits, prime sur tout consentement, et aucun outil ne le lève. L'appel reste permis.
+  canaux écrits, prime sur tout consentement, et aucun outil ne le lève. L'appel reste permis. Les nouveaux retraits
+  dont l'instant UTC sort de la plage représentable sont refusés avant inscription. Un tel retrait déjà présent dans
+  l'historique peut encore bloquer la lecture de l'état des canaux ; il n'est ni modifié ni réparé automatiquement.
 - **Créance levée par le paiement** : M2 consomme `m5.facture_emise_constatee` (déjà publié par M5 pour M8) : une facture `PAYEE` ou
   `ANNULEE` lève la relance de créance de cette facture (`faits_interconnexion.creances_ouvertes`, calculé à la lecture : un
   état plus ancien rejoué ne la rouvre jamais) ; un paiement partiel n'est jamais `PAYEE`, la relance reste. M2 ne garde que
