@@ -337,12 +337,25 @@ def _phrase_fraicheur(ligne: dict[str, Any]) -> str:
     return f"{ligne['nom']} : fraîcheur inconnue (aucun instant de fait fiable)."
 
 
-def _phrase_tendance(ligne: dict[str, Any], historique: list[dict[str, Any]] | None) -> tuple[str, list[str]]:
+def _phrase_tendance(
+    ligne: dict[str, Any], historique: list[dict[str, Any]] | None, maintenant_cle: str
+) -> tuple[str, list[str]]:
     if ligne["qualite_en_echec"]:
         return f"{ligne['nom']} : bloquée par le contrôle de qualité, aucune tendance n'est donnée.", []
     if not historique:
         return f"{ligne['nom']} : aucun historique enregistré dans l'entrepôt (il n'a pas encore été construit).", []
-    valeurs = [h for h in historique if h.get("valeur") is not None]
+    valeurs = [
+        h for h in historique
+        if h.get("valeur") is not None
+        and (
+            cle_historique := entonnoir.instant_utc(
+                h.get("construit_le_utc") if h.get("construit_le_utc") is not None else h.get("construit_le")
+            )
+        ) is not None
+        and cle_historique <= maintenant_cle
+        and h.get("version_definition") == ligne.get("version_definition")
+        and h.get("statut") == entonnoir.STATUT_CALCULEE
+    ]
     if len(valeurs) < 2:
         return (
             f"{ligne['nom']} : un seul point d'historique ({valeurs[0]['valeur']}), pas assez pour une tendance."
@@ -500,6 +513,7 @@ def repondre(
     empreinte_registres: str | None = None,
     sante_resultat: dict[str, Any] | None = None,
     historiques: dict[str, list[dict[str, Any]]] | None = None,
+    historique_lire: Any | None = None,
 ) -> dict[str, Any]:
     """La réponse à une question. ``mesures`` est la sortie de ``fraicheur_mesures.lire_mesures_avec_fraicheur``
     (valeur,
@@ -616,8 +630,16 @@ def repondre(
     mention = any(ligne["sensibilite"] == "financier" for ligne in lignes)
     if _INTENTION_TENDANCE.search(normalisee):
         phrases, chiffres = [], []
+        maintenant_cle = entonnoir.instant_utc(maintenant)
+        if maintenant_cle is None:
+            raise ValueError("REJ-COPILOTE-MAINTENANT-INVALIDE : instant normalisé requis pour l'historique")
         for ligne in lignes:
-            phrase, valeurs = _phrase_tendance(ligne, (historiques or {}).get(ligne["metric_id"]))
+            historique = (
+                historique_lire(ligne["metric_id"])
+                if historique_lire is not None
+                else (historiques or {}).get(ligne["metric_id"])
+            )
+            phrase, valeurs = _phrase_tendance(ligne, historique, maintenant_cle)
             phrases.append(phrase)
             chiffres += valeurs
         return repondu(INTENTION_TENDANCE, " ".join(phrases), lignes, chiffres, mention)

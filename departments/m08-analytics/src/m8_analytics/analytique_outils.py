@@ -7,8 +7,8 @@ Adaptateur mince, comme ``outils.py`` : chaque outil appelle un module PUR (``en
 Niveaux (ADR-0009 §4, DEFINITION-PRODUIT §5) :
 
 * LECTURE (N0) : ``m8_lire_mesures``, ``m8_lire_wallboard``, ``m8_lire_sante_entreprise``, ``m8_lire_entrepot``,
-  ``m8_repondre_question``, ``m8_contextualiser_mesure``, ``m8_lire_pont_bi``, ``m8_lire_etat_collecte`` (pourquoi une
-  mesure est vide) ;
+  ``m8_lire_tendances`` (tendances bornées sur l'historique des constructions), ``m8_repondre_question``,
+  ``m8_contextualiser_mesure``, ``m8_lire_pont_bi``, ``m8_lire_etat_collecte`` (pourquoi une mesure est vide) ;
 * TÂCHE INTERNE AUTOMATIQUE (N2, écriture dérivée ou append-only, réversible) : ``m8_construire_entrepot`` (couche
   dérivée, reconstructible), ``m8_enregistrer_sante_entreprise`` (historique append-only),
   ``m8_publier_faits_consolides`` (événement interne vers M10) ;
@@ -47,6 +47,7 @@ from . import (
     qualite_mesures,
     sante,
     synthese_direction,
+    tendances,
     wallboards,
 )
 
@@ -431,15 +432,76 @@ def construire(
             ]
         return reponse
 
+    # -- Tendances (C8) ----------------------------------------------------------------------------------------------
+    @ferme_aux_appareils
+    def lire_tendances(
+        metric_id: str,
+        maintenant: str,
+        fenetre_observations: int = tendances.FENETRE_OBSERVATIONS_DEFAUT,
+        fenetre_moyenne_mobile: int = tendances.FENETRE_MOYENNE_MOBILE_DEFAUT,
+        horizon_prevision: int = tendances.HORIZON_PREVISION_DEFAUT,
+        depart: int = 0,
+    ) -> dict[str, Any]:
+        """Tendances d'UNE mesure du catalogue, à partir de l'historique réel des constructions de l'entrepôt.
+
+        Lecture pure : ``lire_historique`` est borné, le calcul est déterministe et en ``Decimal``, rien n'est écrit.
+        Les observations non calculables, invalides, ambiguës ou de version incompatible sont exclues et comptées par
+        ``tendances.analyser``. La série est paginée sous la limite du socle ; le reçu porte l'empreinte de la série
+        ENTIÈRE retenue, pas seulement de la page.
+        """
+        tendances.valider_parametres(fenetre_observations, fenetre_moyenne_mobile, horizon_prevision)
+        instant = fraicheur_mesures.lire_maintenant(maintenant)
+        maintenant_cle = entonnoir.instant_utc(maintenant)
+        if maintenant_cle is None:
+            raise ValueError(
+                "REJ-TENDANCES-MAINTENANT-INVALIDE : maintenant doit être un instant normalisé à la nanoseconde"
+            )
+        catalogue = _catalogue()
+        entree = catalogue_mesures.par_identifiant(catalogue).get(metric_id)
+        if entree is None:
+            raise ValueError(f"REJ-ANALYTIQUE-MESURE-INCONNUE : hors du catalogue fermé : {metric_id!r}")
+        cnx = connexion_requise("la lecture des tendances")
+        limite = min(tendances.HISTORIQUE_MAX, max(fenetre_observations * 5, 50))
+        historique = entrepot_stockage.lire_historique(cnx, metric_id, limite)
+        mesures = moteur_mesures.lire(lire_registres(), catalogue)
+        mesure = next(m for m in mesures if m["metric_id"] == metric_id)
+        conf = fraicheur_mesures.lire_configuration(
+            configuration().get(fraicheur_mesures.CLE_CONFIGURATION), catalogue
+        )
+        cadences = fraicheur_mesures.lire_configuration(configuration().get(fraicheur_mesures.CLE_CADENCES), catalogue)
+        resultat = tendances.analyser(
+            historique,
+            entree,
+            instant,
+            maintenant_cle=maintenant_cle,
+            fenetre_observations=fenetre_observations,
+            fenetre_moyenne_mobile=fenetre_moyenne_mobile,
+            horizon_prevision=horizon_prevision,
+            fenetres_proprietaire=conf["fenetres"],
+            cadences_proprietaire=cadences["fenetres"],
+            version_catalogue=catalogue["version_catalogue"],
+            limite_lecture=limite,
+        )
+        resultat["maintenant"] = maintenant
+        resultat["etat_courant"] = {
+            "statut": mesure["statut"],
+            "valeur": mesure["valeur"] if mesure["statut"] == entonnoir.STATUT_CALCULEE else None,
+            "qualite": (mesure.get("qualite") or {}).get("statut"),
+            "dernier_fait_le": mesure["dernier_fait_le"],
+            "detail": None if mesure["statut"] == entonnoir.STATUT_CALCULEE else mesure["detail"],
+        }
+        serie = resultat.pop("serie")
+
+        def construire_page(page: list[dict[str, Any]], prochain: int | None) -> dict[str, Any]:
+            return {**resultat, "serie": page, "prochain_depart": prochain}
+
+        return mesures_chantier.page_bornee(serie, depart, budget_sortie, construire_page)
+
     # -- Copilote ---------------------------------------------------------------------------------------------------
     @ferme_aux_appareils
     def repondre_question(question: str, maintenant: str, fraicheur_max_s: int | None = None) -> dict[str, Any]:
         lu = lecture(maintenant, fraicheur_max_s)
-        historiques: dict[str, list[dict[str, Any]]] = {}
         cnx = stockage.connexion_courante()
-        if cnx is not None:
-            for entree in lu["catalogue"]["mesures"]:
-                historiques[entree["metric_id"]] = entrepot_stockage.lire_historique(cnx, entree["metric_id"], 20)
         reponse = copilote.repondre(
             question,
             lu["mesures"],
@@ -447,7 +509,10 @@ def construire(
             maintenant=maintenant,
             empreinte_registres=lu["empreinte_registres"],
             sante_resultat=sante_de(lu["mesures"]),
-            historiques=historiques,
+            historique_lire=(
+                (lambda metric_id: entrepot_stockage.lire_historique(cnx, metric_id, 20))
+                if cnx is not None else None
+            ),
         )
         reponse["mesures"] = [
             {k: v for k, v in ligne.items() if k not in ("proprietaire", "sensibilite")} for ligne in reponse["mesures"]
@@ -913,6 +978,31 @@ def construire(
                 [],
             ),
             fonction=lire_entrepot,
+            **lecture_seule,
+        ),
+        Outil(
+            nom="m8_lire_tendances",
+            description=(
+                "TENDANCES d'une mesure du catalogue à partir de l'historique RÉEL des constructions de l'entrepôt "
+                "(m8_ent_mesures_hist) : série bornée avec timestamps, versions, unité, fraîcheur et couverture ; "
+                "variation absolue et relative (jamais de division par zéro), moyenne mobile définie, XmR et prévision "
+                "linéaire SEULEMENT si la cadence observée est exactement régulière et n >= 8, sinon non évalués et "
+                "expliqués. Les observations non calculables, invalides, ambiguës ou de version incompatible sont "
+                "exclues et comptées. Aucune saisonnalité, aucun intervalle de confiance, aucune prévision "
+                "périodique ; une prévision n'est jamais un fait observé. Lecture pure, fermée aux appareils."
+            ),
+            parametres=_schema(
+                {
+                    "metric_id": {"type": "string", "minLength": 1, "maxLength": 80},
+                    "maintenant": _MAINTENANT,
+                    "fenetre_observations": {"type": "integer", "minimum": 2, "maximum": 200},
+                    "fenetre_moyenne_mobile": {"type": "integer", "minimum": 2, "maximum": 12},
+                    "horizon_prevision": {"type": "integer", "minimum": 1, "maximum": 12},
+                    "depart": _DEPART,
+                },
+                ["metric_id", "maintenant"],
+            ),
+            fonction=lire_tendances,
             **lecture_seule,
         ),
         Outil(

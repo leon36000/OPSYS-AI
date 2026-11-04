@@ -28,11 +28,11 @@ modifiables pour votre entreprise (clé `avatars` du profil d'entreprise).
 | M5 | FinanceCore | Sophie | Comptabilité, facturation, rapprochements, préparation fiscale et de paie, tableau de bord du CFO. Prépare des brouillons ; ne remplace pas votre CPA. | 111 |
 | M6 | Material Control | Rosalie | Inventaire, achats, fournisseurs, sorties sur le terrain, écarts entre le prévu et l'utilisé. | 55 |
 | M7 | Marketing | Chloé | Visibilité, site, contenu, réseaux sociaux, annonces, création visuelle. Rien ne se publie sans vous. | 101 |
-| M8 | Analytics | Olivier | Mesures gouvernées, tableaux de bord, alertes, qualité des données : « peut-on se fier à ce chiffre ? » | 32 |
+| M8 | Analytics | Olivier | Mesures gouvernées, tableaux de bord, alertes, qualité des données : « peut-on se fier à ce chiffre ? » | 33 |
 | M9 | Strategic Intelligence | Athéna | Conseil de direction : scénarios, risques, priorités, suivi des décisions. Elle propose, vous décidez. | 94 |
 | M10 | Mémoire | Mnémo | Garde ce qui a été fait, décidé et appris ; base de connaissances sourcée. | 71 |
 
-Total : **700 outils** (un outil = un geste précis qu'un département sait faire). **258** de ces outils sont ouverts à un téléphone
+Total : **701 outils** (un outil = un geste précis qu'un département sait faire). **258** de ces outils sont ouverts à un téléphone
 appairé (employé, vendeur ou administrateur) ; les autres sont réservés à l'ordinateur et aux agents.
 
 Le cœur du système est **générique pour une PME**. Le vocabulaire d'un métier vient d'un « pack sectoriel » : `generique-pme` par défaut,

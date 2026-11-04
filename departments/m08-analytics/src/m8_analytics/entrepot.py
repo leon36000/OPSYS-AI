@@ -127,12 +127,14 @@ def _lignes_historique(
     mesures: list[dict[str, Any]],
     construction_id: str,
     construit_le: str,
+    construit_le_utc: str,
 ) -> list[dict[str, Any]]:
     return [
         {
             "construction_id": construction_id,
             "metric_id": mesure["metric_id"],
             "construit_le": construit_le,
+            "construit_le_utc": construit_le_utc,
             "statut": mesure["statut"],
             "valeur": mesure["valeur"],
             "version_definition": mesure["version_definition"],
@@ -270,10 +272,11 @@ def construire(
     """Toutes les lignes d'une construction : ``{construction, tables}``. ``construit_le`` est l'instant de l'appelant
     (RFC 3339 avec fuseau, refusé sinon). Pure et déterministe : les mêmes registres, le même catalogue et le même rang
     précédent donnent les mêmes lignes et le même identifiant."""
-    if entonnoir.instant_lu(construit_le) is None:
+    construit_le_utc = entonnoir.instant_utc(construit_le)
+    if construit_le_utc is None:
         raise ValueError(
-            f"REJ-ENTREPOT-INSTANT-INVALIDE : construit_le doit être un instant RFC 3339 avec fuseau "
-            f"(reçu {construit_le!r})"
+            f"REJ-ENTREPOT-INSTANT-INVALIDE : construit_le doit être un instant RFC 3339 avec fuseau, à la "
+            f"nanoseconde au plus (reçu {construit_le!r})"
         )
     if type(rang_precedent) is not int or rang_precedent < 0:
         raise ValueError("REJ-ENTREPOT-RANG-INVALIDE : le rang de la construction précédente est un entier ≥ 0")
@@ -287,7 +290,7 @@ def construire(
         TABLE_LEAD: _lignes_leads(lus["entonnoir"], lus["contenus"], construction_id),
         TABLE_DEVIS: _lignes_devis(lus["entonnoir"], construction_id),
         TABLE_CONTENUS: _lignes_contenus(lus["contenus"], lus["entonnoir"], construction_id),
-        TABLE_HISTORIQUE: _lignes_historique(mesures, construction_id, construit_le),
+        TABLE_HISTORIQUE: _lignes_historique(mesures, construction_id, construit_le, construit_le_utc),
     }
     return {
         "construction": {
