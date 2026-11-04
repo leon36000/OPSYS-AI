@@ -560,7 +560,8 @@ def test_depense_d_employe_exige_les_decisions_du_proprietaire_puis_propose_le_b
     )
 
 
-def test_rapprochement_public_identifie_mouvement_taxable_sur_depense_non_taxable(dep, par_nom, declare):
+@pytest.mark.parametrize("compense", [False, True])
+def test_rapprochement_public_identifie_mouvement_taxable_sur_depense_non_taxable(dep, par_nom, declare, compense):
     """Le zéro de taxes Ops doit rester un attendu typé pour rapprocher un mouvement GL erroné."""
     declare(CONFIG)
     depense = _accepte(_appeler(par_nom, "m5_proposer_depense_employe", {
@@ -590,15 +591,34 @@ def test_rapprochement_public_identifie_mouvement_taxable_sur_depense_non_taxabl
     )
     assert refus is None, refus
 
+    if compense:
+        autre, refus = grand_livre.proposer_ecriture(
+            registre_gl, plan, cle_piece="test:compensation-fictive",
+            piece={"type": "manuelle", "reference": "compensation-fictive"},
+            nature="compensation fictive", date_effet="2026-10-15", libelle="compensation fictive",
+            lignes_brutes=[
+                {"compte": "1010", "debit": "5.00", "credit": None},
+                {"compte": "1400", "debit": None, "credit": "5.00"},
+            ], horodatage=H, origine="saisie",
+        )
+        assert refus is None, refus
+        _, refus = grand_livre.valider_ecriture(
+            registre_gl, plan, ecriture_id=autre["ecriture"]["ecriture_id"],
+            humain={"par": "comptable", "role": "finance", "voie": "approbation"}, horodatage=H,
+        )
+        assert refus is None, refus
+
     rapprochement = _accepte(_appeler(
         par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"}
     ))
     tps = rapprochement["intrants"]["tps_cti"]
     assert tps["verdict"] == "ECART"
-    assert tps["ecarts"] == [{
+    assert {
         "facture_fournisseur_id": depense["depense_id"], "attendu_facture": "0.00",
         "au_grand_livre": "5.00", "raison": "montant différent",
-    }]
+    } in tps["ecarts"]
+    if compense:
+        assert tps["au_grand_livre"] == "0.00"
 
 
 def test_autres_pieces_taxees_preserve_roles_inattendus_et_ajoute_les_zeros_attendus():
