@@ -785,6 +785,15 @@ def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
     suggestion, verdict = suggestions.suggerer(reg, lead_id, horodatage)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    # L'arbitrage du doublon est réservé à l'admin (M2.12). Le vendeur peut voir son
+    # signalement en attente, mais la prochaine action doit lui demander de solliciter un admin.
+    if suggestion["regle"] == "doublon_en_attente" and acteur is not None and acteur.role == "seller":
+        suggestion = {
+            **suggestion,
+            "suggestion": suggestion["suggestion"].replace(
+                "Arbitrer le doublon ", "Demander à un administrateur d'arbitrer le doublon ", 1
+            ),
+        }
     return {"accepte": True, "resultat": suggestion}
 
 

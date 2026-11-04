@@ -339,6 +339,50 @@ def test_l_admin_voit_et_agit_sur_tous_les_leads(par_nom, leads):
                              {"lead_id": "lead-nouveau", "horodatage": H2}, ADMIN))["lead_id"] == "lead-nouveau"
 
 
+def _signaler_doublon_de_test(par_nom):
+    return _accepte(_appeler(par_nom, "m2_signaler_doublon", {
+        "lead_id_a": "lead-un", "lead_id_b": "lead-autre", "horodatage": H2,
+    }, ADMIN))
+
+
+def test_suggestion_doublon_vendeur_demande_intervention_admin(par_nom, leads):
+    _signaler_doublon_de_test(par_nom)
+
+    suggestion_vendeur = _accepte(_appeler(par_nom, "m2_suggerer_prochaine_action", {
+        "lead_id": "lead-un", "horodatage": H2,
+    }, VENDEUR_UN))
+    assert suggestion_vendeur["regle"] == "doublon_en_attente"
+    assert suggestion_vendeur["suggestion"].startswith("Demander à un administrateur d'arbitrer le doublon ")
+    assert suggestion_vendeur["suggestion"].endswith(" avant de poursuivre.")
+
+
+def test_suggestion_doublon_admin_et_agent_gardent_consigne_arbitrage(par_nom, leads):
+    _signaler_doublon_de_test(par_nom)
+
+    suggestion_admin = _accepte(_appeler(par_nom, "m2_suggerer_prochaine_action", {
+        "lead_id": "lead-un", "horodatage": H2,
+    }, ADMIN))
+    assert suggestion_admin["regle"] == "doublon_en_attente"
+    assert suggestion_admin["suggestion"].startswith("Arbitrer le doublon ")
+    assert suggestion_admin["suggestion"].endswith(" avant de poursuivre.")
+    suggestion_agent = _accepte(_appeler(par_nom, "m2_suggerer_prochaine_action", {
+        "lead_id": "lead-un", "horodatage": H2,
+    }))
+    assert suggestion_agent["suggestion"] == suggestion_admin["suggestion"]
+
+
+def test_vendeur_reste_refuse_sur_arbitrage_doublon(par_nom, leads):
+    signalement = _signaler_doublon_de_test(par_nom)
+    avant = _instantane_base()
+
+    refus = _verdict(_appeler(par_nom, "m2_arbitrer_doublon", {
+        "signalement_id": signalement["signalement_id"],
+        "decision": "distincts_confirmes", "horodatage": H2,
+    }, VENDEUR_UN))
+    assert refus["code"] == CODE_INVALIDE
+    assert _instantane_base() == avant
+
+
 def test_sans_identite_d_appareil_aucun_filtre_par_proprietaire(par_nom, leads):
     """La voie des agents et des consommateurs garde l'accès complet (docs/architecture/ROLES.md)."""
     _accepte(_appeler(par_nom, "m2_trouver_client_de_lead", {"lead_id": "lead-deux"}))
