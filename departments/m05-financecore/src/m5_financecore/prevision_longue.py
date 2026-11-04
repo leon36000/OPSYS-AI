@@ -63,6 +63,7 @@ from . import encodage, recu_calcul, verdicts_prevision_longue
 
 __all__ = [
     "HORIZONS",
+    "MOTEUR",
     "SCENARIOS_MAX",
     "VERSION",
     "calculer",
@@ -72,6 +73,7 @@ __all__ = [
 ]
 
 VERSION = "1.0.0"
+MOTEUR = "prevision_longue"
 HORIZONS = frozenset({6, 12, 24})
 SCENARIOS_MAX = 4
 MOIS_HISTORIQUE_MIN = 3
@@ -882,7 +884,7 @@ def _construire_recu(
         "empreinte_etat": empreinte_etat,
     }
     return recu_calcul.construire(
-        moteur="prevision_longue",
+        moteur=MOTEUR,
         version_moteur=VERSION,
         methode=(
             "Par mois : échéance contractuelle, sinon budget, sinon moyenne du grand livre × croissance × "
@@ -908,7 +910,11 @@ def rejouer(recu: Any) -> tuple[bool, str]:
     valide, raison = recu_calcul.verifier(recu)
     if not valide:
         return False, raison
-    if not isinstance(recu, Mapping) or "entrees" not in recu:
+    if recu.get("moteur") != MOTEUR:
+        return False, f"moteur {recu.get('moteur')!r} : reçu d'un autre moteur, attendu {MOTEUR!r}"
+    if recu.get("version_moteur") != VERSION:
+        return False, f"version_moteur {recu.get('version_moteur')!r} : version attendue {VERSION!r}"
+    if "entrees" not in recu:
         return False, (
             "reçu compact (sans entrées) : le rejeu hors ligne est impossible ; rappeler l'outil sur les mêmes "
             "registres"
@@ -961,9 +967,18 @@ def vue(
         "limites": list(complet["limites"]),
     }
     if scenario is None:
+        # Le résumé est paginé par scénario : `depart` et `limite` ne filtrent plus silencieusement rien. Une page
+        # porte son total et la suite exacte, même hors borne (page vide), pour qu'aucun scénario ne disparaisse.
+        total = len(scenarios)
+        tranche = scenarios[depart:depart + limite]
         corps["scenarios"] = [
-            {cle: copy.deepcopy(valeur) for cle, valeur in item.items() if cle != "lignes"} for item in scenarios
+            {cle: copy.deepcopy(valeur) for cle, valeur in item.items() if cle != "lignes"} for item in tranche
         ]
+        corps["scenarios_total"] = total
+        corps["scenarios_depart"] = depart
+        corps["scenarios_affiches"] = len(tranche)
+        fin = depart + len(tranche)
+        corps["prochain_depart"] = fin if fin < total else None
         return corps, None
     if not isinstance(scenario, str):
         return None, _verdict("REJ-PREVISION-LONGUE-SCENARIO-INCONNU", "scenario : nom exact d'un scénario déclaré")

@@ -12,7 +12,7 @@ validé la méthode, les hypothèses ni les chiffres.**
 
 | Outil | Niveau | Geste |
 |---|---|---|
-| `m5_prevoir_tresorerie_longue` | T0 | Projection mensuelle du solde sur **6, 12 ou 24 mois complets**, à partir du carnet de contrats daté, du budget déclaré et de la moyenne du grand livre ; scénarios **nommés**, hypothèses **déclarées**. Sans `scenario` : résumé de tous les scénarios. Avec : série mensuelle paginée. `recu_complet` rend le reçu complet rejouable. |
+| `m5_prevoir_tresorerie_longue` | T0 | Projection mensuelle du solde sur **6, 12 ou 24 mois complets**, à partir du carnet de contrats daté, du budget déclaré et de la moyenne du grand livre ; scénarios **nommés**, hypothèses **déclarées**. Sans `scenario` : résumé **paginé** des scénarios (`depart`, `limite`, total et suite) ; avec : série mensuelle paginée. `recu_complet` rend le reçu complet rejouable. |
 | `m5_rejouer_prevision_longue` | T0 | Vérifie les empreintes d'un reçu puis **refait le calcul** depuis ses entrées normalisées ; un reçu compact se vérifie sans se rejouer hors ligne. |
 
 Portée d'appareil **fermée** pour les deux (aucun rôle, refusé dans le code par `_appareil_refuse`). Aucun paiement,
@@ -104,9 +104,25 @@ de la prévision à 13 semaines.
   (`produits_hors_horizon`, `charges_hors_horizon`), jamais replié sur le dernier mois.
 - **Prudence** : une échéance contractuelle **échue** n'est pas comptée (un client en retard ne paie pas « au mois 1 ») ;
   son nombre et son montant sont dits. Une échéance hors horizon est exclue et dite.
-- **Carnet incomplet** : `echeanciers_contrats.flux_prevision` bloque un contrat dont la couverture n'atteint pas la fin
-  de l'horizon, un contrat dont le devis manque ou dont une facture active du même devis existe (double compte). Les
-  codes sont résumés dans `couverture.contrats_bloques` ; aucun montant partiel n'est projeté.
+- **Carnet incomplet, distingué de la source** : l'adaptateur valide d'abord `devis_recus` sur le même modèle
+  fail-closed que `m5_prevoir_tresorerie_contrats` : chaque maillon doit être un objet portant
+  `devis_id`, `lead_id`, `chantier_id`, `lignes`, `prix_total`, `horodatage_acceptation`, avec un `devis_id` textuel
+  non vide et **un seul** événement par devis. Une structure absente, un identifiant invalide ou un doublon
+  contradictoire refuse tout le carnet (`REJ-PREVISION-LONGUE-CARNET-INVALIDE`) : aucun événement n'est écrasé.
+  Ensuite, `echeanciers_contrats.flux_prevision` bloque un contrat dont la couverture n'atteint pas la fin de
+  l'horizon, un contrat dont le devis manque ou dont une facture active du même devis existe (double compte). La
+  réponse distingue explicitement :
+  - `couverture.devis_sans_echeancier` (nombre) et `couverture.incompletude` (phrase sans identifiant) quand un devis
+    accepté n'a pas encore de contrat : aucun montant n'est projeté pour lui, et ce n'est **pas** un contrat bloqué ;
+  - `couverture.contrats_bloques` (codes `REJ-CONTRAT-*`) quand un contrat existant est bloqué : aucun montant partiel
+    n'est projeté.
+  Ces champs sont omis quand ils sont vides, pour ne pas gonfler la réponse. Aucun identifiant de devis, nom,
+  texte libre ni donnée personnelle n'est rendu dans la couverture.
+- **Provenance** : la réponse liste les six registres effectivement décisifs — `mouvements`, `grand_livre`,
+  `budgets_declares`, `echeanciers_contrats_tresorerie`, `devis_recus`, `factures` — avec leur taille et, pour les
+  registres chaînés, les huit premiers caractères de leur tête. `devis_recus` n'est pas chaîné : sa tête est absente,
+  jamais un identifiant. La provenance est **hors du reçu** : un reçu prouve le calcul de ses entrées normalisées, pas
+  l'état courant des registres.
 - **Arithmétique** : `Decimal` exact, contexte 64 ; chaque montant calculé est arrondi au cent avec `ROUND_HALF_UP` et
   aucun autre arrondi n'existe. Jamais de flottant.
 
@@ -125,11 +141,12 @@ de la prévision à 13 semaines.
 | `REJ-PREVISION-LONGUE-HISTORIQUE-INCOMPLET` | mois manquant, non consécutif, sans écriture définitive |
 | `REJ-PREVISION-LONGUE-HISTORIQUE-INVALIDE` | montant non décimal, clé inconnue |
 | `REJ-PREVISION-LONGUE-BUDGET-INVALIDE` / `-DOUBLE` / `-HORS-PLAN` | budget négatif, hors horizon, mois double, compte absent du plan |
-| `REJ-PREVISION-LONGUE-CARNET-INVALIDE` / `-DOUBLE` / `-DATE-INVALIDE` | échéance mal formée, montant ≤ 0, doublon, date illisible |
+| `REJ-PREVISION-LONGUE-CARNET-INVALIDE` / `-DOUBLE` / `-DATE-INVALIDE` | échéance mal formée, montant ≤ 0, doublon, date illisible ; ou `devis_recus` de structure invalide, identifiant invalide ou devis dupliqué |
 | `REJ-PREVISION-LONGUE-CHAINE-INVALIDE` | registre altéré (grand livre, mouvements, budgets, échéanciers, factures) |
 | `REJ-PREVISION-LONGUE-ECHEANCIER-INVALIDE` | échéancier illisible ou version orpheline |
-| `REJ-PREVISION-LONGUE-REPONSE-TROP-GROSSE` | la réponse ne tient pas sous le budget même avec une ligne |
-| `REJ-PREVISION-LONGUE-RECU-INVALIDE` / `-REJEU-DIFFERENT` | reçu retouché, ou rejeu qui ne redonne pas le même calcul |
+| `REJ-PREVISION-LONGUE-REPONSE-TROP-GROSSE` | la réponse ne tient pas sous le budget même avec une ligne (ou un seul résumé de scénario), ou le reçu complet demandé ne tient pas (jamais tronqué) |
+| `REJ-PREVISION-LONGUE-TRANSPORT-INVALIDE` | curseur incohérent, résultat recalculé différent ou offset hors du résultat |
+| `REJ-PREVISION-LONGUE-RECU-INVALIDE` / `-REJEU-DIFFERENT` | reçu retouché, moteur ou version étrangers, ou rejeu qui ne redonne pas le même calcul |
 
 Chaque refus est un `{code, detail}` ; le détail dit quoi corriger ou quoi déclarer. Aucun refus ne rend zéro, une
 moyenne ni une valeur par défaut.
@@ -141,19 +158,74 @@ carnet, configuration), empreintes SHA-256 et résultat avec `empreinte_etat` (l
 complet est **rejouable** par `m5_rejouer_prevision_longue` : il refait le calcul depuis les entrées et compare
 l'empreinte.
 
+**En-tête du reçu.** `m5_rejouer_prevision_longue` exige explicitement `moteur == "prevision_longue"` et
+`version_moteur == "1.0.0"` **avant** de présenter le reçu comme valide pour cet outil. Le vérificateur générique
+`recu_calcul.verifier` reste inchangé : il ne juge que l'intégrité du format. Un reçu réempreinté (empreintes
+recalculées) d'un autre moteur ou d'une autre version est donc intègre au sens générique, mais refusé par l'outil avec
+`REJ-PREVISION-LONGUE-RECU-INVALIDE` ; le calcul n'est pas exécuté. Un reçu **compact du même moteur** reste vérifiable
+(`recu_valide: true`, `rejoue: false`) ; il ne prétend pas au rejeu hors ligne.
+
+**Portée du reçu.** Le reçu atteste le calcul de ses entrées normalisées et l'intégrité de son contenu. Il ne
+revalide **pas** l'état courant des registres, ni la provenance (`sources`) affichée par une projection. La réponse de
+rejeu porte cette portée dans `portee` ; un reçu émis avant qu'une facture bloque un contrat reste rejouable, alors
+qu'une **nouvelle** projection voit le blocage.
+
 Sous le budget d'une réponse (5 300 caractères), le reçu part **compact** (sans `entrees`, empreinte conservée) ; la
 projection reste vérifiable, mais le rejeu hors ligne demande le reçu complet. `m5_prevoir_tresorerie_longue` accepte
 `recu_complet: true` : il rend alors **seulement** le reçu complet, sans aucune ligne de projection. C'est le chemin
 prouvé de bout en bout.
 
+**Pagination du résumé (sans `scenario`).** `depart` et `limite` paginent désormais les **résumés de scénarios**,
+comme ils paginent déjà les lignes d'un scénario choisi. Une page porte `scenarios_total`, `scenarios_depart`,
+`scenarios_affiches` et `prochain_depart` (nul sur la dernière page). Si la page demandée ne tient pas sous 5 300, elle
+est **réduite d'un scénario à la fois** et la réponse le dit par `scenarios_affiches` et `prochain_depart`. Aucun
+avertissement n'est supprimé. Tant que les registres et la configuration restent inchangés, le reçu compact est
+identique d'une page à l'autre (il contient toujours tous les scénarios et son empreinte). Les pages relisent les
+registres : comparer les reçus permet de détecter un changement, mais aucun curseur ne fige un instantané. Un `depart`
+au-delà du total rend une page **vide tracée** (`scenarios: []`, `scenarios_affiches: 0`, `prochain_depart: null`),
+jamais une erreur ni un
+repli. Si même **un** résumé de scénario, son reçu compact et les avertissements ne tiennent pas, l'outil refuse avec
+`REJ-PREVISION-LONGUE-REPONSE-TROP-GROSSE` : aucune page partielle n'est rendue. Ce refus peut aussi survenir après
+plusieurs pages acceptées, par exemple pour un dernier scénario dont les 24 mois sont en découvert avec une couverture
+chargée ; `prochain_depart` ne garantit donc pas que la page suivante tiendra dans le budget. Le reçu, ses empreintes,
+sa portée et tout calcul d'argent sont inchangés ; le rejeu reste régi par les entrées du reçu, pas par la page consultée.
+
+**Transport complet sans stockage (`transport_pagine: true`).** Mode additif pour une page logique qui dépasse le budget.
+Le premier appel garde les mêmes paramètres M5 et omet `empreinte_resultat` et `offset_transport`. Chaque réponse
+retourne un `fragment` de JSON canonique, `longueur_caracteres`, une empreinte SHA-256 et `prochain_offset`. Pour
+continuer, l'appelant répète les mêmes paramètres de prévision et fournit l'empreinte et l'offset de la page précédente.
+Il concatène les fragments dans l'ordre et ne parse le JSON reconstruit qu'après `prochain_offset: null`. Chaque
+enveloppe, mentions incluses, reste sous le même budget de sortie; aucune section ni aucun caractère n'est supprimé ou
+tronqué. Le mode choisit le même reçu complet ou compact que la réponse publique normale aurait accepté.
+`recu_complet: true` reste l'option explicite pour transporter le reçu rejouable complet.
+
+L'empreinte porte sur le JSON public entier recalculé, reçu et provenance inclus. Une différence à la reprise provoque
+un refus générique sans donnée de résultat; recommencer à la première page. Ce SHA-256 non signé contrôle seulement la
+cohérence des fragments, pas leur authenticité. Les registres sont relus à chaque page, aucun instantané n'est stocké
+et les droits M5 restent ceux de l'outil existant. Une sortie changée est détectée; le mécanisme ne garantit pas une
+vue temporelle atomique entre appels. Sur PostgreSQL en `READ COMMITTED`, des écritures concurrentes pourraient aussi
+être vues différemment par plusieurs lectures d'un même calcul ; ce cas concurrent n'a pas encore été éprouvé.
+
+**`scenario` en mode reçu complet.** Le contrat existant est explicité : un scénario **valide** ne change pas le reçu
+(il n'y a aucune ligne à filtrer) ; il est seulement validé. Un scénario **inconnu** est refusé
+(`REJ-PREVISION-LONGUE-SCENARIO-INCONNU`), jamais ignoré silencieusement. Refuser tout `scenario` en mode reçu complet
+casserait les appelants qui passent le scénario de la projection ; ce n'est pas fait.
+
+**Reçu complet trop gros.** Le reçu complet n'est jamais tronqué ni remplacé par un reçu compact quand
+`recu_complet: true`. S'il dépasse le budget de réponse, l'outil public refuse avec
+`REJ-PREVISION-LONGUE-REPONSE-TROP-GROSSE` (catalogue de la prévision longue), jamais avec un code d'un autre outil.
+
 ## Preuves exécutées
 
-- `departments/m05-financecore/tests/test_prevision_longue.py` : 34 cas de calcul pur, bornes, refus, reçu, rejeu, avec
+- `departments/m05-financecore/tests/test_prevision_longue.py` : cas de calcul pur, bornes, refus, reçu, rejeu, avec
   des valeurs calculées à la main dans les docstrings.
-- `departments/m05-financecore/tests/test_prevision_longue_outils.py` : 12 cas sur SQLite réelle, vrais registres, vrai
+- `departments/m05-financecore/tests/test_prevision_longue_outils.py` : cas sur SQLite réelle, vrais registres, vrai
   sas N3/N4, vrai plan comptable, vrai bus (aucun événement publié) ; cas de référence 20 000 → 21 449,75 $ ; refus
-  d'appareil ; grand livre, budget et échéancier altérés ; contrat à couverture incomplète ; reçu complet rejoué ;
-  garde anti-décaissement.
+  d'appareil ; grand livre, budget et échéancier altérés ; devis reçus altéré ou dupliqué ; contrat à couverture
+  incomplète ; devis sans échéancier distingué ; provenance des six registres ; reçu étranger ou réempreinté refusé ;
+  reçu complet rejoué et reçu complet trop gros refusé sans troncature ; pagination du résumé de 1 à 4 scénarios (noms
+  légaux de 40 caractères, horizon et historique maximaux, `limite=3`, `depart` hors borne, reçu identique, refus sans
+  troncature) ; garde anti-décaissement.
 - `./ruff.sh`, `./verif.sh`, `./sceller.sh` (révision 37), `./docs.sh`, gardes documentaires : voir le rapport.
 
 ## Mutations

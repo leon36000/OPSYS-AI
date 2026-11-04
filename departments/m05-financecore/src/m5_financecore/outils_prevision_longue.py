@@ -20,6 +20,9 @@ Aucune migration : les budgets et les échéanciers sont déjà des registres ap
 
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 from collections.abc import Mapping
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -29,6 +32,7 @@ from opsys import stockage
 from opsys.outils import Autonomie, Outil
 
 from . import (
+    analyse,
     budgets,
     echeanciers_contrats,
     grand_livre,
@@ -40,13 +44,19 @@ from . import (
     verdicts_prevision_longue,
 )
 from . import outils as _o
-from .outils_operations import _appareil_refuse, accepte, refuse
+from .outils_operations import _BUDGET, _appareil_refuse, accepte, refuse
 
 __all__ = ["outils_prevision_longue", "prevoir_tresorerie_longue", "rejouer_prevision_longue"]
 
 _NOM_REGISTRE_BUDGETS = "budgets_declares"
 _LIMITE_DEFAUT, _LIMITE_MAX = 12, 24
-_NOTE_ENTREES_OMISES = "reçu compact : empreinte vérifiable, rejeu hors ligne impossible"
+_NOTE_ENTREES_OMISES = "reçu compact : vérifiable, rejeu hors ligne impossible"
+_TRANSPORT_ALGORITHME = "json-canonique-concat-v1"
+_PORTEE_RECU = (
+    "Le reçu atteste le calcul de ses entrées normalisées et l'intégrité de son contenu ; il ne revalide pas "
+    "l'état courant des registres ni la provenance (`sources`) affichée par une projection."
+)
+_CHAMPS_DEVIS = frozenset({"devis_id", "lead_id", "chantier_id", "lignes", "prix_total", "horodatage_acceptation"})
 _A_DECLARER = (
     "aucune hypothèse de prévision longue n'est déclarée : écrire configuration.prevision_longue avec mois_historique "
     "(3 à 24) et au moins un scénario nommé (croissance_revenus_mensuelle, croissance_charges_mensuelle, saisonnalite "
@@ -63,9 +73,15 @@ def _configuration() -> Any:
 
 
 def _source(nom: str, registre: Any) -> dict[str, Any]:
+    """La provenance d'un registre : nom, taille et tête de chaîne tronquée. Un registre reçu de M3 n'est pas chaîné :
+    sa tête est absente, jamais un identifiant ni un texte libre."""
     taille = registre.taille() if hasattr(registre, "taille") else len(registre)
     tete = registre.tete() if hasattr(registre, "tete") else None
-    return {"registre": nom, "taille": taille, "tete": tete[:16] if isinstance(tete, str) else tete}
+    return {
+        "registre": nom,
+        "taille": taille,
+        **({"tete": tete[:8]} if isinstance(tete, str) else {}),
+    }
 
 
 def _premier_et_dernier(mois: str) -> tuple[date, date]:
@@ -188,37 +204,63 @@ def _lire_budget(
     ], None
 
 
+def _valider_devis(devis: list[Any]) -> dict[str, Any] | None:
+    """La même garde fail-closed que `m5_prevoir_tresorerie_contrats` : structure, identifiant et unicité des devis
+    reçus de M3. Aucun identifiant ni texte libre ne sort dans le détail du refus."""
+    if any(not isinstance(item, dict) or not item.keys() >= _CHAMPS_DEVIS for item in devis):
+        return _verdict(
+            "REJ-PREVISION-LONGUE-CARNET-INVALIDE",
+            "un devis M3 reçu a une structure absente ou invalide : le carnet ne peut pas être projeté",
+        )
+    if any(not isinstance(item["devis_id"], str) or not item["devis_id"].strip() for item in devis):
+        return _verdict(
+            "REJ-PREVISION-LONGUE-CARNET-INVALIDE",
+            "un devis M3 reçu porte un identifiant invalide : le carnet ne peut pas être projeté",
+        )
+    identifiants = [item["devis_id"] for item in devis]
+    if len(identifiants) != len(set(identifiants)):
+        return _verdict(
+            "REJ-PREVISION-LONGUE-CARNET-INVALIDE",
+            "le registre des devis reçus contient plusieurs événements pour un même devis : "
+            "le carnet ne peut pas être projeté",
+        )
+    return None
+
+
 def _lire_carnet(
     fin_horizon: date,
-) -> tuple[list[dict[str, Any]] | None, bool, list[str], dict[str, Any] | None]:
-    """Les échéances contractuelles valides jusqu'à `fin_horizon`, plus l'incomplétude et les codes de blocage."""
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Les échéances valides jusqu'à `fin_horizon`, la provenance des registres lus et l'incomplétude qualifiée."""
     if not _o._stockage_durable_actif:
-        return None, False, [], _verdict(
+        return None, _verdict(
             "REJ-PREVISION-LONGUE-STOCKAGE-NON-DURABLE", "registre durable des échéanciers requis"
         )
     registre = _o._registre_echeanciers_contrats()
     assert registre is not None
     valide, raison = registre.valider_chaine()
     if not valide:
-        return None, False, [], _verdict(
+        return None, _verdict(
             "REJ-PREVISION-LONGUE-CHAINE-INVALIDE", f"échéanciers de contrats : {raison}"
         )
     etats, refus = echeanciers_contrats.etats_courants(registre)
     if refus is not None:
-        return None, False, [], _verdict(
+        return None, _verdict(
             "REJ-PREVISION-LONGUE-ECHEANCIER-INVALIDE", refus.get("detail", "échéanciers illisibles")
         )
     contrats = [
         etat for etat in etats.values() if etat.get("type_entree") == echeanciers_contrats.TYPE_ENREGISTRE
     ]
     devis = list(stockage.maillons(_o._DEPARTEMENT, _o._NOM_REGISTRE_DEVIS_RECUS))
+    refus = _valider_devis(devis)
+    if refus is not None:
+        return None, refus
     factures = _o._registre_factures(None)
     valide, raison = factures.valider_chaine()
     if not valide:
-        return None, False, [], _verdict(
+        return None, _verdict(
             "REJ-PREVISION-LONGUE-CHAINE-INVALIDE", f"factures : {raison}"
         )
-    flux, _inclus, _sans, incomplet, bloques = echeanciers_contrats.flux_prevision(
+    flux, _inclus, sans_echeancier, incomplet, bloques = echeanciers_contrats.flux_prevision(
         contrats, devis, factures, fin_horizon=fin_horizon
     )
     carnet = []
@@ -241,7 +283,26 @@ def _lire_carnet(
         for bloque in bloques
         if isinstance(bloque, Mapping) and bloque.get("code")
     })
-    return carnet, bool(incomplet), codes, None
+    incompletude: list[str] = []
+    if sans_echeancier:
+        incompletude = [
+            f"{len(sans_echeancier)} devis accepté(s) sans échéancier contractuel : aucun montant n'est projeté "
+            "pour eux (un devis accepté n'est ni un contrat signé ni un encaissement)."
+        ]
+    if codes:
+        incompletude = [
+            *incompletude,
+            f"{len(codes)} code(s) de contrat bloqué : {', '.join(codes)} ; aucun montant partiel n'est projeté.",
+        ]
+    return {
+        "echeances": carnet,
+        "incomplet": bool(incomplet),
+        "devis_sans_echeancier": len(sans_echeancier),
+        "contrats_bloques": codes,
+        "incompletude": incompletude,
+        "devis": devis,
+        "factures": factures,
+    }, None
 
 
 def _contexte() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -279,8 +340,17 @@ def _sortie(
     limite: int,
     sources: list[dict[str, Any]],
     couverture_extra: Mapping[str, Any],
+    transport_pagine: bool = False,
+    empreinte_resultat: str | None = None,
+    offset_transport: int | None = None,
 ) -> dict[str, Any]:
-    """La page la plus grande qui tient sous le budget de sortie : reçu complet d'abord, compact ensuite."""
+    """La page la plus grande qui tient sous le budget de sortie : reçu complet d'abord, compact ensuite.
+
+    En mode résumé (`scenario is None`), la page est réduite d'un scénario à la fois : chaque page rend son total et
+    son `prochain_depart`, donc aucun scénario n'est perdu ni tronqué. En mode détaillé, la pagination des lignes
+    garde sa réduction par moitié, déjà contractuelle.
+    """
+    resume = scenario is None
     while True:
         vue, verdict = prevision_longue.vue(complet, scenario=scenario, depart=depart, limite=limite)
         if verdict is not None:
@@ -288,19 +358,88 @@ def _sortie(
         assert vue is not None
         vue["couverture"].update(couverture_extra)
         vue["sources"] = sources
+        if transport_pagine:
+            # Reprendre exactement la visibilité du chemin public existant : reçu complet s'il tient,
+            # compact sinon. Le mode transport ne révèle jamais des entrées que le budget aurait masquées.
+            for recu, note in ((complet["recu"], None), (recu_calcul.compacter(complet["recu"]), _NOTE_ENTREES_OMISES)):
+                corps_transport = analyse.avec_mention_comptable(
+                    {**vue, "recu": recu, **({"entrees_omises": note} if note else {})}
+                )
+                if accepte(corps_transport)["accepte"]:
+                    return _transport_pagine(
+                        corps_transport, empreinte_resultat=empreinte_resultat, offset=offset_transport
+                    )
+            corps_transport = analyse.avec_mention_comptable(
+                {**vue, "recu": recu_calcul.compacter(complet["recu"]), "entrees_omises": _NOTE_ENTREES_OMISES}
+            )
+            return _transport_pagine(
+                corps_transport, empreinte_resultat=empreinte_resultat, offset=offset_transport
+            )
         for recu, note in ((complet["recu"], None), (recu_calcul.compacter(complet["recu"]), _NOTE_ENTREES_OMISES)):
             corps = {**vue, "recu": recu, **({"entrees_omises": note} if note else {})}
             reponse = accepte(corps)
             if reponse["accepte"]:
                 return reponse
         if limite <= 1:
+            if resume:
+                return refuse(
+                    _verdict(
+                        "REJ-PREVISION-LONGUE-REPONSE-TROP-GROSSE",
+                        "la réponse dépasse le budget même avec un seul résumé de scénario : réduire l'horizon ou "
+                        "le nombre de scénarios déclarés ; aucune page partielle n'est rendue",
+                    )
+                )
             return refuse(
                 _verdict(
                     "REJ-PREVISION-LONGUE-REPONSE-TROP-GROSSE",
                     "la réponse dépasse le budget même avec une ligne : réduire l'horizon ou choisir un scénario",
                 )
             )
-        limite = max(1, limite // 2)
+        limite = limite - 1 if resume else max(1, limite // 2)
+
+
+def _transport_pagine(
+    corps: Mapping[str, Any], *, empreinte_resultat: str | None, offset: int | None
+) -> dict[str, Any]:
+    """Découpe sans perte le JSON complet sous le budget; empreinte de cohérence, pas d'authenticité."""
+    texte = json.dumps(corps, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+    empreinte = hashlib.sha256(texte.encode("utf-8")).hexdigest()
+    position = 0 if offset is None else offset
+    if empreinte_resultat is not None and empreinte_resultat != empreinte:
+        return refuse(_verdict(
+            "REJ-PREVISION-LONGUE-TRANSPORT-INVALIDE",
+            "le résultat recalculé a changé; recommencer le transport depuis sa première page",
+        ))
+    if position >= len(texte):
+        return refuse(_verdict(
+            "REJ-PREVISION-LONGUE-TRANSPORT-INVALIDE", "offset_transport hors du résultat calculé"
+        ))
+    gauche, droite = 1, len(texte) - position
+    meilleure: dict[str, Any] | None = None
+    while gauche <= droite:
+        taille = (gauche + droite) // 2
+        fin = position + taille
+        enveloppe = {
+            "transport": _TRANSPORT_ALGORITHME,
+            "empreinte_resultat": empreinte,
+            "longueur_caracteres": len(texte),
+            "offset_transport": position,
+            "fragment": texte[position:fin],
+            "prochain_offset": fin if fin < len(texte) else None,
+            "note_empreinte": "cohérence de fragments uniquement; aucune preuve d'authenticité",
+        }
+        reponse = accepte(enveloppe)
+        if reponse["accepte"] and len(json.dumps(reponse, ensure_ascii=False, default=str)) <= _BUDGET:
+            meilleure = reponse
+            gauche = taille + 1
+        else:
+            droite = taille - 1
+    if meilleure is None:
+        return refuse(_verdict(
+            "REJ-PREVISION-LONGUE-TRANSPORT-INVALIDE",
+            "l'enveloppe de transport ne tient pas sous le budget de sortie",
+        ))
+    return meilleure
 
 
 def prevoir_tresorerie_longue(
@@ -310,6 +449,9 @@ def prevoir_tresorerie_longue(
     depart: int | None = None,
     limite: int | None = None,
     recu_complet: bool | None = None,
+    transport_pagine: bool | None = None,
+    empreinte_resultat: str | None = None,
+    offset_transport: int | None = None,
 ) -> dict[str, Any]:
     """`m5_prevoir_tresorerie_longue` (T0) : la projection longue, ou le résumé des scénarios nommés."""
     refus = _appareil_refuse()
@@ -328,6 +470,26 @@ def prevoir_tresorerie_longue(
         ))
     if recu_complet is not None and type(recu_complet) is not bool:
         return refuse(_verdict("REJ-PREVISION-LONGUE-LIMITE-INVALIDE", "recu_complet : booléen ou null"))
+    if transport_pagine is not None and type(transport_pagine) is not bool:
+        return refuse(_verdict("REJ-PREVISION-LONGUE-TRANSPORT-INVALIDE", "transport_pagine : booléen ou null"))
+    if transport_pagine is True:
+        premiere = empreinte_resultat is None and offset_transport in (None, 0)
+        suite = (
+            isinstance(empreinte_resultat, str)
+            and re.fullmatch(r"[0-9a-f]{64}", empreinte_resultat) is not None
+            and type(offset_transport) is int
+            and offset_transport > 0
+        )
+        if not (premiere or suite):
+            return refuse(_verdict(
+                "REJ-PREVISION-LONGUE-TRANSPORT-INVALIDE",
+                "première page sans curseur, ou suite avec empreinte SHA-256 et offset positif requis",
+            ))
+    elif empreinte_resultat is not None or offset_transport is not None:
+        return refuse(_verdict(
+            "REJ-PREVISION-LONGUE-TRANSPORT-INVALIDE",
+            "empreinte_resultat et offset_transport exigent transport_pagine=true",
+        ))
     depart = 0 if depart is None else depart
     limite = _LIMITE_DEFAUT if limite is None else limite
     if type(depart) is not int or depart < 0 or type(limite) is not int or not 1 <= limite <= _LIMITE_MAX:
@@ -361,7 +523,7 @@ def prevoir_tresorerie_longue(
     budget, refus = _lire_budget(ctx["plan"], mois)
     if refus is not None:
         return refuse(refus)
-    carnet, incomplet, codes, refus = _lire_carnet(fin_horizon)
+    carnet, refus = _lire_carnet(fin_horizon)
     if refus is not None:
         return refuse(refus)
     assert historique is not None and budget is not None and carnet is not None
@@ -371,21 +533,43 @@ def prevoir_tresorerie_longue(
         solde_initial=format(ctx["solde"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), "f"),
         historique=historique,
         budget=budget,
-        carnet=carnet,
+        carnet=carnet["echeances"],
         configuration=configuration,
     )
     if verdict is not None:
         return refuse(verdict)
     assert complet is not None
     if recu_complet is True:
-        return accepte({
+        # Le mode reçu complet ne rend aucune ligne, mais il valide quand même le scénario demandé : un nom inconnu
+        # est refusé, jamais ignoré. Un scénario valide ne change pas le reçu (il n'y a pas de lignes à filtrer).
+        _, verdict = prevision_longue.vue(complet, scenario=scenario, depart=depart, limite=limite)
+        if verdict is not None:
+            return refuse(verdict)
+        corps_recu = {
             "type": "PREVISION_LONGUE",
             "statut": "BROUILLON",
             "aujourd_hui": aujourd_hui,
             "horizon_mois": horizon_mois,
             "recu": complet["recu"],
+            "portee": _PORTEE_RECU,
             "note": "reçu complet pour m5_rejouer_prevision_longue ; aucune ligne de projection rendue",
-        })
+        }
+        if transport_pagine is True:
+            return _transport_pagine(
+                analyse.avec_mention_comptable(corps_recu),
+                empreinte_resultat=empreinte_resultat,
+                offset=offset_transport,
+            )
+        reponse = accepte(corps_recu)
+        if reponse["accepte"]:
+            return reponse
+        # Un reçu complet ne se tronque jamais : s'il ne tient pas sous le budget, on refuse avec le code de CE
+        # catalogue, jamais avec un code d'un autre outil.
+        return refuse(_verdict(
+            "REJ-PREVISION-LONGUE-REPONSE-TROP-GROSSE",
+            "le reçu complet dépasse le budget de réponse même sans ligne de projection : aucune troncature, "
+            "réduire l'horizon ou le nombre de scénarios",
+        ))
     sources = [
         _source("mouvements", ctx["registre_mouvements"]),
         _source("grand_livre", ctx["registre_gl"]),
@@ -393,6 +577,8 @@ def prevoir_tresorerie_longue(
             maillons=stockage.maillons(_o._DEPARTEMENT, _NOM_REGISTRE_BUDGETS)
         )),
         _source("echeanciers_contrats_tresorerie", _o._registre_echeanciers_contrats()),
+        _source("devis_recus", carnet["devis"]),
+        _source("factures", carnet["factures"]),
     ]
     return _sortie(
         complet,
@@ -400,7 +586,16 @@ def prevoir_tresorerie_longue(
         depart=depart,
         limite=limite,
         sources=sources,
-        couverture_extra={"carnet_incomplet": incomplet, "contrats_bloques": codes},
+        transport_pagine=transport_pagine is True,
+        empreinte_resultat=empreinte_resultat,
+        offset_transport=offset_transport,
+        couverture_extra={
+            "carnet_incomplet": carnet["incomplet"],
+            **({"contrats_bloques": carnet["contrats_bloques"]} if carnet["contrats_bloques"] else {}),
+            **({"devis_sans_echeancier": carnet["devis_sans_echeancier"]}
+               if carnet["devis_sans_echeancier"] else {}),
+            **({"incompletude": carnet["incompletude"]} if carnet["incompletude"] else {}),
+        },
     )
 
 
@@ -412,6 +607,14 @@ def rejouer_prevision_longue(recu: dict[str, Any]) -> dict[str, Any]:
     valide, raison = recu_calcul.verifier(recu)
     if not valide:
         return refuse(_verdict("REJ-PREVISION-LONGUE-RECU-INVALIDE", raison))
+    # Le vérificateur générique ne connaît que le format : l'outil de CE moteur exige explicitement son moteur et sa
+    # version avant de présenter le reçu comme valide pour lui. Un reçu compact du même moteur reste vérifiable.
+    if recu.get("moteur") != prevision_longue.MOTEUR or recu.get("version_moteur") != prevision_longue.VERSION:
+        return refuse(_verdict(
+            "REJ-PREVISION-LONGUE-RECU-INVALIDE",
+            f"reçu du moteur {recu.get('moteur')!r} version {recu.get('version_moteur')!r} : "
+            f"attendu {prevision_longue.MOTEUR!r} version {prevision_longue.VERSION!r}",
+        ))
     rejoue, raison = prevision_longue.rejouer(recu)
     if not rejoue and "entrees" in recu:
         return refuse(_verdict("REJ-PREVISION-LONGUE-REJEU-DIFFERENT", raison))
@@ -419,8 +622,10 @@ def rejouer_prevision_longue(recu: dict[str, Any]) -> dict[str, Any]:
         "recu_valide": True,
         "rejoue": rejoue,
         "moteur": recu["moteur"],
+        "version_moteur": recu["version_moteur"],
         "empreinte": recu["empreinte"],
         "note": None if rejoue else raison,
+        "portee": _PORTEE_RECU,
     })
 
 
@@ -439,9 +644,10 @@ def outils_prevision_longue() -> tuple[Outil, ...]:
                 "mensuelles, douze coefficients de saisonnalité, délais de paiement) DÉCLARÉES dans le manifeste, "
                 "jamais reçues en argument. Priorité par mois : échéance contractuelle, sinon budget, sinon moyenne ; "
                 "budget de produits ignoré sous une échéance COMPTÉ. Échéance échue non comptée, flux hors horizon "
-                "exclu et dit ; mois historique sans écriture définitive refusé. Sans `scenario`, résumé des "
-                "scénarios ; avec, série paginée. `recu_complet` rend le reçu complet rejouable. Lecture pure, portée "
-                "d'appareil fermée."
+                "exclu et dit ; mois historique sans écriture définitive refusé. Sans `scenario`, résumé PAGINÉ des "
+                "scénarios (`depart`, `limite`, total et suite) ; avec, série de lignes paginée. `recu_complet` rend "
+                "le reçu complet rejouable. Transport facultatif : fragments sous budget, reprise par empreinte. "
+                "Lecture pure, portée d'appareil fermée."
                 + brouillon
                 + mention
             ),
@@ -460,18 +666,24 @@ def outils_prevision_longue() -> tuple[Outil, ...]:
                     },
                     "scenario": {
                         "type": ["string", "null"],
-                        "description": "Nom exact d'un scénario déclaré ; omis : résumé de tous les scénarios.",
+                        "description": "Nom exact d'un scénario déclaré ; omis : résumé paginé de tous les scénarios.",
                     },
                     "depart": {
                         "type": ["integer", "null"],
                         "minimum": 0,
-                        "description": "Première ligne rendue (0 par défaut), pour un scénario choisi.",
+                        "description": (
+                            "Première ligne du scénario choisi, ou premier résumé en mode résumé (0 par défaut)."
+                        ),
                     },
                     "limite": {
                         "type": ["integer", "null"],
                         "minimum": 1,
                         "maximum": _LIMITE_MAX,
-                        "description": f"Lignes par page ({_LIMITE_DEFAUT} par défaut, {_LIMITE_MAX} au plus).",
+                        "description": (
+                            f"Lignes par page du scénario choisi, ou résumés en mode résumé ({_LIMITE_DEFAUT} "
+                            f"par défaut, {_LIMITE_MAX} au plus) ; la page peut être réduite pour tenir sous le "
+                            "budget, et `scenarios_affiches` avec `prochain_depart` le disent."
+                        ),
                     },
                     "recu_complet": {
                         "type": ["boolean", "null"],
@@ -479,6 +691,23 @@ def outils_prevision_longue() -> tuple[Outil, ...]:
                             "Vrai : rend SEULEMENT le reçu complet (avec `entrees`) pour le rejeu hors ligne, sans "
                             "aucune ligne ; la projection normale rend un reçu compact sous le budget."
                         ),
+                    },
+                    "transport_pagine": {
+                        "type": ["boolean", "null"],
+                        "description": (
+                            "Mode additif de fragments JSON canoniques; réassembler fragment par fragment. La suite "
+                            "exige l'empreinte et l'offset retournés; l'empreinte ne prouve pas l'authenticité."
+                        ),
+                    },
+                    "empreinte_resultat": {
+                        "type": ["string", "null"],
+                        "pattern": "^[0-9a-f]{64}$",
+                        "description": "Empreinte renvoyée par la page précédente (cohérence, non-authenticité).",
+                    },
+                    "offset_transport": {
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "description": "prochain_offset de la page précédente; absent seulement sur la première page.",
                     },
                 },
                 "required": ["aujourd_hui", "horizon_mois"],

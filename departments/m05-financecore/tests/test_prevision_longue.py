@@ -442,3 +442,66 @@ def test_le_recu_porte_la_mention_comptable_et_les_hypotheses_declarees():
     assert "comptable (CPA)" in recu["mention"]
     assert recu["entrees"]["configuration"]["scenarios"][0]["nom"] == "base"
     assert recu["resultat"]["horizon_mois"] == 6
+
+
+def test_le_rejeu_refuse_un_moteur_ou_une_version_etrangers_avant_de_recalculer():
+    """Un reçu réempreinté (empreintes recalculées, donc intègre au sens de `recu_calcul`) qui se déclare d'un autre
+    moteur ou d'une autre version est refusé par le rejeu, avant tout calcul, avec une raison qui nomme l'en-tête."""
+    resultat, verdict = _calculer()
+    assert verdict is None, verdict
+    recu = resultat["recu"]
+    for moteur, version in (("autre_moteur", prevision_longue.VERSION),
+                            (prevision_longue.MOTEUR, "9.9.9")):
+        faux = prevision_longue.recu_calcul.construire(
+            moteur=moteur,
+            version_moteur=version,
+            methode=recu["methode"],
+            precision=recu["precision"],
+            parametres=recu["parametres"],
+            entrees=recu["entrees"],
+            resultat=recu["resultat"],
+            avertissements=recu["avertissements"],
+        )
+        # Le vérificateur générique ne juge que l'intégrité : le reçu réempreinté reste intègre.
+        assert prevision_longue.recu_calcul.verifier(faux) == (True, "")
+        rejoue, raison = prevision_longue.rejouer(faux)
+        assert rejoue is False
+        assert "moteur" in raison or "version" in raison, raison
+
+
+# ============================================================================================ pagination du résumé
+def test_la_vue_resume_pagine_les_scenarios_avec_total_et_suite():
+    """`depart`/`limite` découpent les résumés, sans ligne ; chaque page dit son total et la suivante."""
+    scenarios = [{**SCENARIO, "nom": f"s{i}"} for i in range(1, 5)]
+    resultat, verdict = _calculer(config=_config(*scenarios))
+    assert verdict is None, verdict
+
+    page, verdict = prevision_longue.vue(resultat, depart=1, limite=2)
+    assert verdict is None, verdict
+    assert "scenario" not in page
+    assert [s["nom"] for s in page["scenarios"]] == ["s2", "s3"]
+    assert all("lignes" not in s for s in page["scenarios"])
+    assert page["scenarios_total"] == 4
+    assert page["scenarios_depart"] == 1
+    assert page["scenarios_affiches"] == 2
+    assert page["prochain_depart"] == 3
+    assert page["limites"] and "recu" not in page
+
+    fin, verdict = prevision_longue.vue(resultat, depart=3, limite=2)
+    assert verdict is None, verdict
+    assert [s["nom"] for s in fin["scenarios"]] == ["s4"]
+    assert fin["scenarios_affiches"] == 1 and fin["prochain_depart"] is None
+
+
+def test_la_vue_resume_hors_borne_rend_une_page_vide_tracee():
+    """Un `depart` au-delà du total rend une page vide avec son total, jamais une exception ni un repli."""
+    resultat, verdict = _calculer()
+    assert verdict is None, verdict
+
+    page, verdict = prevision_longue.vue(resultat, depart=99, limite=2)
+    assert verdict is None, verdict
+    assert page["scenarios"] == []
+    assert page["scenarios_total"] == 1
+    assert page["scenarios_depart"] == 99
+    assert page["scenarios_affiches"] == 0
+    assert page["prochain_depart"] is None
