@@ -25,6 +25,14 @@ description: Procédure pour estimer un projet {{qualificatif_secteur}} à parti
    chiffre libre. Sans barème ou sans mesure déclarés, l'outil dit quoi déclarer
    (`m3_declarer_bareme`, `m3_declarer_mesure` : ces deux gestes sont ceux d'une personne, pas les tiens) :
    transmets ce message à un humain. N'en invente aucune donnée.
+2 bis. Si le barème déclare `parametres.estimateurs.<service>` (estimateur par service), tu peux appeler
+   `m3_calculer_estimation_service` avec `lead_id`, `service`, le même `bareme_ref` et la liste des
+   `mesures_ref` (une mesure déclarée par `grandeur`). Il compose la quantité et chiffre coûts/prix avec les
+   coefficients DÉCLARÉS, rend un `recu` vérifiable et refuse en listant les mesures ou déclarations
+   manquantes (`REJ-ESTIMATEUR-*`). Ce calcul ne remplace pas `m3_estimer_projet` : le Monte Carlo, le
+   plancher, les scénarios et le registre restent la voie mono-mesure. Pour une estimation gouvernée, fais
+   déclarer par une personne la mesure correspondant à la quantité composée, puis suis l'étape 3. Ne
+   présente ni le coût composite comme un prix client, ni une quantité composée comme une mesure validée.
 3. Appelle `m3_estimer_projet` une seule fois avec toutes les données. Un nouvel appel exige
    une correction effective d'entrée ou une nouvelle demande; pas de retry identique sur un refus.
    Si la porte rend `en_attente_approbation`, donne le `demande_id` et attends la décision;

@@ -30,6 +30,19 @@ La soumission gagne exclusions, hypothèses, délai (durée, jamais une date) et
 pas éprouvé pour ces registres : voir [`M3-BAREME-MESURE-DECLARES.md`](../../docs/architecture/M3-BAREME-MESURE-DECLARES.md)
 (modèle, voie de compatibilité, points d'accroche CFG-1 et calibration, limites).
 
+**Estimateurs par service (M3.8b) — la quantité d'un service se compose de mesures déclarées, jamais d'un nombre libre.**
+`m3_calculer_estimation_service` (T0, lecture seule, fermé aux appareils) prend `lead_id`, `service`, `bareme_ref` et
+`mesures_ref` (une mesure déclarée par `grandeur`) et rend une estimation chiffrée par le code : quantités basse/retenue/haute
+dans l'unité de la ligne d'ouvrage, coûts min/probable/max au cent (`ROUND_HALF_UP`), prix recommandé si le mode et le taux
+de marge normal sont déclarés, durée si le taux de minutes l'est, et un **reçu vérifiable** (`recu`, `verifier_recu`). La
+composition vient de `parametres.estimateurs.<service>` de la version de barème (coefficients **signés**, conversions
+explicites, `source_ecrite` obligatoire, minimum de quantité et temps minimum facultatifs) : aucun prix, taux ni coefficient
+n'est dans le code. Sans estimateur, sans une mesure requise, avec une mesure en double, non prévue, périmée, mal unitée ou
+une quantité non positive, le refus nomme ce qu'il faut déclarer (`REJ-ESTIMATEUR-*`, `REJ-MESURE-*`) ; il n'invente ni zéro
+ni borne. Limites : l'estimation composite n'alimente pas encore `m3_estimer_projet` (Monte Carlo, plancher, scénarios et
+registre restent la voie mono-mesure), une seule ligne d'ouvrage par service, aucun écran, aucune valeur réelle, PostgreSQL
+non éprouvé : voir [`M3-ESTIMATEURS-SERVICE.md`](../../docs/architecture/M3-ESTIMATEURS-SERVICE.md).
+
 Identité authentifiée (PLAN T1.4-c4, T2.3-d, puis T1.4-k2, docs/architecture/ROLES.md) : pendant un appel
 d'appareil, la vue d'un devis vient du rôle confirmé en base (l'employé ne voit ni coût, ni marge, ni prix ;
 `role` ne peut que restreindre). Depuis T1.4-k2, un vendeur ne lit (`m3_lire_devis`) et n'obtient le

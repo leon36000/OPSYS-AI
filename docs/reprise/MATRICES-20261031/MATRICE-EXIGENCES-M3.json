@@ -263,9 +263,14 @@
    ],
    "initial_status": "PARTIEL",
    "gates_to_resolve_or_keep_open": [
-    "Barème, seuils de revue, taux et minimum rentable vides à dessein (configuration M3)"
+    "Barème, seuils de revue, taux et minimum rentable vides à dessein (configuration M3)",
+    "Coefficients, conversions, minimums de quantité et temps minimums des estimateurs par service non fournis (valeurs de Nathan)",
+    "Intégration de l'estimation composite à m3_estimer_projet (Monte Carlo, plancher, scénarios, registre des estimations, contrat gelé) non faite"
    ],
-   "decisions_nathan": [],
+   "decisions_nathan": [
+    "Valeurs réelles des estimateurs par service (coefficients signés, facteurs de conversion, minimum de quantité, temps minimum) : déclarées par le propriétaire, jamais fournies par le code.",
+    "Ouverture éventuelle de m3_calculer_estimation_service aux appareils seller/admin : décision d'architecte (outil aujourd'hui fermé aux appareils)."
+   ],
    "proofs": [
     {
      "tests": [
@@ -286,11 +291,22 @@
       "docs/architecture/M3-BAREME-MESURE-DECLARES.md"
      ],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_estimateurs_service.py",
+      "departments/m03-estimation/tests/test_outils_estimateurs.py",
+      "departments/m03-estimation/tests/test_estimateurs_bout_en_bout.py"
+     ],
+     "docs": [
+      "docs/architecture/M3-ESTIMATEURS-SERVICE.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "9ed79e649",
+   "verified_commit": "06cae4c97",
    "current_status": "PARTIEL",
-   "limite": "Un poste de barème par service, maintenant DÉCLARÉ par une personne, versionné, chaîné et référencé (bareme_ref ; M3-C1, S) : un barème libre est refusé à tout agent. Pas d'estimateurs distincts par service ; aucun barème dans le dépôt (jamais codé en dur) : les valeurs de Nathan restent à fournir, aucun écran de saisie, PostgreSQL non éprouvé."
+   "limite": "Un poste de barème par service, DÉCLARÉ par une personne, versionné, chaîné et référencé (bareme_ref ; M3-C1) ; les estimateurs par service (M3.8b, S) composent la quantité à partir de mesures déclarées et de coefficients DÉCLARÉS dans parametres.estimateurs (signés, conversions explicites, source écrite), calculent coûts min/probable/max au cent et un reçu vérifiable. PAS prouvé : aucun coefficient ni minimum réel (les valeurs de Nathan restent à fournir) ; l'estimation composite n'est pas branchée à m3_estimer_projet (Monte Carlo, plancher, scénarios, registre des estimations et contrat gelé restent mono-mesure) ; une seule ligne d'ouvrage par service ; aucun écran de saisie, aucune donnée réelle, PostgreSQL non éprouvé."
   },
   {
    "id": "M3.9",

@@ -498,3 +498,13 @@ def test_tous_les_codes_de_refus_du_barème_sont_au_catalogue_ferme():
                   "REJ-BAREME-HORS-VIGUEUR", "REJ-BAREME-PERIME", "REJ-BAREME-INCOMPLET", "REJ-BAREME-INVALIDE",
                   "REJ-BAREME-REVISION-PERIMEE", "REJ-BAREME-IDENTITE", "REJ-BAREME-ALTERE"):
         assert verdicts.est_verdict(code_), code_
+
+
+@pytest.mark.parametrize("jours, accepte", [(0, False), (1, True), (3650, True), (3651, False)])
+def test_la_validite_d_une_mesure_est_bornee_a_un_jour_et_3650_jours(jours, accepte):
+    parametres = deepcopy(cb.PARAMETRES)
+    parametres["mesure"] = {"validite_jours": jours}
+    resultat, verdict = cb.declarer([], parametres=parametres)
+    assert (verdict is None) is accepte
+    if not accepte:
+        assert cb.code(verdict) == "REJ-BAREME-INVALIDE" and "validite_jours" in verdict["detail"]

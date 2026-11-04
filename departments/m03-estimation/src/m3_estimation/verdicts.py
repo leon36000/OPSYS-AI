@@ -162,6 +162,17 @@ CODES_M3_LIST = [
     "REJ-MESURE-ALTEREE",
     # Rejeu d'une estimation déclarée (m3_rejouer_estimation).
     "REJ-REJEU-IMPOSSIBLE",
+    # M3.8b (estimateurs par service, estimateurs_service.py) : la quantité d'un service est composée de mesures
+    # déclarées selon des coefficients DÉCLARÉS dans le barème. Chaque refus nomme les déclarations ou les mesures
+    # manquantes, jamais une valeur par défaut.
+    "REJ-ESTIMATEUR-NON-DECLARE",
+    "REJ-ESTIMATEUR-MESURES-MANQUANTES",
+    "REJ-ESTIMATEUR-MESURE-NON-PREVUE",
+    "REJ-ESTIMATEUR-MESURE-AMBIGUE",
+    "REJ-ESTIMATEUR-QUANTITE-NON-POSITIVE",
+    "REJ-ESTIMATEUR-BORNES-NON-POSITIVES",
+    "REJ-ESTIMATEUR-RECU-ALTERE",
+    "REJ-ESTIMATEUR-INVALIDE",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 

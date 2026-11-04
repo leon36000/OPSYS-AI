@@ -163,6 +163,10 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
         "m3_declarer_bareme", "m3_valider_bareme", "m3_lire_bareme", "m3_lister_baremes",
         "m3_declarer_mesure", "m3_lire_mesure", "m3_rejouer_estimation",
     }
+    # M3.8b (estimateurs par service) : lecture du barème et des mesures déclarés, calcul d'une quantité et d'un coût
+    # composés. T0, aucun droit d'appareil ; il ne produit ni scénario, ni prix de scénario (le prix recommandé vient
+    # du taux « normal » DÉCLARÉ, jamais d'un taux de scénario calculé ici).
+    estimateurs_service = {"m3_calculer_estimation_service"}
     baseline_13 = {
         "m3_estimer_projet", "m3_qualifier_photos", "m3_classifier_confiance",
         "m3_simuler_intervalle", "m3_confronter_plancher", "m3_creer_devis",
@@ -177,9 +181,11 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
         set(noms) - outils_calibration - lectures_reprise - modeles_console - site_vision_geospatial
         - apprentissage_durees
     )
-    assert reste - bareme_mesure_declares == baseline_13
+    assert reste - bareme_mesure_declares - estimateurs_service == baseline_13
     assert set(noms) & apprentissage_durees == apprentissage_durees
     assert set(noms) & bareme_mesure_declares == bareme_mesure_declares
+    assert set(noms) & estimateurs_service == estimateurs_service
+    assert all(o.autonomie is Autonomie.T0 for o in outils_m3.outils() if o.nom in estimateurs_service)
     assert all(not o.roles_appareil for o in outils_m3.outils() if o.nom in apprentissage_durees)
     assert set(noms) & site_vision_geospatial == site_vision_geospatial
     assert set(noms) & modeles_console == modeles_console
