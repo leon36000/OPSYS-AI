@@ -12,6 +12,7 @@ import json
 import cablage_qa as cq
 import lea_rosalie_qa as lr
 import pytest
+from harnais_e2e import Horloge
 from m1_front_office import rendez_vous as rdv
 
 from opsys import contexte, idempotence, identite, stockage
@@ -105,6 +106,7 @@ def m4():
 
 @pytest.fixture
 def w(tmp_path, monkeypatch, m4):
+    Horloge(dt.datetime.fromisoformat(NOW)).installer(monkeypatch)
     monde = lr.monter(tmp_path, monkeypatch, ("m01-front-office",), lecteur_m4=m4)
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "admin.fictif", "Admin Fictive", "mot-de-passe-admin-12345", ["admin"])

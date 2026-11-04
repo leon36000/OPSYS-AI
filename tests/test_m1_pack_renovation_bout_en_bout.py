@@ -25,9 +25,10 @@ from m1_front_office import plaintes
 from sqlalchemy import func, select
 
 from opsys import evenements, packs, stockage, taxonomie
+from opsys.stockage import codec
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
-from opsys.stockage.schema import JOURNAL
+from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, JOURNAL
 
 RENOVATION = "renovation-exterieure-qc"
 DEBUT = dt.datetime(2026, 9, 29, 9, 0, tzinfo=dt.timezone(dt.timedelta(hours=-4)))
@@ -96,6 +97,37 @@ def _drainer(deps) -> dict:
 def _leads_chez_m2() -> list[dict]:
     with stockage.transaction():
         return [m for m in stockage.maillons("m02-revenue-crm", "principal") if m.get("type_entree") == "lead_ingere"]
+
+
+def _verifier_transfert_sans_affaire(instance, transfert_id: str, types: tuple[str, str]) -> None:
+    resume = _drainer(instance)
+    assert resume["livres"] == 2 and resume["echecs"] == resume["quarantaines"] == 0
+    with stockage.transaction() as cnx:
+        sortants = cnx.execute(
+            select(EVENEMENTS_SORTANTS.c.evenement_id, EVENEMENTS_SORTANTS.c.type_evenement).where(
+                EVENEMENTS_SORTANTS.c.producteur == "m01-front-office",
+                EVENEMENTS_SORTANTS.c.type_evenement.in_(types),
+            )
+        ).all()
+        assert {type_evenement for _, type_evenement in sortants} == set(types)
+        recus = cnx.execute(
+            select(EVENEMENTS_RECUS.c.evenement_id, EVENEMENTS_RECUS.c.consommateur,
+                   EVENEMENTS_RECUS.c.statut, EVENEMENTS_RECUS.c.resultat).where(
+                EVENEMENTS_RECUS.c.evenement_id.in_([ident for ident, _ in sortants]),
+            )
+        ).all()
+        assert len(recus) == 2 and {(consommateur, statut) for _, consommateur, statut, _ in recus} == {
+            ("m10-memoire", "traite"),
+        }
+        resultats = [codec.decoder(resultat) for _, _, _, resultat in recus]
+        assert all(
+            resultat["transfert_id"] == transfert_id
+            and resultat["memorise"] is False
+            and resultat["rattachee"] is False
+            and resultat["verdict"] == "TRANSFERT-SANS-AFFAIRE"
+            for resultat in resultats
+        )
+    assert _leads_chez_m2() == []  # aucun lead n'est transmis à M2
 
 
 def _politique_photos(monkeypatch, statut: str) -> None:
@@ -219,7 +251,9 @@ def test_une_menace_juridique_ouvre_un_transfert_n5_au_role_adopte_sans_lead_et_
     assert r["transfert"]["type_transfert"] == "plainte" and r["transfert"]["niveau"] == "N5"
     assert r["transfert"]["destinataire"] == "nathan_owner" and r["transfert"]["verdict_destinataire"] is None
     assert r["brouillon_reponse"] is None and r["sans_brouillon"] == "sujet_legal_reponse_humaine"
-    assert _drainer(instance)["livres"] == 0 and _leads_chez_m2() == []  # rien chez M2 : ce n'est pas un lead
+    _verifier_transfert_sans_affaire(
+        instance, r["transfert"]["transfert_id"], ("m1.transfert_ouvert", "m1.plainte_ouverte"),
+    )
 
 
 def test_un_danger_est_escalade_tout_de_suite_sans_conseil_ni_promesse(capacites, instance):
@@ -229,7 +263,9 @@ def test_un_danger_est_escalade_tout_de_suite_sans_conseil_ni_promesse(capacites
     assert r["transfert"]["type_transfert"] == "urgence" and r["transfert"]["niveau"] == "N5"
     assert r["transfert"]["destinataire"] == "nathan_owner"
     assert "conseil" in r["consigne"].lower() and "AUCUNE intervention" in r["consigne"]
-    assert _drainer(instance)["livres"] == 0 and _leads_chez_m2() == []
+    _verifier_transfert_sans_affaire(
+        instance, r["transfert"]["transfert_id"], ("m1.transfert_ouvert", "m1.plainte_ouverte"),
+    )
 
 
 def test_une_plainte_de_degat_va_au_proprietaire_avec_un_brouillon_empathique_jamais_envoye(capacites):
