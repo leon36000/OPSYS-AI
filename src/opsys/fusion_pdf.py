@@ -354,13 +354,17 @@ def _commande_isolee() -> list[str]:
         raise _erreur("PDF_ISOLATION_INDISPONIBLE", 503)
     try:
         usr, prefixes, worker, bibliotheques = _geometrie_lecture_isolee()
-        interpreteur = Path(sys.executable)
+        prefixe_demande = Path(sys.prefix)
+        base = Path(sys.base_prefix).resolve(strict=True)
+        venv = prefixe_demande.resolve(strict=True)
+        interpreteur_demande = Path(sys.executable)
+        relatif_interpreteur = interpreteur_demande.relative_to(prefixe_demande)
+        interpreteur = venv / relatif_interpreteur
+        parent_interpreteur = interpreteur.parent.resolve(strict=True)
         cible = interpreteur.resolve(strict=True)
         stdlib = Path(sysconfig.get_path("stdlib")).resolve(strict=True)
-    except (OSError, RuntimeError) as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         raise _erreur("PDF_ISOLATION_INDISPONIBLE", 503) from exc
-    base = Path(sys.base_prefix)
-    venv = Path(sys.prefix)
     interdits = {Path(p) for p in (
         "/", "/workspace", "/home", "/tmp", "/var", "/opt", "/dev", "/proc", "/etc", "/root", "/run", "/sys",
     )} | {Path.home().resolve()}
@@ -369,6 +373,7 @@ def _commande_isolee() -> list[str]:
         or any(not p.is_dir() or p in interdits for p in prefixes)
         or base not in prefixes or venv not in prefixes or not stdlib.is_relative_to(base)
         or (venv != base and not (venv / "pyvenv.cfg").is_file())
+        or not parent_interpreteur.is_relative_to(venv)
         or not any(cible.is_relative_to(p) for p in prefixes | {usr})
         or not any(interpreteur.is_relative_to(p) for p in prefixes | {usr})
     ):
