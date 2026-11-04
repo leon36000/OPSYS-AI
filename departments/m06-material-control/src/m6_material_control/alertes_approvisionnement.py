@@ -150,7 +150,7 @@ def calculer(
 ) -> dict[str, Any]:
     """Les alertes et les règles NON ÉVALUÉES à un instant donné. Aucune écriture, aucun ordre implicite."""
     instant = maintenant if isinstance(maintenant, datetime) else _instant(maintenant)
-    if instant is None or instant.utcoffset() is not None:
+    if instant is None or instant.utcoffset() is None:
         return {"alertes": [], "non_evaluees": [
             _non_evaluee("horodatage", "maintenant", "Fournir un instant ISO 8601 avec fuseau.")]}
     mouvements = list(mouvements)

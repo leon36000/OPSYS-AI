@@ -273,3 +273,18 @@ def test_les_lecteurs_appareil_acceptent_la_quantite_decimale_d_un_ajustement(ba
     reapprovisionnement_appareil._principal(mouvements, chiffres)
     assert Decimal("10") in chiffres and Decimal("-2") in chiffres
 
+
+
+def test_un_instant_sans_fuseau_est_refuse_et_un_instant_avec_fuseau_est_accepte():
+    # Régression trouvée à l'intégration : une inversion de `utcoffset() is None` rejetait tout instant AVEC fuseau.
+    from datetime import UTC, datetime
+
+    from m6_material_control import alertes_approvisionnement as alertes
+
+    kw = {"mouvements": [], "bons_commande": [], "fournisseurs": [], "wct_recus": [], "seuil_repetition": 2,
+          "fenetre_jours": 30}
+    avec = alertes.calculer(maintenant=datetime(2026, 10, 20, 12, 0, tzinfo=UTC), **kw)
+    sans = alertes.calculer(maintenant=datetime(2026, 10, 20, 12, 0), **kw)
+    assert {n["regle"] if "regle" in n else n.get("type") for n in avec["non_evaluees"]} != {"horodatage"}
+    assert [n for n in sans["non_evaluees"] if "maintenant" in str(n)] != []
+    assert sans["alertes"] == []

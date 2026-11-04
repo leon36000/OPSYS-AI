@@ -1069,9 +1069,8 @@ def _ecart_tresorerie_prevue_reelle_cad(reg: dict[str, list[dict[str, Any]]]) ->
     sa semaine 1 n'est pas encore échue). Le RÉEL : le PREMIER constat du cash libre, du plus ancien au plus récent,
     dont le jour SUIT la fin de cette semaine 1 (le premier réel disponible après l'échéance, pas le plus récent :
     l'écart est daté). Sans cash libre qui suive une semaine 1 échue, non calculable. La seule opération de M8 est
-    RÉEL MOINS PRÉVU, en ``Decimal`` : aucun montant de M5 n'est refait. La fraîcheur est celle du plus ancien des
-    faits utilisés (prévision courante, ancienne prévision, cash libre retenu) ; l'empreinte les couvre tous les
-    trois."""
+    RÉEL MOINS PRÉVU, en ``Decimal`` : aucun montant de M5 n'est refait. La fraîcheur est celle de la collecte
+    vivante (prévision courante et DERNIER constat du cash libre) ; l'empreinte couvre les trois faits utilisés."""
     operations = reg["operations"]
     courant = _dernier_constat_tresorerie_prevue(operations)
     if courant is None:
@@ -1158,13 +1157,11 @@ def _ecart_tresorerie_prevue_reelle_cad(reg: dict[str, list[dict[str, Any]]]) ->
             },
             "empreinte_faits": empreinte_faits(faits_utilises),
         }
-        instant_ecart = _plus_ancien(
-            [
-                instant,
-                _jour_instant(ancienne.get("date_reference"), reg),
-                _jour_instant(reel.get("date_reference"), reg),
-            ]
-        )
+        # Fraîcheur : celle de la collecte VIVANTE (la prévision courante et le DERNIER constat du cash libre), pas
+        # celle des faits historiques comparés (l'ancienne prévision et le premier réel qui la suit sont vieux par
+        # définition). Un cash libre qui n'arrive plus rend donc l'écart périmé ; l'empreinte, elle, couvre les
+        # faits réellement utilisés.
+        instant_ecart = _plus_ancien([instant, _jour_instant(cash_libres[-1].get("date_reference"), reg)])
         return nombres.texte_decimal(ecart), entrees, [], instant_ecart, None, None
     return non_calculable(
         [
