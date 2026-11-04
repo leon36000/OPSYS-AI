@@ -43,7 +43,7 @@ L'écart est `après - avant`, en `Decimal` exact sur le texte canonique. Il est
 
 - `chantier_id` = `*` : un ajustement d'inventaire n'appartient à aucun chantier ; le stock total change, les lectures
   par chantier ne sont pas attribuées ;
-- `quantite` = l'écart signé ; `cout_unitaire` = `null` ;
+- `quantite` = l'écart signé en `Decimal` **exact** (jamais un flottant) ; `cout_unitaire` = `null` ;
 - `ajustement` = objet d'audit additionnel (identifiant, matériau, motif, preuve, emplacement, avant, après, écart,
   niveau et motif d'approbation, seuil, acteur, approbateur, horodatage).
 
@@ -56,8 +56,13 @@ Un ajustement sur un emplacement **nommé** écrit aussi un transfert audité en
 localisé) :
 - stock trouvé en plus : `inconnu -> emplacement` ;
 - stock manquant : `emplacement -> inconnu`.
-Le total change de l'écart, et le lieu nommé porte la quantité corrigée. Aucune quantité par emplacement ne devient
-négative ; `emplacements.construire_transfert` refusant une incohérence, la transaction entière est annulée.
+Le total change de l'écart, et le lieu nommé porte la quantité corrigée. Le transfert est **VALIDÉ avant la première
+écriture** : si `emplacements.construire_transfert` refuse (`REJ-TRANSFERT-STOCK-INSUFFISANT`,
+`REJ-TRANSFERT-STOCK-LOCALISE-INCOHERENT`), aucun maillon `AJUSTEMENT` n'est écrit (tout-ou-rien). Un ajustement
+**global** (sans emplacement) ne déplace rien : il est refusé par
+`REJ-AJUSTEMENT-STOCK-LOCALISE-INCOHERENT` si le stock localisé dépasserait le total visé et rendrait le résidu
+`inconnu` négatif. Le verdict dit quoi faire : régulariser d'abord l'emplacement (transfert vers « inconnu »), puis
+refaire l'ajustement global. Aucune quantité par emplacement ne devient donc négative.
 
 ### 2.3 Seuil d'approbation DÉCLARÉ
 
@@ -75,6 +80,8 @@ Le seuil est une **quantité** dans l'unité de l'article, jamais un montant. Au
 
 - Même `ajustement_id` et même demande : le maillon existant est rendu (`deja_enregistre`), rien n'est écrit.
 - Même `ajustement_id` avec une autre demande : `REJ-AJUSTEMENT-ID-DEJA-UTILISE`.
+- Ajustement localisé dont le transfert est refusé : refus du transfert, **aucun** maillon `AJUSTEMENT`.
+- Ajustement global qui rendrait `inconnu` négatif : `REJ-AJUSTEMENT-STOCK-LOCALISE-INCOHERENT`, aucune écriture.
 - Écart nul : `aucun_ecart`, aucune écriture.
 - Hors transaction durable : `REJ-M6-TRANSACTION-REQUISE`.
 - Identité d'appareil non `admin` : `REJ-IDENTITE-APPAREIL-INVALIDE` (même garde que les autres outils de stock).
@@ -95,17 +102,22 @@ Lecture : `m6_lire_alertes_approvisionnement` (T0/N0, agent seulement) ; les ale
 | `items_manquants_repetes_article` | `PERTE`/`BRIS` par article | article + compte |
 | `items_manquants_repetes_equipe` | `PERTE`/`BRIS` par **équipe déclarée** (identifiant du profil `equipes`) | identifiant d'équipe, jamais un nom |
 | `ajustements_frequents_article` | mouvements `AJUSTEMENT` par article | article + compte |
-| `commande_recue_stock_disparu` | réception positive existante et stock théorique ≤ 0 | article, quantités |
+| `commande_recue_stock_disparu` | réception positive **dans la fenêtre** (horodatage du mouvement) et stock théorique ≤ 0 | article, quantités |
 | `declaration_usage_manquante` | WCT reçu dans la fenêtre sans aucun mouvement qui le cite | `wct_id`, `intervention_id`, jours |
 | `reception_po_en_retard` | PO `sent_to_supplier`, âge **strictement supérieur** au `delai_habituel_jours` du fournisseur | `po_id`, fournisseur, jours |
 
 Aucun prix, aucun coût, aucun texte libre de client, aucune note. Un WCT dont le `technicien_id` n'est pas une équipe
 DÉCLARÉE n'est jamais regroupé : il alimente une entrée `non_evaluees` qui demande de déclarer le profil des équipes.
+Une quantité illisible (booléen, texte, non fini) n'est **jamais** comptée ni convertie en zéro : le mouvement est
+ignoré et la règle dépendante porte une entrée `non_evaluees` (`mouvements.quantite`). Les réceptions sans horodatage
+ne peuvent pas être bornées par la fenêtre : elles restent comptées et une entrée `non_evaluees` le dit (horodater les
+mouvements de réception) ; les réceptions datées hors fenêtre ne déclenchent rien.
 
 ### 3.2 Valeurs déclarées, jamais inventées
 
-- `configuration.alertes_approvisionnement.fenetre_jours` (réglage `m6.alertes_fenetre_jours`, entier 1–365) : sans
-  elle, aucune alerte datée n'est évaluée ;
+- `configuration.alertes_approvisionnement.fenetre_jours` (réglage `m6.alertes_fenetre_jours`, entier 1–365,
+  **borne appliquée aussi dans le module pur** : 0, 366, un texte ou un booléen donnent une entrée `non_evaluees`) :
+  sans elle, aucune alerte datée n'est évaluée ;
 - `configuration.alertes_approvisionnement.seuil_repetition` (réglage `m6.alertes_seuil_repetition`, entier ≥ 2) : sans
   lui, les comptes restent visibles mais aucun verdict de répétition n'est rendu ;
 - `delai_habituel_jours` de la fiche fournisseur : sans lui, le PO du fournisseur part en `non_evaluees`.
@@ -161,12 +173,15 @@ tests de `stock`, de `registre` et de `conformite`.
 - **La clôture d'un inventaire physique en lot n'existe pas** : l'ajustement se fait article par article. Un comptage
   multi-emplacements n'est pas un seul geste.
 - Le rapprochement par emplacement s'appuie sur la chaîne des transferts ; une sortie non localisée antérieure peut
-  encore bloquer un ajustement localisé (`REJ-TRANSFER-STOCK-LOCALISE-INCOHERENT`).
+  encore bloquer un ajustement localisé (`REJ-TRANSFERT-STOCK-LOCALISE-INCOHERENT`) ou global
+  (`REJ-AJUSTEMENT-STOCK-LOCALISE-INCOHERENT`) tant qu'un humain n'a pas régularisé l'emplacement.
 - Le seuil d'ajustement est une **quantité**, pas un montant : aucun plafond en dollars n'est appliqué à un ajustement.
 - Le constat C9 ne s'active pas seul ; aucun test ne l'a fait tourner plusieurs jours sur la boucle réelle du serveur.
 - Aucune alerte n'est poussée : « À voir » se lit dans l'app ; aucun SMS, courriel ni notification.
-- Les agrégats de répétition ne sont pas fenêtrés mouvement par mouvement (les maillons de stock ne portent pas tous un
-  horodatage) : la fenêtre borne les WCT et les PO, pas le comptage historique des mouvements. C'est une limite connue.
+- Les agrégats de répétition (`ecarts_repetes_article`, `items_manquants_repetes_*`, `ajustements_frequents_article`)
+  ne sont pas fenêtrés mouvement par mouvement. Pour `commande_recue_stock_disparu`, la fenêtre borne les réceptions
+  DATÉES ; un maillon de stock sans `horodatage` (forme historique, codec inchangé) ne peut pas être daté, reste compté
+  et produit une entrée `non_evaluees` : la règle n'est donc pas entièrement bornée pour les registres antérieurs.
 - Aucun test PostgreSQL ni mobile n'a été lancé pour ce chantier ; aucun navigateur réel.
 - Les valeurs de fenêtre, de seuil et de délai fournisseur restent à déclarer par la direction ; le code n'en propose
   aucune.

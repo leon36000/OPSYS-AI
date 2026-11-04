@@ -10,6 +10,7 @@ import copy
 import json
 import math
 import re
+from decimal import Decimal
 
 from . import contrats_sortie, encodage, pertes_appareil, registre
 
@@ -69,7 +70,8 @@ def reference(reg, m):
 
 
 def _nombre(v):
-    return type(v) is int or (type(v) is float and math.isfinite(v))
+    return type(v) is int or (type(v) is float and math.isfinite(v)) or (
+        isinstance(v, Decimal) and v.is_finite())
 
 
 def nombre_projectable(v):

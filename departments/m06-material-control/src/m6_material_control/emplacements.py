@@ -161,15 +161,15 @@ def hors_main_par_article(maillons: Iterable[Mapping[str, Any]]) -> dict[str, De
 
 
 def _quantite_positive(valeur: Any) -> Decimal | None:
-    """Décimal exact d'un nombre fini strictement positif (int ou float, jamais un booléen ni un texte), sinon
-    `None`."""
-    if isinstance(valeur, bool) or not isinstance(valeur, (int, float)):
+    """Décimal exact d'un nombre fini strictement positif (int, float ou Decimal, jamais un booléen ni un texte),
+    sinon `None`."""
+    if isinstance(valeur, bool) or not isinstance(valeur, (int, float, Decimal)):
         return None
     if isinstance(valeur, float) and not math.isfinite(valeur):
         return None
     try:
-        decimal = Decimal(str(valeur))
-    except InvalidOperation:
+        decimal = valeur if isinstance(valeur, Decimal) else Decimal(str(valeur))
+    except (InvalidOperation, ValueError):
         return None
     if decimal <= 0 or len(format(decimal, "f")) > _LONGUEUR_TEXTE_MAX:
         return None
