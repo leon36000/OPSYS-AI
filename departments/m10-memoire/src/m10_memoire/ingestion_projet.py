@@ -570,15 +570,27 @@ def ingerer(
         cnx.execute("BEGIN IMMEDIATE")
         try:
             for chemin, classe, genre in choisis:
+                restant = max_octets - octets
+                limite = min(dev.MAX_FILE_BYTES, max(0, restant - 1))
+                if limite <= 0:
+                    ignores.append({"chemin": chemin, "raison": "limite totale d'octets de l'ingestion"})
+                    continue
                 try:
-                    donnees = dev._lire_fichier_borne(top, Path(chemin), min(dev.MAX_FILE_BYTES, max_octets - octets))
-                    texte = donnees.decode("utf-8")
-                except (dev._LimiteScanAtteinte, OSError, ValueError, UnicodeDecodeError):
+                    donnees = dev._lire_fichier_borne(top, Path(chemin), limite)
+                except (dev._LimiteScanAtteinte, OSError, ValueError) as exc:
+                    octets += min(restant, max(0, getattr(exc, "octets_lus", 0)))
                     ignores.append(
                         {"chemin": chemin, "raison": "illisible, trop volumineux, symbolique ou non textuel"}
                     )
                     continue
                 octets += len(donnees)
+                try:
+                    texte = donnees.decode("utf-8")
+                except UnicodeDecodeError:
+                    ignores.append(
+                        {"chemin": chemin, "raison": "illisible, trop volumineux, symbolique ou non textuel"}
+                    )
+                    continue
                 sha = dev._hash_bytes(donnees)
                 commit, date = _dernier_commit(top, chemin)
                 sensibilite = classifier(texte)

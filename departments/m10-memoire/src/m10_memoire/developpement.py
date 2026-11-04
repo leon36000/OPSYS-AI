@@ -182,7 +182,19 @@ class SourceDeveloppementRefusee(ValueError):
 
 
 class _LimiteScanAtteinte(ValueError):
-    """Le fichier dépasse la limite de lecture du scan."""
+    """Le fichier dépasse la limite; octets_lus compte les octets effectivement consommés."""
+
+    def __init__(self, message: str, *, octets_lus: int = 0) -> None:
+        super().__init__(message)
+        self.octets_lus = octets_lus
+
+
+class _LectureInterrompue(OSError):
+    """Une erreur I/O après lecture conserve le compte réel pour le budget global."""
+
+    def __init__(self, message: str, *, octets_lus: int = 0) -> None:
+        super().__init__(message)
+        self.octets_lus = octets_lus
 
 
 def _valider_horodatage(value: str) -> str:
@@ -954,24 +966,35 @@ def _ouvrir_source_sans_symlink(repository: Path, relative: Path) -> int:
 def _lire_fichier_borne(repository: Path, relative: Path, limite: int) -> bytes:
     """Lit un fichier régulier sans lien, en consommant au plus `limite + 1` octets."""
     descriptor = _ouvrir_source_sans_symlink(repository, relative)
+    data = bytearray()
     try:
-        metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode):
-            raise ValueError("source non régulière")
-        if metadata.st_size > limite:
-            raise _LimiteScanAtteinte("limite de taille du fichier")
-        data = bytearray()
-        while len(data) <= limite:
-            restant = limite + 1 - len(data)
-            chunk = os.read(descriptor, min(64_000, restant))
-            if not chunk:
-                break
-            data.extend(chunk)
-            if len(data) > limite:
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValueError("source non régulière")
+            if metadata.st_size > limite:
                 raise _LimiteScanAtteinte("limite de taille du fichier")
-        return bytes(data)
+            while len(data) <= limite:
+                restant = limite + 1 - len(data)
+                try:
+                    chunk = os.read(descriptor, min(64_000, restant))
+                except OSError as exc:
+                    raise _LectureInterrompue(str(exc), octets_lus=len(data)) from exc
+                if not chunk:
+                    break
+                data.extend(chunk)
+                if len(data) > limite:
+                    raise _LimiteScanAtteinte("limite de taille du fichier", octets_lus=len(data))
+            return bytes(data)
+        except OSError as exc:
+            if isinstance(exc, _LectureInterrompue):
+                raise
+            raise _LectureInterrompue(str(exc), octets_lus=len(data)) from exc
     finally:
-        os.close(descriptor)
+        try:
+            os.close(descriptor)
+        except OSError as exc:
+            raise _LectureInterrompue(str(exc), octets_lus=len(data)) from exc
 
 
 def scanner_depot(
@@ -1021,19 +1044,24 @@ def scanner_depot(
     stored: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
     total = 0
+    bytes_examined = 0
     for path, relative in selected[:max_files]:
-        limite = min(max_bytes, max_total_bytes - total)
+        remaining = max_total_bytes - bytes_examined
+        limite = min(max_bytes, max(0, remaining - 1))
         if limite <= 0:
             skipped.append({"path": path, "reason": "limite de taille totale du scan"})
             continue
         try:
             data = _lire_fichier_borne(top, relative, limite)
-        except _LimiteScanAtteinte:
+        except _LimiteScanAtteinte as exc:
+            bytes_examined += min(remaining, max(0, exc.octets_lus))
             skipped.append({"path": path, "reason": "limite de taille du fichier ou du scan total"})
             continue
-        except (OSError, ValueError):
+        except (OSError, ValueError) as exc:
+            bytes_examined += min(remaining, max(0, getattr(exc, "octets_lus", 0)))
             skipped.append({"path": path, "reason": "absent, hors dépôt, symbolique ou non régulier"})
             continue
+        bytes_examined += len(data)
         if b"\x00" in data:
             skipped.append({"path": path, "reason": "fichier binaire ou limite de taille"})
             continue
@@ -1105,6 +1133,7 @@ def scanner_depot(
         "commit": commit,
         "count": len(stored),
         "bytes": total,
+        "bytes_examined": bytes_examined,
         "sources": stored,
         "skipped": skipped,
         "reason": None if stored else "aucune source texte autorisée dans le dépôt",

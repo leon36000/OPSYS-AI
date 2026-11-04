@@ -632,3 +632,132 @@ def test_un_depot_inaccessible_est_un_refus_pas_une_ingestion_vide(base_dev, tmp
     with contexte.appele_par_appareil(ADMIN), pytest.raises(ValueError, match="dépôt Git"):
         ing.ingerer(tmp_path / "pas-un-depot", horodatage=H1)
     assert Path(tmp_path).exists()
+
+
+# Régressions budget d'octets M10-03 sur le dépôt et la base déjà fournis par ces fixtures.
+def test_ingestion_budget_sentinelle_sur_croissance_reelle(base_dev, depot, monkeypatch):
+    top, suivis = ing._depot(depot)
+    ordre = verite.charger()
+    candidats = [chemin for chemin in suivis if ordre.classement(chemin) is not None]
+    sources = {(top / chemin).stat().st_ino for chemin in candidats}
+    original_fstat, original_read = os.fstat, os.read
+    lus: list[int] = []
+
+    def stat_avant_croissance(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino in sources:
+            fields = list(metadata)
+            fields[6] = 1
+            return os.stat_result(fields)
+        return metadata
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if original_fstat(fd).st_ino in sources:
+            lus.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_avant_croissance)
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    with contexte.appele_par_appareil(ADMIN):
+        ing.ingerer(depot, horodatage=H1, max_octets=10)
+    assert sum(lus) <= 10
+
+
+def test_ingestion_budget_debite_avant_erreur_io(base_dev, depot, monkeypatch):
+    top, suivis = ing._depot(depot)
+    ordre = verite.charger()
+    candidats = [chemin for chemin in suivis if ordre.classement(chemin) is not None]
+    sources = {(top / chemin).stat().st_ino for chemin in candidats}
+    premiere = min(candidats, key=lambda path: ordre.classement(path)[0])
+    inode_premier = (top / premiere).stat().st_ino
+    original_fstat, original_read = os.fstat, os.read
+    premiere_lecture = False
+    lus: list[int] = []
+
+    def stat_avant_croissance(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino in sources:
+            fields = list(metadata)
+            fields[6] = 1
+            return os.stat_result(fields)
+        return metadata
+
+    def lire_puis_echouer(fd, size):
+        nonlocal premiere_lecture
+        inode = original_fstat(fd).st_ino
+        if inode == inode_premier:
+            if premiere_lecture:
+                raise OSError("erreur I/O fictive après lecture")
+            premiere_lecture = True
+            data = original_read(fd, min(size, 4))
+        else:
+            data = original_read(fd, size)
+        if inode in sources:
+            lus.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_avant_croissance)
+    monkeypatch.setattr(os, "read", lire_puis_echouer)
+    with contexte.appele_par_appareil(ADMIN):
+        ing.ingerer(depot, horodatage=H1, max_octets=10)
+    assert sum(lus) <= 10
+
+
+def test_ingestion_arrete_les_lectures_budget_epuise(base_dev, depot, monkeypatch):
+    top, suivis = ing._depot(depot)
+    ordre = verite.charger()
+    candidats = [chemin for chemin in suivis if ordre.classement(chemin) is not None]
+    sources = {(top / chemin).stat().st_ino for chemin in candidats}
+    original_fstat, original_read = os.fstat, os.read
+    lus: list[int] = []
+
+    def stat_zero(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino in sources:
+            fields = list(metadata)
+            fields[6] = 0
+            return os.stat_result(fields)
+        return metadata
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if original_fstat(fd).st_ino in sources:
+            lus.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_zero)
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    with contexte.appele_par_appareil(ADMIN):
+        ing.ingerer(depot, horodatage=H1, max_octets=1)
+    assert sum(lus) <= 1
+
+
+def test_ingestion_utf8_invalide_debite_avant_fichier_suivant(base_dev, depot, monkeypatch):
+    directives = depot / "docs/produit/DIRECTIVES-NATHAN.md"
+    adr1 = depot / "docs/decisions/ADR-0001-coeur.md"
+    adr2 = depot / "docs/decisions/ADR-0002-beta.md"
+    directives.write_bytes(b"\xffaaa")
+    adr1.write_bytes(b"bbbb")
+    adr2.write_bytes(b"cccc")
+    subprocess.run(["git", "-C", str(depot), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(depot), "commit", "-qm", "sources UTF-8 fictives"], check=True)
+    top, _ = ing._depot(depot)
+    sources = {
+        (top / path).stat().st_ino
+        for path in (directives.relative_to(top), adr1.relative_to(top), adr2.relative_to(top))
+    }
+    original_read = os.read
+    lus: list[int] = []
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if os.fstat(fd).st_ino in sources:
+            lus.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    with contexte.appele_par_appareil(ADMIN):
+        rapport = ing.ingerer(depot, horodatage=H1, max_fichiers=3, max_octets=10)
+    assert sum(lus) == 8
+    assert any(item["chemin"] == "docs/produit/DIRECTIVES-NATHAN.md" for item in rapport["ignores"])

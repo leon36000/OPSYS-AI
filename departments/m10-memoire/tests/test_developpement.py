@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from m10_memoire import developpement as memoire_dev
+from m10_memoire import impact_code
 
 from opsys import contexte, identite, stockage
 from opsys.console.memoire_ui import audit_contenu
@@ -1685,3 +1686,284 @@ stockage.liberer()
         assert packet["counts"]["candidates_omitted"] == 1
     with stockage.transaction():
         assert list(stockage.maillons("m10-memoire", "developpement")) == before
+
+
+# Régressions budget d'octets M10-11 : dépôt Git et données entièrement fictifs.
+def _repo_budget_octets(path: Path, files: dict[str, bytes]) -> Path:
+    path.mkdir()
+    for name, data in files.items():
+        destination = path / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+    for args in (
+        ["init", "-q"],
+        ["config", "user.email", "fixture@example.test"],
+        ["config", "user.name", "Fixture"],
+        ["add", "."],
+        ["commit", "-qm", "fixture fictive"],
+    ):
+        subprocess.run(["git", "-C", str(path), *args], check=True)
+    return path
+
+
+def _analyser_budget(repo: Path, targets: list[str]) -> dict:
+    return impact_code.analyser(
+        repo,
+        targets,
+        lire=memoire_dev._lire_fichier_borne,
+        chemin_interdit=memoire_dev._chemin_interdit,
+    )
+
+
+def test_budget_preflight_cible_signale_les_items_omis(tmp_path):
+    imports = "".join(f"import mod{i:02d}\n" for i in range(25))
+    symbols = "".join(f"def f{i:02d}(): pass\n" for i in range(12))
+    files = {"target.py": (imports + symbols).encode()}
+    files.update({f"mod{i:02d}.py": b"value = 1\n" for i in range(25)})
+    result = _analyser_budget(_repo_budget_octets(tmp_path / "repo", files), ["target.py"])
+    target = result["targets"][0]
+    assert target["symbols_omitted"] == 2
+    assert target["imports_omitted"] == 5
+    assert result["truncated"] is True
+    assert any("omis par les plafonds" in item for item in result["limitations"])
+
+
+def test_budget_preflight_compte_la_sentinelle_apres_croissance(tmp_path, monkeypatch):
+    repo = _repo_budget_octets(tmp_path / "repo", {"target.py": b"x" * 100, "next.py": b"y" * 100})
+    inodes = {(repo / name).stat().st_ino for name in ("target.py", "next.py")}
+    original_fstat, original_read = os.fstat, os.read
+    consumed: list[int] = []
+    monkeypatch.setattr(impact_code, "MAX_OCTETS_TOTAL", 10)
+    monkeypatch.setattr(impact_code, "MAX_OCTETS_FICHIER", 10)
+
+    def stat_avant_croissance(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino in inodes:
+            fields = list(metadata)
+            fields[6] = 1
+            return os.stat_result(fields)
+        return metadata
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if original_fstat(fd).st_ino in inodes:
+            consumed.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_avant_croissance)
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    result = _analyser_budget(repo, ["target.py"])
+    assert sum(consumed) <= 10
+    assert result["counts"]["bytes_examined"] <= 10
+    assert result["counts"]["bytes_examined"] == 10
+    assert result["counts"]["files_omitted"] == 1
+    assert not any(item["path"] == "next.py" for item in result["errors"])
+
+
+def test_budget_preflight_debite_les_octets_avant_erreur_io(tmp_path, monkeypatch):
+    repo = _repo_budget_octets(tmp_path / "repo", {"target.py": b"x" * 100_000, "next.py": b"y = 1\n"})
+    inode = (repo / "target.py").stat().st_ino
+    original_fstat, original_read = os.fstat, os.read
+    consumed: list[int] = []
+    failed = False
+    monkeypatch.setattr(impact_code, "MAX_OCTETS_TOTAL", 100_000)
+    monkeypatch.setattr(impact_code, "MAX_OCTETS_FICHIER", 100_000)
+
+    def stat_avant_croissance(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino == inode:
+            fields = list(metadata)
+            fields[6] = 1
+            return os.stat_result(fields)
+        return metadata
+
+    def erreur_apres_bloc(fd, size):
+        nonlocal failed
+        if original_fstat(fd).st_ino == inode:
+            if failed:
+                raise OSError("erreur I/O fictive après un bloc")
+            failed = True
+        data = original_read(fd, size)
+        if original_fstat(fd).st_ino == inode:
+            consumed.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_avant_croissance)
+    monkeypatch.setattr(os, "read", erreur_apres_bloc)
+    result = _analyser_budget(repo, ["target.py"])
+    assert consumed == [64_000]
+    assert result["counts"]["bytes_examined"] == 64_006
+    assert any(item["path"] == "target.py" for item in result["errors"])
+
+
+def test_scanner_debite_les_binaires_et_preserve_bytes(tmp_path, base_dev, monkeypatch):
+    repo = _repo_budget_octets(
+        tmp_path / "repo",
+        {f"{name}.txt": b"\x00" + bytes([ord(name)]) * 8 for name in "abc"},
+    )
+    inodes = {(repo / f"{name}.txt").stat().st_ino for name in "abc"}
+    original_read = os.read
+    reads: list[int] = []
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if os.fstat(fd).st_ino in inodes:
+            reads.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    with contexte.appele_par_appareil(ADMIN):
+        result = memoire_dev.scanner_depot(
+            repo, max_files=10, max_bytes=10, max_total_bytes=20, horodatage=HORODATAGE
+        )
+    assert sum(reads) <= 20
+    assert result["bytes_examined"] == 18
+    assert result["bytes"] == 0
+    assert len([size for size in reads if size]) == 2
+
+
+def test_scanner_debite_les_octets_avant_erreur_io(tmp_path, base_dev, monkeypatch):
+    repo = _repo_budget_octets(tmp_path / "repo", {"a.txt": b"a" * 10, "b.txt": b"b" * 8})
+    inode_a = (repo / "a.txt").stat().st_ino
+    watched = {inode_a, (repo / "b.txt").stat().st_ino}
+    original_read = os.read
+    calls_a = 0
+    consumed: list[int] = []
+
+    def lire_puis_echouer(fd, size):
+        nonlocal calls_a
+        inode = os.fstat(fd).st_ino
+        if inode == inode_a:
+            calls_a += 1
+            if calls_a == 2:
+                raise OSError("erreur I/O fictive après lecture")
+        data = original_read(fd, size)
+        if inode in watched:
+            consumed.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "read", lire_puis_echouer)
+    with contexte.appele_par_appareil(ADMIN):
+        result = memoire_dev.scanner_depot(
+            repo, max_files=10, max_bytes=19, max_total_bytes=20, horodatage=HORODATAGE
+        )
+    assert sum(consumed) == 18
+    assert result["bytes_examined"] == 18
+    assert result["bytes"] == 8
+    assert result["count"] == 1 and result["sources"][0]["path"] == "b.txt"
+
+
+def test_scanner_reserve_sentinelle_et_sarrete_apres_croissance(tmp_path, base_dev, monkeypatch):
+    repo = _repo_budget_octets(tmp_path / "repo", {"a.txt": b"x" * 21, "b.txt": b""})
+    inodes = {(repo / name).stat().st_ino for name in ("a.txt", "b.txt")}
+    original_fstat, original_read = os.fstat, os.read
+    reads: list[int] = []
+
+    def stat_avant_croissance(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino in inodes:
+            fields = list(metadata)
+            fields[6] = 1
+            return os.stat_result(fields)
+        return metadata
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if original_fstat(fd).st_ino in inodes:
+            reads.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_avant_croissance)
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    with contexte.appele_par_appareil(ADMIN):
+        result = memoire_dev.scanner_depot(
+            repo, max_files=10, max_bytes=20, max_total_bytes=20, horodatage=HORODATAGE
+        )
+    assert sum(reads) == 20
+    assert result["bytes_examined"] == 20
+    assert [size for size in reads if size] == [20]
+    assert result["count"] == 0
+    assert result["skipped"][0]["path"] == "a.txt"
+    assert result["skipped"][1] == {"path": "b.txt", "reason": "limite de taille totale du scan"}
+
+
+def test_scanner_lit_la_sentinelle_apres_un_bloc_exact_a_la_limite(tmp_path, base_dev, monkeypatch):
+    repo = _repo_budget_octets(tmp_path / "repo", {"grow.txt": b"g" * 64_001})
+    inode = (repo / "grow.txt").stat().st_ino
+    original_fstat, original_read = os.fstat, os.read
+    reads: list[int] = []
+
+    def stat_avant_croissance(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino == inode:
+            fields = list(metadata)
+            fields[6] = 1
+            return os.stat_result(fields)
+        return metadata
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if original_fstat(fd).st_ino == inode:
+            reads.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_avant_croissance)
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    with contexte.appele_par_appareil(ADMIN):
+        result = memoire_dev.scanner_depot(
+            repo,
+            max_files=10,
+            max_bytes=64_000,
+            max_total_bytes=100_000,
+            horodatage=HORODATAGE,
+        )
+    assert reads == [64_000, 1]
+    assert result["bytes_examined"] == 64_001
+    assert result["count"] == 0
+    assert result["skipped"][0]["path"] == "grow.txt"
+
+
+def test_scanner_compte_utf8_invalide_dans_les_octets_budgetes(tmp_path, base_dev):
+    repo = _repo_budget_octets(
+        tmp_path / "repo", {"a.txt": b"\xff" + b"a" * 8, "b.txt": b"b" * 9, "c.txt": b"c" * 9}
+    )
+    with contexte.appele_par_appareil(ADMIN):
+        result = memoire_dev.scanner_depot(
+            repo, max_files=10, max_bytes=9, max_total_bytes=20, horodatage=HORODATAGE
+        )
+    assert result["bytes_examined"] == 18
+    assert result["bytes"] == 18
+    assert result["count"] == 1 and result["sources"][0]["path"] == "b.txt"
+    assert result["skipped"][0] == {"path": "a.txt", "reason": "encodage non textuel"}
+    assert result["skipped"][-1]["path"] == "c.txt"
+
+
+def test_scanner_ne_lit_pas_apres_epuisement_du_budget(tmp_path, base_dev, monkeypatch):
+    repo = _repo_budget_octets(tmp_path / "repo", {f"{name}.txt": b"x" * 20 for name in "abc"})
+    inodes = {(repo / f"{name}.txt").stat().st_ino for name in "abc"}
+    original_fstat, original_read = os.fstat, os.read
+    reads: list[int] = []
+
+    def stat_zero(fd):
+        metadata = original_fstat(fd)
+        if metadata.st_ino in inodes:
+            fields = list(metadata)
+            fields[6] = 0
+            return os.stat_result(fields)
+        return metadata
+
+    def lire_et_compter(fd, size):
+        data = original_read(fd, size)
+        if original_fstat(fd).st_ino in inodes:
+            reads.append(len(data))
+        return data
+
+    monkeypatch.setattr(os, "fstat", stat_zero)
+    monkeypatch.setattr(os, "read", lire_et_compter)
+    with contexte.appele_par_appareil(ADMIN):
+        result = memoire_dev.scanner_depot(
+            repo, max_files=10, max_bytes=10, max_total_bytes=1, horodatage=HORODATAGE
+        )
+    assert sum(reads) == 0
+    assert result["bytes_examined"] == 0
+    assert len(result["skipped"]) == 3

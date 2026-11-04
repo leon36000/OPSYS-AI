@@ -186,11 +186,17 @@ def analyser(
             continue
         try:
             files_examined += 1
-            data = lire(top, Path(raw), min(MAX_OCTETS_FICHIER, remaining))
+            # Le lecteur peut consommer un octet sentinelle pour détecter une croissance
+            # post-stat. Réserver cette place garantit que la lecture réelle reste sous le total.
+            limite_lecture = min(MAX_OCTETS_FICHIER, max(0, remaining - 1))
+            data = lire(top, Path(raw), limite_lecture)
             total += len(data)
             file_hashes[raw] = hashlib.sha256(data).hexdigest()
             text = data.decode("utf-8")
-        except (OSError, ValueError, UnicodeError):
+        except (OSError, ValueError, UnicodeError) as exc:
+            # Les lecteurs locaux précisent les octets déjà consommés avant l'échec.
+            # Ne pas débiter une réservation conservatrice comme des octets effectivement lus.
+            total += min(remaining, max(0, getattr(exc, "octets_lus", 0)))
             errors.append({"path": raw, "reason": "illisible ou hors limite"})
             continue
         if raw.endswith(".yaml"):
@@ -404,9 +410,15 @@ def analyser(
     ]
     if dynamic:
         limitations.append("imports dynamiques détectés")
+    target_symbols_omitted = sum(item.get("symbols_omitted", 0) for item in target_records)
+    target_imports_omitted = sum(item.get("imports_omitted", 0) for item in target_records)
+    if target_symbols_omitted or target_imports_omitted:
+        limitations.append("symboles ou imports de cible omis par les plafonds; consulter les compteurs par cible")
     truncated = bool(
         omitted_files
         or errors
+        or target_symbols_omitted
+        or target_imports_omitted
         or impact_omitted
         or routes_omitted
         or (len(ambiguous_imports) > MAX_ITEMS)
@@ -472,6 +484,8 @@ def analyser(
             "manifest_gaps": len(manifest_gaps),
             "manifest_gaps_omitted": max(0, len(manifest_gaps) - MAX_ITEMS),
             "unmapped_paths": unmapped_paths,
+            "target_symbols_omitted": target_symbols_omitted,
+            "target_imports_omitted": target_imports_omitted,
         },
         "truncated": truncated,
         "limitations": limitations,
