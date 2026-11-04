@@ -700,3 +700,19 @@ def test_la_file_des_achats_terrain_ignore_les_non_maillons_et_les_non_attentes(
         attentes = [a for a in outils_mod.attentes() if a["type"] == "achat_terrain_a_approuver"]
 
     assert [a["id"] for a in attentes] == ["achat_terrain:recu-vrai-fictif"]
+
+
+def test_une_chaine_retouchee_avec_un_nan_est_invalide_sans_exception():
+    # Trouvé à l'intégration par le survivant `allow_nan=False -> True` : un maillon retouché portant NaN faisait
+    # lever ValueError à `verifier_chaine` au lieu de la déclarer invalide.
+    from m6_material_control import seuils_variance as sv
+
+    maillon = {
+        "type_entree": sv.TYPE_ENTREE, "version": 1, "apres": {"x": float("nan")}, "avant": None, "auteur": "a",
+        "role": "admin", "motif": "m", "horodatage": "2026-11-03T10:00:00-05:00", "approbation_id": "x",
+        "precedent": None, "empreinte": "0" * 64,
+    }
+    assert sv.verifier_chaine([maillon]) is False
+    assert sv._empreinte({"x": 1}) == sv._empreinte({"x": 1})
+    with __import__("pytest").raises(ValueError):
+        sv._empreinte({"x": float("nan")})

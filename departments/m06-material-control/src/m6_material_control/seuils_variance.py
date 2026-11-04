@@ -291,7 +291,12 @@ def verifier_chaine(registre: Iterable[Mapping[str, Any]]) -> bool:
             return False
         if maillon["avant"] != (None if version_attendue == 1 else precedent_apres):
             return False
-        if maillon["empreinte"] != _empreinte(maillon):
+        try:
+            recalculee = _empreinte(maillon)
+        except (TypeError, ValueError, OverflowError):
+            # Un maillon retouché (NaN, objet non sérialisable) rend la chaîne invalide : jamais une exception.
+            return False
+        if maillon["empreinte"] != recalculee:
             return False
         precedent_apres = maillon["apres"]
         precedent = maillon["empreinte"]
