@@ -543,7 +543,10 @@ def test_le_drapeau_de_minimum_est_faux_quand_aucun_minimum_n_est_declare_ou_qua
     version, journal = _version_avec(minimum="155")
     resultat, verdict = _estimer(version, ce.GOUTTIERES, ce.mesures_gouttieres(journal))
     assert verdict is None and resultat["quantite"]["retenue"] == "155"
-    assert resultat["recu"]["quantite"]["minimum_applique"] is False  # égalité : pas « appliqué »
+    # La retenue égale le minimum, mais la borne BASSE est inférieure : elle a été relevée, le drapeau le dit
+    # (relecture adverse : l'ancien drapeau ne regardait que la retenue). L'égalité sur toutes les bornes : voir
+    # test_estimateurs_relecture.py.
+    assert resultat["recu"]["quantite"]["minimum_applique"] is True
     assert estimateurs_service.verifier_recu(resultat["recu"]) == (True, None)
 
 

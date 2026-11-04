@@ -395,7 +395,7 @@ def estimer(
         quantite_basse, quantite_retenue, quantite_haute = brut_basse, brut_retenue, brut_haute
         minimum_applique = False
         if minimum_declare is not None:
-            minimum_applique = quantite_retenue < minimum_declare
+            minimum_applique = min(quantite_basse, quantite_retenue, quantite_haute) < minimum_declare
             quantite_basse = max(quantite_basse, minimum_declare)
             quantite_retenue = max(quantite_retenue, minimum_declare)
             quantite_haute = max(quantite_haute, minimum_declare)
@@ -508,7 +508,11 @@ def estimer(
     except (KeyError, TypeError, ValueError, InvalidOperation, ArithmeticError):
         return None, verdicts.construire_verdict(
             "REJ-ESTIMATEUR-INVALIDE",
-            detail="les entrées déclarées ne permettent pas un calcul : une valeur est absente ou mal formée",
+            detail=(
+                "les entrées déclarées ne permettent pas un calcul exact : une valeur est absente, mal formée ou "
+                "hors de la capacité de calcul (magnitude trop grande). À faire : vérifier les valeurs fournies, "
+                "réduire leur magnitude ou découper l'estimation"
+            ),
         )
 
 
@@ -568,7 +572,7 @@ def verifier_recu(recu: Any) -> tuple[bool, dict | None]:
             minimum_declare = _decimal(minimum, "minimum_declare")
             if minimum_declare <= 0:
                 return _refus("quantite.minimum_declare doit être strictement positif")
-            minimum_applique = brut_retenue < minimum_declare
+            minimum_applique = min(brut_basse, brut_retenue, brut_haute) < minimum_declare
             brut_basse = max(brut_basse, minimum_declare)
             brut_retenue = max(brut_retenue, minimum_declare)
             brut_haute = max(brut_haute, minimum_declare)
@@ -617,5 +621,5 @@ def verifier_recu(recu: Any) -> tuple[bool, dict | None]:
         if _empreinte(recu) != recu["empreinte"]:
             return _refus("l'empreinte du reçu ne correspond pas à son contenu (un champ a été modifié)")
         return True, None
-    except (KeyError, TypeError, ValueError, InvalidOperation, ArithmeticError):
+    except (AttributeError, KeyError, TypeError, ValueError, InvalidOperation, ArithmeticError):
         return _refus("le reçu est mal formé : une valeur absente ou non décimale empêche le recalcul")

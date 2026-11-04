@@ -152,6 +152,11 @@ chantier suivant ; il toucherait le contrat gelé et la charge du registre.
 
 ## 7. Limites
 
+Relecture adverse par un autre modèle (corrigé : verdict d'une capacité de calcul dépassée qui dit quoi réduire, drapeau `minimum_applique` fidèle aux trois bornes, `verifier_recu` qui rend un verdict sur un reçu aux blocs non dictionnaires). Limites assumées, NON corrigées :
+- **Prix calculé depuis le coût probable déjà arrondi au cent** (`prix = coût probable arrondi × (1 + taux)`) : sur des cas étroits, l'écart avec « tout calculer exact puis arrondir une fois » est de 1 cent (exemple prouvé : 10,005 × 1,333333 donne 13,35 ici, 13,34 en un seul arrondi). La convention est celle du reçu lisible (le client voit coût et prix cohérents) ; la règle d'arrondi à retenir est à confirmer par la direction et un comptable (CPA).
+- **`verifier_recu` ne prouve que la cohérence interne d'un reçu isolé** : un faussaire qui recalcule l'empreinte peut effacer le prix, changer le statut/motifs de revue ou permuter `lead_id`/`service`/`bareme_ref`, car ces champs ne sont confrontés à rien (ni barème, ni registre). L'authenticité vient des registres chaînés, pas de ce vérificateur.
+
+
 1. **Aucune valeur réelle** : les coefficients, minimums et temps minimums de l'entreprise ne sont pas dans le dépôt.
    Sans déclaration, l'outil refuse et dit quoi déclarer (voulu).
 2. **Pas d'écran de saisie** : les estimateurs se déclarent par `m3_declarer_bareme` (appareil admin) ou, plus tard, par
