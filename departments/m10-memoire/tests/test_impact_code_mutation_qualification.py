@@ -202,7 +202,8 @@ def test_files_examined_compte_les_lectures_reelles_sous_budget_global(tmp_path,
     files = {f"src/module_{index:03}.py": "x" for index in range(500)}
     files["src/target.py"] = "x"
     repo = _repo(tmp_path / "repo", files)
-    monkeypatch.setattr(impact_code, "MAX_OCTETS_TOTAL", 1)
+    # Un octet pour le contenu et un octet réservé à la détection de croissance.
+    monkeypatch.setattr(impact_code, "MAX_OCTETS_TOTAL", 2)
     lus = []
 
     def lire(repository, relative, limite):
@@ -220,3 +221,21 @@ def test_files_examined_compte_les_lectures_reelles_sous_budget_global(tmp_path,
     assert result["counts"]["files_examined"] == 1
     assert result["counts"]["files_selected"] == 500
     assert result["counts"]["files_omitted"] == 500
+
+
+def test_budget_d_un_octet_signale_les_fichiers_omis_sans_lecture(tmp_path, monkeypatch):
+    repo = _repo(tmp_path / "repo", {"src/target.py": "x", "src/other.py": "y"})
+    monkeypatch.setattr(impact_code, "MAX_OCTETS_TOTAL", 1)
+    lus = []
+
+    def lire(repository, relative, limite):
+        lus.append(relative.as_posix())
+        return developpement._lire_fichier_borne(repository, relative, limite)
+
+    result = impact_code.analyser(repo, ["src/target.py"], lire=lire,
+                                   chemin_interdit=developpement._chemin_interdit)
+
+    assert lus == []
+    assert result["counts"]["files_examined"] == 0
+    assert result["counts"]["files_omitted"] == 2
+    assert result["truncated"] is True

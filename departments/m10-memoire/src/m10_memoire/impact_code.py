@@ -181,7 +181,8 @@ def analyser(
     unmapped_paths = 0
     for raw in candidates:
         remaining = MAX_OCTETS_TOTAL - total
-        if remaining <= 0:
+        # Un octet restant ne suffit pas à lire du contenu tout en réservant la sentinelle.
+        if remaining <= 1:
             omitted_files += 1
             continue
         try:
