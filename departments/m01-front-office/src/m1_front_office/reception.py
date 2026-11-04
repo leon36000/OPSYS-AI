@@ -66,6 +66,7 @@ _HEURE_DE_PLATEFORME = re.compile(
     r" (?P<zone>[A-Z]{3,4}|(?:GMT|UTC)[+-]\d{1,2}(?::\d{2})?)$"
 )
 _ZONES_NOMMEES = {"UTC": 0, "GMT": 0, "EST": -300, "EDT": -240}  # minutes ; Québec : EST l'hiver, EDT l'été
+_JOURS_ANGLOPHONES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 
 @dataclass(frozen=True)
@@ -168,8 +169,15 @@ def heure_de_reception(recu_le: str) -> str:
         minutes = _ZONES_NOMMEES[zone]
     elif zone[:3] in ("GMT", "UTC") and len(zone) > 3:
         signe = -1 if zone[3] == "-" else 1
-        heures, _, reste = zone[4:].partition(":")
-        minutes = signe * (int(heures) * 60 + int(reste or 0))
+        heures_txt, separateur, reste = zone[4:].partition(":")
+        heures = int(heures_txt)
+        minutes_txt = reste if separateur else "0"
+        minutes_zone = int(minutes_txt)
+        if heures >= 24 or minutes_zone >= 60:
+            raise ValueError(
+                f"REJ-HORODATAGE-INVALIDE: fuseau {zone!r} hors plage (heures 0–23, minutes 0–59)"
+            )
+        minutes = signe * (heures * 60 + minutes_zone)
     else:
         raise ValueError(
             f"REJ-HORODATAGE-INVALIDE: fuseau {zone!r} non reconnu ; donne l'heure en ISO-8601 avec fuseau "
@@ -182,7 +190,7 @@ def heure_de_reception(recu_le: str) -> str:
         )
     except (ValueError, OverflowError):
         raise ValueError(f"REJ-HORODATAGE-INVALIDE: {brut!r} n'est pas une date valide") from None
-    if trouve["jour"] and instant.strftime("%a") != trouve["jour"]:
+    if trouve["jour"] and _JOURS_ANGLOPHONES[instant.weekday()] != trouve["jour"]:
         raise ValueError(
             f"REJ-HORODATAGE-INVALIDE: {trouve['jour']} ne correspond pas au {trouve['date']} : "
             "recopie le champ timestamp tel quel"
