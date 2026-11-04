@@ -28,6 +28,7 @@ from . import (
     comptes_a_payer,
     dossier_cpa,
     operations_registre,
+    verdicts_grand_livre,
     verdicts_operations,
 )
 from . import outils as _o
@@ -108,7 +109,27 @@ def preparer_dossier_cpa(debut: str, fin: str, date_reference: str, horodatage: 
         "factures": registre_factures.tete(),
         "comptes_a_payer": registre_ap.tete(),
     }
-    controle = controle_taxes_bornes(ctx, debut, fin) if debut <= fin else None
+    controle = None
+    if debut <= fin:
+        try:
+            controle, refus = controle_taxes_bornes(ctx, debut, fin)
+        except comptes_a_payer.RegistreComptesIncoherent:
+            return refuse(
+                verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+                )
+            )
+        if refus is not None:
+            return refuse(refus)
+    factures_clients = list(_factures_clients_par_id().values())
+    try:
+        factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(registre_ap)
+    except comptes_a_payer.RegistreComptesIncoherent:
+        return refuse(
+            verdicts_grand_livre.construire_verdict(
+                "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+            )
+        )
     resultat, refus = dossier_cpa.construire_dossier(
         debut=debut,
         fin=fin,
@@ -116,8 +137,8 @@ def preparer_dossier_cpa(debut: str, fin: str, date_reference: str, horodatage: 
         etat_gl=ctx["etat_gl"],
         plan=ctx["plan"],
         etat_ops=ctx["etat_ops"],
-        factures_clients=list(_factures_clients_par_id().values()),
-        factures_fournisseurs=comptes_a_payer.etats_toutes_les_factures(registre_ap),
+        factures_clients=factures_clients,
+        factures_fournisseurs=factures_fournisseurs,
         controle_taxes=controle,
         resume_base_fiscale=None if refus_base is not None else base_fiscale.resume_base(base),
         tetes=tetes,

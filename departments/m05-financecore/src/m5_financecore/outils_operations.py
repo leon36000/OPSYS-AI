@@ -42,6 +42,7 @@ from . import (
     operations_registre,
     plan_comptable,
     validation,
+    verdicts_grand_livre,
     verdicts_operations,
 )
 from . import outils as _o
@@ -629,40 +630,72 @@ def ouvrir_periode_comptable(periode: str, horodatage: str) -> dict[str, Any]:
     return accepte({**resultat, "recu": _recu_ecriture(ctx["ops"])})
 
 
-def controle_taxes_bornes(ctx: Mapping[str, Any], debut: str, fin: str) -> dict[str, Any] | None:
-    """Le rapprochement TPS/TVQ du grand livre sur `debut`..`fin`, notes de crédit et dépenses d'employés comprises, ou
-    `None` s'il n'a pas pu être fait (taux illisibles, dates invalides)."""
+def controle_taxes_bornes(
+    ctx: Mapping[str, Any], debut: str, fin: str
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    """Retourne `(rapprochement, refus)` pour les notes de crédit et dépenses d'employés sur `debut`..`fin`.
+
+    Le taux ou la date indisponible garde le résultat à `None`; une incohérence Ops ou AP retourne un refus nommé.
+    """
     dictionnaire, refus = _o._dictionnaire_taux()
     if refus is not None:
-        return None
+        return None, None
+    factures_clients = _o._factures_emises()
+    try:
+        factures_fournisseurs_vivantes = _o._factures_fournisseurs_vivantes()
+    except comptes_a_payer.RegistreComptesIncoherent:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+        )
+    autres_pieces, refus = _o._autres_pieces_taxees_verifiees(
+        ctx.get("ops"), etat_ops=ctx.get("etat_ops")
+    )
+    if refus is not None:
+        return None, refus
     resultat, refus = grand_livre.rapprocher(
         ctx["etat_gl"],
         ctx["plan"],
-        _o._factures_emises(),
+        factures_clients,
         dictionnaire,
         debut=debut,
         fin=fin,
         limite_ecarts=3,
-        factures_fournisseurs=_o._factures_fournisseurs_vivantes(),
-        autres_pieces_taxees=_o._autres_pieces_taxees(),
+        factures_fournisseurs=factures_fournisseurs_vivantes,
+        autres_pieces_taxees=autres_pieces or [],
     )
-    return None if refus is not None else resultat
+    return (None if refus is not None else resultat), None
 
 
-def _controle_taxes(ctx: Mapping[str, Any], periode: str) -> dict[str, Any] | None:
+def _controle_taxes(
+    ctx: Mapping[str, Any], periode: str
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
     fin = grand_livre.fin_de_periode(periode)
-    return None if fin is None else controle_taxes_bornes(ctx, fin.replace(day=1).isoformat(), fin.isoformat())
+    return (None, None) if fin is None else controle_taxes_bornes(
+        ctx, fin.replace(day=1).isoformat(), fin.isoformat()
+    )
 
 
 def _precloture_impl(ctx: Mapping[str, Any], periode: Any, horodatage: Any) -> tuple[dict | None, dict | None]:
+    factures_clients = list(_factures_clients_par_id().values())
+    try:
+        factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(_o._registre_comptes_a_payer())
+    except comptes_a_payer.RegistreComptesIncoherent:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+        )
+    controle_taxes = None
+    if isinstance(periode, str):
+        controle_taxes, refus = _controle_taxes(ctx, periode)
+        if refus is not None:
+            return None, refus
     return operations_periodes.preclore_periode(
         ctx["ops"],
         ctx["etat_ops"],
         ctx["etat_gl"],
         periode=periode,
-        factures_clients=list(_factures_clients_par_id().values()),
-        factures_fournisseurs=comptes_a_payer.etats_toutes_les_factures(_o._registre_comptes_a_payer()),
-        controle_taxes=_controle_taxes(ctx, periode) if isinstance(periode, str) else None,
+        factures_clients=factures_clients,
+        factures_fournisseurs=factures_fournisseurs,
+        controle_taxes=controle_taxes,
         horodatage=horodatage,
     )
 

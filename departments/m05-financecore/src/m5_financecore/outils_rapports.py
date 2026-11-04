@@ -725,6 +725,8 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
     depenses: list[dict[str, Any]] = []
     notes: list[str] = []
     pieces_liees: list[list[str]] = []
+    pieces_taxees_ops: list[dict[str, Any]] | None = None
+    refus_pieces_taxees_ops: dict[str, str] | None = None
     if ops_chaine:
         etat_ops = operations_registre.etat_operations(registre_ops.lire())
         if etat_ops["anomalies"]:
@@ -735,6 +737,9 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
             depenses.append({"id": d["depense_id"], "date": d["date_depense"], "montant": d["montant_avant_taxes"]})
         notes = [n["note_id"] for n in etat_ops["par_type"]["op_note_credit_proposee"].values()]
         pieces_liees = [[p["cible_type"], p["cible_id"]] for p in etat_ops["par_type"]["op_piece_liee"].values()]
+        pieces_taxees_ops, refus_pieces_taxees_ops = _o._autres_pieces_taxees_verifiees(
+            registre_ops, etat_ops=etat_ops
+        )
     vivantes = [f for f in ap_etats if f["statut"] in ("SAISIE", "CORRIGEE")]
     emises = [f for f in clients_bruts if f["statut"] in ("ENVOYEE", "PAYEE")]
     # Les écritures qu'une facture ATTENDRAIT, recalculées depuis la pièce courante (la comparaison de
@@ -758,7 +763,11 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
         for i in ignorees_fournisseurs
     ]
     taxes: dict[str, Any] = {"disponible": False, "raison": "grand livre non lisible", "ecarts": [], "illisibles": 0}
-    if gl_utilisable:
+    if not ops_chaine:
+        taxes["raison"] = "registre des opérations illisible"
+    elif refus_pieces_taxees_ops is not None:
+        taxes["raison"] = f"pièces Ops illisibles ({refus_pieces_taxees_ops['code']})"
+    elif gl_utilisable:
         dictionnaire, refus_taux = _o._dictionnaire_taux()
         if refus_taux is not None:
             taxes["raison"] = f"taux fiscaux illisibles ({refus_taux['code']})"
@@ -778,7 +787,7 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
                 fin=aujourd_hui.isoformat(),
                 limite_ecarts=100000,
                 factures_fournisseurs=vivantes,
-                autres_pieces_taxees=_o._autres_pieces_taxees(),
+                autres_pieces_taxees=pieces_taxees_ops or [],
             )
             if refus_gl is not None:
                 taxes["raison"] = refus_gl["detail"]

@@ -7187,12 +7187,57 @@ def _autres_pieces_taxees(
     return pieces
 
 
+def _autres_pieces_taxees_verifiees(
+    registre_ops: registre_module.Registre | None = None,
+    *,
+    etat_ops: Mapping[str, Any] | None = None,
+) -> tuple[list[dict[str, Any]] | None, dict[str, str] | None]:
+    """Projette les pièces fiscales Ops après validation, depuis le même état relu une seule fois."""
+    registre_ops = _registre_operations() if registre_ops is None else registre_ops
+    if registre_ops is None or registre_ops.taille() == 0:
+        return [], None
+    etat_ops = operations_registre.etat_operations(registre_ops.lire()) if etat_ops is None else etat_ops
+    refus = operations_registre.refus_anomalies(etat_ops)
+    if refus is not None:
+        return None, refus
+    refus = _verifier_pieces_taxees_operations(etat_ops)
+    if refus is not None:
+        return None, refus
+    return _autres_pieces_taxees(registre_ops, etat_ops=etat_ops), None
+
+
 def _plan_comptable_effectif() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Le plan de base versionné, étendu par `configuration.grand_livre` du manifeste (relu à chaque appel)."""
     plan, refus = plan_comptable.charger_plan(_CHEMIN_PLAN_COMPTABLE)
     if refus is not None:
         return None, refus
-    return plan_comptable.appliquer_extension(plan, _configuration_manifeste().get("grand_livre"))
+    try:
+        configuration = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        # Le manifeste reste optionnel : sans fichier, le plan de base s'applique.
+        extension = None
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-PLAN-INVALIDE", detail=f"manifeste comptable illisible : {type(exc).__name__}"
+        )
+    else:
+        if not isinstance(configuration, dict):
+            return None, verdicts_grand_livre.construire_verdict(
+                "REJ-GL-PLAN-INVALIDE", detail="la racine du manifeste doit être un mapping"
+            )
+        if "configuration" not in configuration:
+            extension = None
+        else:
+            declaration = configuration["configuration"]
+            if declaration is None:
+                extension = None
+            elif not isinstance(declaration, dict):
+                return None, verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-PLAN-INVALIDE", detail="configuration du manifeste doit être un mapping"
+                )
+            else:
+                extension = declaration.get("grand_livre")
+    return plan_comptable.appliquer_extension(plan, extension)
 
 
 def _contexte_grand_livre(

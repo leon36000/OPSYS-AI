@@ -12,21 +12,31 @@ import contextlib
 import dataclasses
 import json
 import os
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
 import m5_financecore.outils as m5_outils
 import pytest
 import yaml
-from m5_financecore import analyse, facturation, grand_livre, taux_fiscaux
+from m5_financecore import (
+    analyse,
+    comptes_a_payer,
+    facturation,
+    grand_livre,
+    operations_registre,
+    outils_operations,
+    taux_fiscaux,
+)
 from m5_financecore import registre as registre_module
-from sqlalchemy import func, select
+from sqlalchemy import func, insert, select, update
 
 from opsys import approbations as opsys_approbations
 from opsys import contexte, evenements, identite, stockage
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, Niveau, executer_atomique
+from opsys.stockage.codec import decoder, encoder
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 
 FICTIF = True
@@ -1274,6 +1284,106 @@ def _dossier_args(**changes):
     return {"debut": "2026-10-01", "fin": "2026-10-31", "date_reference": "2026-11-02", "horodatage": H, **changes}
 
 
+def _injecter_ap_orpheline(url):
+    reg = registre_module.Registre()
+    reg.ajouter({
+        "type_entree": "annulation_facture_fournisseur",
+        "modification_id": "apm-fictif000000000000",
+        "facture_fournisseur_id": "apf-inexistante000000",
+        "motif": "motif fictif",
+        "annule_par": "nathan",
+        "role": "nathan_owner",
+        "voie": "approbation",
+        "avant": {},
+        "horodatage": H,
+    })
+    assert reg.valider_chaine() == (True, "")
+    with stockage.transaction(url) as cnx:
+        cnx.execute(insert(REGISTRES).values(
+            departement=DEPARTEMENT,
+            registre="comptes_a_payer",
+            rang=0,
+            maillon=encoder(reg.lire()[0]),
+        ))
+
+
+def test_dossier_cpa_refuse_ap_orpheline_sans_ecriture(base_durable, par_nom, declare, tmp_path):
+    _injecter_ap_orpheline(base_durable)
+    refus = _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
+    assert refus["ok"] is True, refus
+    assert refus["resultat"]["accepte"] is False, refus
+    assert refus["resultat"]["verdict"]["code"] == "REJ-GL-SOURCE-ILLISIBLE"
+    assert not list((tmp_path / "home" / "exports" / "dossier-cpa").glob("**/*"))
+
+
+def test_dossier_cpa_projection_clients_precede_ap_et_runtime_error_reste_visible(
+    base_durable, par_nom, declare, monkeypatch
+):
+    from m5_financecore import outils_dossier
+
+    appels = []
+
+    def erreur_clients():
+        appels.append("clients")
+        raise RuntimeError("erreur projection clients")
+
+    def erreur_ap(*_args, **_kwargs):
+        appels.append("ap")
+        raise comptes_a_payer.RegistreComptesIncoherent("AP fictive")
+
+    monkeypatch.setattr(outils_dossier, "_factures_clients_par_id", erreur_clients)
+    monkeypatch.setattr(comptes_a_payer, "etats_toutes_les_factures", erreur_ap)
+    with pytest.raises(RuntimeError, match="erreur projection clients"):
+        _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
+    assert appels == ["clients"]
+
+    def erreur_programmation(*_args, **_kwargs):
+        raise RuntimeError("erreur AP inattendue")
+
+    monkeypatch.setattr(outils_dossier, "_factures_clients_par_id", lambda: {})
+    monkeypatch.setattr(comptes_a_payer, "etats_toutes_les_factures", erreur_programmation)
+    with pytest.raises(RuntimeError, match="erreur AP inattendue"):
+        _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
+
+
+def test_precloture_ap_orpheline_recoit_refus_source_illisible(base_durable, par_nom, declare):
+    _injecter_ap_orpheline(base_durable)
+    reponse = _appeler(par_nom, "m5_precloturer_periode_comptable", {
+        "periode": "2026-10",
+        "horodatage": H,
+    })
+    assert reponse["ok"] is True, reponse
+    assert reponse["resultat"]["accepte"] is False, reponse
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-GL-SOURCE-ILLISIBLE"
+
+
+def test_precloture_ne_convertit_pas_un_runtime_error_arbitraire(base_durable, par_nom, declare, monkeypatch):
+    def erreur_inattendue(*_args, **_kwargs):
+        raise RuntimeError("erreur AP inattendue")
+
+    monkeypatch.setattr(comptes_a_payer, "etats_toutes_les_factures", erreur_inattendue)
+    with pytest.raises(RuntimeError, match="erreur AP inattendue"):
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+
+
+def test_precloture_projette_clients_avant_ap(base_durable, par_nom, declare, monkeypatch):
+    appels = []
+
+    def erreur_clients():
+        appels.append("clients")
+        raise RuntimeError("erreur projection clients")
+
+    def erreur_ap(*_args, **_kwargs):
+        appels.append("ap")
+        raise comptes_a_payer.RegistreComptesIncoherent("AP fictive")
+
+    monkeypatch.setattr(outils_operations, "_factures_clients_par_id", erreur_clients)
+    monkeypatch.setattr(comptes_a_payer, "etats_toutes_les_factures", erreur_ap)
+    with pytest.raises(RuntimeError, match="erreur projection clients"):
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    assert appels == ["clients"]
+
+
 def test_dossier_cpa_scelle_ecrit_dans_un_dossier_confine_verifiable_et_idempotent(
     dep, par_nom, declare, depot, tmp_path
 ):
@@ -1500,3 +1610,197 @@ def test_une_charge_hors_catalogue_est_refusee_par_le_bus_sans_rien_publier(par_
                 },
             )
     assert _publies("m5.creance_relance_preparee") == []
+
+
+def _injecter_operation_taxes_nulles(url):
+    source = registre_module.Registre()
+    etat = operations_registre.etat_operations([])
+    _, refus = operations_registre.ajouter_operation(
+        source,
+        etat,
+        "op_depense_employe_proposee",
+        "c2-fictif-taxes-nulles",
+        {
+            "employe_id": "employe-fictif",
+            "reference": "recu-fictif-c2",
+            "date_depense": "2026-10-15",
+            "categorie": "carburant",
+            "description": "dépense fictive C2",
+            "montant_avant_taxes": "5.00",
+            "taxable": True,
+            "taxes": {"tps_cti": "0.25", "tvq_rti": "0.50"},
+            "total_taxes": "0.75",
+            "montant_apres_taxes": "5.75",
+            "compte_charge": "5600",
+            "compte_remboursement": "2200",
+            "ecriture_id": "gle-fictif-c2",
+        },
+        H,
+    )
+    assert refus is None, refus
+    maillon = source.lire()[0]
+    maillon["taxes"] = None
+    maillon["empreinte_contenu"] = operations_registre._empreinte_contenu(
+        "op_depense_employe_proposee", operations_registre._corps(maillon)
+    )
+    registre_reecrit = registre_module.Registre()
+    entree = {k: v for k, v in maillon.items() if k not in {"ligne_id", "precedent_ligne_id"}}
+    registre_reecrit.ajouter(entree)
+    assert registre_reecrit.valider_chaine() == (True, "")
+    assert not operations_registre.etat_operations(registre_reecrit.lire())["anomalies"]
+    with stockage.transaction(url) as cnx:
+        cnx.execute(insert(REGISTRES).values(
+            departement=DEPARTEMENT,
+            registre="operations_comptables",
+            rang=0,
+            maillon=encoder(registre_reecrit.lire()[0]),
+        ))
+
+
+def _alterer_operation_sans_reecrire_les_hashes(url):
+    where = (
+        (REGISTRES.c.departement == DEPARTEMENT)
+        & (REGISTRES.c.registre == "operations_comptables")
+        & (REGISTRES.c.rang == 0)
+    )
+    with stockage.transaction(url) as cnx:
+        encoded = cnx.execute(select(REGISTRES.c.maillon).where(where)).scalar_one()
+        maillon = decoder(encoded)
+        maillon["taxes"] = {"tps_cti": "99999.00"}
+        cnx.execute(update(REGISTRES).where(where).values(maillon=encoder(maillon)))
+    return maillon
+
+
+def test_c2_precloture_refuse_et_preaudit_marque_taxes_indisponibles(base_durable, par_nom, declare):
+    normal = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert normal["ok"] is True and normal["resultat"]["accepte"] is True, normal
+    _injecter_operation_taxes_nulles(base_durable)
+    preaudit = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert preaudit["ok"] is True and preaudit["resultat"]["accepte"] is True, preaudit
+    rapport = preaudit["resultat"]["resultat"]
+    taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
+    assert "illisibles" in " ".join(taxe["manque"])
+    assert rapport["par_regle"]["TAXE_INCOHERENTE"] is None
+    assert not any(c["regle"] == "TAXE_INCOHERENTE" for c in rapport["constats"])
+
+    precloture = _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    assert precloture["ok"] is True, precloture
+    assert precloture["resultat"]["accepte"] is False, precloture
+    assert precloture["resultat"]["verdict"]["code"] == "REJ-OPS-CHAINE-INVALIDE"
+
+
+def test_preaudit_ops_a_hash_invalide_ne_reutilise_pas_la_piece(base_durable, par_nom, declare):
+    _injecter_operation_taxes_nulles(base_durable)
+    maillon = _alterer_operation_sans_reecrire_les_hashes(base_durable)
+    registre_invalide = registre_module.Registre(maillons=[maillon])
+    assert registre_invalide.valider_chaine()[0] is False
+
+    reponse = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    rapport = reponse["resultat"]["resultat"]
+    taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
+    assert "registre des opérations illisible" in " ".join(taxe["manque"])
+    assert rapport["par_regle"]["TAXE_INCOHERENTE"] is None
+    assert rapport["par_regle"]["DEPENSE_SANS_RECU"] == 0
+    assert not any(c["regle"] == "DEPENSE_SANS_RECU" for c in rapport["constats"])
+    assert not any(c["regle"] == "TAXE_INCOHERENTE" for c in rapport["constats"])
+    assert "99999.00" not in json.dumps(reponse, ensure_ascii=False)
+
+
+def test_precloture_refuse_ap_incoherente_lors_de_la_seconde_projection(base_durable, par_nom, declare, monkeypatch):
+    appels = []
+    projection_ap = comptes_a_payer.etats_toutes_les_factures
+    projection_clients = m5_outils._factures_emises
+
+    def projection_ap_initiale(registre):
+        appels.append("precloture")
+        return projection_ap(registre)
+
+    def projection_ap_incoherente():
+        appels.append("controle_taxes")
+        raise comptes_a_payer.RegistreComptesIncoherent("AP fictive devenue incohérente")
+
+    def projection_clients_taxes():
+        appels.append("clients_taxes")
+        return projection_clients()
+
+    monkeypatch.setattr(grand_livre, "fin_de_periode", lambda _periode: date(2026, 10, 31))
+    monkeypatch.setattr(comptes_a_payer, "etats_toutes_les_factures", projection_ap_initiale)
+    monkeypatch.setattr(m5_outils, "_factures_emises", projection_clients_taxes)
+    monkeypatch.setattr(m5_outils, "_factures_fournisseurs_vivantes", projection_ap_incoherente)
+    resultat = _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    assert appels == ["precloture", "clients_taxes", "controle_taxes"]
+    assert resultat["ok"] is True, resultat
+    assert resultat["resultat"]["accepte"] is False, resultat
+    assert resultat["resultat"]["verdict"]["code"] == "REJ-GL-SOURCE-ILLISIBLE"
+
+
+def test_precloture_ne_masque_pas_runtime_error_dans_seconde_projection(base_durable, par_nom, declare, monkeypatch):
+    def erreur_inattendue():
+        raise RuntimeError("erreur AP inattendue")
+
+    monkeypatch.setattr(grand_livre, "fin_de_periode", lambda _periode: date(2026, 10, 31))
+    monkeypatch.setattr(m5_outils, "_factures_fournisseurs_vivantes", erreur_inattendue)
+    with pytest.raises(RuntimeError, match="erreur AP inattendue"):
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+
+
+def test_controle_taxes_preserve_ordre_clients_ap_ops_du_rapprochement_public(
+    base_durable, par_nom, declare, monkeypatch
+):
+    ordre = []
+
+    def factures_clients_precloture():
+        ordre.append("clients_precloture")
+        return {}
+
+    def factures_ap_precloture(_registre):
+        ordre.append("ap_precloture")
+        return []
+
+    def factures_clients_taxes():
+        ordre.append("clients_taxes")
+        return []
+
+    def factures_ap_taxes():
+        ordre.append("ap_taxes")
+        return []
+
+    def taux_taxes():
+        ordre.append("taux")
+        return {}, None
+
+    def pieces_ops_taxes(*_args, **_kwargs):
+        ordre.append("ops_taxes")
+        return [], None
+
+    def rapprochement(*_args, **_kwargs):
+        ordre.append("rapprochement")
+        return {}, None
+
+    def sentinel(*_args, **_kwargs):
+        ordre.append("precloture")
+        raise RuntimeError("fin de test ordonné")
+
+    monkeypatch.setattr(grand_livre, "fin_de_periode", lambda _periode: date(2026, 10, 31))
+    monkeypatch.setattr(outils_operations, "_factures_clients_par_id", factures_clients_precloture)
+    monkeypatch.setattr(comptes_a_payer, "etats_toutes_les_factures", factures_ap_precloture)
+    monkeypatch.setattr(m5_outils, "_dictionnaire_taux", taux_taxes)
+    monkeypatch.setattr(m5_outils, "_factures_emises", factures_clients_taxes)
+    monkeypatch.setattr(m5_outils, "_factures_fournisseurs_vivantes", factures_ap_taxes)
+    monkeypatch.setattr(m5_outils, "_autres_pieces_taxees_verifiees", pieces_ops_taxes)
+    monkeypatch.setattr(grand_livre, "rapprocher", rapprochement)
+    monkeypatch.setattr(outils_operations.operations_periodes, "preclore_periode", sentinel)
+
+    with pytest.raises(RuntimeError, match="fin de test ordonné"):
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    assert ordre == [
+        "clients_precloture",
+        "ap_precloture",
+        "taux",
+        "clients_taxes",
+        "ap_taxes",
+        "ops_taxes",
+        "rapprochement",
+        "precloture",
+    ]

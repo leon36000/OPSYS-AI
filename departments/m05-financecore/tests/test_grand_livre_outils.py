@@ -447,3 +447,60 @@ def test_une_balance_large_tient_sous_la_limite_de_sortie_par_pages(par_nom, dec
             == "REJ-GL-LIMITE-INVALIDE"
         assert m5_outils.lire_balance_verification("2026-10-31", depart=-1)["verdict"]["code"] \
             == "REJ-GL-LIMITE-INVALIDE"
+
+
+def test_manifeste_yaml_invalide_ne_reactive_pas_un_compte_desactive(par_nom, tmp_path, monkeypatch):
+    manifeste = tmp_path / "department.yaml"
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    saisie = {"date_effet": "2026-10-03", "libelle": "Écriture fictive", "piece_type": "manuelle",
+              "piece_reference": "M-C3", "horodatage": H,
+              "lignes": [{"compte": "5600", "debit": "10.00", "credit": None},
+                         {"compte": "1010", "debit": None, "credit": "10.00"}]}
+
+    # Le manifeste est optionnel : son absence conserve le plan de base.
+    assert _accepte(_appeler(par_nom, "m5_proposer_ecriture_comptable", saisie))["ecriture"]
+
+    # Un manifeste présent mais illisible ne doit pas faire disparaître l'extension restrictive.
+    manifeste.write_text("configuration: [\n", encoding="utf-8")
+    assert _code(_appeler(par_nom, "m5_proposer_ecriture_comptable", {**saisie, "piece_reference": "M-C3-YAML"})) == (
+        "REJ-GL-PLAN-INVALIDE"
+    )
+
+    # La configuration valide continue d'interdire explicitement le compte 5600.
+    manifeste.write_text(yaml.safe_dump({"configuration": {"grand_livre": {
+        "comptes_desactives": ["5600"]}}}), encoding="utf-8")
+    assert _code(_appeler(par_nom, "m5_proposer_ecriture_comptable", {**saisie, "piece_reference": "M-C3-VALID"})) == (
+        "REJ-GL-COMPTE-INACTIF"
+    )
+
+
+@pytest.mark.parametrize("contenu", [
+    "- configuration\n- grand_livre\n",  # racine explicite non-mapping
+    "configuration: []\n",                # configuration explicite non-mapping
+    "configuration: {grand_livre: [5600]}\n",  # extension explicite mal typée
+])
+def test_manifeste_comptable_de_forme_invalide_refuse_sans_reactiver_compte(par_nom, tmp_path, monkeypatch,
+                                                                            contenu):
+    manifeste = tmp_path / "department.yaml"
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    saisie = {"date_effet": "2026-10-03", "libelle": "Écriture fictive", "piece_type": "manuelle",
+              "piece_reference": "M-C3-SHAPE", "horodatage": H,
+              "lignes": [{"compte": "5600", "debit": "10.00", "credit": None},
+                         {"compte": "1010", "debit": None, "credit": "10.00"}]}
+    manifeste.write_text(contenu, encoding="utf-8")
+    resultat = _appeler(par_nom, "m5_proposer_ecriture_comptable", saisie)
+    assert _code(resultat) == "REJ-GL-PLAN-INVALIDE"
+    assert _maillons("grand_livre") == 0
+
+
+@pytest.mark.parametrize("contenu", ["nom: M5 fictif\n", "configuration:\n  # aucune extension déclarée\n"])
+def test_configuration_comptable_omise_dans_un_manifeste_mapping_garde_le_plan_base(par_nom, tmp_path,
+                                                                                     monkeypatch, contenu):
+    manifeste = tmp_path / "department.yaml"
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    manifeste.write_text(contenu, encoding="utf-8")
+    saisie = {"date_effet": "2026-10-03", "libelle": "Écriture fictive", "piece_type": "manuelle",
+              "piece_reference": "M-C3-OMIS", "horodatage": H,
+              "lignes": [{"compte": "5600", "debit": "10.00", "credit": None},
+                         {"compte": "1010", "debit": None, "credit": "10.00"}]}
+    assert _accepte(_appeler(par_nom, "m5_proposer_ecriture_comptable", saisie))["ecriture"]
