@@ -244,7 +244,9 @@ def test_la_fiche_du_lead_porte_la_regle_citee_le_client_360_de_ses_opportunites
     # Le même contact chez deux vendeurs : un doublon probable est en attente d'arbitrage (geste de l'admin). La règle
     # est citée, et le texte ne nomme aucun lead de l'autre vendeur.
     doublon = suggerer("lead-a-1")
-    assert doublon["regle"] == "doublon_en_attente" and doublon["suggestion"].startswith("Arbitrer le doublon")
+    assert doublon["regle"] == "doublon_en_attente" and doublon["suggestion"].startswith(
+        "Demander à un administrateur d'arbitrer le doublon "
+    )
     assert "lead-b" not in json.dumps(doublon) and "vendeur.b" not in json.dumps(doublon)
 
     lien = _lire(a, "m2_trouver_client_de_lead", {"lead_id": "lead-a-1"}).resultat
