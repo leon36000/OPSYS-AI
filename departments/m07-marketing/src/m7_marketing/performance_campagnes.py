@@ -246,6 +246,15 @@ def enregistrer_fait(type_evenement: str, charge: dict[str, Any]) -> dict[str, A
     requises = cle + (("evenement_id", "wct_id") if type_evenement == "m5.rentabilite_chantier" else ())
     if any(c.get(k) in (None, "") for k in requises):
         raise ValueError(f"CLE_METIER_ABSENTE:{type_evenement}")
+    # Valider exactement la forme que le lecteur durable acceptera avant de toucher au registre.
+    # Le bus valide la charge publiée, mais les consommateurs peuvent aussi être appelés en interne ou rejoués depuis
+    # une publication historique : aucune écriture ne doit empoisonner la lecture entière de M7.
+    try:
+        texte_fait = json.dumps(fait, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("PERFORMANCE_FAIT_INVALIDE") from exc
+    fait = _decoder_fait(texte_fait)
+    c = fait["charge"]
     faits = stockage.maillons(*REGISTRE)
     identity = tuple(c[k] for k in cle)
     comparable = json.dumps(fait, sort_keys=True, separators=(",", ":"), ensure_ascii=False)

@@ -209,3 +209,91 @@ def test_alteration_de_forme_valide_n_est_pas_authentifiee_par_empreinte(base):
     second = _lecture()["observation_source"]
     assert premier["empreinte_lecture_sha256"] != second["empreinte_lecture_sha256"]
     assert premier["integrite"] == second["integrite"] == "historique_non_scelle"
+
+
+@pytest.mark.parametrize(
+    ("type_evenement", "charge"),
+    [
+        ("m2.client_associe", {"lead_id": "lead-fictif"}),
+        ("m3.devis_accepte", {"devis_id": "devis-fictif"}),
+        ("m5.rentabilite_chantier", {
+            "evenement_id": "evt-fictif", "devis_id": "devis-fictif", "wct_id": "wct-fictif", "sequence": 1,
+        }),
+    ],
+)
+def test_enregistrer_refuse_les_faits_que_le_lecteur_refuserait_avant_ecriture(base, type_evenement, charge):
+    before = list(stockage.maillons(*performance.REGISTRE))
+    with pytest.raises(ValueError, match="PERFORMANCE_FAIT_INVALIDE"):
+        performance.enregistrer_fait(type_evenement, charge)
+    assert list(stockage.maillons(*performance.REGISTRE)) == before == []
+
+
+def test_rejeu_du_handler_m7_malforme_est_refuse_sans_ecriture(base):
+    from m7_marketing import outils
+
+    recevoir = outils.consommateurs()["m3.devis_accepte"]
+    with pytest.raises(ValueError, match="PERFORMANCE_FAIT_INVALIDE"):
+        recevoir({"devis_id": "devis-rejeu-fictif"})
+    assert list(stockage.maillons(*performance.REGISTRE)) == []
+
+
+def test_cle_metier_absente_garde_son_code_historique(base):
+    with pytest.raises(ValueError, match="CLE_METIER_ABSENTE:m3.devis_accepte"):
+        performance.enregistrer_fait("m3.devis_accepte", {})
+    assert list(stockage.maillons(*performance.REGISTRE)) == []
+
+
+@pytest.mark.parametrize(
+    ("type_evenement", "charge"),
+    [
+        ("m2.client_associe", {
+            "lead_id": "lead-valide-fictif", "client_id": "client-hache-fictif",
+            "utm": {"utm_source": "source-fictive", "utm_campaign": "campagne-fictive"},
+            "horodatage_association": "2026-09-10T12:00:00Z",
+        }),
+        ("m3.devis_accepte", {
+            "devis_id": "devis-valide-fictif", "lead_id": "lead-valide-fictif",
+            "chantier_id": "chantier-valide-fictif", "lignes": [{
+                "reference_ligne": "devis-valide-fictif-L1", "description": "travail fictif",
+                "quantite": "1", "unite": "forfait", "prix_unitaire": "100.00", "prix_ligne": "100.00",
+                "reference_besoin_materiau": None,
+            }],
+            "cout_total": "80.00", "prix_total": "100.00", "taux_marge": "0.25",
+            "horodatage_acceptation": "2026-09-11T12:00:00Z",
+        }),
+        ("m5.rentabilite_chantier", {
+            "evenement_id": "evt-valide-fictif", "devis_id": "devis-valide-fictif",
+            "chantier_id": "chantier-valide-fictif", "wct_id": "wct-valide-fictif", "sequence": 1,
+            "version_entrees": "a" * 64, "horodatage_completion": "2026-09-12T12:00:00Z",
+            "verdict": "CALCULEE", "devise": "CAD", "prix_definitif": True, "cout_reel_complet": True,
+            "cout_reel_cad": "800.00", "cout_connu_cad": "800.00", "marge_reelle_cad": "200.00", "manque": [],
+            "marge_prevue_cad": "250.00", "ecart_marge_cad": "-50.00",
+        }),
+    ],
+)
+def test_faits_valides_des_trois_producteurs_restent_idempotents(base, type_evenement, charge):
+    from opsys.evenements.schemas import erreurs_charge
+
+    assert erreurs_charge(type_evenement, charge) == []
+    premier = performance.enregistrer_fait(type_evenement, charge)
+    second = performance.enregistrer_fait(type_evenement, charge)
+    faits = stockage.maillons(*performance.REGISTRE)
+    assert premier == {"accepte": True, "deja_present": False}
+    assert second == {"accepte": True, "deja_present": True}
+    assert len(faits) == 1
+    assert performance._decoder_fait(json.dumps(faits[0], ensure_ascii=False)) == faits[0]
+
+
+def test_conflit_m5_valide_garde_son_code_historique(base):
+    charge = {
+        "evenement_id": "evt-premier-fictif", "devis_id": "devis-fictif", "chantier_id": "chantier-fictif",
+        "wct_id": "wct-fictif", "sequence": 1, "version_entrees": "b" * 64,
+        "horodatage_completion": "2026-09-12T12:00:00Z", "verdict": "CALCULEE", "devise": "CAD",
+        "cout_reel_complet": True, "cout_reel_cad": "800.00", "cout_connu_cad": "800.00",
+        "marge_reelle_cad": "200.00", "manque": [],
+    }
+    performance.enregistrer_fait("m5.rentabilite_chantier", charge)
+    conflit = {**charge, "evenement_id": "evt-second-fictif", "marge_reelle_cad": "201.00"}
+    with pytest.raises(ValueError, match="CONFLIT_RENTABILITE_M5"):
+        performance.enregistrer_fait("m5.rentabilite_chantier", conflit)
+    assert len(list(stockage.maillons(*performance.REGISTRE))) == 1
