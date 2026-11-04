@@ -28,6 +28,7 @@ Règles dures (DEFINITION-PRODUIT.md §7 M6, « Règles dures », et M6.12 l.515
 from decimal import Decimal
 
 from . import contrats_sortie, validation
+from . import seuils_variance as seuils_module
 
 # Types de ligne (contrats.TYPES_LIGNE_MATERIAUX_UTILISES) qui augmentent la quantité
 # réellement sortie pour un matériau. "retour" est le seul type qui la diminue (matériel
@@ -255,6 +256,35 @@ def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> 
     }
 
 
+def _construire_signal_si_critique_c7(
+    chantier_id, verdicts, config, valeurs_unitaires
+) -> dict | None:
+    """Signal C7 : le seuil applicable par matériau (matériau > catégorie > global), plus les deux planchers
+    déclarés. Le détail `seuils_appliques` sert à l'admin et aux tests ; l'événement `m6.variance_chantier` ne le
+    publie pas (schéma fermé inchangé) et n'utilise que l'appartenance `materiaux_en_ecart_critique`."""
+    valeurs = valeurs_unitaires if isinstance(valeurs_unitaires, dict) else {}
+    details, critiques = [], []
+    for verdict in verdicts:
+        resultat = seuils_module.critique(verdict, config, valeurs.get(verdict["materiau_id"]))
+        details.append({"materiau_id": verdict["materiau_id"], **resultat})
+        if resultat["critique"]:
+            critiques.append(verdict)
+    if not critiques:
+        return None
+    return {
+        "chantier_id": chantier_id,
+        "seuil_pourcentage": float(config["global_pourcentage"]),
+        "ecart_maximal_pourcentage": max(verdict["ecart_pourcentage"] for verdict in critiques),
+        "materiaux_en_ecart_critique": sorted(verdict["materiau_id"] for verdict in critiques),
+        "verdicts_materiaux": verdicts,
+        "seuils_appliques": details,
+        "planchers": {
+            "quantite": float(config["plancher_quantite"]),
+            "dollars": float(config["plancher_dollars"]),
+        },
+    }
+
+
 def evaluer(
     chantier_id,
     besoins_estimes,
@@ -263,6 +293,8 @@ def evaluer(
     *,
     registre=None,
     wct_id=None,
+    seuils=None,
+    valeurs_unitaires=None,
 ) -> tuple[dict | None, str | None]:
     """Orchestrateur PLAN T1.1-d/d2 (points 2 et 3) : valide puis compare. Aucune
     écriture — m6_evaluer_variance_chantier (outils.py) est T0, lecture/calcul pur.
@@ -296,7 +328,15 @@ def evaluer(
     else:
         return None, "REJ-VARIANCE-CHANTIER-SOURCE-MANQUANTE"
 
-    signal = _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage)
+    if seuils is not None:
+        try:
+            config = seuils_module.valider_config(
+                {cle: seuils[cle] for cle in seuils_module.CHAMPS_CONFIG if cle in seuils})
+        except seuils_module.SeuilsRefuses:
+            return None, "REJ-SEUILS-STRUCTURE"
+        signal = _construire_signal_si_critique_c7(chantier_id, verdicts, config, valeurs_unitaires)
+    else:
+        signal = _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage)
 
     return contrats_sortie.construire_resultat_variance_chantier(verdicts, signal), None
 

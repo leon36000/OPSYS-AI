@@ -26,6 +26,7 @@ from typing import Any
 
 REGISTRE = "rapprochements_facture_recus"
 TYPE_ENTREE = "rapprochement_facture_recu"
+TYPE_ATTENTE_A_FACTURER = "po_a_facturer"
 _CLES_UNICITE = (
     "facture_fournisseur_id",
     "po_id",
@@ -73,6 +74,39 @@ def derniers_etats(maillons: Iterable[Mapping[str, Any]]) -> dict[str, Mapping[s
         if actuel is None or cle >= actuel[0]:
             derniers[m["facture_fournisseur_id"]] = (cle, m)
     return {facture: m for facture, (_, m) in derniers.items()}
+
+
+def propositions_facturation(
+    maillons: Iterable[Mapping[str, Any]], pos: Iterable[Mapping[str, Any]]
+) -> list[dict[str, Any]]:
+    """C4 : un rapprochement M5 CONCORDANT sur un PO REÇU propose `invoiced` à une personne (N3).
+
+    M6 ne facture pas seul : le PO reste `received` jusqu'à ce qu'un humain applique
+    `m6_changer_statut_po` avec un motif. Un PO partiel, déjà facturé/fermé/contesté, inconnu, ou un verdict autre
+    que CONCORDANT ne propose rien. Une seule proposition par PO, même si plusieurs factures concordantes le visent.
+    Lecture seule, aucun montant dans le texte (l'attente est une décision, pas une pièce comptable)."""
+    par_po = {po.get("po_id"): po for po in pos if isinstance(po, Mapping)}
+    propositions, vus = [], set()
+    for facture, etat in sorted(derniers_etats(maillons).items()):
+        if etat.get("verdict") != "CONCORDANT":
+            continue
+        po_id = etat.get("po_id")
+        po = par_po.get(po_id)
+        if po is None or po.get("statut") != "received" or po_id in vus:
+            continue
+        vus.add(po_id)
+        propositions.append({
+            "type": TYPE_ATTENTE_A_FACTURER,
+            "id": po_id,
+            "resume": (
+                f"Rapprochement M5 concordant pour le PO {po_id} (facture {facture}) : le PO est reçu. "
+                "Le passer à « facturé » (invoiced) ? M6 ne facture pas seul."
+            ),
+            "niveau": "N3",
+            "depuis": etat.get("date_reference", ""),
+            "action_proposee": "m6_changer_statut_po (statut_cible=invoiced), avec un motif",
+        })
+    return propositions
 
 
 def attentes(maillons: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:

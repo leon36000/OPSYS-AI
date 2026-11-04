@@ -104,6 +104,7 @@ from . import (
     reglages_ui,
     ressources,
     securite,
+    seuils_materiaux_ui,
     strategie_suivis_ui,
     voicemail_ui,
     wallboards_ressources,
@@ -524,6 +525,12 @@ def creer_application(
     # administration seulement.
     app.include_router(commandes_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+    ))
+    # Seuils matériaux (C7) : le seuil global, les seuils par catégorie/matériau et les deux planchers de variance,
+    # édités par un administrateur avec un audit chaîné ; administration seulement.
+    app.include_router(seuils_materiaux_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire,
     ))
     # Ingestion d'onboarding (onboarding_ui) : suivi des lots en lecture, administration seulement.
     app.include_router(onboarding_ui.creer_router(
