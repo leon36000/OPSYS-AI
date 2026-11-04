@@ -6,7 +6,7 @@ Statut au 1er octobre 2026 : **PARTIEL — consolidation requise**. Les opérati
 rapports préparatoires sont raccordés, mais le périmètre CFO complet n'est pas livré. Le comptage
 historique au commit `2e56c0d` (17 outils) et le constat initial DEP-001 ne décrivent plus l'arbre
 courant : DEP-001 est corrigé localement, avec régression en mémoire et sur stockage durable
-(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**111 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
+(`test_facturation.py`, `test_registre_durable.py`). M5 exposait alors 26 outils (**113 au 1er novembre 2026**, d'après `opsys-metier departements` ; les listes ci-dessous sont des jalons datés) ; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
 `opsys-metier verifier` confirme les nombres de départements, outils et portées d'appareil dans sa preuve de cette tranche. Voir le [périmètre cible](../../docs/produit/PERIMETRE-MODULES.md), la
 [recherche actuelle](../../docs/research/R16-2026-09-30/recherche-m5.md) et le
 [bilan intégré](../../docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md).
@@ -513,6 +513,29 @@ Une donnée que seule la direction connaît (budget, comptes de coûts directs, 
 et dit quoi déclarer : jamais zéro. Aucune clôture de période, aucune écriture, aucun envoi, aucun PDF, aucune valeur fiscale inventée.
 Architecture, règles, preuves, mutations et limites : [M5-RAPPORTS-PREAUDIT](../../docs/architecture/M5-RAPPORTS-PREAUDIT.md).
 Aucun CPA n'a validé ces états. À valider auprès d'un comptable (CPA) / professionnel qualifié.
+
+## Prévision longue 6 / 12 / 24 mois (M5-PREV-2)
+
+`m5_prevoir_tresorerie_longue` (T0, portée d'appareil fermée) projette le solde mensuel sur **6, 12 ou 24 mois complets
+après le mois courant**, à partir de trois sources réelles : le **carnet de contrats** daté (échéanciers explicitement
+saisis et revus), le **budget déclaré** (`m5_etablir_budget`, N3) et la **moyenne du grand livre** (écritures définitives
+seulement) sur les `mois_historique` mois complets qui précèdent. Priorité par mois, pour éviter le double compte :
+échéance contractuelle, sinon budget, sinon moyenne ; un budget de produits ignoré sous une échéance est **compté**. Un
+zéro déclaré reste un zéro connu, jamais un repli sur l'historique ; une échéance échue n'est pas comptée ; un flux hors
+horizon est exclu et dit ; un mois historique sans écriture définitive fait refuser.
+
+Les **hypothèses** — croissance mensuelle des revenus et des charges, douze coefficients de saisonnalité, délais
+d'encaissement et de paiement — et les **noms des scénarios** sont DÉCLARÉS par la direction dans
+`configuration.prevision_longue` ; l'outil ne les reçoit jamais en argument et n'en suppose aucun. Absents ou illisibles :
+`REJ-PREVISION-LONGUE-A-DECLARER` et le détail de ce qu'il faut écrire. Sans `scenario`, la réponse est le résumé de tous
+les scénarios ; avec, la série mensuelle paginée. Chaque calcul rend un reçu `recu-calcul.v1` ; `recu_complet` rend le
+reçu complet rejouable par `m5_rejouer_prevision_longue` (la projection normale porte un reçu compact sous le budget).
+
+Aucune migration, aucun événement, aucune table : uniquement des lectures. Ni taxes, ni paies, ni dettes, ni impôts, ni
+subventions, ni pipeline commercial : cette projection ne remplace ni `m5_prevoir_tresorerie` (flux connus et datés à 13
+semaines) ni le cash libre. Prouvé sur SQLite avec les vrais registres et le vrai sas, données fictives ; jamais sur
+PostgreSQL, jamais avec des données réelles. Architecture, formule, refus et limites : [M5-PREVISION-LONGUE](../../docs/architecture/M5-PREVISION-LONGUE.md).
+À valider auprès d'un comptable (CPA) / professionnel qualifié.
 
 ## Leçons de M10 consommées : la marge prévue (M10-06, 2026-11-03)
 

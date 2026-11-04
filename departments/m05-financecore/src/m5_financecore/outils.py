@@ -6325,12 +6325,13 @@ def _outils_vague3() -> tuple[Outil, ...]:
         outils_dossier,
         outils_facturation,
         outils_operations,
+        outils_prevision_longue,
         outils_rapports,
     )
 
     return (outils_operations.outils_operations() + outils_bancaire.outils_bancaire() + outils_dossier.outils_dossier()
             + outils_conseillers.outils_conseillers() + outils_facturation.outils_facturation()
-            + outils_rapports.outils_rapports())
+            + outils_rapports.outils_rapports() + outils_prevision_longue.outils_prevision_longue())
 
 
 # DEVICE préparatoire, hors registre des mouvements et hors consommateurs YAML.

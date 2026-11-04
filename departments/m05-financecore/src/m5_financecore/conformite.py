@@ -879,6 +879,10 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "constat_preaudit": None,
     "verdicts_rapports": None,
     "outils_rapports": None,
+    # Prévision longue (M5-PREV-2) : deux modules PURS de calcul ; l'adaptateur lit le registre des mouvements pour le
+    # solde (jamais ne l'écrit) et se place donc en LECTURE SEULE plus bas.
+    "prevision_longue": None,
+    "verdicts_prevision_longue": None,
     "outils": (
         "_lire_export_qbo",
         "_exports_qbo",
@@ -964,6 +968,8 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
 _SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
     "soldes": None,
     "etat_financier": None,
+    # Prévision longue : lit le solde, le grand livre, le budget et les échéanciers ; ne nomme aucune écriture.
+    "outils_prevision_longue": None,
     # Moteur de calcul : le Monte-Carlo ouvre le registre des mouvements pour le solde de la prévision existante,
     # comme `prevoir_tresorerie` ; ses aides sont en STRICT.
     "outils": (
