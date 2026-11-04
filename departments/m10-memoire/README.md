@@ -130,6 +130,12 @@ PLAN T4.18-b ajoute une forme d'affaire COMMUNE et deux blocs au paquet, sans to
    visibles selon l'agent et le nombre de devis : les plus anciens sont omis, et le plus ancien est son ORIGINE. Le cadrage (les deux
    blocs, les titres du core) ne compte pas dans le budget.
 
+Les tris chronologiques des paquets, des signaux et de la recherche d'affaire comparent les fractions de seconde
+et les décalages horaires avec leur précision textuelle, sans modifier l'horodatage retourné. Le registre ne limite
+pas la longueur des horodatages : le coût du tri dépend donc aussi de cette longueur. Si une future version de Python
+admet une nouvelle forme de date que le parseur de tri ne reconnaît pas, le chemin de secours conserve seulement les
+microsecondes fournies par Python.
+
 - `department.yaml` — manifeste (`m10_memoire.outils`, aucune dépendance — M10 est la fondation
   mémoire que M9 consomme).
 - `SOUL.md` — identité de l'agent.

@@ -565,6 +565,19 @@ def test_formes_iso_partagees_conservent_date_verbatim(monde, horodatage):
     assert _dto()["resultats"][0]["horodatage"] == horodatage
 
 
+def test_recherche_ordonnee_exactement_au_dela_de_la_precision_microseconde(monde):
+    e, _ = monde
+    ligne_ancienne = _wct(e, "WCT-OLD", date="2026-10-08T09:00:00.1234561+00:00")
+    ligne_recente = _wct(e, "WCT-NEW", date="2026-10-08T09:00:00.1234569+00:00")
+    # Les IDs sont des données fictives ; leur ordre force le départage stable erroné lorsque
+    # datetime.fromisoformat a tronqué les deux fractions à six chiffres.
+    assert ligne_ancienne < ligne_recente
+
+    resultats = _dto()["resultats"]
+
+    assert [r["identifiant"] for r in resultats] == ["WCT-NEW", "WCT-OLD"]
+
+
 @pytest.mark.parametrize("nom", ["_REGISTRE_EVENEMENTS", "_REGISTRE_AFFAIRES"])
 def test_erreur_copie_source_refuse_nominalement_sans_texte_brut(monde, monkeypatch, nom):
     class SourceIllisible:

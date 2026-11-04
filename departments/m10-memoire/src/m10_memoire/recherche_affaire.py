@@ -13,7 +13,18 @@ import unicodedata
 from datetime import date, datetime
 from typing import Any
 
-from . import affaire, amont, classification, confidentialite, contexte, etapes, paquets, registre, validation
+from . import (
+    affaire,
+    amont,
+    chronologie,
+    classification,
+    confidentialite,
+    contexte,
+    etapes,
+    paquets,
+    registre,
+    validation,
+)
 
 PLAFOND_LIGNES = 10000
 BORNE_CARACTERES = 5400
@@ -271,7 +282,7 @@ def rechercher(
             if any(needle in unicodedata.normalize("NFC", p[c]).casefold() for c in ("identifiant", "source", "resume"))
         ]
         matches.sort(key=lambda p: (p["genre"], p["reference"]["ligne_id"]))
-        matches.sort(key=lambda p: _instant(p["horodatage"]), reverse=True)
+        matches.sort(key=lambda p: chronologie.cle_instant(p["horodatage"]), reverse=True)
         total = len(matches)
         resultats = matches[decalage : decalage + limite]
         dto = {

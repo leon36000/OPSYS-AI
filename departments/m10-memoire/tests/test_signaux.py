@@ -499,6 +499,98 @@ def test_l_ordre_compare_des_instants_pas_du_texte(registres):
     assert ordre == ["EVT-A", "EVT-B"]
 
 
+def test_l_ordre_des_signaux_preserve_les_fractions_et_offsets_exactement(registres):
+    evenements, affaires = registres
+    wct.memoriser_wct(_wct(), evenements)
+    # Le signal le plus récent porte le séparateur X et est reçu en dernier; le tri doit suivre
+    # l'instant complet, pas le fallback à six chiffres ni la position d'écriture.
+    variance.memoriser_variance(
+        _variance("EVT-OLD", horodatage_completion="2026-09-15T09:00:00.1234561+00:00"), evenements
+    )
+    variance.memoriser_variance(
+        _variance("EVT-NEW", horodatage_completion="2026-09-15X10:00:00.1234569+01:00"), evenements
+    )
+
+    ordre = [s["signal_id"] for s in signaux.signaux_de_laffaire("LEAD-1", evenements.lire(), affaires.lire())]
+
+    assert ordre == ["EVT-NEW", "EVT-OLD"]
+
+
+def test_a_instant_egal_un_signal_reste_departage_par_sa_position(registres):
+    evenements, affaires = registres
+    wct.memoriser_wct(_wct(), evenements)
+    variance.memoriser_variance(
+        _variance("EVT-A", horodatage_completion="2026-09-15T09:00:00.100000Z"), evenements
+    )
+    variance.memoriser_variance(
+        _variance("EVT-B", horodatage_completion="2026-09-15T10:00:00.1+01:00"), evenements
+    )
+
+    ordre = [s["signal_id"] for s in signaux.signaux_de_laffaire("LEAD-1", evenements.lire(), affaires.lire())]
+
+    assert ordre == ["EVT-B", "EVT-A"]
+
+
+def test_un_offset_fractionnaire_apres_heure_abregee_n_est_pas_sa_fraction(registres):
+    evenements, affaires = registres
+    wct.memoriser_wct(_wct(), evenements)
+    # L'événement plus récent est d'abord inséré ; si `.1` de l'offset était lu comme fraction
+    # locale, les instants seraient à tort ex aequo et la position placerait EVT-OLD en tête.
+    variance.memoriser_variance(
+        _variance("EVT-NEW", horodatage_completion="2026-09-15T08:59:30Z"), evenements
+    )
+    variance.memoriser_variance(
+        _variance("EVT-OLD", horodatage_completion="2026-09-15T09:00+00:00:30.1"), evenements
+    )
+
+    ordre = [s["signal_id"] for s in signaux.signaux_de_laffaire("LEAD-1", evenements.lire(), affaires.lire())]
+
+    assert ordre == ["EVT-NEW", "EVT-OLD"]
+
+
+def test_l_ordre_des_signaux_preserve_les_decimales_de_l_offset(registres):
+    evenements, affaires = registres
+    wct.memoriser_wct(_wct(), evenements)
+    variance.memoriser_variance(
+        _variance("EVT-NEW", horodatage_completion="2026-09-15T08:59:29.9765435Z"), evenements
+    )
+    variance.memoriser_variance(
+        _variance("EVT-OLD", horodatage_completion="2026-09-15T09:00:00.1000000+00:00:30.1234567"), evenements
+    )
+
+    ordre = [s["signal_id"] for s in signaux.signaux_de_laffaire("LEAD-1", evenements.lire(), affaires.lire())]
+
+    assert ordre == ["EVT-NEW", "EVT-OLD"]
+
+
+def test_ordre_des_signaux_clos_emploie_la_fraction_exacte_de_cloture(registres):
+    evenements, affaires = registres
+    wct.memoriser_wct(_wct(), evenements)
+    for signal_id in ("EVT-NEW", "EVT-OLD"):
+        variance.memoriser_variance(_variance(signal_id), evenements)
+        assert _traiter(
+            registres, signaux.ACTION_PRISE_EN_COMPTE, signal_id=signal_id, horodatage="2026-09-16T08:00:00Z"
+        )[1] is None
+    assert _traiter(
+        registres,
+        signaux.ACTION_CLOTURE,
+        signal_id="EVT-NEW",
+        motif=MOTIF_CLOS,
+        horodatage="2026-09-16T09:00:00.1234569Z",
+    )[1] is None
+    assert _traiter(
+        registres,
+        signaux.ACTION_CLOTURE,
+        signal_id="EVT-OLD",
+        motif=MOTIF_CLOS,
+        horodatage="2026-09-16T09:00:00.1234561Z",
+    )[1] is None
+
+    ordre = [s["signal_id"] for s in signaux.signaux_de_laffaire("LEAD-1", evenements.lire(), affaires.lire())]
+
+    assert ordre == ["EVT-NEW", "EVT-OLD"]
+
+
 # -- la liste d'un écran -------------------------------------------------------------------------------
 def test_lister_filtre_par_affaire_et_dit_le_total(registres):
     evenements, affaires = registres

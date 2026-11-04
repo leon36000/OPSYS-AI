@@ -35,10 +35,9 @@ lecture : ce module n'écrit rien pour elle.
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from typing import Any
 
-from . import classification, confidentialite, humain, validation
+from . import chronologie, classification, confidentialite, humain, validation
 
 TYPE_ENTREE_SIGNAL_TRAITE = "signal_traite"
 
@@ -173,19 +172,17 @@ def _signaux_avec_etat(
     return list(signaux.values())
 
 
-def _instant(horodatage: str) -> datetime:
-    return datetime.fromisoformat(horodatage)
-
-
 def _ordonner(signaux: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Ouverts, puis pris en compte, puis clos ; dans chaque groupe le plus récent d'abord (les clos par
-    date de clôture). Comparaison par datetime PARSÉ, jamais par texte (décalages horaires différents)."""
+    date de clôture). Comparaison exacte des fractions ISO et du fuseau, puis position stable à instant égal."""
 
-    def cle(signal: dict[str, Any]) -> tuple[int, float, int]:
+    def horodatage(signal: dict[str, Any]) -> tuple[int, Any]:
         reference = signal["traite_le"] if signal["etat"] == ETAT_CLOS else signal["horodatage"]
-        return (_ORDRE_ETAT[signal["etat"]], -_instant(reference).timestamp(), -signal["position"])
+        return chronologie.cle_instant(reference)
 
-    return sorted(signaux, key=cle)
+    par_position = sorted(signaux, key=lambda signal: signal["position"], reverse=True)
+    par_date = sorted(par_position, key=horodatage, reverse=True)
+    return sorted(par_date, key=lambda signal: _ORDRE_ETAT[signal["etat"]])
 
 
 def signaux_de_laffaire(

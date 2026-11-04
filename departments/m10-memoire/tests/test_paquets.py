@@ -134,6 +134,52 @@ def test_couche_evenements_recents_contient_wct_et_variance_triees_recent_dabord
     assert couche["faits"][1]["source"] == "m4.travaux_termines"
 
 
+def test_paquet_trie_les_evenements_avec_fractions_iso_exactes_et_offsets(registres):
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(
+        _wct(wct_id="WCT-NEW", horodatage="2026-09-15X10:00:00.1234569+01:00"), registre_evenements
+    )
+    wct.memoriser_wct(
+        _wct(wct_id="WCT-OLD", horodatage="2026-09-15T09:00:00.1234561+00:00"), registre_evenements
+    )
+
+    paquet = paquets.assembler_paquet_contexte("LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    faits = _couche(paquet, paquets.COUCHE_EVENEMENTS_RECENTS)["faits"]
+    assert [f["identifiant"] for f in faits] == ["WCT-NEW", "WCT-OLD"]
+    assert faits[0]["horodatage"] == "2026-09-15X10:00:00.1234569+01:00"
+
+
+def test_paquet_ne_prend_pas_la_fraction_de_l_offset_pour_celle_de_l_heure(registres):
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(
+        _wct(wct_id="WCT-OLD", horodatage="2026-09-15T09:00+00:00:30.1"), registre_evenements
+    )
+    wct.memoriser_wct(
+        _wct(wct_id="WCT-NEW", horodatage="2026-09-15T08:59:30Z"), registre_evenements
+    )
+
+    paquet = paquets.assembler_paquet_contexte("LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    faits = _couche(paquet, paquets.COUCHE_EVENEMENTS_RECENTS)["faits"]
+    assert [f["identifiant"] for f in faits] == ["WCT-NEW", "WCT-OLD"]
+
+
+def test_paquet_preserve_les_decimales_supplementaires_de_l_offset(registres):
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(
+        _wct(wct_id="WCT-OLD", horodatage="2026-09-15T09:00:00.1000000+00:00:30.1234567"), registre_evenements
+    )
+    wct.memoriser_wct(
+        _wct(wct_id="WCT-NEW", horodatage="2026-09-15T08:59:29.9765435Z"), registre_evenements
+    )
+
+    paquet = paquets.assembler_paquet_contexte("LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    faits = _couche(paquet, paquets.COUCHE_EVENEMENTS_RECENTS)["faits"]
+    assert [f["identifiant"] for f in faits] == ["WCT-NEW", "WCT-OLD"]
+
+
 def test_resume_du_wct_ne_dit_ecart_signale_que_si_m4_l_a_signale(registres):
     """PLAN T1.5-c : M4 ne signale plus d'écart « par précaution » à chaque complétion d'appareil
     (`ecart_signale` faux tant qu'aucune demande d'écart n'est ouverte) ; M10 ne grave donc « écart

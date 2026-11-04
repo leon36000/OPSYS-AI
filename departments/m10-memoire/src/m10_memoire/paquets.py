@@ -66,12 +66,12 @@ from __future__ import annotations
 
 import copy
 import json
-from datetime import datetime
 from typing import Any
 
 from . import (
     affaire,
     amont,
+    chronologie,
     classification,
     confidentialite,
     consolidation,
@@ -122,7 +122,7 @@ def _tri_recent_dabord(maillons: list[dict]) -> list[dict]:
     """Plus récent d'abord. Comparaison par datetime PARSÉ (pas par tri lexicographique du texte
     ISO) : deux horodatages à décalages horaires différents (ex. EDT/EST) ne se comparent pas
     correctement en texte brut."""
-    return sorted(maillons, key=lambda m: datetime.fromisoformat(m["horodatage"]), reverse=True)
+    return sorted(maillons, key=lambda m: chronologie.cle_instant(m["horodatage"]), reverse=True)
 
 
 def _tronquer_couche(nom: str, faits: list[dict], budget_caracteres: int, n_max: int) -> dict[str, Any]:
