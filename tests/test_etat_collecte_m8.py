@@ -33,6 +33,9 @@ OUTIL = "m8_lire_etat_collecte"
 INTERVALLE = 43200
 JOUR = 86400
 CASH_MESURES = ("m8_cash_libre_cad", "m8_solde_tresorerie_cad", "m8_comptes_a_payer_cad", "m8_taxes_a_remettre_cad")
+TRESORERIE_PREVUE = "m5.constat.tresorerie-prevue"
+TRESORERIE_PREVUE_MESURES = ("m8_solde_minimal_prevu_cad", "m8_semaines_sous_seuil",
+                             "m8_ecart_tresorerie_prevue_reelle_cad")
 VALEURS_SEMEES = ("1200.00", "27861.98", "689.85")  # facturation émise, cash libre de référence, une facture
 
 
@@ -95,8 +98,10 @@ def test_une_installation_neuve_dit_constat_inactif_pour_ce_qu_un_constat_nourri
     causes = _causes(monde)
 
     # les mesures nourries par un constat planifié déclaré : le constat est inactif (jamais activé)
-    for metric_id in CASH_MESURES + ("m8_factures_emises", "m8_pipeline_leads_ouverts", "m8_plaintes_periode",
-                                     "m8_clics_recherche", "m8_articles_en_rupture"):
+    for metric_id in CASH_MESURES + TRESORERIE_PREVUE_MESURES + (
+        "m8_factures_emises", "m8_pipeline_leads_ouverts", "m8_plaintes_periode",
+        "m8_clics_recherche", "m8_articles_en_rupture",
+    ):
         assert causes[metric_id] == "constat_inactif", metric_id
     # une mesure que seul un événement alimente (M3) : aucun constat à activer
     assert causes["m8_taux_acceptation_pct"] == "sans_constat_planifie"
@@ -112,8 +117,9 @@ def test_une_installation_neuve_dit_constat_inactif_pour_ce_qu_un_constat_nourri
     assert resume["planificateur_autorise"] is True and resume["n_mesures"] == len(causes)
     assert sum(resume["resume"].values()) == len(causes)
     assert resume["resume"]["constat_inactif"] >= 20
-    assert {c["etat"] for c in resume["constats"]} == {"inactif"} and len(resume["constats"]) == 10
+    assert {c["etat"] for c in resume["constats"]} == {"inactif"} and len(resume["constats"]) == 11
     assert CASH in {c["executeur"] for c in resume["constats"]}
+    assert TRESORERIE_PREVUE in {c["executeur"] for c in resume["constats"]}
 
 
 def test_chaque_mesure_vide_a_une_phrase_et_une_action_qui_nomme_le_bon_constat(monde):
@@ -124,6 +130,9 @@ def test_chaque_mesure_vide_a_une_phrase_et_une_action_qui_nomme_le_bon_constat(
     cash = lignes["m8_cash_libre_cad"]
     assert cash["constats"] == [CASH] and cash["etat_collecte"] == "constat_inactif"
     assert CASH in cash["action"] and "ombre" in cash["action"] and "Connecteurs" in cash["action"]
+    prevision = lignes["m8_solde_minimal_prevu_cad"]
+    assert prevision["constats"] == [TRESORERIE_PREVUE] and prevision["etat_collecte"] == "constat_inactif"
+    assert TRESORERIE_PREVUE in prevision["action"]
     assert lignes["m8_taux_acceptation_pct"]["constats"] == []
     assert all(m["phrase"] and m["action"] for m in lignes.values())
 
@@ -135,13 +144,13 @@ def test_la_liste_de_controle_d_une_installation_neuve_n_a_rien_de_fait_et_dit_q
     par_constat = {}
     for e in etapes[1:]:
         par_constat.setdefault(e["constat"], []).append((e["etape"], e["fait"]))
-    assert len(par_constat) == 10
+    assert len(par_constat) == 11
     for nom, suite in par_constat.items():
         assert suite == [("activer_en_ombre", False), ("passer_en_actif", False),
                          ("premier_passage_reussi", False)], nom
     a_faire = _toutes(monde, "liste_de_controle")  # le défaut : seulement ce qui reste à faire
-    assert len(a_faire) == 30 and all(not e["fait"] and e["action"] for e in a_faire)
-    assert {CASH} <= {e["constat"] for e in a_faire}
+    assert len(a_faire) == 33 and all(not e["fait"] and e["action"] for e in a_faire)
+    assert {CASH, TRESORERIE_PREVUE} <= {e["constat"] for e in a_faire}
 
 
 # ======================================================================================================== 2. en ombre
@@ -152,7 +161,7 @@ def test_en_ombre_les_constats_ne_publient_rien_et_l_outil_le_dit(monde):
 
     assert monde.nombre_publie() == {}
     causes = _causes(monde)
-    for metric_id in CASH_MESURES + ("m8_factures_emises", "m8_plaintes_periode"):
+    for metric_id in CASH_MESURES + TRESORERIE_PREVUE_MESURES + ("m8_factures_emises", "m8_plaintes_periode"):
         assert causes[metric_id] == "constat_en_ombre", metric_id
     ligne = next(m for m in _toutes(monde, "mesures") if m["metric_id"] == "m8_cash_libre_cad")
     assert "ne publie rien" in ligne["phrase"] and "de l'ombre à l'actif" in ligne["action"]
@@ -168,7 +177,7 @@ def test_actif_mais_rien_livre_a_m8_dit_jamais_recue_puis_les_mesures_arrivent(m
     assert {v["statut"] for v in monde.tour(1).values()} == {"ok"}
 
     causes = _causes(monde)  # le bus n'a rien livré à M8
-    for metric_id in CASH_MESURES + ("m8_factures_emises", "m8_plaintes_periode"):
+    for metric_id in CASH_MESURES + TRESORERIE_PREVUE_MESURES + ("m8_factures_emises", "m8_plaintes_periode"):
         assert causes[metric_id] == "jamais_recue", metric_id
     ligne = next(m for m in _toutes(monde, "mesures") if m["metric_id"] == "m8_plaintes_periode")
     assert "aucun fait n'a été reçu" in ligne["phrase"] and "bus" in ligne["action"]

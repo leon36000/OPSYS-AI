@@ -121,7 +121,7 @@ def test_l_ecart_prevu_reel_compare_la_vieille_prevision_au_reel(definitions):
                  "operations": [vieille, nouvelle_fait]}
     m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
         "m8_ecart_tresorerie_prevue_reelle_cad"]
-    assert m["statut"] == "calculee" and m["valeur"] == "3885.02"
+    assert m["statut"] == "calculee" and m["valeur"] == "-3885.02"
     assert m["entrees"]["prevision_utilisee"]["solde_prevu_cad"] == "19885.02"
     assert m["entrees"]["reel_utilise"]["solde_reel_cad"] == "16000.00"
 
@@ -207,7 +207,7 @@ def test_l_ecart_est_negatif_quand_la_prevision_depassait_le_reel(definitions):
                  "operations": faits}
     m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
         "m8_ecart_tresorerie_prevue_reelle_cad"]
-    assert m["statut"] == "calculee" and m["valeur"] == "9000.00"
+    assert m["statut"] == "calculee" and m["valeur"] == "-9000.00"
     assert m["entrees"]["prevision_utilisee"]["sequence"] == 1  # l'ancienne, jamais la plus récente
 
 
@@ -239,7 +239,7 @@ def test_l_ecart_semaine_echue_le_jour_meme_du_cash_est_comparee(definitions):
                  "operations": [fait]}
     m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
         "m8_ecart_tresorerie_prevue_reelle_cad"]
-    assert m["statut"] == "calculee" and m["valeur"] == "4000.00"
+    assert m["statut"] == "calculee" and m["valeur"] == "-4000.00"
 
 
 def test_l_ecart_sans_ancienne_prevision_echue_est_non_calculable(definitions):
@@ -410,7 +410,7 @@ def test_a_anciennes_egales_celle_de_plus_grande_sequence_l_emporte(definitions)
                  "operations": faits}
     m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
         "m8_ecart_tresorerie_prevue_reelle_cad"]
-    assert m["valeur"] == "5000.00" and m["entrees"]["prevision_utilisee"]["sequence"] == 2
+    assert m["valeur"] == "-5000.00" and m["entrees"]["prevision_utilisee"]["sequence"] == 2
 
 
 def test_une_sequence_texte_n_est_pas_un_constat(definitions):
@@ -470,7 +470,7 @@ def test_une_ancienne_a_sequence_non_entiere_perd_contre_l_entiere(definitions):
                  "operations": faits}
     m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
         "m8_ecart_tresorerie_prevue_reelle_cad"]
-    assert m["valeur"] == "4000.00" and m["entrees"]["prevision_utilisee"]["sequence"] == 1
+    assert m["valeur"] == "-4000.00" and m["entrees"]["prevision_utilisee"]["sequence"] == 1
 
 
 def test_l_indice_de_departage_de_l_ecart_ne_voit_que_l_instant_publie():
@@ -479,3 +479,122 @@ def test_l_indice_de_departage_de_l_ecart_ne_voit_que_l_instant_publie():
     from m8_analytics.mesures_communes import ordre_publication
     fait = _fait_prevision()
     assert ordre_publication(fait, 0)[0] == ordre_publication(fait, 1)[0]
+
+
+# ============================================================================================ revue adverse C5
+def _prevision_du(jour: str, sequence: int, solde_s1: str):
+    """Un constat de prévision d'une semaine (seuil non configuré), daté `jour`, pour les cas de sélection."""
+    charge = _charge(sequence=sequence, soldes=(solde_s1,), seuil=None, statut_alerte="SEUIL_A_CONFIGURER")
+    charge["semaine_solde_minimal"] = 1
+    charge["date_reference"] = jour
+    charge["emise_le"] = f"{jour}T07:00:00-04:00"
+    charge["evenement_id"] = f"m5-tresorerie-prevue-{sequence}-{jour}-{'b' * 16}"
+    return op.fait(op.TYPE_TRESORERIE_PREVUE, _valide("m5.tresorerie_prevue_constatee", charge),
+                   f"{jour}T07:00:00-04:00")
+
+
+def _registres_ecart(*operations, cash_libres):
+    return {"chantier": [], "entonnoir": [], "contenus": [], "cash_libre": list(cash_libres),
+            "operations": list(operations)}
+
+
+def test_le_realise_au_dessus_de_la_prevision_donne_un_ecart_positif(definitions):
+    prevision = _prevision_du("2026-10-01", 1, "20000.00")
+    registres = _registres_ecart(prevision, cash_libres=[_cash_reel("2026-10-08", "22000.00")])
+
+    m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
+        "m8_ecart_tresorerie_prevue_reelle_cad"]
+
+    assert m["valeur"] == "2000.00", "réalisé 22 000 $ moins prévu 20 000 $ = +2 000 $"
+    assert m["entrees"]["reel_utilise"]["solde_reel_cad"] == "22000.00"
+
+
+def test_l_ecart_utilise_le_premier_cash_qui_suit_l_echeance_pas_le_plus_recent(definitions):
+    prevision = _prevision_du("2026-10-01", 1, "20000.00")
+    premier = _cash_reel("2026-10-08", "22000.00", sequence=1)
+    plus_recent = _cash_reel("2026-11-15", "50000.00", sequence=2)
+    registres = _registres_ecart(prevision, cash_libres=[plus_recent, premier])  # ordre de livraison inversé
+
+    m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
+        "m8_ecart_tresorerie_prevue_reelle_cad"]
+
+    assert m["entrees"]["reel_utilise"]["date_reference"] == "2026-10-08"
+    assert m["valeur"] == "2000.00"
+
+
+def test_a_deux_cash_du_meme_jour_le_premier_constat_l_emporte(definitions):
+    """Le départage de la règle est la `sequence` du jour : le premier constat (le plus petit rang), pas le dernier."""
+    prevision = _prevision_du("2026-10-01", 1, "20000.00")
+    premier = _cash_reel("2026-10-08", "22000.00", sequence=1)
+    second = _cash_reel("2026-10-08", "50000.00", sequence=2)
+    registres = _registres_ecart(prevision, cash_libres=[second, premier])
+
+    m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
+        "m8_ecart_tresorerie_prevue_reelle_cad"]
+
+    assert m["entrees"]["reel_utilise"]["sequence"] == 1
+    assert m["valeur"] == "2000.00"
+
+
+def test_sans_cash_apres_l_echeance_de_la_semaine_1_l_ecart_est_non_calculable(definitions):
+    prevision = _prevision_du("2026-10-01", 1, "20000.00")
+    registres = _registres_ecart(prevision, cash_libres=[_cash_reel("2026-10-06", "22000.00")])
+
+    m = {mesure["metric_id"]: mesure for mesure in mi.mesurer(registres, definitions)}[
+        "m8_ecart_tresorerie_prevue_reelle_cad"]
+
+    assert m["statut"] == "non_calculable" and m["valeur"] is None
+
+
+def test_la_fraicheur_de_l_ecart_n_est_pas_plus_recente_que_le_plus_ancien_fait(definitions):
+    from m8_analytics import catalogue_mesures, fraicheur_mesures, moteur_mesures
+
+    ancienne = _prevision_du("2026-10-01", 1, "20000.00")
+    courante = _prevision_du("2026-10-30", 2, "25000.00")
+    cash = _cash_reel("2026-10-07", "16000.00")
+    registres = _registres_ecart(ancienne, courante, cash_libres=[cash])
+    catalogue = catalogue_mesures.charger()
+    lues = moteur_mesures.lire(registres, catalogue)
+    fraiches = {m["metric_id"]: m for m in fraicheur_mesures.lire_mesures_avec_fraicheur(
+        lues, catalogue, fraicheur_mesures.lire_maintenant("2026-10-30T20:00:00-04:00"), {})}
+
+    ecart = fraiches["m8_ecart_tresorerie_prevue_reelle_cad"]
+
+    assert ecart["statut"] == "calculee"
+    assert ecart["fraicheur"]["statut"] == "perime", (
+        "l'ancienne prévision du 2026-10-01 est le plus ancien des faits utilisés : l'écart ne peut pas être à jour"
+    )
+
+
+def test_l_empreinte_de_l_ecart_couvre_l_ancienne_prevision_et_le_cash_reel(definitions):
+    courante = _prevision_du("2026-10-13", 2, "19000.00")
+    ancienne_a = _prevision_du("2026-10-01", 1, "20000.00")
+    ancienne_b = _prevision_du("2026-10-01", 1, "25000.00")
+    cash_a = _cash_reel("2026-10-07", "16000.00", sequence=1)
+    cash_b = _cash_reel("2026-10-07", "12000.00", sequence=2)
+
+    m1 = {mesure["metric_id"]: mesure for mesure in mi.mesurer(
+        _registres_ecart(ancienne_a, courante, cash_libres=[cash_a]), definitions)}[
+            "m8_ecart_tresorerie_prevue_reelle_cad"]
+    m2 = {mesure["metric_id"]: mesure for mesure in mi.mesurer(
+        _registres_ecart(ancienne_b, courante, cash_libres=[cash_b]), definitions)}[
+            "m8_ecart_tresorerie_prevue_reelle_cad"]
+
+    assert (m1["valeur"], m2["valeur"]) == ("-4000.00", "-13000.00")
+    assert m1["entrees"]["empreinte_faits"] != m2["entrees"]["empreinte_faits"]
+
+
+def test_l_empreinte_de_l_ecart_change_quand_la_prevision_courante_change(definitions):
+    ancienne = _prevision_du("2026-10-01", 1, "20000.00")
+    courante_a = _prevision_du("2026-10-13", 2, "19000.00")
+    courante_b = _prevision_du("2026-10-13", 2, "19500.00")
+    cash = _cash_reel("2026-10-07", "16000.00")
+
+    m1 = {mesure["metric_id"]: mesure for mesure in mi.mesurer(
+        _registres_ecart(ancienne, courante_a, cash_libres=[cash]), definitions)}[
+            "m8_ecart_tresorerie_prevue_reelle_cad"]
+    m2 = {mesure["metric_id"]: mesure for mesure in mi.mesurer(
+        _registres_ecart(ancienne, courante_b, cash_libres=[cash]), definitions)}[
+            "m8_ecart_tresorerie_prevue_reelle_cad"]
+
+    assert m1["entrees"]["empreinte_faits"] != m2["entrees"]["empreinte_faits"]

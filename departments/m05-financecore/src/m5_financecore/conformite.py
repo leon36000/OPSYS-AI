@@ -831,6 +831,9 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "cash_libre": None,
     "prevision": None,
     "constat_cash_libre": None,
+    # C5 : le constat de trésorerie prévue est PUR (il ne lit aucun registre) ; son écriture (`_constater...`) reçoit
+    # le registre des mouvements déjà ouvert et n'écrit qu'au registre DÉRIVÉ des constats et au bus.
+    "constat_tresorerie_prevue": None,
     "analyse": None,
     # Grand livre (tranche 1) : une écriture comptable ne meut aucun argent ; ni ces modules ni leurs adaptateurs ne
     # nomment le registre des mouvements.
@@ -938,6 +941,7 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
         "_reglages_prevision",
         "_page_prevision",
         "_constater_cash_libre",
+        "_constater_tresorerie_prevue",
         "_refus_appareil_calcul",
         "_sortie_calcul",
         "calculer_rentabilite_investissement",
@@ -968,6 +972,7 @@ _SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
     # comme `prevoir_tresorerie` ; ses aides sont en STRICT.
     "outils": (
         "etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre", "constater_cash_libre_planifie",
+        "constater_tresorerie_prevue", "constater_tresorerie_prevue_planifie",
         "simuler_tresorerie_monte_carlo",
     ),
 }

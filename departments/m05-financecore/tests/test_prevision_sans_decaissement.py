@@ -185,6 +185,7 @@ _FICHIERS = (
     "cash_libre",
     "prevision",
     "constat_cash_libre",
+    "constat_tresorerie_prevue",
     "analyse",
     "outils",
     "soldes",

@@ -174,5 +174,5 @@ regles:
     type: controle
     controle: tresorerie_prevue_coherente
     bloque: [m8_solde_minimal_prevu_cad, m8_semaines_sous_seuil, m8_ecart_tresorerie_prevue_reelle_cad]
-    libelle: "Un constat de trésorerie prévue porte un solde minimal lisible quand sa semaine est connue (jamais un zéro par défaut), des semaines ordonnées dans l'horizon déclaré, et une série d'autant de semaines que l'horizon."
+    libelle: "Un constat de trésorerie prévue porte un solde minimal lisible qui est bien le minimum des semaines CALCULÉES de sa série, des semaines ordonnées, uniques et dans l'horizon déclaré, une série complète où une semaine NON_CALCULABLE ne porte aucun montant, et un statut d'alerte cohérent avec le seuil et les semaines sous le seuil."
     correction: "Faire refaire le constat de la trésorerie prévue par M5 (m5_constater_tresorerie_prevue) après vérification de la prévision."

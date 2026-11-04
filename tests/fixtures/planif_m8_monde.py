@@ -44,6 +44,7 @@ CONSTATS = {
     "m5.constat.depense-publicitaire": "m5.depense_publicitaire_constatee",
     "m5.constat.factures-emises": "m5.facture_emise_constatee",
     "m5.constat.preaudit": "m5.preaudit_constate",
+    "m5.constat.tresorerie-prevue": "m5.tresorerie_prevue_constatee",
     "m6.constat.disponibilite": "m6.disponibilite_constatee",
     "m7.constat.performance-signaux": "m7.performance_signaux_constatee",
 }
@@ -164,6 +165,13 @@ def monter(tmp_path: Any, monkeypatch: Any, declarer_services: Any, *, url: str 
     from m5_financecore import outils as m5_outils
 
     m5_outils.utiliser_stockage_durable()  # un test voisin a pu laisser le registre des mouvements en mémoire
+    # C5 : le constat planifié de trésorerie prévue exige un horizon DÉCLARÉ (GATE NATHAN). Ce monde de test en
+    # déclare un, FICTIF, comme toutes ses autres valeurs ; la livraison réelle n'en invente aucun.
+    manifeste = yaml.safe_load(m5_outils._MANIFESTE.read_text(encoding="utf-8"))
+    manifeste.setdefault("configuration", {})["prevision"] = {"horizon_semaines": 4}
+    chemin_manifeste = tmp_path / "m5-department-fictif.yaml"
+    chemin_manifeste.write_text(yaml.safe_dump(manifeste, allow_unicode=True), encoding="utf-8")
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", chemin_manifeste)
     horloge = pq.Horloge(DEBUT.timestamp())
     planificateur.reinitialiser_arret()
     plan = pq.Planif(horloge, Ports(horloge=horloge), bus.departements)

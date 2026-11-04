@@ -146,7 +146,7 @@ metrics:
     consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
   - id: m8_ecart_tresorerie_prevue_reelle_cad
     nom: "Écart prévu-réel de la trésorerie"
-    definition: "Écart de définition entre le PRÉVU et le RÉEL : le solde de fin que la DERNIÈRE ANCIENNE version de la prévision de M5 a donné pour sa semaine 1, moins le solde réel du constat du cash libre dont le jour suit la fin de cette semaine (m5.tresorerie_prevue_constatee et m5.cash_libre_constate). Positif : le réalisé dépasse la prévision. La prévision utilisée est gardée, jamais recomputée ; sans prévision échue ou sans cash libre, non calculable. La seule opération de M8 est prévu moins réel. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    definition: "Écart de définition entre le PRÉVU et le RÉEL : le solde réel du PREMIER constat du cash libre dont le jour suit la fin de la semaine 1 de la DERNIÈRE ANCIENNE version de la prévision de M5, moins le solde de fin que cette prévision a donné pour sa semaine 1 (m5.tresorerie_prevue_constatee et m5.cash_libre_constate). Positif : le réalisé dépasse la prévision ; négatif : la prévision dépassait le réalisé. La prévision utilisée est gardée, jamais recomputée ; sans prévision échue ou sans cash libre, non calculable. La seule opération de M8 est réel moins prévu. À valider auprès d'un comptable (CPA) / professionnel qualifié."
     unite: "CAD"
     source_donnees: "M5 m5.tresorerie_prevue_constatee (soldes_hebdo, date_reference, sequence) ; M5 m5.cash_libre_constate (solde, date_reference, sequence)"
     frequence: "à chaque constat de la trésorerie prévue demandé à M5"

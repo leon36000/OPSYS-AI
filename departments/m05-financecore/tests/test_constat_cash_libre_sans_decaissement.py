@@ -49,6 +49,13 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
     assert "_constater_cash_libre" in strict["outils"], "l'écriture du constat : en strict"
     assert "constater_cash_libre" in lecture["outils"] and "constater_cash_libre" not in strict["outils"]
     assert "_constater_cash_libre" not in lecture["outils"]
+    # C5 (trésorerie prévue) : même découpage, mêmes régimes.
+    assert strict["constat_tresorerie_prevue"] is None
+    assert (_PAQUET / "constat_tresorerie_prevue.py").is_file(), "le module entier"
+    assert "_constater_tresorerie_prevue" in strict["outils"], "l'écriture du constat : en strict"
+    assert "constater_tresorerie_prevue" in lecture["outils"]
+    assert "constater_tresorerie_prevue_planifie" in lecture["outils"]
+    assert "_constater_tresorerie_prevue" not in lecture["outils"]
 
 
 def test_chaque_fonction_surveillee_du_nouveau_code_existe_un_renommage_ne_desarme_pas_la_garde():
@@ -232,6 +239,7 @@ _FICHIERS = (
     "cash_libre",
     "prevision",
     "constat_cash_libre",
+    "constat_tresorerie_prevue",
     "analyse",
     "outils",
     "soldes",
@@ -305,6 +313,25 @@ def test_un_decaissement_glisse_dans_le_vrai_module_du_constat_est_attrape(tmp_p
 
     assert conforme is False and "constat_cash_libre.py" in detail and "DECAISSEMENT" in detail
     assert "type_mouvement" in detail
+
+
+def test_un_decaissement_glisse_dans_le_module_du_constat_de_tresorerie_prevue_est_attrape(tmp_path):
+    conforme, detail = _sur_les_vrais_fichiers(
+        tmp_path,
+        _ajouter("constat_tresorerie_prevue", '\n\ndef _piege():\n    return {"type_mouvement": "DECAISSEMENT"}\n'),
+    )
+
+    assert conforme is False and "constat_tresorerie_prevue.py" in detail and "DECAISSEMENT" in detail
+
+
+def test_un_acces_aux_mouvements_glisse_dans_la_vraie_fonction_c5_est_attrape(tmp_path):
+    ancre = "    constats = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONSTATS_TRESORERIE_PREVUE)\n"
+
+    conforme, detail = _sur_les_vrais_fichiers(
+        tmp_path, _dans_outils(ancre, "    _registre_mouvements(None)\n"))
+
+    assert conforme is False and "_constater_tresorerie_prevue()" in detail
+    assert "nomme _registre_mouvements" in detail
 
 
 def test_l_import_du_registre_dans_le_vrai_module_du_constat_est_attrape(tmp_path):

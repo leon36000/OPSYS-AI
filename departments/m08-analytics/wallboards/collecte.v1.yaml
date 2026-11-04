@@ -22,3 +22,4 @@ tuiles:
   - {id: plaintes, mesure: m8_plaintes_periode, titre: "Plaintes de la période (constat M1)", page: 2}
   - {id: filet-anti-perte, mesure: m8_violations_sla_commercial, titre: "Violations de SLA commercial (constat M2, filet anti-perte)", page: 3}
   - {id: preaudit, mesure: m8_constats_preaudit, titre: "Constats du pré-audit (constat M5)", page: 3}
+  - {id: tresorerie-prevue, mesure: m8_solde_minimal_prevu_cad, titre: "Solde minimal prévu (constat M5, trésorerie prévue)", page: 3}

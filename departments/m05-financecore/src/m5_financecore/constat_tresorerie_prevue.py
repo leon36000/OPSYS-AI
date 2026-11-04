@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from . import analyse, prevision, validation
@@ -73,11 +73,18 @@ def lire_jour(brut: Any) -> tuple[date | None, dict[str, Any] | None]:
 
 def lire_emission(brut: Any) -> tuple[str | None, dict[str, Any] | None]:
     """`emise_le` (l'instant d'émission, donné par le planificateur) : `(texte, None)` ou `(None, verdict)`. M5 n'a
-    pas d'horloge : l'instant vient de l'appelant, jamais deviné, jamais corrigé."""
+    pas d'horloge : l'instant vient de l'appelant, jamais deviné, jamais corrigé. Le motif ferme la forme ; la lecture
+    par `datetime.fromisoformat` ferme le CALENDRIER et l'horloge (30 février, 25 h, fuseau hors bornes), comme
+    `lire_jour` le fait pour une date."""
     if isinstance(brut, str) and _INSTANT.fullmatch(brut):
-        return brut, None
+        try:
+            datetime.fromisoformat(brut)
+        except ValueError:
+            pass
+        else:
+            return brut, None
     return None, {"code": _CODE_EMISSION_INVALIDE,
-                  "detail": f"emise_le : instant ISO 8601 avec fuseau exigé (reçu {brut!r})"}
+                  "detail": f"emise_le : instant ISO 8601 avec fuseau exigé et réel (reçu {brut!r})"}
 
 
 def identifiant(jour: date, sequence: int, version: str) -> str:

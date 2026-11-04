@@ -146,3 +146,38 @@ def test_lire_emission_refuse_un_instant_invalide_sans_le_corriger():
     instant, verdict = ctp.lire_emission("2026-09-29 07h00")
     assert instant is None and verdict["code"] == "REJ-CONSTAT-EMISSION-INVALIDE"
     assert ctp.lire_emission(EMISE_LE)[0] == EMISE_LE
+
+
+def test_lire_emission_refuse_un_jour_ou_une_heure_imaginaire():
+    for impossible in ("2026-02-30T25:99:99+99:99", "2026-02-30T07:00:00-04:00",
+                       "2026-09-29T25:00:00-04:00", "2026-09-29T07:99:00-04:00",
+                       "2026-09-29T07:00:99-04:00", "2026-09-29T07:00:00+99:99"):
+        instant, verdict = ctp.lire_emission(impossible)
+        assert instant is None and verdict is not None, impossible
+        assert verdict["code"] == "REJ-CONSTAT-EMISSION-INVALIDE", impossible
+
+
+def test_le_catalogue_refuse_une_emission_imaginaire_et_une_serie_incoherente():
+    from opsys.evenements.schemas import erreurs_charge
+
+    assert erreurs_charge(ctp.TYPE_EVENEMENT_TRESORERIE_PREVUE, _charge()) == []
+
+    emission = _charge()
+    emission["emise_le"] = "2026-02-30T25:99:99+99:99"
+    assert erreurs_charge(ctp.TYPE_EVENEMENT_TRESORERIE_PREVUE, emission) != []
+
+    non_calculable_avec_montant = _charge()
+    non_calculable_avec_montant["soldes_hebdo"][1]["statut"] = "NON_CALCULABLE"
+    assert erreurs_charge(ctp.TYPE_EVENEMENT_TRESORERIE_PREVUE, non_calculable_avec_montant) != []
+
+    calcule_sans_montant = _charge()
+    calcule_sans_montant["soldes_hebdo"][1]["solde_fin_cad"] = None
+    assert erreurs_charge(ctp.TYPE_EVENEMENT_TRESORERIE_PREVUE, calcule_sans_montant) != []
+
+    doublon = _charge()
+    doublon["semaines_sous_seuil"] = [2, 2]
+    assert erreurs_charge(ctp.TYPE_EVENEMENT_TRESORERIE_PREVUE, doublon) != []
+
+    alerte_sans_semaine = _charge()
+    alerte_sans_semaine["semaines_sous_seuil"] = []
+    assert erreurs_charge(ctp.TYPE_EVENEMENT_TRESORERIE_PREVUE, alerte_sans_semaine) != []

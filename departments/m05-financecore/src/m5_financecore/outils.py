@@ -3742,7 +3742,7 @@ def _constater_tresorerie_prevue(
         resume = {**constat_tresorerie_prevue.resume(charge), "evenement_id": dernier["evenement_id"]}
         return {"deja_constate": True, "publie": False, "constat": resume}
     charge = constat_tresorerie_prevue.charge_evenement(resultat, jour, rang + 1, emise_le)
-    constats.append(constat_tresorerie_prevue.construire_trace(charge))
+    constats.append(constat_tresorerie_prevue.construire_trace(charge), rang_attendu=rang)
     evenements.publier(
         constat_tresorerie_prevue.TYPE_EVENEMENT_TRESORERIE_PREVUE,
         _DEPARTEMENT,

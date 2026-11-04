@@ -146,33 +146,92 @@ def _cash_libre_coherent(registres: dict[str, list[dict[str, Any]]]) -> list[str
 
 
 def _tresorerie_prevue_coherente(registres: dict[str, list[dict[str, Any]]]) -> list[str] | None:
-    """Le dernier constat de trésorerie prévue : minimal lisible quand sa semaine est connue, semaines ordonnées dans
-    l'horizon déclaré, série hebdomadaire d'autant de semaines que l'horizon. ``None`` sans constat (rien à vérifier).
-    M8 reprend M5 tel quel : un écart à l'invariant bloque les trois mesures C5, il ne corrige jamais le constat."""
+    """Le dernier constat de trésorerie prévue : bornes de l'horizon et des semaines, série complète et ordonnée
+    (une semaine CALCULE a un montant, une NON_CALCULABLE n'en a pas), blocage continu, solde minimal égal au minimum
+    des semaines CALCULÉES et à sa première semaine, semaines sous le seuil exactement celles que le seuil déclaré
+    commande, statut d'alerte cohérent. ``None`` sans constat (rien à vérifier). M8 reprend M5 tel quel : un écart à
+    l'invariant bloque les trois mesures C5, il ne corrige jamais le constat."""
     constat = mesures_constats.dernier_constat_tresorerie_prevue(registres["operations"])
     if constat is None:
         return None
     reference = (
         f"tresorerie-prevue:{constat.get('date_reference')}-s{constat.get('sequence')}"
     )
-    minimal, semaine = nombres.decimal_lu(constat.get("solde_minimal_prevu_cad")), constat.get("semaine_solde_minimal")
-    if (minimal is None) != (not isinstance(semaine, int) or isinstance(semaine, bool)):
-        return [reference]
     horizon = constat.get("horizon_semaines")
-    semaines = constat.get("semaines_sous_seuil")
     serie = constat.get("soldes_hebdo")
     if (
         type(horizon) is not int
-        or horizon < 1
-        or not isinstance(semaines, list)
+        or not 1 <= horizon <= 26
         or not isinstance(serie, list)
-        or any(type(s) is not int or isinstance(s, bool) or s < 1 or s > horizon for s in semaines)
-        or sorted(semaines) != semaines
         or len(serie) != horizon
-        or [ligne.get("semaine") for ligne in serie if isinstance(ligne, dict)] != list(range(1, horizon + 1))
     ):
         return [reference]
-    return []
+    calcules: dict[int, Decimal] = {}
+    for attendue, ligne in enumerate(serie, start=1):
+        if (
+            not isinstance(ligne, dict)
+            or type(ligne.get("semaine")) is not int
+            or ligne.get("semaine") != attendue
+        ):
+            return [reference]
+        montant = nombres.decimal_lu(ligne.get("solde_fin_cad"))
+        if ligne.get("statut") == "CALCULE":
+            if montant is None:
+                return [reference]
+            calcules[attendue] = montant
+        elif ligne.get("statut") == "NON_CALCULABLE":
+            if ligne.get("solde_fin_cad") is not None:
+                return [reference]
+        else:
+            return [reference]
+    bloque = constat.get("non_calculable_a_partir_de")
+    if bloque is not None:
+        if type(bloque) is not int or not 1 <= bloque <= horizon:
+            return [reference]
+        if any(semaine >= bloque for semaine in calcules):
+            return [reference]
+        if set(calcules) != set(range(1, bloque)):
+            return [reference]
+    elif len(calcules) != horizon:
+        return [reference]
+    minimal = nombres.decimal_lu(constat.get("solde_minimal_prevu_cad"))
+    semaine_minimale = constat.get("semaine_solde_minimal")
+    if minimal is None:
+        if semaine_minimale is not None or calcules:
+            return [reference]
+    else:
+        if (
+            type(semaine_minimale) is not int
+            or semaine_minimale not in calcules
+            or minimal != min(calcules.values())
+            or semaine_minimale != min(semaine for semaine, montant in calcules.items() if montant == minimal)
+        ):
+            return [reference]
+    statut = constat.get("statut_alerte")
+    seuil = nombres.decimal_lu(constat.get("seuil_cad"))
+    semaines = constat.get("semaines_sous_seuil")
+    if statut not in {"ALERTE", "SEUIL_A_CONFIGURER", "NON_EVALUEE", "AUCUNE"}:
+        return [reference]
+    if (
+        not isinstance(semaines, list)
+        or any(type(semaine) is not int for semaine in semaines)
+        or any(semaine < 1 or semaine > horizon for semaine in semaines)
+        or len(set(semaines)) != len(semaines)
+        or semaines != sorted(semaines)
+    ):
+        return [reference]
+    if statut == "SEUIL_A_CONFIGURER":
+        return [] if constat.get("seuil_cad") is None and not semaines else [reference]
+    if seuil is None or seuil < 0:
+        return [reference]
+    attendues = sorted(semaine for semaine, montant in calcules.items() if montant < seuil)
+    if semaines != attendues:
+        return [reference]
+    if statut == "ALERTE":
+        return [] if semaines else [reference]
+    if statut == "NON_EVALUEE":
+        return [] if not semaines and bloque is not None else [reference]
+    return [] if not semaines and bloque is None else [reference]
 
 
 _VERIFICATIONS: dict[str, Verification] = {
