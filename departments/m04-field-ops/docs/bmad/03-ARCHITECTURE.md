@@ -169,9 +169,12 @@ donnée absente (créneau, date, prévision, seuil, fournisseur en panne) donne 
 report ni nouvelle cédule.
 
 Le module retards relève, à partir de l'heure de référence que l'appelant fournit (aucune horloge), les reports en cours et
-les demandes de revue ouvertes, avec leur âge, au seuil de blocage du digest. Le retard sur la cédule n'est pas mesurable :
-le plan numérote ses jours sans date civile et le registre ne garde aucune fenêtre planifiée. Le relevé le dit au lieu de
-l'inventer.
+les demandes de revue ouvertes, avec leur âge, au seuil de blocage du digest. Depuis P4-04, le retard sur la cédule est
+MESURABLE : le bloc `retards_cedule` compare le créneau daté (`cedule_datee`) et le statut courant à la tolérance DÉCLARÉE
+par la direction (`0..480` minutes). Sans tolérance, il est « non évalué » et dit quoi déclarer ; un plan appliqué non daté
+est compté `sans_date`, jamais « 0 en retard » ; un calendrier civil illisible rend `REJ-REGISTRE-INVALIDE`. La
+replanification est portée par `m4_replanifier_intervention` (N3, P4-05), qui refuse une `planifiee` à créneau confirmé et
+n'écrit rien sur un refus.
 
 Les modules restent purs : aucun import du socle, aucune horloge, aucun aléa, aucun réseau, aucun flottant, ce que des
 tests vérifient par analyse du code. Aucun ne porte de coordonnée, de contact ni de champ financier.

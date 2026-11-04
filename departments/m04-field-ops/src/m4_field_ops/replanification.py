@@ -13,7 +13,8 @@ les transitions ``reportee`` du registre : motifs, heures, origines — jamais d
 
 Seules une ``reportee`` (sortie de son créneau) ou une ``planifiee`` perturbée (préparation non prête, créneau perdu)
 se replanifient : tout autre statut est refusé (fail-closed, ``REJ-REPLANIFICATION-REFUS``). Une préparation non
-« prête » refuse aussi (``REJ-REPLANIFICATION-NON-PRETE``), avec ce qui manque.
+« prête » refuse aussi (``REJ-REPLANIFICATION-NON-PRETE``), avec ce qui manque. Une ``planifiee`` dont le créneau daté
+est CONFIRMÉ ne se replanifie pas : le créneau n'est jamais déplacé (l'outil refuse avant toute écriture).
 """
 
 from __future__ import annotations
@@ -38,14 +39,20 @@ def _refus(code: str, detail: str, statut: str = "") -> dict[str, Any]:
     return verdicts.construire_verdict(code, statut=statut, detail=detail)
 
 
-def verifier(registre_cible, intervention_id, lire_position, lire_equipes=None, lire_meteo=None):
+def verifier(registre_cible, intervention_id, lire_position, lire_equipes=None, lire_meteo=None,
+             lire_creneau_confirme=None):
     """``(dossier, None)`` ou ``(None, verdict)`` : la replanification est-elle possible, et que manque-t-il.
+
+    ``lire_creneau_confirme(registre, intervention_id)`` : lecture du créneau daté CONFIRMÉ de l'intervention
+    (``calendrier_civil.creneau_confirme``), ou ``None``. Un créneau confirmé ne se déplace jamais : la replanification
+    est refusée (``REJ-REPLANIFICATION-REFUS``) avant toute écriture. Sans ce lecteur, le contrôle n'est pas fait
+    (compatibilité des appels qui ne replanifient pas une ``planifiee`` datée).
 
     ``dossier`` : ``intervention_id``, ``statut`` courant, ``preparation`` (verdict complet), ``historique``
     (les reports passés), ``prochaine_etape`` (``repasser_planifiee`` pour une ``reportee`` prête,
     ``reproposer_cedule`` pour une ``planifiee`` prête). Refus : intervention inconnue ou statut non
-    replanifiable (``REJ-REPLANIFICATION-REFUS``) ; préparation non « prête » (``REJ-REPLANIFICATION-NON-PRETE``,
-    avec ``a_fournir``). Rien n'est écrit, rien n'est promis."""
+    replanifiable (``REJ-REPLANIFICATION-REFUS``) ; créneau confirmé (``REJ-REPLANIFICATION-REFUS``) ; préparation non
+    « prête » (``REJ-REPLANIFICATION-NON-PRETE``, avec ``a_fournir``). Rien n'est écrit, rien n'est promis."""
     statut = etats.statut_courant(registre_cible, intervention_id)
     if statut is None:
         return None, _refus("REJ-REPLANIFICATION-REFUS", f"intervention {intervention_id!r} inconnue")
@@ -56,6 +63,16 @@ def verifier(registre_cible, intervention_id, lire_position, lire_equipes=None, 
             f"(attendu : {', '.join(STATUTS_REPLANIFIABLES)})",
             statut=statut,
         )
+    if lire_creneau_confirme is not None:
+        creneau = lire_creneau_confirme(registre_cible, intervention_id)
+        if creneau is not None:
+            return None, _refus(
+                "REJ-REPLANIFICATION-REFUS",
+                f"créneau déjà confirmé du {creneau['debut']} au {creneau['fin']} : un créneau confirmé n'est "
+                "jamais déplacé ; aucune replanification n'est écrite (signaler un report d'abord si le créneau "
+                "ne tient plus)",
+                statut=statut,
+            )
     verdict_preparation, refus = preparation.evaluer(
         registre_cible, intervention_id, lire_position, lire_equipes, lire_meteo)
     if refus is not None:
@@ -118,19 +135,22 @@ def historique_reports(registre_cible, intervention_id):
     """Les reports passés d'une intervention : ``[{motif, horodatage, origine_heure}]``, du plus ancien au récent.
 
     Relit les transitions ``reportee`` du registre (motif fermé, heure gardée, origine serveur/appelant). Aucun nom,
-    aucune position, aucun texte libre. Intervention inconnue : liste vide, jamais une erreur."""
+    aucune position, aucun texte libre. L'ordre est celui de l'HEURE (pas celui de l'append) : un report antidaté par
+    la console, un agent ou une reprise ne devient donc pas le « dernier » motif du plan de secours. Intervention
+    inconnue : liste vide, jamais une erreur."""
     passe = []
     for maillon in registre_cible.lire():
         if (maillon.get("type_entree") == etats.TYPE_TRANSITION
                 and maillon.get("intervention_id") == intervention_id
                 and maillon.get("statut") == "reportee"):
             try:
-                horodatage.valider_horodatage(maillon.get("horodatage", ""))
+                heure = horodatage.instant(maillon.get("horodatage", ""))
             except ValueError:
                 continue
-            passe.append({
+            passe.append((heure, {
                 "motif": maillon.get("motif"),
                 "horodatage": maillon.get("horodatage"),
                 "origine_heure": horodatage.origine(maillon),
-            })
-    return passe
+            }))
+    passe.sort(key=lambda entree: entree[0])
+    return [entree for _heure, entree in passe]

@@ -124,12 +124,35 @@ _NOM_REGISTRE = "principal"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 
 
+class _ReplanificationAnnulee(Exception):
+    """Refus logique d'une replanification : la transaction ouverte est annulée, la réponse est rendue."""
+
+    def __init__(self, reponse: dict[str, Any]) -> None:
+        super().__init__()
+        self.reponse = reponse
+
+
+@contextmanager
+def _transaction_de_replanification(registre_cible):
+    """Transaction de l'écriture de replanification : tout ou rien.
+
+    Un ``executer_atomique`` ouvre déjà une transaction : la portée imbriquée est un point de sauvegarde, annulé si
+    la replanification rend un refus APRÈS une écriture (transition ``reportee`` -> ``planifiee``, proposition). Sans
+    transaction active (appel direct hors socle), une transaction réelle est ouverte quand le registre est celui de
+    la production ; un registre EN MÉMOIRE fourni par un test n'a pas de transaction durable à ouvrir."""
+    if registre_cible is not None and stockage.connexion_courante() is None:
+        yield
+        return
+    with stockage.transaction():
+        yield
+
+
 def _tolerance_retard_cedule():
     """Tolérance DÉCLARÉE (CFG-1) au-delà de laquelle un créneau daté dépassé compte « en retard ».
 
     Précédence : valeur adoptée par la direction > ``configuration.retard_cedule`` du fichier > absence
-    (``None`` : règle non évaluée). Illisible ou non entière >= 0 : ``None`` (fail-closed, le pur refuse).
-    Ne lève jamais."""
+    (``None`` : règle non évaluée). Illisible, non entière, négative ou au-delà du ``max: 480`` DÉCLARÉ au
+    manifeste : ``None`` (fail-closed, le pur refuse aussi). Ne lève jamais."""
     try:
         donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError):
@@ -141,7 +164,7 @@ def _tolerance_retard_cedule():
     except (AttributeError, TypeError, ValueError):
         bloc = du_fichier
     valeur = bloc.get("tolerance_minutes") if isinstance(bloc, dict) else None
-    return valeur if type(valeur) is int and valeur >= 0 else None
+    return valeur if type(valeur) is int and 0 <= valeur <= retards.TOLERANCE_MAX_MINUTES else None
 
 _CONTRAT = {"type": "object", "description": "LeadQualifie M2, v1 ou v2 selon la version qu'il déclare "
             "(jamais devinée) : v1, sept clés gelées (lead_id, conversation_id, type_travaux, ville, "
@@ -1597,9 +1620,11 @@ def outils(
         préparation est « prête » (``replanification.verifier``), refait passer une ``reportee`` à ``planifiee``
         (``etats.transitionner``, motif déjà enregistré), puis propose un nouveau plan pour elle seule et
         l'applique (``cedule_tournees.proposer`` avec ``intervention_ids`` puis ``appliquer`` : la cédule
-        existante est réutilisée, jamais réécrite). Toutes les vérifications précèdent la première écriture ; un
-        refus ne laisse rien et rend le plan de secours (garder le report, attendre, revalider). N3 : une
-        personne approuve dans la file, ``confirme_par`` doit être la personne authentifiée."""
+        existante est réutilisée, jamais réécrite). Une ``planifiee`` à créneau daté CONFIRMÉ est refusée AVANT toute
+        écriture (un créneau confirmé n'est jamais déplacé). Les écritures de la replanification sont dans un point de
+        sauvegarde : un refus après la transition ou la proposition les annule (tout ou rien) et rend le plan de secours
+        (garder le report RÉEL et son motif, attendre, revalider). N3 : une personne approuve dans la file,
+        ``confirme_par`` doit être la personne authentifiée."""
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
             return _refus(verdict_acteur)
@@ -1611,41 +1636,52 @@ def outils(
         reg = registre_courant()
         dossier, verdict = replanification.verifier(
             reg, intervention_id, lire_localisation_confirmee,
-            lire_equipes=_lecteur_equipes(), lire_meteo=_lecteur_meteo())
+            lire_equipes=_lecteur_equipes(), lire_meteo=_lecteur_meteo(),
+            lire_creneau_confirme=calendrier_civil.creneau_confirme)
         if verdict is not None:
+            # Le refus garde le report réel et son motif : le secours ne parle pas d'un état qui n'existe pas.
             secours = replanification.plan_de_secours(
-                {"statut": etats.statut_courant(reg, intervention_id), "historique": [],
+                {"statut": etats.statut_courant(reg, intervention_id),
+                 "historique": replanification.historique_reports(reg, intervention_id),
                  "preparation": {"a_fournir": []}}, verdict.get("detail", ""))
             return {"accepte": False, "verdict": verdict, "secours": secours}
-        if dossier["statut"] == "reportee":
-            recu, verdict_transition = etats.transitionner(
-                intervention_id, "planifiee", reg, horodatage_faisant_foi)
-            if verdict_transition is not None:
-                return {"accepte": False, "verdict": verdict_transition,
+        try:
+            with _transaction_de_replanification(registre_cible):
+                if dossier["statut"] == "reportee":
+                    recu, verdict_transition = etats.transitionner(
+                        intervention_id, "planifiee", reg, horodatage_faisant_foi)
+                    if verdict_transition is not None:
+                        raise _ReplanificationAnnulee({
+                            "accepte": False, "verdict": verdict_transition,
+                            "secours": replanification.plan_de_secours(
+                                dossier, verdict_transition.get("detail", ""))})
+                proposition, verdict_proposition = cedule_tournees.proposer(
+                    reg, {"intervention_ids": [intervention_id]}, lire_localisation_confirmee,
+                    horodatage_faisant_foi, propose_par=confirme_par,
+                    fournisseur=fournisseur_matrice, moteur=moteur, lire_equipes=_lecteur_equipes(),
+                    lire_meteo=_lecteur_meteo())
+                if verdict_proposition is not None:
+                    raise _ReplanificationAnnulee({
+                        "accepte": False, "verdict": verdict_proposition,
                         "secours": replanification.plan_de_secours(
-                            dossier, verdict_transition.get("detail", ""))}
-        proposition, verdict_proposition = cedule_tournees.proposer(
-            reg, {"intervention_ids": [intervention_id]}, lire_localisation_confirmee,
-            horodatage_faisant_foi, propose_par=confirme_par,
-            fournisseur=fournisseur_matrice, moteur=moteur, lire_equipes=_lecteur_equipes(),
-            lire_meteo=_lecteur_meteo())
-        if verdict_proposition is not None:
-            return {"accepte": False, "verdict": verdict_proposition,
-                    "secours": replanification.plan_de_secours(dossier, verdict_proposition.get("detail", ""))}
-        application, verdict_application = cedule_tournees.appliquer(
-            reg, proposition["plan_id"], lire_localisation_confirmee, horodatage_faisant_foi, confirme_par,
-            fournisseur=fournisseur_matrice, lire_equipes=_lecteur_equipes(), lire_meteo=_lecteur_meteo())
-        if verdict_application is not None:
-            return {"accepte": False, "verdict": verdict_application,
-                    "secours": replanification.plan_de_secours(
-                        dossier, verdict_application.get("detail", "")),
-                    "proposition": proposition}
-        reponse = {"accepte": True, "resultat": {
-            "intervention_id": intervention_id,
-            "historique_reports": replanification.historique_reports(reg, intervention_id),
-            "proposition": proposition,
-            "application": application,
-        }}
+                            dossier, verdict_proposition.get("detail", ""))})
+                application, verdict_application = cedule_tournees.appliquer(
+                    reg, proposition["plan_id"], lire_localisation_confirmee, horodatage_faisant_foi, confirme_par,
+                    fournisseur=fournisseur_matrice, lire_equipes=_lecteur_equipes(), lire_meteo=_lecteur_meteo())
+                if verdict_application is not None:
+                    raise _ReplanificationAnnulee({
+                        "accepte": False, "verdict": verdict_application,
+                        "secours": replanification.plan_de_secours(
+                            dossier, verdict_application.get("detail", "")),
+                        "proposition": proposition})
+                reponse = {"accepte": True, "resultat": {
+                    "intervention_id": intervention_id,
+                    "historique_reports": replanification.historique_reports(reg, intervention_id),
+                    "proposition": proposition,
+                    "application": application,
+                }}
+        except _ReplanificationAnnulee as annulation:
+            return annulation.reponse
         if reception is not None:
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
         return reponse
@@ -3133,9 +3169,11 @@ def outils(
                 "REPLANIFIE une intervention reportee ou planifiee perturbée (P4-05) : vérifie que sa préparation "
                 "est « prête », refait passer une reportee à planifiee, puis propose un nouveau plan pour elle "
                 "seule et l'applique (même solveur et mêmes règles que m4_proposer_cedule et m4_appliquer_cedule, "
-                "plan de secours sinon : garder le report, attendre, revalider). Un créneau déjà confirmé n'est "
-                "jamais déplacé. L'historique des reports (motifs, heures) est rendu avec le résultat. Pour un "
-                "appel d'appareil, confirme_par doit être la personne authentifiée."
+                "plan de secours sinon : garder le report réel et son motif, attendre, revalider). Une planifiee à "
+                "créneau daté confirmé est refusée : un créneau déjà confirmé n'est jamais déplacé. Tout refus est "
+                "atomique (aucune transition ni proposition ne reste). L'historique des reports (motifs, heures, du "
+                "plus ancien au plus récent) est rendu avec le résultat. Pour un appel d'appareil, confirme_par doit "
+                "être la personne authentifiée."
             ),
             parametres={
                 "type": "object",

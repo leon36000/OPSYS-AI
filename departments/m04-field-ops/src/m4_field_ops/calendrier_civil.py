@@ -117,6 +117,20 @@ def _projection(index):
     return sorted(lignes, key=lambda ligne: (ligne["debut"], ligne["equipe_id"], ligne["intervention_id"])), sans_date
 
 
+def creneau_confirme(reg, intervention_id):
+    """La ligne de créneau daté CONFIRMÉE de cette intervention, ou ``None``. Lecture pure.
+
+    Sert la garde « un créneau confirmé n'est jamais déplacé » (P4-05) : une intervention encore ``planifiee`` dont la
+    date civile est confirmée ne se replanifie pas. Un créneau à reconfirmer (report, réassignation, statut non
+    mesurable) n'est pas « confirmé » et rend ``None``. Une source illisible lève comme ``_projection`` : l'appelant
+    refuse alors, il ne devine pas « pas de créneau »."""
+    lignes, _sans_date = _projection(_index(reg))
+    for ligne in lignes:
+        if ligne["intervention_id"] == intervention_id and ligne["validite"] == "date_confirmee":
+            return ligne
+    return None
+
+
 def confirmer(reg, plan_id, calendrier, revision_attendue, confirme_par, horodatage):
     """Écriture unique après validation complète. L'adaptateur sérialise via SQLite BEGIN IMMEDIATE."""
     index = _index(reg)

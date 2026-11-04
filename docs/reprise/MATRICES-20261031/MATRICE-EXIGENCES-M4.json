@@ -641,7 +641,8 @@
       "departments/m04-field-ops/tests/test_retards_outil.py",
       "departments/m04-field-ops/tests/test_ecarts.py",
       "departments/m04-field-ops/tests/test_p4_retard_replanification.py",
-      "departments/m04-field-ops/tests/test_p4_e2e_preuve.py"
+      "departments/m04-field-ops/tests/test_p4_e2e_preuve.py",
+      "departments/m04-field-ops/tests/test_p4_relecture_retards.py"
      ],
      "docs": [],
      "niveau": "S"
@@ -649,7 +650,7 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Retard mesurable sur la cédule datée (P4-04) : minutes exactes au-delà de la tolérance DÉCLARÉE par la direction (fail-closed « non évalué » sinon, attente `tolerance_retard_a_configurer`), brouillon ETA à M1 (jamais envoyé, consentement Loi 25), aucun nom d'employé ni position ; demandes d'écart avec revue humaine ; avenants absents (0 occurrence) ; incidents peu structurés.",
+   "limite": "Retard mesurable sur la cédule datée (P4-04) : minutes exactes au-delà de la tolérance DÉCLARÉE par la direction (fail-closed « non évalué » sinon, attente `tolerance_retard_a_configurer`), brouillon ETA à M1 (jamais envoyé, consentement Loi 25), aucun nom d'employé ni position ; demandes d'écart avec revue humaine ; avenants absents (0 occurrence) ; incidents peu structurés. Relecture adverse P4-04 (A3-A6) corrigée : plan appliqué non daté compté `sans_date` (jamais zéro), calendrier civil illisible refusé (`REJ-REGISTRE-INVALIDE`), clé historique absente quand le bloc mesure, borne `0..480` appliquée à la lecture et au calcul.",
    "verification": "grep avenant dans src M4 : 0"
   },
   {
@@ -667,7 +668,8 @@
       "departments/m04-field-ops/tests/test_p4_retard_replanification.py",
       "departments/m04-field-ops/tests/test_p4_e2e_preuve.py",
       "departments/m04-field-ops/tests/test_etats.py",
-      "departments/m04-field-ops/tests/test_cedule.py"
+      "departments/m04-field-ops/tests/test_cedule.py",
+      "departments/m04-field-ops/tests/test_p4_relecture_replanification.py"
      ],
      "docs": [],
      "niveau": "S"
@@ -675,7 +677,7 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Replanification N3 (P4-05) : reportée/planifiée perturbée → préparation → proposition → application (même solveur), plan de secours et historique des reports ; dépannage absent."
+   "limite": "Replanification N3 (P4-05) : reportée/planifiée perturbée → préparation → proposition → application (même solveur), plan de secours et historique des reports trié par l'heure. Relecture adverse (A1, A2, A7, A8) corrigée : une planifiée à créneau confirmé est refusée sans écriture, un refus est atomique (point de sauvegarde), le secours garde le report réel et son motif. Dépannage absent."
   },
   {
    "id": "M4.22",

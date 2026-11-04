@@ -20,6 +20,7 @@ __all__ = [
     "CLE_HORODATAGE_APPAREIL",
     "ORIGINE_APPELANT",
     "ORIGINE_SERVEUR",
+    "instant",
     "origine",
     "valider_horodatage",
 ]
@@ -44,6 +45,15 @@ def valider_horodatage(texte):
     if dt.tzinfo is None:
         raise ValueError("REJ-HORODATAGE-INVALIDE") from None
     return texte
+
+
+def instant(texte):
+    """L'``datetime`` avec fuseau d'un horodatage valide (même refus que ``valider_horodatage``).
+
+    Sert aux lectures qui doivent ORDONNER des faits par leur heure : deux textes ISO 8601 d'offsets différents ne se
+    comparent pas comme des chaînes. Aucune horloge n'est lue ; le texte vient du registre."""
+    valider_horodatage(texte)
+    return datetime.fromisoformat(texte)
 
 
 def origine(maillon):

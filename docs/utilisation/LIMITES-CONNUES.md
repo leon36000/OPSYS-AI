@@ -349,6 +349,22 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - **Facteurs absents** : distance, déplacement, saison, urgence et pertes de main-d'œuvre ne sont pas dans la
   composition ; le modèle de perte reste celui des lignes de matériau (`taux_perte`).
 
+## 7 quater. Retard sur la cédule et replanification M4 (P4-04/P4-05, 4 novembre 2026)
+
+- **Aucune valeur de tolérance n'est livrée.** `configuration.retard_cedule.tolerance_minutes` vaut `null` : sans
+  déclaration de la direction (CFG-1, `0..480`, N3), `retards_cedule` est « non évalué » et dit quoi déclarer ; il
+  n'écrit jamais « 0 en retard ». 481 est refusé par le calcul et par la lecture CFG-1.
+- **Un plan appliqué non daté n'est pas un zéro** : ses interventions sont comptées `sans_date` ; un calendrier civil
+  illisible rend `REJ-REGISTRE-INVALIDE`. La clé historique `retard_sur_cedule` n'est plus servie quand le bloc mesure :
+  un consommateur doit lire `retards_cedule`.
+- **Aucun geste ne déplace un créneau confirmé.** `m4_replanifier_intervention` refuse une `planifiee` à créneau daté
+  confirmé ; pour la déplacer, il faut d'abord la reporter (geste distinct), et aucun outil ne promet un nouveau
+  créneau au client. Le refus est atomique (point de sauvegarde) ; sur un registre EN MÉMOIRE fourni par un test, la
+  transaction durable n'existe pas, donc l'atomicité n'est prouvée que sur le registre adossé à la base.
+- **Non rejoué sur PostgreSQL, ni sur un appareil réel** : la preuve P4-04/P4-05 est SQLite, données fictives, horloge
+  injectée. Le mobile n'a pas d'écran « retards » dédié ; la replanification reste un outil admin N3, pas un parcours
+  d'appareil.
+
 ## 8. Écarts de documentation connus et non corrigés
 
 - Les décisions d'architecture (ADR) 0002, 0006, 0007 et 0008 citent `core/UPSTREAM.md` et un outil `scripts/tally.py` qui n'existent pas dans ce
