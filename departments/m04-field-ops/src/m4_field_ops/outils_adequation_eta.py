@@ -23,6 +23,7 @@ import yaml
 from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, stockage
+from opsys import reglages as reglages_direction
 from opsys.garde_fou_texte import (
     ADRESSE,
     AVEU,
@@ -99,12 +100,20 @@ def _v(code: str, detail: str = "") -> dict[str, Any]:
 
 
 def _configuration(cle: str) -> Any:
+    """Le bloc ``configuration.<cle>`` de ``department.yaml``, relu à chaque appel, avec par-dessus les valeurs
+    ADOPTÉES par la direction (CFG-1) : une valeur adoptée l'emporte sur celle du fichier, et rien d'adopté laisse
+    le fichier tel quel (``reglages.lecture.superposer``). Absent : ``None`` ; illisible : ``None``, le lecteur
+    du bloc dit « invalide » au lieu de deviner."""
     try:
         brut = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError):
         return None
     configuration = brut.get("configuration") if isinstance(brut, dict) else None
-    return configuration.get(cle) if isinstance(configuration, dict) else None
+    du_fichier = configuration.get(cle) if isinstance(configuration, dict) else None
+    try:
+        return reglages_direction.lecture.superposer(brut, ("configuration", cle), du_fichier)
+    except (AttributeError, TypeError, ValueError):
+        return du_fichier
 
 
 def _parametres_adequation() -> Any:

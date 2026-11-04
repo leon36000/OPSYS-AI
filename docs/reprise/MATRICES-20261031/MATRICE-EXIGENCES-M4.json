@@ -447,7 +447,8 @@
      "tests": [
       "departments/m04-field-ops/tests/test_eta_client.py",
       "departments/m04-field-ops/tests/test_suivi_client.py",
-      "departments/m04-field-ops/tests/test_outils_adequation_eta.py"
+      "departments/m04-field-ops/tests/test_outils_adequation_eta.py",
+      "departments/m04-field-ops/tests/test_p4_e2e_preuve.py"
      ],
      "docs": [
       "docs/architecture/M3-M4-MATHIS-GABRIEL.md"
@@ -638,15 +639,17 @@
      "tests": [
       "departments/m04-field-ops/tests/test_retards.py",
       "departments/m04-field-ops/tests/test_retards_outil.py",
-      "departments/m04-field-ops/tests/test_ecarts.py"
+      "departments/m04-field-ops/tests/test_ecarts.py",
+      "departments/m04-field-ops/tests/test_p4_retard_replanification.py",
+      "departments/m04-field-ops/tests/test_p4_e2e_preuve.py"
      ],
      "docs": [],
-     "niveau": "T"
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Retards et demandes d'écart avec revue humaine ; avenants absents (0 occurrence) ; incidents peu structurés.",
+   "limite": "Retard mesurable sur la cédule datée (P4-04) : minutes exactes au-delà de la tolérance DÉCLARÉE par la direction (fail-closed « non évalué » sinon, attente `tolerance_retard_a_configurer`), brouillon ETA à M1 (jamais envoyé, consentement Loi 25), aucun nom d'employé ni position ; demandes d'écart avec revue humaine ; avenants absents (0 occurrence) ; incidents peu structurés.",
    "verification": "grep avenant dans src M4 : 0"
   },
   {
@@ -661,16 +664,18 @@
    "proofs": [
     {
      "tests": [
+      "departments/m04-field-ops/tests/test_p4_retard_replanification.py",
+      "departments/m04-field-ops/tests/test_p4_e2e_preuve.py",
       "departments/m04-field-ops/tests/test_etats.py",
       "departments/m04-field-ops/tests/test_cedule.py"
      ],
      "docs": [],
-     "niveau": "T"
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Transition reportee→planifiee et cédule ; dépannage absent."
+   "limite": "Replanification N3 (P4-05) : reportée/planifiée perturbée → préparation → proposition → application (même solveur), plan de secours et historique des reports ; dépannage absent."
   },
   {
    "id": "M4.22",

@@ -8,7 +8,7 @@ mission: >-
   de prix, de date ferme imposée par le client ou de scoring des techniciens. Reçoit le devis
   accepté (une intervention à planifier) et dit, volet par volet, ce qui manque avant de la cédule.
   Lit pour le propriétaire, sans rien écrire : la météo du créneau d'une intervention, ses retards et
-  incidents (le retard sur la cédule n'est pas mesurable : il le dit) et sa liste par pages.
+  incidents (et, quand la direction a déclaré sa tolérance, le retard mesurable sur la cédule datée) et sa liste par pages.
 # Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
 # `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
 # de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
@@ -126,3 +126,26 @@ configuration:
     validite_consentement_jours: null
     conservation_heures: null
     messages_max_par_intervention: null
+  # P4-04 (retards.py) : tolérance au-delà de laquelle un créneau daté dépassé compte « en retard ». VIDE à dessein :
+  # décision de l'entreprise (minutes entières >= 0). Sans elle, le retard sur la cédule n'est pas évalué
+  # (REJ-RETARD-TOLERANCE-A-DECLARER, jamais 0 ni « tout va bien »). Voir `reglages:` ci-dessous (CFG-1).
+  retard_cedule:
+    tolerance_minutes: null
+# Réglages de direction (CFG-1, docs/architecture/REGLAGES-DIRECTION.md) : ce que la direction décide pour M4,
+# DÉCLARÉ ici et adopté depuis la console (« Réglages de direction », geste N3 du propriétaire, retour arrière
+# possible). Une déclaration ne porte jamais une valeur en vigueur. Précédence de lecture, réglage par réglage :
+# valeur ADOPTÉE > valeur de `configuration` ci-dessus (rien n'est cassé pour qui l'a déjà remplie) > absence
+# (« à configurer », comme avant). Aucune proposition chiffrée ici : les seuils de M4 (poids d'adéquation, réglages
+# ETA, tolérance de retard) sont des décisions de l'entreprise, à discuter, pas à suggérer.
+reglages:
+  - cle: m4.tolerance_retard_cedule_minutes
+    libelle: "Tolérance avant qu'un créneau daté dépassé compte en retard"
+    chemin: configuration.retard_cedule.tolerance_minutes
+    type: entier
+    unite: minutes
+    min: 0
+    max: 480
+    niveau: N3
+    debloque: >-
+      Le retard mesurable sur la cédule (m4_lire_retards_incidents, bloc `retards_cedule`) : sans cette tolérance,
+      la règle est « non évaluée » (REJ-RETARD-TOLERANCE-A-DECLARER).

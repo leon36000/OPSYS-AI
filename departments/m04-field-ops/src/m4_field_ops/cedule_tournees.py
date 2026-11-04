@@ -700,7 +700,10 @@ def _completer_par_le_profil(arguments, selection, lire_equipes):
                 provenance[cle] = SOURCE_SURCHARGE
 
     # Chantiers : l'entrée donnée par l'appelant fait foi ; une intervention a_planifier qui n'en a pas prend la
-    # fenêtre par défaut du profil et AUCUN créneau figé (avant toute cédule, aucun créneau n'a pu être promis).
+    # fenêtre par défaut du profil et AUCUN créneau figé (avant toute cédule, aucun créneau n'a pu être promis ;
+    # v1 : le profil est par service, les leads v1 gelés gardent leurs tables en arguments, donc jamais de fenêtre
+    # par défaut pour eux — un test verrouille que `chantiers manquant` reste exigé). P4-05 : la replanification
+    # d'une planifiee isolée (`intervention_ids`, sans a_planifier) ajoute aussi sa fenêtre, jamais devinée ailleurs.
     donnes = arguments.get("chantiers")
     sources = {}
     if isinstance(donnes, list):
@@ -709,9 +712,12 @@ def _completer_par_le_profil(arguments, selection, lire_equipes):
                 sources[entree["intervention_id"]] = SOURCE_SURCHARGE
     fenetre = None if profil is None else profil.get("fenetre_par_defaut")
     if fenetre is not None and (donnes is None or isinstance(donnes, list)):
+        demandes = [ligne for ligne in selection["inscriptions"]
+                    if etats.travaux_de(ligne)[0] != etats.CLE_TYPE_TRAVAUX]
+        demandes = {ligne["intervention_id"] for ligne in demandes} | set(selection["preparations"])
         generes = [
             {"intervention_id": identifiant, "fenetre": copy.deepcopy(fenetre), "creneau_fige": None}
-            for identifiant in sorted(selection["preparations"]) if identifiant not in sources
+            for identifiant in sorted(demandes) if identifiant not in sources
         ]
         if generes:
             effectifs["chantiers"] = list(donnes or []) + generes

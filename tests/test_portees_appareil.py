@@ -89,6 +89,7 @@ ADMIN_SEUL = frozenset({
     "m4_verifier_meteo_creneau",  # la météo d'un plan de cédule : dispatch de l'admin (T4.13)
     "m4_lire_meteo_intervention",  # la météo du créneau d'une intervention, sans plan_id : dispatch (T4.27-a)
     "m4_lire_retards_incidents",  # les reports en cours et les incidents ouverts : dispatch de l'admin (T4.27-a)
+    "m4_replanifier_intervention",  # remettre une reportée dans le cycle (P4-05) : N3, geste humain de l'admin
     # Sources horaires individuelles : aperçu et validation courante privés, aucun accès employé/vendeur.
     "m4_previsualiser_heures_regulieres", "m4_lire_heures_regulieres_validees",
     "m4_volumetrie_pending_review",

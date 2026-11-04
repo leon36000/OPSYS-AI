@@ -36,7 +36,10 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import partial
+from pathlib import Path
 from typing import Any
+
+import yaml
 
 from opsys import (
     approbations,
@@ -52,6 +55,7 @@ from opsys import (
 from opsys import equipes as equipes_entreprise
 from opsys import meteo as meteo_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.reglages import lecture as reglages_lecture
 from opsys.stockage.concurrence import verrou_ecriture_console
 from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
@@ -95,6 +99,7 @@ from . import (
     preparation,
     preuves,
     registre,
+    replanification,
     reserves_completion,
     retards,
     retention,
@@ -116,6 +121,27 @@ _PORTEE_CLES_GPS = "m04-field-ops/gps"
 
 _DEPARTEMENT = "m04-field-ops"
 _NOM_REGISTRE = "principal"
+_MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
+
+
+def _tolerance_retard_cedule():
+    """Tolérance DÉCLARÉE (CFG-1) au-delà de laquelle un créneau daté dépassé compte « en retard ».
+
+    Précédence : valeur adoptée par la direction > ``configuration.retard_cedule`` du fichier > absence
+    (``None`` : règle non évaluée). Illisible ou non entière >= 0 : ``None`` (fail-closed, le pur refuse).
+    Ne lève jamais."""
+    try:
+        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return None
+    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
+    du_fichier = configuration.get("retard_cedule") if isinstance(configuration, dict) else None
+    try:
+        bloc = reglages_lecture.superposer(donnees, ("configuration", "retard_cedule"), du_fichier)
+    except (AttributeError, TypeError, ValueError):
+        bloc = du_fichier
+    valeur = bloc.get("tolerance_minutes") if isinstance(bloc, dict) else None
+    return valeur if type(valeur) is int and valeur >= 0 else None
 
 _CONTRAT = {"type": "object", "description": "LeadQualifie M2, v1 ou v2 selon la version qu'il déclare "
             "(jamais devinée) : v1, sept clés gelées (lead_id, conversation_id, type_travaux, ville, "
@@ -1565,6 +1591,65 @@ def outils(
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
         return reponse
 
+    def replanifier_intervention(intervention_id: str, horodatage: str, confirme_par: str,
+                                 moteur: str = "auto") -> dict[str, Any]:
+        """Remet une intervention ``reportee`` ou ``planifiee`` perturbée dans le cycle (P4-05) : vérifie que la
+        préparation est « prête » (``replanification.verifier``), refait passer une ``reportee`` à ``planifiee``
+        (``etats.transitionner``, motif déjà enregistré), puis propose un nouveau plan pour elle seule et
+        l'applique (``cedule_tournees.proposer`` avec ``intervention_ids`` puis ``appliquer`` : la cédule
+        existante est réutilisée, jamais réécrite). Toutes les vérifications précèdent la première écriture ; un
+        refus ne laisse rien et rend le plan de secours (garder le report, attendre, revalider). N3 : une
+        personne approuve dans la file, ``confirme_par`` doit être la personne authentifiée."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_administrateur(acteur) or acces.controler_confirmant(acteur, confirme_par)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
+        reception = contexte.horodatage_reception()
+        horodatage_faisant_foi = reception.recu_le.isoformat() if reception is not None else horodatage
+        reg = registre_courant()
+        dossier, verdict = replanification.verifier(
+            reg, intervention_id, lire_localisation_confirmee,
+            lire_equipes=_lecteur_equipes(), lire_meteo=_lecteur_meteo())
+        if verdict is not None:
+            secours = replanification.plan_de_secours(
+                {"statut": etats.statut_courant(reg, intervention_id), "historique": [],
+                 "preparation": {"a_fournir": []}}, verdict.get("detail", ""))
+            return {"accepte": False, "verdict": verdict, "secours": secours}
+        if dossier["statut"] == "reportee":
+            recu, verdict_transition = etats.transitionner(
+                intervention_id, "planifiee", reg, horodatage_faisant_foi)
+            if verdict_transition is not None:
+                return {"accepte": False, "verdict": verdict_transition,
+                        "secours": replanification.plan_de_secours(
+                            dossier, verdict_transition.get("detail", ""))}
+        proposition, verdict_proposition = cedule_tournees.proposer(
+            reg, {"intervention_ids": [intervention_id]}, lire_localisation_confirmee,
+            horodatage_faisant_foi, propose_par=confirme_par,
+            fournisseur=fournisseur_matrice, moteur=moteur, lire_equipes=_lecteur_equipes(),
+            lire_meteo=_lecteur_meteo())
+        if verdict_proposition is not None:
+            return {"accepte": False, "verdict": verdict_proposition,
+                    "secours": replanification.plan_de_secours(dossier, verdict_proposition.get("detail", ""))}
+        application, verdict_application = cedule_tournees.appliquer(
+            reg, proposition["plan_id"], lire_localisation_confirmee, horodatage_faisant_foi, confirme_par,
+            fournisseur=fournisseur_matrice, lire_equipes=_lecteur_equipes(), lire_meteo=_lecteur_meteo())
+        if verdict_application is not None:
+            return {"accepte": False, "verdict": verdict_application,
+                    "secours": replanification.plan_de_secours(
+                        dossier, verdict_application.get("detail", "")),
+                    "proposition": proposition}
+        reponse = {"accepte": True, "resultat": {
+            "intervention_id": intervention_id,
+            "historique_reports": replanification.historique_reports(reg, intervention_id),
+            "proposition": proposition,
+            "application": application,
+        }}
+        if reception is not None:
+            reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
+        return reponse
+
     def confirmer_dates_cedule(plan_id: str, calendrier: dict[str, str], revision_attendue: int) -> dict[str, Any]:
         refus = verifier_autorite_calendrier()
         if refus:
@@ -2091,8 +2176,10 @@ def outils(
         return depuis_couple(meteo_creneaux.presenter_intervention(resultat, _tient_dans_une_reponse))
 
     def lire_retards_incidents(horodatage_reference: str) -> dict[str, Any]:
-        """Lecture seule (PLAN T4.27-a) : les reports en cours et les incidents ouverts que M4 a déjà enregistrés, avec
-        leur âge. Rien n'est écrit (T0). Le retard sur la cédule n'est pas mesuré : le relevé le dit."""
+        """Lecture seule (PLAN T4.27-a, P4-04) : les reports en cours et les incidents ouverts que M4 a déjà
+        enregistrés, avec leur âge. Le bloc ``retards_cedule`` mesure en plus le retard sur les créneaux datés
+        (fin de créneau dépassée au-delà de la tolérance DÉCLARÉE par la direction). Sans tolérance déclarée,
+        la règle est « non évaluée » et dit quoi déclarer. Rien n'est écrit (T0)."""
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
             return _refus(verdict_acteur)
@@ -2100,6 +2187,13 @@ def outils(
         if verdict_role is not None:
             return _refus(verdict_role)
         releve, verdict = retards.lire(registre_courant(), horodatage_reference)
+        tolerance = _tolerance_retard_cedule()
+        if tolerance is not None:
+            # Tolérance DÉCLARÉE (CFG-1) : le retard se mesure ; sinon le relevé ci-dessus porte déjà la
+            # règle « non évaluée » (bloc retards_cedule, jamais 0 ni « tout va bien »), et la file admin
+            # (`attentes()`) dit quoi déclarer.
+            releve, verdict = retards.lire(
+                registre_courant(), horodatage_reference, tolerance_minutes=tolerance)
         if verdict is not None:
             return _refus(verdict)
         return depuis_couple(retards.presenter(releve, _retards_tiennent_dans_une_reponse))
@@ -3034,6 +3128,35 @@ def outils(
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(
+            nom="m4_replanifier_intervention",
+            description=(
+                "REPLANIFIE une intervention reportee ou planifiee perturbée (P4-05) : vérifie que sa préparation "
+                "est « prête », refait passer une reportee à planifiee, puis propose un nouveau plan pour elle "
+                "seule et l'applique (même solveur et mêmes règles que m4_proposer_cedule et m4_appliquer_cedule, "
+                "plan de secours sinon : garder le report, attendre, revalider). Un créneau déjà confirmé n'est "
+                "jamais déplacé. L'historique des reports (motifs, heures) est rendu avec le résultat. Pour un "
+                "appel d'appareil, confirme_par doit être la personne authentifiée."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "intervention_id": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "confirme_par": {"type": "string", "description": "Personne qui replanifie, nommément."},
+                    "moteur": {"type": "string", "enum": ["auto", "exact", "pyvrp"]},
+                },
+                "required": ["intervention_id", "horodatage", "confirme_par"],
+                "additionalProperties": False,
+            },
+            fonction=replanifier_intervention,
+            autonomie=Autonomie.T1,
+            # Niveau : N3 explicite (ADR-0009 §4) : une replanification change la vérité interne du terrain
+            # (retour à planifiee, nouvelles assignations) sans engager le client (aucun envoi, M1 prévient sur
+            # décision N3 de M1). §9.5 : réservé à l'admin.
+            niveau=Niveau.N3,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
             nom="m4_confirmer_dates_cedule",
             description=("Admin humain actif : date explicitement les jours numérotés d'un plan M4 déjà appliqué. "
                          "Révision attendue 0 initialement; historique append-only. Refuse conflits connus, plan "
@@ -3512,14 +3635,16 @@ def outils(
         Outil(
             nom="m4_lire_retards_incidents",
             description=(
-                "Lecture seule (T4.27-a, §9.5 M4 « retards, incidents ») : ce que M4 a déjà enregistré, avec l'âge en "
+                "Lecture seule (T4.27-a, P4-04, §9.5 M4 « retards, incidents ») : ce que M4 a déjà enregistré, "
+                "avec l'âge en "
                 "heures à partir de `horodatage_reference` (ISO 8601 avec fuseau : l'heure de l'appareil) : les "
                 "REPORTS en cours (intervention reportee : motif client_absent, meteo ou decision_admin, depuis "
                 "quand) et les "
                 f"INCIDENTS ouverts (demandes de revue sans résolution : écart métier ou anomalie de pointage ; "
                 f"`bloquee` dès {retards.SEUIL_BLOCAGE_HEURES} h, comme le digest). Du plus ancien au plus récent, "
                 f"{retards.LIMITE_PAR_LISTE} par liste : `reste` compte le reste, `suite` dit quel outil le rend. Le "
-                "retard sur la cédule n'est PAS mesuré (aucun calendrier) : `retard_sur_cedule` est non_mesurable, "
+                "bloc `retards_cedule` mesure le retard sur les créneaux datés (fin dépassée au-delà de la "
+                "tolérance DÉCLARÉE par la direction ; sans elle, « non évalué », "
                 "jamais « aucun retard ». Chaque ligne dit d'où vient son heure (`origine_heure` : `serveur`, "
                 "réception ; `appelant`, heure écrite par l'appelant, dont l'âge suit son horloge). Aucun texte "
                 "libre du terrain ni contact. N'écrit rien. Réservé à l'admin."
@@ -4146,6 +4271,11 @@ def attentes() -> list[dict[str, Any]]:
     absence est dite telle quelle (« pas encore de nouvelles »), jamais traitée comme « pas de
     problème » (fail-closed).
 
+    P4-04 : tant que la tolérance de retard sur la cédule n'est pas DÉCLARÉE par la direction
+    (CFG-1 `m4.tolerance_retard_cedule_minutes`), une attente N2 `tolerance_retard_a_configurer`
+    le rappelle : le retard mesurable n'est pas évalué, sans jamais valoir 0 ni « tout va bien ».
+    Lecture seule : ne crée ni maillon, ni approbation, ni événement.
+
     PLAN T1.5-c, décision écrite : entre « Terminer » et le formulaire des matériaux, la
     complétion est DÉJÀ `completed_pending_review`, et c'est juste. DEFINITION-PRODUIT §6 : « s'il
     manque quelque chose ou si le matériel diffère du prévu, le statut devient
@@ -4159,7 +4289,7 @@ def attentes() -> list[dict[str, Any]]:
     geste proposé n'offre pas `verifiee`. L'alerte d'écart (§9.7, étape 5) reste celle du signal
     critique de M6, inchangée."""
     reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
-    return [
+    attendues = [
         {
             "type": "completion_en_revue",
             "id": pendante["intervention_id"],
@@ -4170,6 +4300,12 @@ def attentes() -> list[dict[str, Any]]:
         }
         for pendante in etats.lister_interventions(reg, statut="completed_pending_review")
     ]
+    # P4-04 : sans tolérance déclarée, le retard sur la cédule n'est pas évalué — la file le dit,
+    # sans jamais évaluer un retard sans la règle (aucune lecture d'horloge ici, `depuis` vide).
+    alerte_tolerance = retards.attente_tolerance_retard(_tolerance_retard_cedule())
+    if alerte_tolerance is not None:
+        attendues.append(alerte_tolerance)
+    return attendues
 
 
 def _depuis_pending_review(reg: registre.Registre, intervention_id: str) -> str:

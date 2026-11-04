@@ -273,6 +273,31 @@ un créneau déjà confirmé au client n'est pas pris en charge pour un tel chan
 membre n'entre pas dans la cédule (D4 : une déclaration d'équipe n'est pas une présence), seule l'absence de l'équipe
 (pas de quart) compte.
 
+## Retard sur la cédule et replanification (P4-04, P4-05) — vague 13
+
+**Retard mesurable (P4-04).** Le bloc `retards_cedule` de `m4_lire_retards_incidents` se mesure à partir du créneau
+daté (`cedule_datee` : plan appliqué dont les jours ont reçu une date civile via `m4_confirmer_dates_cedule`) et du
+statut courant : une intervention `planifiee` ou `en_route` dont la fin du créneau est dépassée à
+`horodatage_reference`, au-delà de la tolérance DÉCLARÉE par la direction
+(`configuration.retard_cedule.tolerance_minutes`, réglage CFG-1 `m4.tolerance_retard_cedule_minutes`, entière ≥ 0,
+N3), est « en retard » (minutes entières au-delà de la tolérance) ; sinon « à l'heure ». Tolérance absente ou
+illisible : la règle est « non évaluée » (fail-closed, jamais 0 ni « tout va bien ») et la file de l'admin porte
+l'attente `tolerance_retard_a_configurer` (quoi déclarer, geste N3). Le retard alimente la chaîne ETA existante :
+`retards_declares_minutes` dans `m4_preparer_message_eta_client` (brouillon à M1, jamais envoyé par M4, consentement
+Loi 25 exigé), aucun nom d'employé, aucune position.
+
+**Replanification (P4-05, N3).** `m4_replanifier_intervention` (admin, `confirme_par` = sa propre personne) remet une
+intervention `reportee` ou `planifiee` perturbée dans le cycle : vérification (`replanification.verifier`,
+préparation « prête » via `m4_verifier_preparation`, sinon refus nommé avec ce qui manque), retour à `planifiee`
+si elle était `reportee`, puis nouvelle proposition et application (même solveur `cedule_tournees`, mêmes règles ;
+l'entrée de l'appelant fait foi, la fenêtre par défaut du profil complète une `planifiee` isolée, jamais devinée
+ailleurs). Un créneau déjà confirmé n'est jamais déplacé ; un refus rend le plan de secours (garder le report,
+attendre, revalider) avec l'historique des reports (motifs, heures, origines).
+
+Preuve : `tests/test_p4_retard_replanification.py` (minutes exactes, bornes, refus, tri, historique, pureté) et
+`tests/test_p4_e2e_preuve.py` (vrais outils, base migrée : non évalué → file → mesuré → brouillon ETA → replan N3).
+Les fixtures sont FICTIVES (`fictif: true`).
+
 ## Terminer avec réserves (P4-07) — vague 12
 
 DEFINITION-PRODUIT §6 : « s'il manque quelque chose [...] `completed_pending_review` ». `m4_completer_intervention`
@@ -532,9 +557,7 @@ aléa, ni réseau, ni flottant).
   `decision_admin`, depuis quand) et les INCIDENTS ouverts (les demandes de revue sans résolution : écart métier ou anomalie
   de pointage), chacun avec son âge en heures pleines ; « bloquée » dès 24 h, le seuil du digest (jamais un second). Chaque
   liste est bornée à 8, du plus ancien au plus récent ; `reste` compte les autres et `suite` dit où les lire
-  (`m4_lister_interventions`, `m4_lister_pending_review`). **`retard_sur_cedule` vaut `non_mesurable`** avec la raison :
-  le plan d'une cédule numérote ses jours sans date civile et le registre ne garde aucune fenêtre planifiée ; « aucun
-  retard » n'est jamais écrit. Aucun texte libre du terrain, aucun contact. **Chaque ligne dit `origine_heure`**
+  (`m4_lister_interventions`, `m4_lister_pending_review`). Le bloc **`retards_cedule`** mesure le retard sur les créneaux datés (fin de créneau dépassée au-delà de la tolérance DÉCLARÉE par la direction) ; sans tolérance déclarée, « non évalué » (jamais 0 ni « tout va bien ») ; « aucun retard » n'est jamais écrit. Aucun texte libre du terrain, aucun contact. **Chaque ligne dit `origine_heure`**
   (T4.27-a2, section suivante) : `serveur` ou `appelant`.
 
 Preuve : `tests/test_pagination_interventions.py` et `tests/test_retards.py` (modules purs, analyse du code),
@@ -545,7 +568,7 @@ les mêmes arguments), `tests/test_lister_interventions_pages.py`, `tests/test_m
 l'employé et le vendeur sur la météo et les retards, 45 interventions par pages sans troncature alors que la liste v1 est
 coupée, l'employé ne voit que les siennes). Les fixtures sont FICTIVES (`fictif: true`).
 
-Limites connues : le retard sur la cédule n'est pas mesurable (M4 ne tient aucun calendrier) ; une intervention
+Limites connues : sans tolérance déclarée, le retard sur la cédule reste « non évalué » (fail-closed) ; une intervention
 planifiée par `m4_planifier_intervention` n'a aucune fenêtre au registre, donc aucun créneau à juger ; la liste v1 sans
 clé reste coupée par le socle. L'heure d'un report et d'une demande d'écart, limite de T4.27-a, est levée par T4.27-a2 :
 voir la section suivante, qui dit aussi ce qui reste.

@@ -202,7 +202,7 @@ def test_l_outil_est_de_lecture_t0_reserve_a_l_admin_et_decrit(par_nom):
     assert set(outil.parametres["properties"]) == {"horodatage_reference"}
     assert outil.parametres["additionalProperties"] is False
     assert len(outil.description) <= 1024
-    for mot in ("REPORTS", "INCIDENTS", "non_mesurable", "jamais « aucun retard »", "Réservé à l'admin", "24 h"):
+    for mot in ("REPORTS", "INCIDENTS", "retards_cedule", "jamais « aucun retard »", "Réservé à l'admin", "24 h"):
         assert mot in outil.description, mot
 
 
