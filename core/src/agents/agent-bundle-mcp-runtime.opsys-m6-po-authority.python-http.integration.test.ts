@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -98,6 +99,13 @@ type State = {
   approvals: Approval[];
   claims: Claim[];
   journal: Journal[];
+  outbound_events: {
+    evenement_id: string;
+    type_evenement: string;
+    producteur: string;
+    charge_sha256: string;
+    row_sha256: string;
+  }[];
   people: Record<string, string[]>;
   sources: Record<string, Row[]>;
   tables: Record<string, string>;
@@ -505,6 +513,13 @@ function pieces(state: State, poId: string): Row[] {
   return state.po_pieces.filter((piece) => piece.po_id === poId);
 }
 
+function sha256JsonObject(value: Row): string {
+  const sorted = Object.fromEntries(
+    Object.entries(value).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)),
+  );
+  return createHash("sha256").update(JSON.stringify(sorted), "utf8").digest("hex");
+}
+
 function originalEntries(state: State, tool: string): HandlerEvent[] {
   return state.handler.filter((event) => event.tool === tool && event.event === "entered");
 }
@@ -522,7 +537,17 @@ function expectPeople(state: State): void {
 }
 
 function expectProtected(state: State, baseline: State): void {
-  expect(state.protected).toStrictEqual(baseline.protected);
+  const baselineProtected = Object.fromEntries(
+    Object.entries(baseline.protected).filter(([table]) => table !== "evenements_sortants"),
+  );
+  const stateProtected = Object.fromEntries(
+    Object.entries(state.protected).filter(([table]) => table !== "evenements_sortants"),
+  );
+  expect(stateProtected).toStrictEqual(baselineProtected);
+  const currentEvents = new Map(state.outbound_events.map((event) => [event.evenement_id, event]));
+  for (const previous of baseline.outbound_events) {
+    expect(currentEvents.get(previous.evenement_id)).toStrictEqual(previous);
+  }
   expect(state.sources).toStrictEqual(baseline.sources);
   expectPeople(state);
 }
@@ -598,7 +623,49 @@ function createArgs(data: Prepared, poId: string, supplier = data.supplier): Row
     devis_id: data.needs.devis_id,
     fournisseur_id: supplier,
     horodatage: "2026-10-17T11:00:00+00:00",
+    date_requise: "2026-10-18",
+    mode_livraison: "livraison_depot",
+    ville: "Repentigny",
   };
+}
+
+async function performM6N2(
+  home: string,
+  port: number,
+  tool: string,
+  args: Row,
+  inspect: () => Promise<State>,
+  accepte: boolean,
+  expectedOutbound: { type_evenement: string; producteur: string; idPrefix: string }[] = [],
+): Promise<{ native: Row; before: State; after: State }> {
+  const before = await inspect();
+  const native = await call(home, port, tool, args);
+  expect(native).toMatchObject({ ok: true, resultat: { accepte } });
+  expect(native).not.toHaveProperty("demande_id");
+  expect(native).not.toHaveProperty("statut");
+  const after = await inspect();
+  // N2 operations execute directly: they never create a canonical approval or audit decision.
+  expect(after.approvals).toStrictEqual(before.approvals);
+  expect(after.journal).toStrictEqual(before.journal);
+  expect(after.claims).toStrictEqual(before.claims);
+  const previousEventIds = new Set(before.outbound_events.map((event) => event.evenement_id));
+  const afterById = new Map(after.outbound_events.map((event) => [event.evenement_id, event]));
+  for (const previous of before.outbound_events) {
+    expect(afterById.get(previous.evenement_id)).toStrictEqual(previous);
+  }
+  const newOutbound = after.outbound_events.filter(
+    (event) => !previousEventIds.has(event.evenement_id),
+  );
+  expect(newOutbound).toHaveLength(expectedOutbound.length);
+  for (const [index, expected] of expectedOutbound.entries()) {
+    expect(newOutbound[index]).toMatchObject({
+      type_evenement: expected.type_evenement,
+      producteur: expected.producteur,
+    });
+    expect(newOutbound[index].evenement_id).toMatch(new RegExp(`^${expected.idPrefix}`));
+  }
+  expect(originalEntries(after, tool)).toHaveLength(originalEntries(before, tool).length + 1);
+  return { native, before, after };
 }
 
 function expectDecision(
@@ -643,6 +710,7 @@ async function performM6(
   const id = pendingId(await call(home, port, tool, args));
   const pending = await inspect();
   expect(pending.po_rows).toStrictEqual(before.po_rows);
+  expect(pending.outbound_events).toStrictEqual(before.outbound_events);
   expect(originalEntries(pending, tool)).toHaveLength(originalEntries(before, tool).length);
   expect(approval(pending, id)).toMatchObject({
     outil: tool,
@@ -652,6 +720,8 @@ async function performM6(
   });
   expect(JSON.parse(approval(pending, id).arguments)).toStrictEqual(args);
   const native = await call(home, port, DECIDE, decisionArgs(id), frame(OWNER, key));
+  const decided = await inspect();
+  expect(decided.outbound_events).toStrictEqual(pending.outbound_events);
   return { id, native };
 }
 
@@ -664,22 +734,40 @@ function expectPricedCreation(state: State, data: Prepared, poId: string): void 
     fournisseur_id: data.supplier,
     statut: "draft",
     horodatage: "2026-10-17T11:00:00+00:00",
+    devis_id: data.needs.devis_id,
+    date_requise: "2026-10-18",
+    mode_livraison: "livraison_depot",
+    lieu_livraison: null,
+    ville: "Repentigny",
+    notes: null,
     lignes: [
       {
         materiau_id: GUTTER,
+        designation: null,
+        unite: "pi",
+        unite_source: "besoin_prevu",
+        quantite_nette: 10,
+        facteur_perte: null,
         quantite_demandee: 10,
         verdict_prix: "PRIX_LIVRE",
         prix_unitaire_prevu: 12.5,
         devise_prevue: "CAD",
         montant_ligne_prevu: 125,
+        prix_unite_confirmee: false,
       },
       {
         materiau_id: SCREW,
+        designation: null,
+        unite: "boite",
+        unite_source: "besoin_prevu",
+        quantite_nette: 4,
+        facteur_perte: null,
         quantite_demandee: 4,
         verdict_prix: "PRIX_LIVRE",
         prix_unitaire_prevu: 0.5,
         devise_prevue: "CAD",
         montant_ligne_prevu: 2,
+        prix_unite_confirmee: false,
       },
     ],
     montant_total_prevu: 127,
@@ -710,16 +798,8 @@ async function emailReady(
   inspect: () => Promise<State>,
   poId: string,
 ): Promise<State> {
-  const created = await performM6(
-    home,
-    port,
-    `${poId}-create`,
-    CREATE,
-    createArgs(data, poId),
-    inspect,
-  );
-  expectDecision(created.native, created.id, CREATE);
-  const draft = await inspect();
+  const created = await performM6N2(home, port, CREATE, createArgs(data, poId), inspect, true);
+  const draft = created.after;
   expect(pieces(draft, poId)).toHaveLength(1);
   expectPricedCreation(draft, data, poId);
   const approved = await performM6(
@@ -742,10 +822,9 @@ async function emailReady(
     statut: "approved",
     horodatage: "2026-10-17T11:01:00+00:00",
   });
-  const email = await performM6(
+  const email = await performM6N2(
     home,
     port,
-    `${poId}-email`,
     EMAIL,
     {
       po_id: poId,
@@ -753,9 +832,33 @@ async function emailReady(
       nom_entreprise: "Entreprise CF027 fictive",
     },
     inspect,
+    true,
+    [
+      {
+        type_evenement: "m6.po_courriel_pret",
+        producteur: M6,
+        idPrefix: `m6-po-courriel-${poId}-`,
+      },
+    ],
   );
-  expectDecision(email.native, email.id, EMAIL);
-  const ready = await inspect();
+  const ready = email.after;
+  const emailTransition = pieces(ready, poId)[2];
+  const courriel = emailTransition.courriel as Row;
+  const expectedCharge = {
+    po_id: poId,
+    fournisseur_id: data.supplier,
+    destinataire: courriel.destinataire,
+    objet: courriel.objet,
+    corps: courriel.corps,
+    empreinte: courriel.empreinte,
+  };
+  const emailEventId = `m6-po-courriel-${poId}-${String(courriel.empreinte).slice(0, 16)}`;
+  const emailEvent = ready.outbound_events.find((event) => event.evenement_id === emailEventId);
+  expect(emailEvent).toMatchObject({
+    type_evenement: "m6.po_courriel_pret",
+    producteur: M6,
+    charge_sha256: sha256JsonObject(expectedCharge),
+  });
   expect(pieces(ready, poId)).toHaveLength(3);
   expect(pieces(ready, poId)[2]).toMatchObject({
     type_entree: "transition_po",
@@ -841,34 +944,32 @@ describe("CF027 persisted M6 PO authority through production Core leases and rea
     expectPrepared(data, seeded);
     const { port } = await startServer(python, home, 1, false);
 
-    const unknown = await performM6(
+    const unknown = await performM6N2(
       home,
       port,
-      "unknown-supplier",
       CREATE,
       createArgs(data, "PO-CF027-UNKNOWN-FICTIF", "fournisseur-inconnu-fictif"),
       inspect,
+      false,
     );
-    expectDecision(unknown.native, unknown.id, CREATE, "echec", {
-      ok: true,
-      accepte: false,
-      verdict: { code: "REJ-PO-FOURNISSEUR-INCONNU" },
+    expect(unknown.native).toMatchObject({
+      resultat: { accepte: false, verdict: { code: "REJ-PO-FOURNISSEUR-INCONNU" } },
     });
-    const afterUnknown = await inspect();
+    const afterUnknown = unknown.after;
     expect(afterUnknown.po_rows).toStrictEqual(seeded.po_rows);
+    expect(afterUnknown.approvals).toStrictEqual(seeded.approvals);
     expectProtected(afterUnknown, seeded);
 
     const unpricedId = "PO-CF027-SANS-PRIX-FICTIF";
-    const unpriced = await performM6(
+    const unpriced = await performM6N2(
       home,
       port,
-      "unpriced-create",
       CREATE,
       createArgs(data, unpricedId, data.unpriced_supplier),
       inspect,
+      true,
     );
-    expectDecision(unpriced.native, unpriced.id, CREATE);
-    const unknownPrices = await inspect();
+    const unknownPrices = unpriced.after;
     expect(pieces(unknownPrices, unpricedId)).toHaveLength(1);
     expect(pieces(unknownPrices, unpricedId)[0]).toMatchObject({
       statut: "draft",
@@ -950,6 +1051,7 @@ describe("CF027 persisted M6 PO authority through production Core leases and rea
     const pending = pendingId(await call(home, first.port, SEND, sendArgs));
     const proposed = await inspect();
     expect(proposed.po_rows).toStrictEqual(ready.po_rows);
+    expect(proposed.outbound_events).toStrictEqual(ready.outbound_events);
     expectProtected(proposed, seeded);
     expect(originalEntries(proposed, SEND)).toEqual([]);
     const demands = proposed.approvals.filter((row) => row.outil === SEND);
@@ -1065,6 +1167,7 @@ describe("CF027 persisted M6 PO authority through production Core leases and rea
       decide_le: T0,
       ticket_cible_hash: null,
     });
+    expect(committed.outbound_events).toStrictEqual(ready.outbound_events);
     expect(committed.claims).toHaveLength(afterAdmin.claims.length + 1);
     expect(originalEntries(committed, SEND)).toHaveLength(1);
     const decisionEntries = originalEntries(committed, DECIDE).length;
@@ -1080,6 +1183,7 @@ describe("CF027 persisted M6 PO authority through production Core leases and rea
     expect(afterReplay.po_rows).toStrictEqual(committed.po_rows);
     expect(afterReplay.approvals).toStrictEqual(committed.approvals);
     expect(afterReplay.claims).toStrictEqual(committed.claims);
+    expect(afterReplay.outbound_events).toStrictEqual(committed.outbound_events);
     expect(originalEntries(afterReplay, SEND)).toHaveLength(1);
     expect(originalEntries(afterReplay, DECIDE)).toHaveLength(decisionEntries);
     expect(rpcCalls(afterReplay, DECIDE)).toHaveLength(decisionCalls + 1);

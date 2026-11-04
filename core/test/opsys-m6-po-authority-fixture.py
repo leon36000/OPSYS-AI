@@ -55,6 +55,13 @@ def _digest(value) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def _snapshot_value(value):
+    """Stable JSON representation for SQLite cells, including FTS shadow-table BLOBs."""
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return {"$blob_hex": bytes(value).hex()}
+    return value
+
+
 def _append_trace(path: Path, row: dict) -> None:
     with path.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps({"fictif": True, **row}) + "\n")
@@ -126,7 +133,10 @@ def _snapshot() -> dict:
         )]
         tables = {}
         for name in names:
-            rows = [dict(r) for r in cnx.execute('SELECT * FROM "' + name.replace('"', '""') + '"')]
+            rows = [
+                {key: _snapshot_value(value) for key, value in dict(r).items()}
+                for r in cnx.execute('SELECT * FROM "' + name.replace('"', '""') + '"')
+            ]
             tables[name] = sorted(rows, key=lambda row: json.dumps(row, sort_keys=True))
         registers = tables["registres_maillons"]
         po_rows = sorted((r for r in registers if r["departement"] == M6 and r["registre"] == "bons_commande"),
@@ -145,6 +155,19 @@ def _snapshot() -> dict:
             "po_pieces": [codec.decoder(r["maillon"]) for r in po_rows],
             "approvals": tables["approbations"], "claims": tables["mutations_appliquees"],
             "journal": sorted(tables["journal"], key=lambda row: row["id"]), "people": people,
+            "outbound_events": [
+                {
+                    "evenement_id": row["evenement_id"],
+                    "type_evenement": row["type_evenement"],
+                    "producteur": row["producteur"],
+                    "charge_sha256": hashlib.sha256(json.dumps(
+                        codec.decoder(row["charge"]), sort_keys=True, ensure_ascii=False,
+                        separators=(",", ":"),
+                    ).encode("utf-8")).hexdigest(),
+                    "row_sha256": _digest(row),
+                }
+                for row in sorted(tables["evenements_sortants"], key=lambda row: row["evenement_id"])
+            ],
             "sources": {name: [codec.decoder(r["maillon"]) for r in sorted(registers, key=lambda row: row["rang"])
                                if r["departement"] == M6 and r["registre"] == name]
                         for name in ("besoins_prevus", "fournisseurs", "livre_prix", "principal")},
