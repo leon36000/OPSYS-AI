@@ -22,7 +22,7 @@ from typing import Any
 from opsys import contexte, etat, identite, stockage
 from opsys.stockage.concurrence import verrou_consultatif
 
-from . import registre
+from . import impact_code, registre
 
 DOMAINE = "development"
 REGISTRE_DURABLE = "developpement"
@@ -1284,6 +1284,21 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
     if not module or not task or len(task) > 8_000:
         raise ValueError("module et tâche bornés requis")
     safe_files = _references_sures(files)
+    python_targets = [path.split("#", 1)[0] for path in safe_files if path.split("#", 1)[0].lower().endswith(".py")]
+    code_impact = None
+    if repository is not None and python_targets:
+        code_impact = impact_code.analyser(
+            repository,
+            python_targets,
+            lire=_lire_fichier_borne,
+            chemin_interdit=_chemin_interdit,
+        )
+    elif repository is not None:
+        code_impact = {
+            "status": "unavailable",
+            "reason": "aucun fichier Python cible explicite",
+            "targets": [],
+        }
     terms = _tokens(f"{module} {task} {' '.join(safe_files)}")
     with _connexion() as cnx:
         rows = cnx.execute("SELECT * FROM events ORDER BY seq DESC").fetchall()
@@ -1529,7 +1544,7 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
     if links_omitted:
         limitations.append("liens de mémoire bornés; consulter les compteurs d’omission")
     if not available:
-        return {
+        result = {
             "status": "unavailable",
             "reason": "aucune source ni mémoire pertinente pour cette tâche",
             "module": module.upper(),
@@ -1543,7 +1558,10 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
             "truncated": truncated,
             "limitations": ["contexte indisponible; ne pas supposer que le travail est fait"],
         }
-    return {
+        if code_impact is not None:
+            result["code_impact"] = code_impact
+        return result
+    result = {
         "status": "available",
         "reason": None,
         "module": module.upper(),
@@ -1557,6 +1575,9 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
         "truncated": truncated,
         "limitations": limitations,
     }
+    if code_impact is not None:
+        result["code_impact"] = code_impact
+    return result
 
 
 def auditer_developpement(

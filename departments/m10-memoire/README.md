@@ -158,6 +158,33 @@ microsecondes fournies par Python.
     validation du sous-dossier `EvenementMemoire` à `valider_evenement`, et
     `tracer_refus_contexte` trace un `verdict` construit par `construire_verdict`.
 
+## Impact statique dans le preflight de développement (M10-11, tranche 1)
+
+Quand le preflight reçoit un dépôt configuré et des chemins Python explicitement demandés, il
+ajoute `code_impact` : symboles de premier niveau, imports locaux résolus sans exécution,
+importeurs statiques, tests qui importent la cible, et routes dont le fournisseur déclaré par un
+`outils:` simple importe la cible. L'analyse lit uniquement des fichiers suivis par Git, respecte
+les exclusions et ouvertures sans lien symbolique du scanner M10, et est bornée à 500 fichiers,
+256 Ko par fichier, 8 Mo au total, 10 cibles, 10 symboles par cible et 20 éléments de sortie.
+Les réponses ne contiennent ni extrait de source ni charge de fichier; seules des références,
+noms de symboles et routes sont rendus. Le preflight reste derrière la garde admin/propriétaire
+existante et l'endpoint HTTP conserve son authentification et son refus d'employé.
+
+Le HEAD et une empreinte SHA-256 par fichier rendu sont fournis. L'analyse lit le worktree suivi
+fichier par fichier, non un snapshot atomique; des modifications concurrentes peuvent donc
+produire un graphe composite, mais les empreintes identifient les octets lus.
+`counts.files_selected` compte les candidats retenus après le plafond de fichiers; `files_examined`
+compte les appels au lecteur borné. Un candidat sauté parce que le budget total d'octets est épuisé
+augmente `files_omitted`, sans être déclaré examiné. `bytes_examined` compte les octets rendus par
+le lecteur, y compris ceux d'un fichier ensuite rejeté à l'analyse.
+
+`code_impact.status` reste toujours `partial`, même si les plafonds ne sont pas atteints : un AST
+ne prouve pas les imports calculés, le dispatch, la découverte par plugin, les effets ni les
+dépendances de test indirectes. Les omissions et erreurs sont comptées; les collisions de noms de
+modules restent non résolues. Cette sortie est une piste de lecture, ne bloque aucune action,
+n'est pas enregistrée dans la mémoire et ne remplace pas le preflight métier
+`m10_contexte_preflight`.
+
 ## Mnémo : modèle de soi, graphe de connaissances, apprentissage gouverné (m10-self-graphe)
 
 `soi_graphe.py` (outils et consommateurs), `skills/gerer-le-soi-et-le-graphe/`, `evals/soi-graphe.v1.yaml` ; la logique vit dans

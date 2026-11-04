@@ -113,6 +113,80 @@ def test_scan_repo_git_est_borne_read_only_et_exclut_secrets_backups_et_donnees(
     assert subprocess.check_output(["git", "-C", str(depot_git), "status", "--porcelain"], text=True) == statut_avant
 
 
+def test_preflight_calcule_impact_statique_symboles_imports_tests_et_routes(base_dev, depot_git):
+    """Fixture fictive : l'impact vient du vrai preflight, sans importer les sources."""
+    (depot_git / "app").mkdir()
+    (depot_git / "tests").mkdir()
+    (depot_git / "app/target.py").write_text(
+        "from .taxes import taux\n\nclass Estimateur:\n    pass\n\ndef calculer():\n    return taux()\n",
+        encoding="utf-8",
+    )
+    (depot_git / "app/taxes.py").write_text("def taux():\n    return 0.1\n", encoding="utf-8")
+    (depot_git / "app/consumer.py").write_text(
+        "import importlib\nfrom .target import calculer\n\ndef run():\n    return calculer()\n"
+        "\ndef charger(nom):\n    return importlib.import_module(nom)\n",
+        encoding="utf-8",
+    )
+    (depot_git / "app/routes.py").write_text(
+        'from . import target\n\ndef handler():\n    return target.calculer()\n\ndef outils():\n'
+        '    return (Outil(nom="m7_demo_route", fonction=handler),)\n',
+        encoding="utf-8",
+    )
+    (depot_git / "tests/test_target.py").write_text(
+        "from app.target import calculer\n\ndef test_calculer():\n    assert calculer() == 0.1\n",
+        encoding="utf-8",
+    )
+    (depot_git / "department.yaml").write_text(
+        "schema: opsys.departement/v1\noutils: app.routes\n", encoding="utf-8"
+    )
+    subprocess.run(["git", "-C", str(depot_git), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(depot_git), "commit", "-qm", "impact fictif"], check=True)
+
+    with contexte.appele_par_appareil(ADMIN):
+        paquet = memoire_dev.preflight(
+            "M7", "modifier le calculateur", files=["app/target.py"], repository=depot_git
+        )
+
+    impact = paquet["code_impact"]
+    assert impact["status"] == "partial"
+    assert impact["analysis"] == "bounded_static"
+    assert impact["targets"][0]["path_truncated"] is False
+    assert impact["commit"] == subprocess.check_output(
+        ["git", "-C", str(depot_git), "rev-parse", "HEAD"], text=True
+    ).strip()
+    assert impact["targets"][0]["sha256"] == hashlib.sha256(
+        (depot_git / "app/target.py").read_bytes()
+    ).hexdigest()
+    assert {item["name"] for item in impact["targets"][0]["symbols"]} >= {
+        "Estimateur",
+        "calculer",
+    }
+    assert impact["targets"][0]["imports"][0]["path_truncated"] is False
+    assert {item["path"] for item in impact["importers"]} >= {
+        "app/consumer.py",
+        "app/routes.py",
+    }
+    assert all(item["path_truncated"] is False for item in impact["importers"])
+    assert {item["path"] for item in impact["tests"]} == {"tests/test_target.py"}
+    assert impact["tests"][0]["path_truncated"] is False
+    assert {item["name"] for item in impact["routes"]} == {"m7_demo_route"}
+    assert all(
+        route[field] is False
+        for route in impact["routes"]
+        for field in (
+            "name_truncated",
+            "handler_truncated",
+            "manifest_truncated",
+            "provider_truncated",
+        )
+    )
+    assert impact["dynamic_imports"][0]["path"] == "app/consumer.py"
+    assert impact["dynamic_imports"][0]["path_truncated"] is False
+    assert impact["dynamic_imports"][0]["line"] == 8
+    assert len(impact["dynamic_imports"][0]["sha256"]) == 64
+    assert "imports dynamiques et dépendances transitives non prouvées" in impact["limitations"]
+
+
 def test_scan_sous_repertoire_conserve_chemin_git_complet_module_et_fraicheur(base_dev, depot_git):
     sous_arbre = depot_git / "departments/m10-memoire/src/m10_memoire"
     sous_arbre.mkdir(parents=True)

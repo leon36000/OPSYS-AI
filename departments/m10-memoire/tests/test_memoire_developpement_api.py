@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -238,6 +240,64 @@ def test_http_exige_csrf_et_refuse_identite_ou_chemin_depot_du_corps(api):
     assert preflight.status_code == 200
     assert preflight.json()["status"] == "available"
     assert client.get("/api/memoire-developpement/status").json()["status"] == "valid"
+
+
+def test_preflight_http_expose_impact_statistique_sans_source_et_sous_garde_admin(api, monkeypatch):
+    client, tmp_path, _ = api
+    repo = tmp_path / "repo-impact"
+    (repo / "app").mkdir(parents=True)
+    (repo / "tests").mkdir()
+    (repo / "app/target.py").write_text(
+        '# canari-secret-fictif-ne-doit-pas-sortir\nSOURCE_BODY_CANARY_918273 = "not for response"\ndef calculer():\n    return 1\n',
+        encoding="utf-8",
+    )
+    (repo / "app/routes.py").write_text(
+        'from . import target\n\ndef handler():\n    return target.calculer()\n\ndef outils():\n'
+        '    return (Outil(nom="m7_demo_route", fonction=handler),)\n',
+        encoding="utf-8",
+    )
+    (repo / "tests/test_target.py").write_text(
+        "from app.target import calculer\n\ndef test_calculer():\n    assert calculer() == 1\n",
+        encoding="utf-8",
+    )
+    (repo / "department.yaml").write_text(
+        "schema: opsys.departement/v1\noutils: app.routes\n", encoding="utf-8"
+    )
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "dev@example.test"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Dev Fixture"], check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "impact API fictif"], check=True)
+    monkeypatch.setattr(memoire_api, "_repository", lambda: repo)
+
+    csrf = _connecter(client)
+    maillons_avant = list(stockage.maillons("m10-memoire", "developpement"))
+    response = client.post(
+        "/api/memoire-developpement/preflight",
+        json={"module": "M7", "task": "modifier calculer", "files": ["app/target.py"]},
+        headers={"x-csrf-token": csrf},
+    )
+
+    assert response.status_code == 200
+    impact = response.json()["code_impact"]
+    assert impact["targets"][0]["symbols"][0]["name"] == "calculer"
+    assert len(impact["tests"]) == 1
+    assert impact["tests"][0]["path"] == "tests/test_target.py"
+    assert impact["tests"][0]["distance"] == 1
+    assert impact["targets"][0]["sha256"] == hashlib.sha256(
+        (repo / "app/target.py").read_bytes()
+    ).hexdigest()
+    assert {route["name"] for route in impact["routes"]} == {"m7_demo_route"}
+    assert "canari-secret-fictif-ne-doit-pas-sortir" not in response.text
+    assert "SOURCE_BODY_CANARY_918273" not in response.text
+    assert list(stockage.maillons("m10-memoire", "developpement")) == maillons_avant
+    assert subprocess.check_output(["git", "-C", str(repo), "status", "--porcelain"], text=True) == ""
+
+    _connecter(client, EMPLOYEE, ["employee"])
+    assert client.post(
+        "/api/memoire-developpement/preflight",
+        json={"module": "M7", "task": "modifier calculer", "files": ["app/target.py"]},
+    ).status_code == 403
 
 
 def test_http_postgresql_persiste_sur_le_stockage_canonique(monkeypatch):
@@ -556,3 +616,30 @@ def test_http_postflight_diagnostic_typé_journalise_et_refuse_schema_malforme(a
     )
     assert unauthorized.status_code == 403
     assert list(stockage.maillons("m10-memoire", "developpement")) == maillons_before_denied
+
+
+def test_preflight_route_refuse_employee_meme_si_middleware_permissif(api, monkeypatch):
+    _, _, _ = api
+    app = FastAPI()
+
+    def middleware_permissif(request: Request, *, administrateur: bool = True):
+        session = securite.lire_session(request.cookies.get(securite.NOM_COOKIE), SECRET_SESSION)
+        if session is None:
+            raise HTTPException(401, "authentification requise")
+        return session
+
+    monkeypatch.setattr(memoire_api.memoire, "preflight", lambda *args, **kwargs: {"status": "available"})
+    app.include_router(
+        memoire_api.creer_router(
+            session_api=middleware_permissif,
+            ecriture_api=middleware_permissif,
+            cnx_factory=stockage.transaction,
+        )
+    )
+    with TestClient(app, base_url="https://testserver") as client:
+        _connecter(client, EMPLOYEE, ["employee"])
+        response = client.post(
+            "/api/memoire-developpement/preflight",
+            json={"module": "M7", "task": "fixture", "files": []},
+        )
+    assert response.status_code == 403
