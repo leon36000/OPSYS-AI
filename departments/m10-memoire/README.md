@@ -185,6 +185,56 @@ seulement. Statut : PARTIEL, prouvé sur SQLite avec horloge injectée, vrai bus
 (`tests/test_routines_m10_e2e.py`) ; jamais sur PostgreSQL ni sur la boucle réelle pendant des jours.
 
 
+## Batterie de questions-tests « non-oubli » (M10-05, 2026-11-04)
+
+`src/m10_memoire/batterie.py` (pur, aucun import d'`opsys`) et `evals/non-oubli.v1.yaml` : une batterie **entièrement fictive** de
+questions et de faits sourcés. Chaque question déclare une affaire, une portée de types d'événements et les faits attendus par leur
+clé publique de registre. Le rapport calcule, par du code :
+
+- le **rappel** (occurrences de faits attendus retrouvés / occurrences de faits attendus, une par question évaluable) ;
+- la **précision** (occurrences de faits attendus retrouvés / occurrences de faits retournés par la portée, une par question
+  évaluable) ;
+- la **couverture** (questions évaluables / questions) et la **couverture des sources** (occurrences de sources attendues
+  uniques d'une question et disponibles / occurrences de sources attendues uniques d'une question) ;
+- ce qui est **non évaluable**, avec sa raison : question sans fait attendu, fait sourcé d'un document du domaine
+  `developpement`, ou inventaire du magasin absent (`AUCUN_INVENTAIRE_SOURCES`). Aucun dénominateur absent n'est remplacé par
+  zéro et le corpus déclaré n'est jamais présumé présent.
+
+**Les agrégats sont des sommes d'occurrences par question, pas une couverture d'ensemble** : un fait ou une source partagé
+par deux questions compte deux fois ; `sources_absentes` est nommé au grain `(question, fait, source)` et peut donc répéter
+une même source. Le rapport le déclare dans `semantique_agregation`. Une question non évaluable n'entre dans aucun
+dénominateur ; ses faits manquants, ses sources absentes et sa raison restent dans `par_question`, mais les listes
+globales `manquants` et `sources_absentes` ne listent que les questions évaluables, au grain des dénominateurs.
+
+Les maillons fournis doivent être des mappings du contrat des registres, avec un `type_entree` connu ; un conteneur
+mapping, un maillon non-mapping, un conteneur binaire (`str`, `bytes`, `bytearray`, `memoryview`) ou un `type_entree`
+absent/inconnu est refusé (`REJ-BATTERIE-FORME`). Pour un **événement reconnu**, la clé publique (`devis_id`, `wct_id`,
+`evenement_id`, `fait_id`, `lead_id`) et les relations présentes sont validées : un identifiant absent, mal typé ou non
+hashable est refusé, au lieu de produire un faux oubli ou un `TypeError`. Une relation absente reste acceptée (maillon
+historique incomplet, non attribué, jamais deviné). `m1.lead_qualifie` garde la forme d'un lead ; `m2.client_associe`
+accepte en plus l'opportunité `<lead>~opp~<wct_id>` (jusqu'à 197 caractères). Le tilde n'est pas élargi aux autres types.
+Les sous-objets `Mapping` non-`dict` du corpus sont normalisés en `dict` avant `deepcopy` et empreinte : l'empreinte
+canonique ne dépend pas de l'ordre d'insertion et n'invente aucune représentation `str`. Un maillon valide hors du
+périmètre de la batterie est accepté et non classifié.
+
+`documents_disponibles` est un **inventaire explicite** : `None` le dit absent (couverture des sources non évaluable), une liste
+vide est un zéro connu, une liste complète un 100 % connu. Le rapport affiche `mode_sources` (`inventaire_explicite` ou
+`inventaire_absent`). Une **suppression de fait** fait baisser le rappel et nomme le fait ; une **source absente** fait baisser la
+couverture des sources sans effacer le fait ; un **fait interdit** retourné, ou sourcé d'un document de développement, est une
+fuite comptée contre la précision. Le rapport ne recopie jamais le texte d'un document. Aucun objectif, seuil ni valeur
+d'affaires n'est fixé. Aucun outil ni droit d'appareil n'est ajouté ; la batterie n'est pas encore branchée au rapport
+hebdomadaire.
+
+Preuve : `tests/test_non_oubli.py` (27 tests, scénario de bout en bout avec les vrais outils d'écriture M10, suppression, source
+absente, inventaire absent/vide/complet, document interdit, fuite de texte, zéros, bornes, idempotence),
+`tests/test_non_oubli_correction.py` (19 tests de correction : conteneurs et maillons malformés, maillons valides hors
+périmètre, `None` vs `[]`, agrégats par occurrence et précision) et `tests/test_non_oubli_correction2.py` (30 tests :
+DF1–DF5, dont clés publiques absentes/mal typées/non hashables, relations présentes, forme historique incomplète du WCT
+acceptée mais non attribuée, listes globales restreintes aux questions évaluables, `Mapping` non-`dict`, `bytearray`/
+`memoryview`, opportunité M2 jusqu'à 197 caractères). Suite M10 : 1836 tests verts ; mutations : 128/128 tués.
+Documentation et limites : [docs/architecture/M10-NON-OUBLI.md](../../docs/architecture/M10-NON-OUBLI.md). Statut :
+PARTIEL. La batterie ne certifie ni l'ACL, ni la provenance, ni la chaîne de hash, ni un stockage réel.
+
 ## Contradictions, ordre de vérité et ingestion de la mémoire de projet (M10-03 et M10-04, 2026-11-02)
 
 Documentation et limites : [docs/architecture/M10-CONTRADICTIONS.md](../../docs/architecture/M10-CONTRADICTIONS.md). Deux mémoires de sources
