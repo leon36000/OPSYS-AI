@@ -147,15 +147,32 @@ def _delai_premiere_prise_en_charge(
     }
 
 
-def _a_ete_rappele(lignes: Sequence[Mapping[str, Any]], transfert_id: str) -> bool:
-    for ligne in lignes:
-        if ligne.get("type_entree") != "transfert" or ligne.get("transfert_id") != transfert_id:
+def _a_ete_rappele(
+    lignes: Sequence[Mapping[str, Any]], etat: transferts.EtatTransfert | None
+) -> bool:
+    # Seules les actions placées entre l'ouverture et la première clôture canonique sont recevables.
+    if etat is None:
+        return False
+    # lire conserve les objets-lignes du registre; leur identité repère sans ambiguïté les bornes dans son ordre.
+    index_ouverture = next((i for i, ligne in enumerate(lignes) if ligne is etat.ouverture), None)
+    if index_ouverture is None:
+        return False
+    index_cloture = (
+        next((i for i, ligne in enumerate(lignes) if ligne is etat.cloture), None)
+        if etat.cloture is not None else None
+    )
+    if etat.cloture is not None and index_cloture is None:
+        return False
+    for i, ligne in enumerate(lignes):
+        if i <= index_ouverture or (index_cloture is not None and i >= index_cloture):
             continue
-        if ligne.get("evenement") in SOURCES_DE_RAPPEL:
+        if (
+            ligne.get("type_entree") == "transfert"
+            and ligne.get("transfert_id") == etat.identifiant
+            and ligne.get("evenement") in SOURCES_DE_RAPPEL
+        ):
             return True
-        if ligne.get("evenement") == transferts.EVT_CLOS and ligne.get("issue") == "contact_reussi":
-            return True
-    return False
+    return etat.cloture is not None and etat.cloture.get("issue") == "contact_reussi"
 
 
 def _appels_manques_rappeles(
@@ -178,11 +195,12 @@ def _appels_manques_rappeles(
     if not appels:
         return _non_evaluee(MOTIF_AUCUN_APPEL_MANQUE, valeur=None, numerateur=None, denominateur=None)
     rappeles = 0
+    etats_par_id = {etat.identifiant: etat for etat in transferts.lire(lignes)}
     for ligne in appels:
         reponse = ligne.get("reponse")
         tache = reponse.get("tache_rappel") if isinstance(reponse, Mapping) else None
         transfert_id = tache.get("transfert_id") if isinstance(tache, Mapping) else None
-        if isinstance(transfert_id, str) and _a_ete_rappele(lignes, transfert_id):
+        if isinstance(transfert_id, str) and _a_ete_rappele(lignes, etats_par_id.get(transfert_id)):
             rappeles += 1
     return {
         "statut": CALCULEE,

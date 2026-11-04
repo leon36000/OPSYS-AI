@@ -181,6 +181,48 @@ def test_une_cloture_contact_reussi_compte_comme_un_rappel():
     assert c["appels_manques_rappeles_pct"]["numerateur"] == 1
 
 
+def test_un_evenement_de_rappel_sans_ouverture_canonique_ne_compte_pas():
+    lignes = [
+        _appel(16, "transfert-orphelin", "A1"),
+        _humain("transfert-orphelin", "tentative_sans_contact", 16, "09:10"),
+    ]
+    c = mr.constater(lignes, date_reference=DATE_REF, jours=JOURS)
+    assert c["appels_manques_rappeles_pct"]["numerateur"] == 0
+    assert c["appels_manques_rappeles_pct"]["valeur"] == "0.00"
+
+
+def test_une_cloture_non_reussie_canonique_n_est_pas_remplacee_par_une_seconde():
+    lignes = [
+        _appel(16, "tr-1", "A1"),
+        _transfert("tr-1", 16),
+        _humain("tr-1", "clos", 16, "09:10", issue="autre"),
+        _humain("tr-1", "clos", 16, "09:20", issue="contact_reussi"),
+    ]
+    c = mr.constater(lignes, date_reference=DATE_REF, jours=JOURS)
+    assert c["appels_manques_rappeles_pct"]["numerateur"] == 0
+
+
+def test_une_tentative_avant_ouverture_canonique_ne_compte_pas():
+    lignes = [
+        _appel(16, "tr-1", "A1"),
+        _humain("tr-1", "tentative_sans_contact", 16, "09:05"),
+        _transfert("tr-1", 16, "09:10"),
+    ]
+    c = mr.constater(lignes, date_reference=DATE_REF, jours=JOURS)
+    assert c["appels_manques_rappeles_pct"]["numerateur"] == 0
+
+
+def test_une_tentative_apres_premiere_cloture_canonique_ne_compte_pas():
+    lignes = [
+        _appel(16, "tr-1", "A1"),
+        _transfert("tr-1", 16),
+        _humain("tr-1", "clos", 16, "09:10", issue="autre"),
+        _humain("tr-1", "tentative_sans_contact", 16, "09:20"),
+    ]
+    c = mr.constater(lignes, date_reference=DATE_REF, jours=JOURS)
+    assert c["appels_manques_rappeles_pct"]["numerateur"] == 0
+
+
 def test_un_service_non_texte_est_range_dans_non_renseigne():
     lignes = [_signal(15), _lead(15, service=123)]
     c = mr.constater(lignes, date_reference=DATE_REF, jours=JOURS)
