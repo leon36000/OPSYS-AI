@@ -291,10 +291,23 @@ intervention `reportee` ou `planifiee` perturbée dans le cycle : vérification 
 préparation « prête » via `m4_verifier_preparation`, sinon refus nommé avec ce qui manque), retour à `planifiee`
 si elle était `reportee`, puis nouvelle proposition et application (même solveur `cedule_tournees`, mêmes règles ;
 l'entrée de l'appelant fait foi, la fenêtre par défaut du profil complète une `planifiee` isolée, jamais devinée
-ailleurs). Un créneau déjà confirmé n'est jamais déplacé ; un refus rend le plan de secours (garder le report,
-attendre, revalider) avec l'historique des reports (motifs, heures, origines).
+ailleurs). Une `planifiee` dont le créneau daté est CONFIRMÉ est refusée avant toute écriture : le créneau n'est
+jamais déplacé (pour le déplacer, il faut d'abord le reporter, geste distinct). Toute écriture de la replanification
+est dans un point de sauvegarde : un refus après la transition `reportee` → `planifiee` ou après la proposition
+n'annule pas seulement la réponse, elle annule les écritures (tout ou rien). Un refus rend le plan de secours
+(garder le report, attendre, revalider) avec l'historique RÉEL des reports (motifs, heures, origines), trié par
+l'heure du report et non par l'ordre d'append.
 
-Preuve : `tests/test_p4_retard_replanification.py` (minutes exactes, bornes, refus, tri, historique, pureté) et
+**Bornes et absence (P4-04).** La tolérance déclarée est bornée à `0..480` minutes (`max: 480` du manifeste) : la
+lecture CFG-1 et le calcul refusent 481. Un plan appliqué mais non daté ne donne jamais « évalué, 0 en retard » :
+ses interventions sont comptées `sans_date` (le bloc le dit), et un calendrier civil illisible rend
+`REJ-REGISTRE-INVALIDE` au lieu d'une cédule vide. Quand `retards_cedule` mesure, la clé historique
+`retard_sur_cedule` n'est plus servie : elle ne subsiste que pour le cas « non évaluée », où elle dit la même chose
+que le bloc.
+
+Preuve : `tests/test_p4_retard_replanification.py` (minutes exactes, bornes, refus, tri, historique, pureté),
+`tests/test_p4_relecture_adverse.py` (neuf défauts de la relecture : créneau confirmé, atomicité, sans-date,
+calendrier illisible, clé historique, borne 480, secours, ordre de l'historique, docs) et
 `tests/test_p4_e2e_preuve.py` (vrais outils, base migrée : non évalué → file → mesuré → brouillon ETA → replan N3).
 Les fixtures sont FICTIVES (`fictif: true`).
 
@@ -510,15 +523,16 @@ porte d'appareil, avec le VRAI M6 pour le matériel : devis accepté, matériel 
 fort, report proposé, cédule relancée appliquée par l'admin en N3, report N3 d'une intervention planifiée, plan périmé,
 réseau coupé, employé refusé). Les fixtures sont FICTIVES (`fictif: true`).
 
-Limites connues : la préparation n'a pas de date, donc son volet météo ne promet rien sur le temps qu'il fera ; **M4 ne
-tient pas de calendrier** (le `calendrier` est un argument) ; la vérification est une lecture : **elle n'est pas rangée au
-registre** (aucun outil T1 ne garde « météo vérifiée pour ce plan » ; un plan appliqué se revérifie à la demande) ; MSC GeoMet
-ne donne ni rafales, ni quantité de pluie, ni verglas fiable (ces règles restent `inconnu` tant que l'admin ne saisit pas la
-prévision ou que le propriétaire n'ouvre pas Open-Meteo avec un forfait commercial) ; les alertes météo d'ECCC ne sont pas
-reproduites ; la licence MSC GeoMet a été lue dans la documentation en ligne d'ECCC (aucun fichier `LICENSE` à lire), sans
-relecture juridique ; la transition `reportee → planifiee` existe dans la machine à états, mais aucun outil ni aucune cédule ne la porte
-(un report appliqué n'a pas de replanification outillée) ; le report d'une `a_planifier` n'a pas de geste (le jour est retiré de sa fenêtre dans la nouvelle proposition) ;
-un client déjà informé d'un créneau se prévient par M1, jamais d'ici (frontière T3).
+Limites connues : la préparation n'a pas de date, donc son volet météo ne promet rien sur le temps qu'il fera ; la
+vérification météo est une lecture : **elle n'est pas rangée au registre** (aucun outil T1 ne garde « météo vérifiée
+pour ce plan » ; un plan appliqué se revérifie à la demande) ; MSC GeoMet ne donne ni rafales, ni quantité de pluie, ni
+verglas fiable (ces règles restent `inconnu` tant que l'admin ne saisit pas la prévision ou que le propriétaire n'ouvre
+pas Open-Meteo avec un forfait commercial) ; les alertes météo d'ECCC ne sont pas reproduites ; la licence MSC GeoMet a
+été lue dans la documentation en ligne d'ECCC (aucun fichier `LICENSE` à lire), sans relecture juridique ; la
+transition `reportee → planifiee` est portée par `m4_replanifier_intervention` (N3, P4-05), qui refuse une
+`planifiee` à créneau confirmé et n'écrit rien sur un refus ; le report d'une `a_planifier` n'a pas de geste (le jour
+est retiré de sa fenêtre dans la nouvelle proposition) ; un client déjà informé d'un créneau se prévient par M1, jamais
+d'ici (frontière T3).
 
 ## Lectures pures du propriétaire (PLAN T4.27-a)
 
