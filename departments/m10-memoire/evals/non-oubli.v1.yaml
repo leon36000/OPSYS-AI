@@ -1,0 +1,131 @@
+# Batterie de questions-tests « non-oubli » de M10 (chantier M10-05) — ENTIÈREMENT FICTIVE.
+# Aucune entreprise, aucun client, aucun montant et aucun travaux de ce fichier n'existent : les noms,
+# les services et les identifiants sont inventés pour la mesure. Le corpus est rédigé à la main AVANT
+# l'exécution, à partir des types d'événements réellement consommés par M10 ; un seul auteur, biais à
+# corriger par un second rédacteur. Les faits ne portent que des clés publiques de registre ; les
+# documents portent un texte fictif qui ne doit JAMAIS sortir dans un rapport.
+schema: opsys.m10.non_oubli/v1
+fictif: true
+version: m10-non-oubli-v1
+auteur: "architecte OPSYS-AI (corpus de départ, un seul auteur ; biais à corriger par un second rédacteur)"
+entreprise: "Boréal Fictif inc. — entreprise inventée pour la mesure"
+description: >-
+  Deux affaires fictives : une gouttière menée du lead au devis accepté, aux travaux terminés, à la
+  variance et à la rentabilité ; un revêtement resté au devis sans réponse. Chaque question a une
+  portée fermée (affaire + types d'événements) et des faits attendus par leur clé publique.
+
+documents:
+  - id: DOC-LEAD-001
+    domaine: affaires
+    texte: >-
+      Demande fictive de gouttières pour un bâtiment inventé ; urgence non déclarée et canal texte.
+  - id: DOC-CLIENT-001
+    domaine: affaires
+    texte: >-
+      Association fictive du lead A-FICTIF-001 à un client pseudonyme CLI-FICTIF-001.
+  - id: DOC-DEVIS-001
+    domaine: affaires
+    texte: >-
+      Devis fictif D-FICTIF-001 accepté ; prix, coût et taux de marge inventés pour la mesure.
+  - id: DOC-TRAVAUX-001
+    domaine: affaires
+    texte: >-
+      Travaux fictifs WCT-FICTIF-001 terminés ; durée réelle et position GPS inventées.
+  - id: DOC-VARIANCE-001
+    domaine: affaires
+    texte: >-
+      Variance fictive VAR-FICTIF-001 : aucun écart de matériaux signalé sur le chantier inventé.
+  - id: DOC-MARGE-001
+    domaine: affaires
+    texte: >-
+      Rentabilité fictive RENT-FICTIF-001 : marge réelle et marge prévue inventées pour la mesure.
+  - id: DOC-LEAD-002
+    domaine: affaires
+    texte: >-
+      Demande fictive de revêtement extérieur pour un second bâtiment inventé, reçue par téléphone.
+  - id: DOC-DEVIS-002
+    domaine: affaires
+    texte: >-
+      Devis fictif D-FICTIF-002 envoyé puis resté sans réponse ; délai de relance inventé.
+
+# Les faits sont les clés publiques que `classification.py` relit dans le registre Événements.
+# `m1.lead_qualifie`, `m2.client_associe` et les devis sont indexés par le `lead_id` du fait
+# (le client associé n'a pas de clé propre dans M10) ; le WCT par son `wct_id`, la variance et la
+# rentabilité par leur `evenement_id`. Les sources sont des documents du domaine des affaires.
+faits:
+  - id: F-LEAD-001
+    affaire_id: A-FICTIF-001
+    type_evenement: m1.lead_qualifie
+    identifiant: A-FICTIF-001
+    sources: [DOC-LEAD-001]
+  - id: F-CLIENT-001
+    affaire_id: A-FICTIF-001
+    type_evenement: m2.client_associe
+    identifiant: A-FICTIF-001
+    sources: [DOC-CLIENT-001]
+  - id: F-DEVIS-001
+    affaire_id: A-FICTIF-001
+    type_evenement: m3.devis_accepte
+    identifiant: D-FICTIF-001
+    sources: [DOC-DEVIS-001]
+  - id: F-WCT-001
+    affaire_id: A-FICTIF-001
+    type_evenement: m4.travaux_termines
+    identifiant: WCT-FICTIF-001
+    sources: [DOC-TRAVAUX-001]
+  - id: F-VAR-001
+    affaire_id: A-FICTIF-001
+    type_evenement: m6.variance_chantier
+    identifiant: VAR-FICTIF-001
+    sources: [DOC-VARIANCE-001]
+  - id: F-RENT-001
+    affaire_id: A-FICTIF-001
+    type_evenement: m5.rentabilite_chantier
+    identifiant: RENT-FICTIF-001
+    sources: [DOC-MARGE-001]
+  - id: F-LEAD-002
+    affaire_id: A-FICTIF-002
+    type_evenement: m1.lead_qualifie
+    identifiant: A-FICTIF-002
+    sources: [DOC-LEAD-002]
+  - id: F-DEVIS-002
+    affaire_id: A-FICTIF-002
+    type_evenement: m3.devis_sans_reponse
+    identifiant: D-FICTIF-002
+    sources: [DOC-DEVIS-002]
+
+# Chaque question déclare la portée exacte de sa réponse et les faits attendus. Aucun fait interdit
+# n'est attendu ici : la batterie livrée doit atteindre 100 % sur la mémoire intacte. Les cas de
+# source absente, de question sans dénominateur et de document interdit sont éprouvés par les tests
+# avec des corpus variantes, pour ne pas casser la mesure de référence.
+questions:
+  - id: Q-LEAD-001
+    texte: "Quel lead fictif a été qualifié pour la première affaire ?"
+    affaire_id: A-FICTIF-001
+    types_evenement: [m1.lead_qualifie]
+    attendus: [F-LEAD-001]
+  - id: Q-CLIENT-001
+    texte: "Quel client pseudonyme est associé à la première affaire ?"
+    affaire_id: A-FICTIF-001
+    types_evenement: [m2.client_associe]
+    attendus: [F-CLIENT-001]
+  - id: Q-ENTENTE-001
+    texte: "Qu'a-t-on convenu avec le client de la première affaire ?"
+    affaire_id: A-FICTIF-001
+    types_evenement: [m1.lead_qualifie, m2.client_associe, m3.devis_accepte]
+    attendus: [F-LEAD-001, F-CLIENT-001, F-DEVIS-001]
+  - id: Q-TRAVAUX-001
+    texte: "Quels travaux ont été terminés pour la première affaire ?"
+    affaire_id: A-FICTIF-001
+    types_evenement: [m4.travaux_termines]
+    attendus: [F-WCT-001]
+  - id: Q-MARGE-001
+    texte: "Pourquoi la marge de la première affaire est-elle ce qu'elle est ?"
+    affaire_id: A-FICTIF-001
+    types_evenement: [m4.travaux_termines, m6.variance_chantier, m5.rentabilite_chantier]
+    attendus: [F-WCT-001, F-VAR-001, F-RENT-001]
+  - id: Q-DEVIS-002
+    texte: "Quel devis est resté sans réponse pour la seconde affaire ?"
+    affaire_id: A-FICTIF-002
+    types_evenement: [m1.lead_qualifie, m3.devis_sans_reponse]
+    attendus: [F-LEAD-002, F-DEVIS-002]

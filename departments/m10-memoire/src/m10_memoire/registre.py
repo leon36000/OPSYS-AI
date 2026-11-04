@@ -14,7 +14,7 @@ from datetime import datetime
 
 from . import encodage
 
-__all__ = ["Registre"]
+__all__ = ["Registre", "types_entree"]
 
 _TYPE_ENTREE_VALIDES = {
     "evenement_memorise",
@@ -42,6 +42,15 @@ _TYPE_ENTREE_VALIDES = {
     # Mémoire d'expérience des agents, jalon J1 (opsys.mnemo.experience) : registre `experiences`.
     "experience_proposee", "experience_refusee",
 }
+
+
+def types_entree() -> tuple[str, ...]:
+    """Les types d'entrée qu'un registre accepte, dans un ordre stable.
+
+    C'est le contrat d'écriture de ``Registre.ajouter``, exposé pour qu'un lecteur (la batterie
+    M10-05, par exemple) puisse refuser un maillon qui n'en est pas un sans réimplémenter la liste.
+    """
+    return tuple(sorted(_TYPE_ENTREE_VALIDES))
 
 
 def _valider_horodatage_local(chaine):
