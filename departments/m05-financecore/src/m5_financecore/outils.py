@@ -7213,9 +7213,6 @@ def _plan_comptable_effectif() -> tuple[dict[str, Any] | None, dict[str, Any] | 
         return None, refus
     try:
         configuration = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        # Le manifeste reste optionnel : sans fichier, le plan de base s'applique.
-        extension = None
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         return None, verdicts_grand_livre.construire_verdict(
             "REJ-GL-PLAN-INVALIDE", detail=f"manifeste comptable illisible : {type(exc).__name__}"

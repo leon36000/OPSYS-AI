@@ -457,8 +457,9 @@ def test_manifeste_yaml_invalide_ne_reactive_pas_un_compte_desactive(par_nom, tm
               "lignes": [{"compte": "5600", "debit": "10.00", "credit": None},
                          {"compte": "1010", "debit": None, "credit": "10.00"}]}
 
-    # Le manifeste est optionnel : son absence conserve le plan de base.
-    assert _accepte(_appeler(par_nom, "m5_proposer_ecriture_comptable", saisie))["ecriture"]
+    # Sans manifeste, aucune extension restrictive ne peut être vérifiée.
+    assert _code(_appeler(par_nom, "m5_proposer_ecriture_comptable", saisie)) == "REJ-GL-PLAN-INVALIDE"
+    assert _maillons("grand_livre") == 0
 
     # Un manifeste présent mais illisible ne doit pas faire disparaître l'extension restrictive.
     manifeste.write_text("configuration: [\n", encoding="utf-8")
