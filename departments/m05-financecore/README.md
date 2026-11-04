@@ -198,7 +198,10 @@ PLAN T4.16-d (prévision de trésorerie, M5.7, `prevision.py`) : `m5_prevoir_tre
 aussi tout autre rôle d'appareil ; mention « Analyse préparatoire IA ») dit, semaine par semaine sur un horizon de 1 à 26 semaines
 (7 jours chacune, à partir d'`aujourd_hui`), où irait le solde si seuls les flux CONNUS et DATÉS se produisaient. `prevision.py` est
 PUR : aucune entrée-sortie, aucune horloge, `Decimal`, `ROUND_HALF_UP` au cent, une seule fois ; l'adaptateur
-(`outils._page_prevision`) lit chaque registre une fois (le même instantané que le cash libre) et lui passe les faits.
+(`outils._page_prevision`) lit les registres d'entrée durables dans un seul SELECT et passe ces faits à la prévision.
+Sous PostgreSQL, cela donne un même snapshot MVCC aux seules lignes de ces registres, pas aux fichiers de configuration
+ni aux autres tables. Le mouvement et le statut PAYEE d'une facture sont deux écritures distinctes : une lecture peut
+survenir entre elles et conserver cet état intermédiaire, sans les rendre atomiques ni les réconcilier.
 
 Le point de départ est le SOLDE du registre, pas le cash libre : celui-ci a déjà retranché les taxes, les paies, les DAS, les comptes à
 payer et les dettes ; en partir et faire sortir ces mêmes obligations les compterait deux fois. Le `cash_libre_prevu` de chaque semaine

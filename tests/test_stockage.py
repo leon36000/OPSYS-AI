@@ -10,7 +10,7 @@ import pytest
 from alembic import command
 from alembic.script import ScriptDirectory
 from memoire.doubles import postgres_ephemere, raison_sans_docker
-from sqlalchemy import inspect, select, text
+from sqlalchemy import event, inspect, select, text
 
 from opsys import stockage
 from opsys.capacites import Capacites
@@ -71,6 +71,42 @@ def test_maillons_se_comportent_comme_une_liste_et_survivent(base):
     assert type(copie) is list and copie == list(relu)
     with pytest.raises(IndexError):
         relu[3]
+
+
+def test_lire_instantane_maillons_lit_plusieurs_registres_en_un_select(base):
+    mouvements = stockage.maillons("m05-financecore", "principal")
+    factures = stockage.maillons("m05-financecore", "factures")
+    mouvements.append({"fictif": True, "registre": "mouvements"})
+    factures.append({"fictif": True, "registre": "factures"})
+    moteur = stockage.moteur()
+    select_registres = []
+
+    def compter(_cnx, _curseur, sql, _parametres, _contexte, _executemany):
+        if "select" in sql.lower() and "registres_maillons" in sql.lower():
+            select_registres.append(sql)
+
+    event.listen(moteur, "before_cursor_execute", compter)
+    try:
+        with stockage.transaction():
+            resultat = stockage.lire_instantane_maillons(
+                "m05-financecore", ("principal", "factures", "inexistant-fictif")
+            )
+    finally:
+        event.remove(moteur, "before_cursor_execute", compter)
+
+    assert len(select_registres) == 1
+    assert resultat == {
+        "principal": [{"fictif": True, "registre": "mouvements"}],
+        "factures": [{"fictif": True, "registre": "factures"}],
+        "inexistant-fictif": [],
+    }
+
+
+@pytest.mark.parametrize("noms", [("principal", "principal"), "principal", ("",)])
+def test_lire_instantane_maillons_refuse_collection_invalide(base, noms):
+    erreur = TypeError if isinstance(noms, str) else ValueError
+    with pytest.raises(erreur):
+        stockage.lire_instantane_maillons("m05-financecore", noms)
 
 
 def test_registres_cloisonnes_par_departement_et_par_nom(base):

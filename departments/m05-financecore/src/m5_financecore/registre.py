@@ -139,6 +139,16 @@ class Registre:
         mémoire, vide au départ."""
         self._chain = maillons if maillons is not None else []
 
+    @property
+    def identite_maillons_durables(self):
+        """Retourne l'identité immuable de la source durable, sinon None."""
+        source = self._chain
+        departement = getattr(source, "departement", None)
+        registre = getattr(source, "registre", None)
+        if isinstance(departement, str) and isinstance(registre, str):
+            return departement, registre
+        return None
+
     def ajouter(self, entree):
         if not isinstance(entree, dict):
             raise TypeError("L'entrée doit être un dictionnaire.")

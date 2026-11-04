@@ -154,6 +154,39 @@ def maillons(departement: str, registre: str = "principal") -> MaillonsDurables:
     return MaillonsDurables(departement, registre)
 
 
+def lire_instantane_maillons(departement: str, registres: Iterable[str]) -> dict[str, list[Any]]:
+    """Lit plusieurs registres du même département par un seul SELECT.
+
+    PostgreSQL READ COMMITTED attribue un snapshot MVCC à chaque instruction; des SELECT successifs peuvent donc voir
+    des commits différents dans la même transaction. Cette primitive rend les lignes SQL des registres demandés depuis
+    un seul snapshot d'instruction, sans changer l'isolation extérieure ni imposer de coopération aux écrivains.
+    Sa garantie ne couvre ni les fichiers de configuration, ni les autres tables/départements,
+    ni les lectures ultérieures.
+    Les registres absents sont rendus comme listes vides.
+    """
+    if type(departement) is not str or not departement.strip():
+        raise ValueError("département obligatoire")
+    if isinstance(registres, (str, bytes)):
+        raise TypeError("registres doit être une collection de noms")
+    noms = list(registres)
+    if any(type(nom) is not str or not nom.strip() for nom in noms):
+        raise ValueError("nom de registre invalide")
+    if len(noms) != len(set(noms)):
+        raise ValueError("noms de registres dupliqués")
+    resultat = {nom: [] for nom in noms}
+    if not noms:
+        return resultat
+    with transaction() as cnx:
+        lignes = cnx.execute(
+            select(REGISTRES.c.registre, REGISTRES.c.maillon)
+            .where(REGISTRES.c.departement == departement, REGISTRES.c.registre.in_(noms))
+            .order_by(REGISTRES.c.registre, REGISTRES.c.rang)
+        ).all()
+    for ligne in lignes:
+        resultat[ligne.registre].append(codec.decoder(ligne.maillon))
+    return resultat
+
+
 @dataclass(frozen=True)
 class MaillonLu:
     """Rang et datetime SQL réellement lus, accompagnés d'une copie codec décodée."""

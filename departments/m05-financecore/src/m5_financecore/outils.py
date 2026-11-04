@@ -672,11 +672,19 @@ def etat_tresorerie(
     if verdict is not None:
         return _refus(verdict)
     registre_cible = _registre_mouvements(mouvements_historique)
+    lectures = None
+    if vue["autorise_couts"]:
+        lectures = _lectures_finance(registre_cible, validateur_snapshot=_valider_chaines_cfo)
+        if verdict := lectures.get("verdict_chaine"):
+            return _refus(verdict)
+        registre_cible = registre_module.Registre(maillons=lectures["maillons_mouvements"])
     etat = etat_financier.construire_etat_financier(
         registre_cible, taux_utilises or [], role=vue["role"], autorise_couts=vue["autorise_couts"]
     )
     if vue["autorise_couts"]:
-        etat = {**etat, "argent_disponible_note": _NOTE_ARGENT_DISPONIBLE, "cash_libre": _cash_libre(registre_cible)}
+        assert lectures is not None
+        cash = cash_libre.vue_cash_libre(_resultat_cash_libre(lectures))
+        etat = {**etat, "argent_disponible_note": _NOTE_ARGENT_DISPONIBLE, "cash_libre": cash}
     else:
         etat = {**etat, "cash_libre": None}
     return _borner_etat(analyse.avec_mention(etat))
@@ -2624,6 +2632,26 @@ def _valider_chaines_cfo(
     return None
 
 
+def _lire_instantane_financier(
+    registre_mouvements: registre_module.Registre,
+    inclure_echeanciers_contrats: bool,
+) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]] | None:
+    """Capture les chaînes financières durables en une seule lecture SQL; cette aide est surveillée en lecture seule."""
+    identite = getattr(registre_mouvements, "identite_maillons_durables", None)
+    if identite != (_DEPARTEMENT, _NOM_REGISTRE_MOUVEMENTS):
+        return None
+    noms = [_NOM_REGISTRE_MOUVEMENTS, _NOM_REGISTRE_FACTURES, _NOM_REGISTRE_COMPTES_A_PAYER]
+    if inclure_echeanciers_contrats:
+        noms = [*noms, _NOM_REGISTRE_DEVIS_RECUS, _NOM_REGISTRE_ECHEANCIERS_CONTRATS]
+    instantane = stockage.lire_instantane_maillons(_DEPARTEMENT, noms)
+    return (
+        instantane,
+        instantane[_NOM_REGISTRE_MOUVEMENTS],
+        instantane[_NOM_REGISTRE_FACTURES],
+        instantane[_NOM_REGISTRE_COMPTES_A_PAYER],
+    )
+
+
 def _lectures_finance(
     registre_mouvements: registre_module.Registre,
     configuration: dict[str, Any] | None = None,
@@ -2632,19 +2660,28 @@ def _lectures_finance(
     inclure_echeanciers_contrats: bool = False,
 ) -> dict[str, Any]:
     """Tout ce que le cash libre (T4.16) et la prévision de trésorerie (T4.16-d) lisent, lu UNE fois : un instantané,
-    donc des chiffres cohérents entre eux. Le registre des mouvements arrive déjà ouvert (la lecture seule de son
+    donc des chiffres cohérents entre eux. En stockage durable, un SELECT unique lit toutes les chaînes financières,
+    car sous PostgreSQL READ COMMITTED des SELECT successifs peuvent voir des commits différents. Le registre des
+    mouvements arrive déjà ouvert (la lecture seule de son
     solde est faite par l'outil) ; les factures clientes, les comptes à payer, le calendrier, les taux et la
     configuration sont lus ici. `configuration` : celle que l'appelant a déjà lue (`_configuration_manifeste`), pour
     que tout parte de la même version du manifeste ; absente, elle est lue ici. Lecture pure : rien n'est écrit nulle
-    part."""
+    part. La cohérence commune couvre les lignes SQL des registres inclus dans ce SELECT, pas les fichiers ou autres
+    tables. Elle ne réconcilie pas les opérations métier séparées : un mouvement encaissé et la transition distincte
+    d'une facture vers PAYEE peuvent rester entre leurs deux validations."""
     if configuration is None:
         configuration = _configuration_manifeste()
     declarees = configuration.get("obligations_declarees")
     declarees = declarees if isinstance(declarees, dict) else {}
 
-    maillons_mouvements = registre_mouvements.lire()
-    maillons_factures = _registre_factures(None).lire()
-    maillons_a_payer = _registre_comptes_a_payer().lire()
+    instantane = None
+    instantane_lu = _lire_instantane_financier(registre_mouvements, inclure_echeanciers_contrats)
+    if instantane_lu is not None:
+        instantane, maillons_mouvements, maillons_factures, maillons_a_payer = instantane_lu
+    else:
+        maillons_mouvements = registre_mouvements.lire()
+        maillons_factures = _registre_factures(None).lire()
+        maillons_a_payer = _registre_comptes_a_payer().lire()
     if validateur_snapshot is not None:
         verdict = validateur_snapshot(maillons_mouvements, maillons_factures, maillons_a_payer)
         if verdict is not None:
@@ -2652,8 +2689,12 @@ def _lectures_finance(
 
     maillons_devis = maillons_echeanciers = None
     if inclure_echeanciers_contrats:
-        maillons_devis = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS))
-        maillons_echeanciers = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ECHEANCIERS_CONTRATS))
+        if instantane is not None:
+            maillons_devis = instantane[_NOM_REGISTRE_DEVIS_RECUS]
+            maillons_echeanciers = instantane[_NOM_REGISTRE_ECHEANCIERS_CONTRATS]
+        else:
+            maillons_devis = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS))
+            maillons_echeanciers = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ECHEANCIERS_CONTRATS))
         verdict = _verdict_chaine_financiere(_NOM_REGISTRE_ECHEANCIERS_CONTRATS, maillons_echeanciers)
         if verdict is not None:
             return {"verdict_chaine": validation.construire_verdict(
@@ -2766,7 +2807,10 @@ def _cash_libre(registre_mouvements: registre_module.Registre) -> dict[str, Any]
     Lecture pure : chaque registre est lu UNE fois (`_lectures_finance` : un instantané, donc des composantes
     cohérentes entre elles) et rien n'est écrit nulle part. Chaque composante dit sa source et sa fraîcheur ; une
     composante inconnue est « non calculable, manque X », jamais zéro (voir `cash_libre.py`)."""
-    return cash_libre.vue_cash_libre(_resultat_cash_libre(_lectures_finance(registre_mouvements)))
+    lectures = _lectures_finance(registre_mouvements, validateur_snapshot=_valider_chaines_cfo)
+    if verdict := lectures.get("verdict_chaine"):
+        return {"verdict_chaine": verdict}
+    return cash_libre.vue_cash_libre(_resultat_cash_libre(lectures))
 
 
 def _taxes_par_echeance(resultat: dict[str, Any]) -> None:
@@ -3110,9 +3154,9 @@ def _preparer_decision_capital_impl(
     lectures = _lectures_finance(
         _mouvements_pour_decision_capital(),
         configuration,
-        validateur_snapshot=_valider_chaines_cfo if _agent_autorise else None,
+        validateur_snapshot=_valider_chaines_cfo,
     )
-    if _agent_autorise and lectures.get("verdict_chaine"):
+    if lectures.get("verdict_chaine"):
         return _refus(lectures["verdict_chaine"])
     cash = _resultat_cash_libre(lectures)
     snapshot = {
@@ -3320,7 +3364,13 @@ def _page_prevision(
     délais de paiement, date de sortie des obligations déclarées) est dit à `prevision.py`, qui date chaque flux, le
     place, additionne et dit ce qui manque : ici, rien n'est calculé."""
     if lectures is None:
-        lectures = _lectures_finance(registre_mouvements, reglages["configuration"])
+        lectures = _lectures_finance(
+            registre_mouvements,
+            reglages["configuration"],
+            validateur_snapshot=_valider_chaines_cfo,
+        )
+    if verdict := lectures.get("verdict_chaine"):
+        return None, verdict
     cash, flux, seuil, verdict_seuil = _flux_connus_prevision(lectures, reglages)
     resultat = prevision.assembler(
         reglages["aujourd_hui"],
@@ -3564,7 +3614,10 @@ def _constater_cash_libre(registre_mouvements: registre_module.Registre, jour: d
     antérieure (une déclaration du propriétaire remise à sa valeur d'avant) est un nouveau constat, au rang suivant,
     que le bus ne peut donc pas avaler comme un doublon. Deux appels simultanés au même rang : le second lève
     (`EcritureConcurrente`), l'appel est à rejouer."""
-    resultat = _resultat_cash_libre(_lectures_finance(registre_mouvements))
+    lectures = _lectures_finance(registre_mouvements, validateur_snapshot=_valider_chaines_cfo)
+    if verdict := lectures.get("verdict_chaine"):
+        return {"refus": verdict}
+    resultat = _resultat_cash_libre(lectures)
     constats = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONSTATS)
     rang = len(constats)
     dernier = constats[-1] if rang else None
@@ -3631,6 +3684,8 @@ def constater_cash_libre(
             )
         )
     constat = _constater_cash_libre(_registre_mouvements(None), jour)
+    if "refus" in constat:
+        return _refus(constat["refus"])
     return {"accepte": True, "resultat": analyse.avec_mention({"role": vue["role"], **constat})}
 
 
@@ -3683,6 +3738,8 @@ def constater_cash_libre_planifie(aujourd_hui: str) -> dict[str, Any]:
             )
         )
     constat = _constater_cash_libre(_registre_mouvements(None), jour)
+    if "refus" in constat:
+        return _refus(constat["refus"])
     return {
         "accepte": True,
         "resultat": analyse.avec_mention(
@@ -3720,7 +3777,11 @@ def _constater_tresorerie_prevue(
     reglages, verdict = _reglages_prevision(jour.isoformat(), None, None, 0)
     if verdict is not None:
         return {"refus": verdict}
-    lectures = _lectures_finance(registre_mouvements, reglages["configuration"])
+    lectures = _lectures_finance(
+        registre_mouvements, reglages["configuration"], validateur_snapshot=_valider_chaines_cfo
+    )
+    if verdict := lectures.get("verdict_chaine"):
+        return {"refus": verdict}
     cash, flux, seuil, verdict_seuil = _flux_connus_prevision(lectures, reglages)
     resultat = prevision.assembler(
         reglages["aujourd_hui"],
@@ -7050,7 +7111,9 @@ def _plan_comptable_effectif() -> tuple[dict[str, Any] | None, dict[str, Any] | 
     return plan_comptable.appliquer_extension(plan, _configuration_manifeste().get("grand_livre"))
 
 
-def _contexte_grand_livre() -> tuple[tuple[registre_module.Registre, dict[str, Any]] | None, dict[str, Any] | None]:
+def _contexte_grand_livre(
+    registre_cible: registre_module.Registre | None = None,
+) -> tuple[tuple[registre_module.Registre, dict[str, Any]] | None, dict[str, Any] | None]:
     """Registre et plan d'un appel, ou le refus nommé : identité d'appareil (portée fermée), stockage non durable,
     plan illisible, ou chaîne du registre invalide (jamais une lecture d'un registre altéré)."""
     if contexte.identite_appelante() is not None:
@@ -7058,7 +7121,7 @@ def _contexte_grand_livre() -> tuple[tuple[registre_module.Registre, dict[str, A
             "REJ-IDENTITE-APPAREIL-INVALIDE",
             detail="le grand livre n'est ouvert à aucun rôle d'appareil (portée fermée) : passer par l'agent finance",
         )
-    registre_cible = _registre_grand_livre()
+    registre_cible = _registre_grand_livre() if registre_cible is None else registre_cible
     if registre_cible is None:
         return None, verdicts_grand_livre.construire_verdict(
 "REJ-GL-STOCKAGE-NON-DURABLE", detail="registre durable requis")
@@ -8367,7 +8430,11 @@ def simuler_tresorerie_monte_carlo(
     reglages, verdict = _reglages_prevision(aujourd_hui, horizon_semaines, None, 0)
     if verdict is not None:
         return _refus(verdict)
-    lectures = _lectures_finance(_registre_mouvements(None), reglages["configuration"])
+    lectures = _lectures_finance(
+        _registre_mouvements(None), reglages["configuration"], validateur_snapshot=_valider_chaines_cfo
+    )
+    if verdict := lectures.get("verdict_chaine"):
+        return _refus(verdict)
     cash, flux, seuil, verdict_seuil = _flux_connus_prevision(lectures, reglages)
     resultat_prevision = prevision.assembler(
         reglages["aujourd_hui"], reglages["horizon"], cash["solde"], flux, seuil=seuil, verdict_seuil=verdict_seuil,

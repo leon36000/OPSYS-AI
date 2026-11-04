@@ -13,12 +13,19 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 
-from .maillons import EcritureConcurrente, MaillonsDurables, copier_maillons_stricts, maillons
+from .maillons import (
+    EcritureConcurrente,
+    MaillonsDurables,
+    copier_maillons_stricts,
+    lire_instantane_maillons,
+    maillons,
+)
 from .moteur import ENV_URL, connexion_courante, dossier_opsys, inserer, liberer, moteur, transaction, url_base
 
 __all__ = [
     "ENV_URL", "EcritureConcurrente", "MaillonsDurables", "connexion_courante", "dossier_opsys", "inserer",
-    "liberer", "copier_maillons_stricts", "maillons", "migrer", "moteur", "revision_connue",
+    "liberer", "copier_maillons_stricts", "lire_instantane_maillons", "maillons", "migrer", "moteur",
+    "revision_connue",
     "revision_courante", "transaction", "url_base",
 ]
 

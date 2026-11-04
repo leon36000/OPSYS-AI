@@ -979,7 +979,7 @@ _SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
     "outils": (
         "etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre", "constater_cash_libre_planifie",
         "constater_tresorerie_prevue", "constater_tresorerie_prevue_planifie",
-        "simuler_tresorerie_monte_carlo",
+        "simuler_tresorerie_monte_carlo", "_lire_instantane_financier",
     ),
 }
 # Tout ce qui écrit ou nomme le registre des mouvements : sa fonction d'écriture, son adaptateur et son nom durable

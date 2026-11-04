@@ -597,6 +597,22 @@ def test_en_simulation_le_solde_vient_de_l_historique_transmis_et_le_reste_des_r
     assert cash["cash_libre"] == "-292.35" and cash["en_deficit"] is True
 
 
+def test_etat_en_simulation_reutilise_le_meme_historique_sans_ecrire_aux_registres_durables(par_nom, cas_fictif):
+    avant = _instantane_base()
+    historique = []
+    for montant, type_mouvement in (("9000.00", "ENCAISSEMENT"), ("500.00", "PROVISION")):
+        historique = _appeler(par_nom, "m5_enregistrer_mouvement", {
+            "montant": montant, "type_mouvement": type_mouvement, "horodatage": "2026-09-01T12:00:00-04:00",
+            "classe_retention": "STANDARD", "source": "simulation-fictive", "mouvements_historique": historique,
+        }, None)["resultat"]["mouvements_historique"]
+
+    etat = _etat(par_nom, {"mouvements_historique": historique})
+
+    assert etat["solde"] == etat["cash_libre"]["solde"]["montant"] == "9000.00"
+    assert _composantes(etat["cash_libre"])["reserves"]["montant"] == "500.00"
+    assert _instantane_base() == avant
+
+
 # ===================================================== 7. la réponse tient sous la limite du socle
 def _via_capacites(dep, nom, arguments):
     capacites = Capacites({DEPARTEMENT: dep}, stockage.transaction)

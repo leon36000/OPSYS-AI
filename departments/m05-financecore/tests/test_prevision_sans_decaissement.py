@@ -285,7 +285,7 @@ def test_l_enregistrement_d_un_mouvement_glisse_dans_la_vraie_prevision_est_attr
 
 
 @pytest.mark.parametrize("aide, ancre", [
-    ("_page_prevision", "    lectures = _lectures_finance(registre_mouvements, reglages[\"configuration\"])\n"),
+    ("_page_prevision", "    lectures = _lectures_finance(\n"),
     ("_reglages_prevision", "    jour, verdict = prevision.lire_jour(aujourd_hui)\n"),
     ("_dettes_fournisseurs", "    if lectures[\"dictionnaire_taux\"] is None:\n"),
 ])
@@ -293,6 +293,12 @@ def test_un_acces_au_registre_des_mouvements_glisse_dans_une_aide_de_la_previsio
     def modifier(nom, texte):
         if nom != "outils":
             return texte
+        if aide == "_page_prevision":
+            debut = texte.index("def _page_prevision(")
+            fin = texte.index("\ndef prevoir_tresorerie(", debut)
+            corps = texte[debut:fin]
+            assert ancre in corps
+            return texte[:debut] + corps.replace(ancre, "    _registre_mouvements(None)\n" + ancre, 1) + texte[fin:]
         assert ancre in texte, ancre
         return texte.replace(ancre, "    _registre_mouvements(None)\n" + ancre, 1)
 
@@ -307,6 +313,20 @@ def test_un_texte_de_mouvement_glisse_dans_la_vraie_lecture_des_registres_est_at
                                "    type_du_geste = 'DECAISSEMENT'\n"))
 
     assert conforme is False and "_lectures_finance()" in detail and "porte le texte 'DECAISSEMENT'" in detail
+
+
+def test_un_enregistrement_glisse_dans_la_nouvelle_aide_snapshot_reste_attrape_en_lecture_seule(tmp_path):
+    def modifier(nom, texte):
+        if nom != "outils":
+            return texte
+        ancre = "    instantane = stockage.lire_instantane_maillons(_DEPARTEMENT, noms)\n"
+        assert ancre in texte
+        return texte.replace(ancre, "    enregistrer_mouvement({}, None)\n" + ancre, 1)
+
+    conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
+
+    assert conforme is False and "_lire_instantane_financier()" in detail
+    assert "enregistrer_mouvement" in detail
 
 
 def test_une_ecriture_glissee_dans_la_vraie_fonction_de_l_outil_est_attrapee_en_lecture_seule(tmp_path):
@@ -332,12 +352,15 @@ def test_une_ecriture_glissee_dans_la_vraie_fonction_de_l_outil_est_attrapee_en_
 
 def test_un_paiement_glisse_dans_le_vrai_etat_de_tresorerie_reste_attrape_et_la_prevision_ne_le_desarme_pas(tmp_path):
     def modifier(nom, texte):
-        ancre = "    registre_cible = _registre_mouvements(mouvements_historique)\n    etat = etat_financier."
         if nom != "outils":
             return texte
-        assert ancre in texte
-        return texte.replace(
-            ancre, "    facturation.enregistrer_paiement_facture('F', '1', 'n', 'h', None)\n" + ancre, 1)
+        debut = texte.index("def etat_tresorerie(")
+        fin = texte.index("\ndef calculer_taxes_tps_tvq(", debut)
+        fonction = texte[debut:fin]
+        ancre = "    registre_cible = _registre_mouvements(mouvements_historique)\n    lectures = None\n"
+        assert ancre in fonction
+        insertion = "    facturation.enregistrer_paiement_facture('F', '1', 'n', 'h', None)\n"
+        return texte[:debut] + fonction.replace(ancre, insertion + ancre, 1) + texte[fin:]
 
     conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
 

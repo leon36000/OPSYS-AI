@@ -365,13 +365,16 @@ def test_l_enregistrement_d_un_mouvement_glisse_dans_le_vrai_module_du_constat_e
 ])
 def test_un_acces_aux_mouvements_glisse_dans_la_vraie_fonction_qui_ecrit_le_constat_est_attrape(
         tmp_path, insertion, attendu):
-    ancre = "    resultat = _resultat_cash_libre(_lectures_finance(registre_mouvements))\n    constats = "
+    ancre = "    lectures = _lectures_finance(registre_mouvements, validateur_snapshot=_valider_chaines_cfo)\n"
 
     def modifier(nom, texte):
         if nom != "outils":
             return texte
-        assert ancre in texte, ancre
-        return texte.replace(ancre, insertion + ancre, 1)
+        debut = texte.index("def _constater_cash_libre(")
+        fin = texte.index("\ndef constater_cash_libre(", debut)
+        fonction = texte[debut:fin]
+        assert fonction.count(ancre) == 1, ancre
+        return texte[:debut] + fonction.replace(ancre, insertion + ancre, 1) + texte[fin:]
 
     conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
 

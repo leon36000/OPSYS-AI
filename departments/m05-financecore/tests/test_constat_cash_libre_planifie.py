@@ -24,13 +24,13 @@ import m5_financecore.outils as m5_outils
 import pytest
 from m5_financecore import analyse, conformite, constat_cash_libre, taux_fiscaux
 from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from opsys import contexte, evenements, identite, service_acteur_systeme, stockage
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Niveau, executer_atomique
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_SORTANTS, META
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, META, REGISTRES
 
 FICTIF = True
 _RACINE_M5 = Path(__file__).resolve().parents[1]
@@ -336,6 +336,32 @@ def test_un_cash_libre_non_calculable_est_publie_tel_quel_jamais_un_zero(par_nom
     assert erreurs_charge(TYPE, charge) == []
 
 
+def test_une_chaine_financiere_alteree_refuse_le_constat_planifie_sans_trace_ni_evenement(par_nom, cas_fictif):
+    with stockage.transaction() as cnx:
+        ligne = cnx.execute(
+            select(REGISTRES.c.maillon).where(
+                REGISTRES.c.departement == DEPARTEMENT,
+                REGISTRES.c.registre == "principal",
+                REGISTRES.c.rang == 0,
+            )
+        ).one()
+        modifie = codec.decoder(ligne.maillon)
+        modifie["ligne_id"] = "falsifie-fictif"
+        cnx.execute(
+            update(REGISTRES).where(
+                REGISTRES.c.departement == DEPARTEMENT,
+                REGISTRES.c.registre == "principal",
+                REGISTRES.c.rang == 0,
+            ).values(maillon=codec.encoder(modifie))
+        )
+    avant = _instantane_base()
+
+    assert _code_refus(_par_le_planificateur(par_nom)) == "REJ-CFO-CHAINE-INVALIDE"
+
+    assert _instantane_base() == avant
+    assert _traces() == [] and _publies() == []
+
+
 # ========================================================================================== refus et abus
 @pytest.mark.parametrize("jour", ["2026-9-29", "29/09/2026", "20260929", "2026-02-30", "aujourd'hui", ""])
 def test_une_date_illisible_est_refusee_avant_toute_lecture(par_nom, cas_fictif, registre_interdit, jour):
@@ -412,14 +438,16 @@ def test_le_vrai_paquet_reste_conforme_et_la_variante_est_dans_la_portee_de_la_g
     "geste = []\n    geste.append(1)",
 ], ids=["ecriture_mouvement", "paiement", "append"])
 def test_un_decaissement_ou_une_ecriture_glisse_dans_la_variante_est_attrape(tmp_path, glisse):
-    ancre = ('    constat = _constater_cash_libre(_registre_mouvements(None), jour)\n    return {\n'
-             '        "accepte": True,')
+    ancre = "    constat = _constater_cash_libre(_registre_mouvements(None), jour)\n"
 
     def modifier(nom, texte):
         if nom != "outils":
             return texte
-        assert texte.count(ancre) == 1
-        return texte.replace(ancre, f"    {glisse}\n" + ancre, 1)
+        debut = texte.index("def constater_cash_libre_planifie(")
+        fin = texte.index("\ndef ", debut + 1)
+        fonction = texte[debut:fin]
+        assert fonction.count(ancre) == 1
+        return texte[:debut] + fonction.replace(ancre, f"    {glisse}\n" + ancre, 1) + texte[fin:]
 
     conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
 

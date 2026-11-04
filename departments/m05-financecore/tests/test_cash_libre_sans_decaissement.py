@@ -68,7 +68,8 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
     # moteur de calcul : le Monte-Carlo lit le solde par la prévision existante, comme `prevoir_tresorerie`
     assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre",
                                       "constater_cash_libre_planifie", "constater_tresorerie_prevue",
-                                      "constater_tresorerie_prevue_planifie", "simuler_tresorerie_monte_carlo"}
+                                      "constater_tresorerie_prevue_planifie", "simuler_tresorerie_monte_carlo",
+                                      "_lire_instantane_financier"}
     assert lecture["soldes"] is None and lecture["etat_financier"] is None
 
 
@@ -319,12 +320,15 @@ def test_une_ecriture_glissee_dans_la_vraie_lecture_des_registres_du_cash_libre_
 
 def test_un_paiement_glisse_dans_le_vrai_etat_de_tresorerie_est_attrape(tmp_path):
     def modifier(nom, texte):
-        ancre = "    registre_cible = _registre_mouvements(mouvements_historique)\n    etat = etat_financier."
         if nom != "outils":
             return texte
-        assert ancre in texte
+        debut = texte.index("def etat_tresorerie(")
+        fin = texte.index("\ndef calculer_taxes_tps_tvq(", debut)
+        fonction = texte[debut:fin]
+        ancre = "    registre_cible = _registre_mouvements(mouvements_historique)\n    lectures = None\n"
+        assert ancre in fonction
         piege = "    facturation.enregistrer_paiement_facture('F', '1', 'n', 'h', None)\n"
-        return texte.replace(ancre, piege + ancre, 1)
+        return texte[:debut] + fonction.replace(ancre, piege + ancre, 1) + texte[fin:]
 
     conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
 

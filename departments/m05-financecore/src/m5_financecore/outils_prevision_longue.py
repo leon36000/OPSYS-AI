@@ -16,6 +16,9 @@ Qui décide quoi.
   aucun texte libre ne sort : identifiants de contrat seulement, dans le reçu, jamais dans la réponse lisible.
 
 Aucune migration : les budgets et les échéanciers sont déjà des registres append-only sur `stockage.maillons`.
+Le calcul charge les lignes de ses registres d'entrée avec un seul SELECT. Cette portée n'inclut pas les fichiers de
+configuration/plan comptable ni les autres tables ; elle ne transforme pas en transaction unique les opérations métier
+séparées, dont le mouvement d'encaissement et le passage d'une facture à PAYEE.
 """
 
 from __future__ import annotations
@@ -155,13 +158,14 @@ def _lire_historique(
 
 
 def _lire_budget(
-    plan: Mapping[str, Any], mois_projetes: list[str]
+    plan: Mapping[str, Any], mois_projetes: list[str], maillons: list[dict[str, Any]] | None = None
 ) -> tuple[list[dict[str, Any]] | None, dict[str, Any] | None]:
     """Le budget actif, ramené aux mois de l'horizon : produits et charges par mois, ou le refus nommé."""
     if not _o._stockage_durable_actif:
         return None, _verdict("REJ-PREVISION-LONGUE-STOCKAGE-NON-DURABLE", "registre durable des budgets requis")
     registre = _o.registre_module.Registre(
-        maillons=stockage.maillons(_o._DEPARTEMENT, _NOM_REGISTRE_BUDGETS)
+        maillons=(maillons if maillons is not None
+                 else stockage.maillons(_o._DEPARTEMENT, _NOM_REGISTRE_BUDGETS))
     )
     valide, raison = registre.valider_chaine()
     if not valide:
@@ -228,14 +232,21 @@ def _valider_devis(devis: list[Any]) -> dict[str, Any] | None:
 
 
 def _lire_carnet(
-    fin_horizon: date,
+    fin_horizon: date, instantane: Mapping[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Les échéances valides jusqu'à `fin_horizon`, la provenance des registres lus et l'incomplétude qualifiée."""
     if not _o._stockage_durable_actif:
         return None, _verdict(
             "REJ-PREVISION-LONGUE-STOCKAGE-NON-DURABLE", "registre durable des échéanciers requis"
         )
-    registre = _o._registre_echeanciers_contrats()
+    nom_echeanciers = _o._NOM_REGISTRE_ECHEANCIERS_CONTRATS
+    nom_devis = _o._NOM_REGISTRE_DEVIS_RECUS
+    nom_factures = _o._NOM_REGISTRE_FACTURES
+    registre = (
+        _o.registre_module.Registre(maillons=instantane[nom_echeanciers])
+        if instantane is not None
+        else _o._registre_echeanciers_contrats()
+    )
     assert registre is not None
     valide, raison = registre.valider_chaine()
     if not valide:
@@ -250,11 +261,19 @@ def _lire_carnet(
     contrats = [
         etat for etat in etats.values() if etat.get("type_entree") == echeanciers_contrats.TYPE_ENREGISTRE
     ]
-    devis = list(stockage.maillons(_o._DEPARTEMENT, _o._NOM_REGISTRE_DEVIS_RECUS))
+    devis = (
+        instantane[nom_devis]
+        if instantane is not None
+        else list(stockage.maillons(_o._DEPARTEMENT, _o._NOM_REGISTRE_DEVIS_RECUS))
+    )
     refus = _valider_devis(devis)
     if refus is not None:
         return None, refus
-    factures = _o._registre_factures(None)
+    factures = (
+        _o.registre_module.Registre(maillons=instantane[nom_factures])
+        if instantane is not None
+        else _o._registre_factures(None)
+    )
     valide, raison = factures.valider_chaine()
     if not valide:
         return None, _verdict(
@@ -309,7 +328,29 @@ def _contexte() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     refus = _appareil_refuse()
     if refus is not None:
         return None, refus
-    ctx, refus = _o._contexte_grand_livre()
+    if not _o._stockage_durable_actif:
+        ctx, refus = _o._contexte_grand_livre()
+        if refus is not None:
+            code = refus.get("code")
+            if code == "REJ-GL-CHAINE-INVALIDE":
+                return None, _verdict("REJ-PREVISION-LONGUE-CHAINE-INVALIDE", refus.get("detail", "grand livre altéré"))
+            if code == "REJ-GL-STOCKAGE-NON-DURABLE":
+                return None, _verdict(
+                    "REJ-PREVISION-LONGUE-STOCKAGE-NON-DURABLE", refus.get("detail", "stockage requis")
+                )
+            return None, _verdict("REJ-PREVISION-LONGUE-PLAN-INVALIDE", refus.get("detail", "plan comptable illisible"))
+        return None, _verdict("REJ-PREVISION-LONGUE-STOCKAGE-NON-DURABLE", "instantané durable requis")
+    noms = (
+        _o._NOM_REGISTRE_GRAND_LIVRE,
+        _o._NOM_REGISTRE_MOUVEMENTS,
+        _NOM_REGISTRE_BUDGETS,
+        _o._NOM_REGISTRE_ECHEANCIERS_CONTRATS,
+        _o._NOM_REGISTRE_DEVIS_RECUS,
+        _o._NOM_REGISTRE_FACTURES,
+    )
+    instantane = stockage.lire_instantane_maillons(_o._DEPARTEMENT, noms)
+    registre_gl_snapshot = _o.registre_module.Registre(maillons=instantane[_o._NOM_REGISTRE_GRAND_LIVRE])
+    ctx, refus = _o._contexte_grand_livre(registre_cible=registre_gl_snapshot)
     if refus is not None:
         code = refus.get("code")
         if code == "REJ-GL-CHAINE-INVALIDE":
@@ -319,7 +360,7 @@ def _contexte() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         return None, _verdict("REJ-PREVISION-LONGUE-PLAN-INVALIDE", refus.get("detail", "plan comptable illisible"))
     assert ctx is not None
     registre_gl, plan = ctx
-    registre_mouvements = _o._registre_mouvements(None)
+    registre_mouvements = _o.registre_module.Registre(maillons=instantane[_o._NOM_REGISTRE_MOUVEMENTS])
     valide, raison = registre_mouvements.valider_chaine()
     if not valide:
         return None, _verdict("REJ-PREVISION-LONGUE-CHAINE-INVALIDE", f"mouvements : {raison}")
@@ -329,6 +370,7 @@ def _contexte() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         "registre_gl": registre_gl,
         "registre_mouvements": registre_mouvements,
         "solde": soldes.calculer_solde(registre_mouvements),
+        "instantane": instantane,
     }, None
 
 
@@ -520,10 +562,10 @@ def prevoir_tresorerie_longue(
     historique, refus = _lire_historique(ctx["etat"], ctx["plan"], _mois_historique(jour, nombre_historique))
     if refus is not None:
         return refuse(refus)
-    budget, refus = _lire_budget(ctx["plan"], mois)
+    budget, refus = _lire_budget(ctx["plan"], mois, ctx["instantane"][_NOM_REGISTRE_BUDGETS])
     if refus is not None:
         return refuse(refus)
-    carnet, refus = _lire_carnet(fin_horizon)
+    carnet, refus = _lire_carnet(fin_horizon, ctx["instantane"])
     if refus is not None:
         return refuse(refus)
     assert historique is not None and budget is not None and carnet is not None
@@ -574,9 +616,11 @@ def prevoir_tresorerie_longue(
         _source("mouvements", ctx["registre_mouvements"]),
         _source("grand_livre", ctx["registre_gl"]),
         _source("budgets_declares", _o.registre_module.Registre(
-            maillons=stockage.maillons(_o._DEPARTEMENT, _NOM_REGISTRE_BUDGETS)
+            maillons=ctx["instantane"][_NOM_REGISTRE_BUDGETS]
         )),
-        _source("echeanciers_contrats_tresorerie", _o._registre_echeanciers_contrats()),
+        _source("echeanciers_contrats_tresorerie", _o.registre_module.Registre(
+            maillons=ctx["instantane"][_o._NOM_REGISTRE_ECHEANCIERS_CONTRATS]
+        )),
         _source("devis_recus", carnet["devis"]),
         _source("factures", carnet["factures"]),
     ]
