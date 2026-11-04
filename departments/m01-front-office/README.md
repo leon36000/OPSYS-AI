@@ -22,8 +22,11 @@ quoi demander. `audio_ref` n'est qu'un lien (http(s) ou identifiant opaque) : au
 sont refusés.
 
 Prouvé sur SQLite avec le vrai registre, le vrai bus et le vrai sas N4, données fictives : `tests/test_appel_manque_complet.py`
-(15) et `tests/test_voicemail_intelligent.py` (29). **Limites** : aucun transport SMS/téléphone, aucun STT réel, extraction
-lexicale et non sémantique, adresse personnelle non couverte par la rétention Loi 25, contact réussi = déclaration humaine.
+(15), `tests/test_voicemail_intelligent.py` (31) et `tests/test_voicemail_relecture.py` (50 : les défauts D1–D10 de la
+relecture adverse et leurs cas voisins). **Limites** : aucun transport SMS/téléphone, aucun STT réel, extraction
+lexicale et non sémantique (D1–D9 corrigés, non mesurés sur de vrais enregistrements fr-CA), **déduplication STT non
+branchée** (les helpers de rejeu existent mais aucun chemin réel ne les appelle), adresse personnelle non couverte par
+la rétention Loi 25, contact réussi = déclaration humaine.
 Détail : [`docs/architecture/M1-APPEL-MANQUE-VOICEMAIL.md`](../../docs/architecture/M1-APPEL-MANQUE-VOICEMAIL.md).
 
 ## Profil de réception proposé par le pack, et bac à sable vocal textuel — tranche du 2 novembre 2026

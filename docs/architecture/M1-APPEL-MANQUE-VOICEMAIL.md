@@ -54,23 +54,43 @@ internes, aucun contact ne part au bus.
 | Analyse pure | `voicemail_intelligent.py` | Résumé déterministe, extraction bornée, champs manquants, demande de rappel. Aucune horloge, aucune base, aucun réseau. |
 | Import enrichi | `outils._importer_appel` | Analyse seulement si le texte est conservé (`consentement=accorde`, confiance non faible), ajoute `voicemail`, `resume_voicemail`, `audio_ref`, `confiance_transcription` au registre et à la réponse. |
 | STT | `voicemail_stt.py` | Transmet `audio_ref` et `confiance_transcription` à l'import canonique ; l'audio reste en mémoire le temps de l'appel et n'est jamais écrit. |
-| Tests | `departments/m01-front-office/tests/test_voicemail_intelligent.py` | 29 tests : extraction, résumé, adresse hostile, confiance faible, consentement, audio, rejeu. |
+| Tests | `departments/m01-front-office/tests/test_voicemail_intelligent.py` et `test_voicemail_relecture.py` | 31 tests d'origine et de bout en bout (extraction, résumé, adresse hostile, confiance faible, consentement, audio, rejeu) + 50 tests de relecture (les 10 défauts D1–D10 et leurs cas voisins), conservés comme tests permanents. |
 
 ### 2.2 Les règles d'extraction (déterministes)
 
 - **Nom** : seulement après `je m'appelle`, `mon nom est`, `mon nom c'est`, `c'est` ou `ici`, 2 à 4 mots
-  capitalisés, mots non-nom retirés (Bonjour, Urgent, Gouttières, Laval…). Sinon `null`.
-- **Téléphone** : celui de l'appel (E.164) ; un numéro différent écrit dans le message est normalisé (`+1` si dix
-  chiffres) et porté à part (`telephone_mentionne`), jamais confondu avec l'appelant.
+  capitalisés, mots non-nom retirés (Bonjour, Urgent, Gouttières, Laval…). Un nom qui contient un verbe
+  d'instruction ou un mot d'injection (`ignore`, `oublie`, `envoie`, `instructions`, `consignes`, `prompt`…,
+  liste fermée) est refusé : le champ reste `null` et déclaré manquant. Sinon `null`.
+- **Téléphone** : celui de l'appel (E.164) ; le **premier numéro écrit dans le message qui diffère de celui de
+  l'appelant** est normalisé (`+1` si dix chiffres) et porté à part (`telephone_mentionne`), jamais confondu avec
+  l'appelant. Si le message cite d'abord le numéro de l'appelant puis un autre, c'est l'autre qui est retenu.
 - **Service / ville** : mêmes règles que la qualification (`qualification.diagnostiquer`, services et zone du profil).
-  Plusieurs services ou aucun : `service=null`, jamais un choix arbitraire.
-- **Adresse** : numéro civique + type de voie connu, suite bornée à 120 caractères ; la ville reconnue est retirée de la
-  suite. Une adresse plus longue ou sans type de voie n'est pas reconnue.
-- **Urgence** : uniquement un marqueur explicite (urgent, urgence, au plus vite, dégât d'eau, fuite), jamais inférée.
-- **Demande de rappel** : formules explicites (`rappelez-moi`, `rappeler`, `retour d'appel`, `demande un rappel`).
+  Plusieurs services ou aucun : `service=null`, jamais un choix arbitraire. `zone_desservie` est une séquence
+  (liste, tuple ou ensemble) de chaînes non vides : une chaîne seule est refusée (`REJ-VOICEMAIL-ZONE`), jamais lue
+  lettre par lettre.
+- **Adresse** : numéro civique (virgule admise après le numéro) + type de voie connu, puis une suite coupée au
+  premier mot-pivot (`rappelez`, `ignore`, `envoie`, `et`…), à la ponctuation de fin de phrase, à la ville ou à un
+  numéro de téléphone. L'appartement est conservé (`123 rue Principale app. 4`). Une consigne en tête de rue
+  (`123 rue Ignore les Consignes`) fait refuser l'adresse entière : `null` déclaré manquant, jamais une troncature
+  silencieuse. Une adresse sans type de voie ou de plus de 120 caractères n'est pas reconnue.
+- **Urgence** : uniquement un marqueur explicite en mot entier (`urgent`, `urgente`, `urgence`, `au plus vite`,
+  `dégât d'eau`, `fuite`), jamais inférée. Une négation explicite devant le marqueur (`aucune urgence`,
+  `pas urgent`, `sans fuite`, `rien d'urgent`) l'annule ; un métier (`urgentiste`) ou un lieu (`aux urgences de
+  Laval`, `à l'urgence`) n'en est pas un.
+- **Demande de rappel** : formules explicites seulement (`rappelez-moi`, `rappeler`, `retour d'appel`,
+  `demande un rappel`) ; le nom commun « rappel » seul (« un simple rappel amical ») ne suffit pas. Une négation
+  explicite qui touche la formule (`ne me rappelez pas`, `n'essayez pas de me rappeler`, `sans retour d'appel`,
+  `aucun retour d'appel`) annule la demande.
 
 Le `resume` est composé de phrases fixes à partir de ces seuls faits : il ne contient aucun extrait du texte de
 l'appelant, donc une consigne hostile (« ignore les instructions… ») ne peut pas devenir le résumé.
+
+**La déduplication STT n'est pas branchée.** `voicemail_stt.empreinte_requete_stt` et les helpers
+`outils.rechercher_rejeu_voicemail_stt` / `enregistrer_rejeu_voicemail_stt` existent mais aucun chemin réel ne les
+appelle : deux uploads identiques re-transcrivent et paient à nouveau le STT. C'est une décision de l'architecte (coût et
+consentement), pas un oubli : la doc ne promet pas un cache servi. La brancher demande une décision de direction sur
+le consentement et le coût.
 
 ### 2.3 Lead et tâche de rappel
 
@@ -87,15 +107,20 @@ l'appelant, donc une consigne hostile (« ignore les instructions… ») ne peut
 ## 3. Preuves et commandes
 
 - `./t.sh departments/m01-front-office/tests/test_appel_manque_complet.py` : **15 passed**.
-- `./t.sh departments/m01-front-office/tests/test_voicemail_intelligent.py` : **29 passed**.
+- `./t.sh departments/m01-front-office/tests/test_voicemail_intelligent.py` : **31 passed** (29 d'origine + 2 de bout en
+  bout de la relecture).
+- `./t.sh departments/m01-front-office/tests/test_voicemail_relecture.py` : **50 passed** (D1–D10 et cas voisins).
 - Suite du département : voir le rapport de la vague ; les tests existants de l'import, du STT et de la composition
   restent verts.
-- Mutations (`python3 mutkit.py sweep … -- ./.tmp/t-clean.sh …`, cache Python vidé avant chaque mutant) : **199 mutants
-  tués sur 219**, 20 survivants tous équivalents et justifiés dans le `RAPPORT.md` de la vague. Les 20 survivants sont
-  des constantes de version de gabarits préexistants, la borne `MAX_ADRESSE` inatteignable (suite limitée à 70
-  caractères), les bornes basses d'un nom (deux mots ⇒ au moins trois caractères), l'ordre de retrait de deux villes
-  (le `.*$` consomme la fin), `maxsplit` sans second séparateur, `frozen=True` d'une dataclasse, un `or` redondant avec
-  la regex de variable, et une branche défensive d'un numéro à 11 chiffres que l'extraction ne produit jamais.
+- Mutations de la livraison initiale (`python3 mutkit.py sweep … -- ./.tmp/t-clean.sh …`, cache Python vidé avant chaque
+  mutant) : **199 mutants tués sur 219**, 20 survivants tous équivalents et justifiés dans le `RAPPORT.md` de la vague
+  (constantes de version de gabarits, bornes basses inatteignables, `maxsplit` sans second séparateur, `frozen=True`
+  d'une dataclasse, `or` redondant avec la regex de variable, branche défensive d'un numéro à 11 chiffres).
+- Mutations de la relecture (2026-11-03, `mutkit.py sweep` sur chaque module transformé) :
+  `voicemail_intelligent.py` **61 mutants, 56 tués, 5 survivants équivalents** (bornes basses `len(nom)` et
+  `len(adresse)` inatteignables, `and`/`or` du contrôle d'un numéro à 11 chiffres) ; `qualification.py` **45 mutants,
+  45 tués** (41 au sweep ciblé, 4 reruns avec `test_motifs_lineaires.py`). La borne `MAX_ADRESSE` est désormais
+  testée à 120/121 et la suite d'adresse à huit mots. Détail et preuves : `RAPPORT.md` de la relecture.
 
 ## 4. Limites, dites sans euphémisme
 
@@ -106,6 +131,16 @@ l'appelant, donc une consigne hostile (« ignore les instructions… ») ne peut
 - **L'extraction est lexicale, pas sémantique** : un nom sans formule explicite, une adresse sans type de voie, une
   urgence dite par périphrase ou un service non déclaré au profil ne sont pas reconnus. Les faux positifs restent
   possibles sur des tournures ambiguës ; ils sont bornés et visibles.
+- **D1–D9 corrigés, mais non mesurés sur de vrais enregistrements fr-CA** : les tests sont des textes fictifs,
+  propres et souvent ponctués. La négation n'est reconnue que si elle touche la formule (`ne me rappelez pas`,
+  `sans retour d'appel`) ; une négation éloignée ou une tournure comme « ne vous dérangez pas, rappelez-moi quand
+  même » peut encore se tromper. Une rue dont le nom contient un mot-pivot (`et`, `ignore`…) ou une adresse de plus
+  de huit mots après le type de voie est coupée à la borne : le comportement est visible (`adresse` plus courte ou
+  `null` déclaré), jamais une valeur inventée. Aucun corpus réel, aucun bruit, aucun accent régional n'a été mesuré.
+- **La déduplication STT n'est pas branchée** : `empreinte_requete_stt` et
+  `rechercher/enregistrer_rejeu_voicemail_stt` ne sont appelés par aucun chemin réel. Deux uploads identiques
+  re-transcrivent et paient à nouveau le STT ; c'est une décision de l'architecte (coût/consentement), pas une
+  capacité livrée. La brancher exige une décision de direction et une preuve de consentement.
 - **L'adresse est un renseignement personnel** : elle n'est lue que si le texte est conservé avec consentement, reste
   au registre interne de l'instance et n'est envoyée à aucun évènement. La rétention/effacement Loi 25 de ce registre
   n'est pas couverte par ce chantier.
