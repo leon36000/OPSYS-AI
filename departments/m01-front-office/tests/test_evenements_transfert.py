@@ -118,3 +118,83 @@ def test_une_urgence_de_securite_publie_une_plainte_d_urgence(capacites):
     plainte = _charge(_evenements("m1.plainte_ouverte")[0])
     assert plainte["type_transfert"] == "urgence" and plainte["niveau"] == "N5"
     assert "securite" in plainte["categories"]
+
+
+# -- L'import d'appel manqué ouvre un transfert ventes : il publie le même événement minimal ----------
+
+APPEL = {
+    "source": "export manuel PBX fictif du 15 janvier",
+    "evenement_id": "evt-appel-001",
+    "appel_id": "call-001",
+    "recu_le": _a(0),
+    "telephone": NUMERO,
+    "statut": "manque",
+}
+
+
+def _importer(capacites, **plus):
+    reponse = capacites.appeler("m1_importer_appel_manuellement", {**APPEL, **plus})
+    assert reponse["ok"] is True, reponse
+    return reponse["resultat"]
+
+
+def _maillons_m1() -> list[dict]:
+    with stockage.transaction():
+        return list(outils_m1._obtenir_registre().lire())
+
+
+def test_un_appel_manque_importe_publie_son_transfert_ouvert_dans_la_meme_transaction(capacites):
+    resultat = _importer(capacites)
+    transfert_id = resultat["tache_rappel"]["transfert_id"]
+    assert resultat["tache_rappel"]["envoi_automatique"] is False
+    (evenement,) = _evenements("m1.transfert_ouvert")
+    charge = _charge(evenement)
+    assert evenement["evenement_id"] == f"m1-transfert-ouvert-{transfert_id}"
+    assert set(charge) == {
+        "evenement_id", "transfert_id", "conversation_id", "lead_id", "type_transfert", "categories",
+        "niveau", "canal", "declenche_par", "horodatage",
+    }
+    assert charge["transfert_id"] == transfert_id
+    assert charge["type_transfert"] == "ventes" and charge["niveau"] == "N3"
+    assert charge["canal"] == "telephone" and charge["declenche_par"] == "regles"
+    assert charge["lead_id"] is None and charge["categories"] == []
+    # Loi 25 : le numéro, la source d'export et le texte composé de l'appel ne quittent jamais M1.
+    serialise = json.dumps(charge, ensure_ascii=False)
+    for interdit in (NUMERO, "export manuel", "Appel manqué", "rappeler"):
+        assert interdit not in serialise
+
+
+def test_le_rejeu_de_l_import_d_appel_ne_republie_pas_le_transfert(capacites):
+    premiere = _importer(capacites)
+    avant_lignes = _maillons_m1()
+    avant_evenements = _evenements()
+    seconde = _importer(capacites, evenement_id="evt-appel-relivre-fictif")
+    assert seconde == premiere
+    assert _maillons_m1() == avant_lignes
+    assert _evenements() == avant_evenements
+    assert len(_evenements("m1.transfert_ouvert")) == 1
+
+
+def test_un_appel_qui_rejoint_un_transfert_existant_ne_le_republie_pas(capacites):
+    premiere = _importer(capacites)
+    transfert_id = premiere["tache_rappel"]["transfert_id"]
+    tardif = _importer(
+        capacites, evenement_id="evt-appel-002", statut="voicemail",
+        transcription="Bonjour, je voudrais des informations.",
+        consentement_enregistrement="accorde",
+    )
+    assert tardif["traitement"]["decision"] == "TRANSFERT_EN_COURS"
+    assert tardif["tache_rappel"]["transfert_id"] == transfert_id
+    (evenement,) = _evenements("m1.transfert_ouvert")
+    assert _charge(evenement)["transfert_id"] == transfert_id
+
+
+def test_une_panne_du_bus_annule_l_import_et_son_transfert(capacites, monkeypatch):
+    def panne(*_args, **_kwargs):
+        raise ValueError("REJ-TEST-BUS-FICTIF: publication indisponible")
+
+    monkeypatch.setattr(outils_m1.evenements, "publier", panne)
+    reponse = capacites.appeler("m1_importer_appel_manuellement", APPEL)
+    assert reponse["ok"] is False and "REJ-TEST-BUS-FICTIF" in reponse["details"]
+    assert _maillons_m1() == []
+    assert _evenements() == []

@@ -356,6 +356,9 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
   `m1.plainte_ouverte` sont publiés avec un schéma gelé, mais **aucun consommateur M2/M10 n'est livré sur cette
   branche** : les agents de la vague 14 les branchent sur leurs propres branches. Un schéma consommé doit être traité
   comme un contrat : le changer cassera leur lecture.
+  Si le lead ne prouve pas que ses signaux couvrent ceux de la conversation, ou si ses champs ne correspondent plus
+  au profil actuel, le service et la ville restent non évalués et une vérification du dossier est demandée ; même un
+  nouveau message neutre peut entraîner cette vérification. Les faits rappellent alors que le lead est historique.
 - **M1-G** : le statut client est prouvé sur SQLite avec le vrai M1, le vrai M2 et le vrai M3 ; les chemins M4 et M5
   sont prouvés avec un port contrôlé et, pour M5, un plan absent (repli). **Aucun vrai client, vrai devis, vraie
   visite, vraie facture, aucun écran client, aucun PostgreSQL.** M5 n'a pas de lecture d'une facture par son seul

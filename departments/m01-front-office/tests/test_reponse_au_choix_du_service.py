@@ -12,7 +12,13 @@ import datetime as dt
 
 import pytest
 from m1_front_office import conversation
-from m1_front_office.outils import _obtenir_registre, recevoir_message_canal, reinitialiser_registre
+from m1_front_office.outils import (
+    _obtenir_registre,
+    escalader_plainte,
+    recevoir_message_canal,
+    reinitialiser_registre,
+    transferer,
+)
 
 from opsys import taxonomie
 
@@ -140,3 +146,78 @@ def test_sans_fenetre_la_qualification_message_par_message_ne_change_pas():
     second = _sms("Gouttières.", "SM-2", 1)
     assert premier["qualifie"] is False and second["qualifie"] is False
     assert second["champs_manquants"] == ["ville"], "chaque message est qualifié seul, comme avant"
+
+
+# -- Transfert APRÈS le choix : le lead déjà validé fait foi, le texte rassemblé ne le contredit plus -------------
+
+
+def _ligne_de_transfert() -> dict:
+    (ligne,) = [ligne for ligne in _obtenir_registre().lire() if ligne.get("type_entree") == "transfert"]
+    return ligne
+
+
+def test_un_transfert_apres_le_choix_reutilise_le_lead_sans_redemander_le_service():
+    _sms("Gouttières et soffite à Laval.", "SM-1", 0)
+    reponse = _sms("Les gouttières en premier.", "SM-2", 2)
+    assert reponse["decision"] == "TRANSMETTRE_M2"
+
+    resultat = transferer("ventes", "sms", NUMERO)["resultat"]["transfert"]
+
+    assert resultat["informations_manquantes"] == {
+        "statut": "evaluee", "champs": [], "non_evalues": [], "motif": None,
+    }
+    assert resultat["prochaine_action"]["code"] == "prendre_en_charge"
+    ligne = _ligne_de_transfert()
+    assert ligne["lead_id"] == reponse["lead"]["lead_id"]
+    assert ligne["informations_manquantes"] == resultat["informations_manquantes"]
+    assert ligne["prochaine_action"] == resultat["prochaine_action"]
+    for interdit in (NUMERO, "Gouttières et soffite", "Les gouttières en premier"):
+        assert interdit not in str(resultat["informations_manquantes"])
+        assert interdit not in str(resultat["prochaine_action"])
+
+
+def test_un_nouveau_service_apres_le_lead_ne_disparait_pas_du_diagnostic():
+    premier = _sms("Gouttières à Laval.", "SM-1", 0)
+    assert premier["decision"] == "TRANSMETTRE_M2"
+    suivant = _sms("En fait, je veux le soffite à Québec.", "SM-2", 2)
+    assert suivant["decision"] == "CONVERSATION_DEJA_QUALIFIEE"
+
+    resultat = transferer("ventes", "sms", NUMERO)["resultat"]["transfert"]
+
+    # Un ancien lead ne résout pas une nouvelle mention contradictoire.
+    assert "service" in resultat["informations_manquantes"]["non_evalues"]
+    assert resultat["prochaine_action"]["code"] != "prendre_en_charge"
+
+
+def test_une_nouvelle_ville_apres_le_lead_ne_disparait_pas_du_diagnostic():
+    premier = _sms("Gouttières à Laval.", "SM-1", 0)
+    assert premier["decision"] == "TRANSMETTRE_M2"
+    suivant = _sms("En fait, le chantier est à Québec.", "SM-2", 2)
+    assert suivant["decision"] == "CONVERSATION_DEJA_QUALIFIEE"
+
+    resultat = transferer("ventes", "sms", NUMERO)["resultat"]["transfert"]
+
+    assert "ville" in resultat["informations_manquantes"]["non_evalues"]
+    assert resultat["prochaine_action"]["code"] != "prendre_en_charge"
+
+
+def test_une_escalade_apres_le_choix_reutilise_aussi_le_lead_deja_valide():
+    _sms("Gouttières et soffite à Laval.", "SM-1", 0)
+    reponse = _sms("Les gouttières en premier.", "SM-2", 2)
+    assert reponse["decision"] == "TRANSMETTRE_M2"
+
+    resultat = escalader_plainte("autre", "sms", NUMERO)["resultat"]["transfert"]
+
+    assert resultat["informations_manquantes"]["champs"] == []
+    assert resultat["prochaine_action"]["code"] == "traiter_la_plainte"
+
+
+def test_un_transfert_sur_une_conversation_ambigue_non_resolue_demande_encore_le_service():
+    premier = _sms("Gouttières et soffite à Laval.", "SM-1", 0)
+    assert premier["qualifie"] is False and premier["champs_manquants"] == ["service"]
+
+    resultat = transferer("ventes", "sms", NUMERO)["resultat"]["transfert"]
+
+    assert resultat["informations_manquantes"]["champs"] == ["service"]
+    assert resultat["prochaine_action"]["code"] == "demander_informations"
+    assert _ligne_de_transfert()["lead_id"] is None

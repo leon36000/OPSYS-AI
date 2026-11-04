@@ -303,7 +303,7 @@ def _categories_lisibles(categories: Sequence[str]) -> str:
 def composer_faits(
     *, type_transfert: str, categories: Sequence[str], termes: Mapping[str, Sequence[str]], canal: str,
     horodatages: Sequence[str], lead: Mapping[str, Any] | None, lead_evalue: bool, contact_source: str | None,
-    declenche_par: str,
+    declenche_par: str, lead_a_verifier: bool = False,
 ) -> str:
     """Le résumé composé par le code : les faits de la conversation, sans aucun texte du client ni contact. Rien n'est
     inventé : chaque phrase dit ce que le registre établit. `lead_evalue` : une fenêtre de conversation permet de dire
@@ -325,6 +325,8 @@ def composer_faits(
         phrases.append(
             f"Lead déjà transmis à M2 avant ce transfert : service {lead.get('service')}, ville {lead.get('ville')}."
         )
+        if lead_a_verifier:
+            phrases.append("Ces informations sont historiques : vérifier le service et la ville dans le dossier.")
     elif type_transfert in (plaintes.TYPE_PLAINTE, plaintes.TYPE_URGENCE):
         phrases.append("Aucun lead n'a été ouvert par ce message : la plainte prime, rien n'est transmis à M2.")
     elif lead_evalue:
@@ -389,7 +391,7 @@ def prochaine_action_recommandee(
         code = ACTION_VERIFIER_LE_DOSSIER
         detail = (
             "vérifier le dossier avec l'équipe : "
-            f"{', '.join(informations['non_evalues'])} n'ont pas pu être évalués (profil d'entreprise incomplet)"
+            f"{', '.join(informations['non_evalues'])} n'ont pas pu être évalués avec les données disponibles"
         )
     elif type_transfert == plaintes.TYPE_URGENCE:
         code = ACTION_TRAITER_L_URGENCE
@@ -424,6 +426,38 @@ def _diagnostic_des_messages(
         )
     except (ValueError, KeyError, TypeError):
         return None
+
+
+def _valeur_du_lead(lead: Mapping[str, Any] | None, champ: str) -> str | None:
+    """Un champ texte NON VIDE d'un lead déjà validé, ou `None`. Aucune conversion, aucune valeur de repli."""
+    if not isinstance(lead, Mapping):
+        return None
+    valeur = lead.get(champ)
+    return valeur if isinstance(valeur, str) and valeur.strip() else None
+
+
+def _diagnostic_avec_le_lead(
+    diagnostic: dict[str, Any] | None, lead: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Complète le diagnostic des messages avec le `service` et la `ville` d'un lead DÉJÀ VALIDÉ.
+
+    Le texte rassemblé d'une conversation peut encore évoquer les deux services que le client a départagés : le
+    relire seul annoncerait un `service` manquant alors que le lead, lui, l'établit. Le lead est la lecture que M1 a
+    acceptée (`qualification.qualifier`, contrat gelé) : ses deux champs sont réutilisés tels quels, jamais relus dans
+    le texte ni devinés. Un lead absent ou incomplet ne remplace rien ; un profil indisponible garde son diagnostic
+    partiel (`diagnostic_indisponible`), même si un lead existe : le contrat ne comble pas un profil absent.
+    """
+    if lead is None:
+        return diagnostic
+    service, ville = _valeur_du_lead(lead, "service"), _valeur_du_lead(lead, "ville")
+    if diagnostic is None:
+        return None
+    resultat = dict(diagnostic)
+    if service:
+        resultat["service"] = service
+    if ville:
+        resultat["ville"] = ville
+    return resultat
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -513,19 +547,39 @@ def preparer_ouverture(
             "tels que la plateforme les donne)",
         )
     lead = None
+    signaux_du_lead: set[str] = set()
     couverts = [declencheur]
     if fenetre_minutes is not None:
         ouverte = conversation.lire(a_lire, conversation_id, declencheur["horodatage"], fenetre_minutes)
         couverts = [*ouverte.messages[-(MESSAGES_MAX - 1):], declencheur]
         lead = None if ouverte.lead is None else ouverte.lead["lead"]
+        if ouverte.lead is not None:
+            signaux = ouverte.lead.get("signaux_rassembles")
+            if isinstance(signaux, list) and all(isinstance(signal, str) for signal in signaux):
+                signaux_du_lead = set(signaux)
     horodatages = [m["horodatage"] for m in couverts]
     diagnostic = _diagnostic_des_messages(couverts, zone_desservie, services, contact)
+    # Le lead ne tranche que les messages qui ont servi à le qualifier. Le diagnostic assemblé ne sait pas
+    # arbitrer sûrement deux villes ou une correction ultérieure : après un nouveau signal, il reste non évalué.
+    if signaux_du_lead and all(message.get("signal_id") in signaux_du_lead for message in couverts):
+        service, ville = _valeur_du_lead(lead, "service"), _valeur_du_lead(lead, "ville")
+        if diagnostic is not None and (
+            (service and taxonomie.valider_service(service, services)[1] is not None)
+            or (ville and not any(ville.casefold() == v.casefold() for v in zone_desservie or ()))
+        ):
+            diagnostic = None
+        else:
+            diagnostic = _diagnostic_avec_le_lead(diagnostic, lead)
+    elif lead is not None:
+        diagnostic = None
     informations = informations_manquantes(diagnostic, contact_present=contact is not None)
     action = prochaine_action_recommandee(type_transfert, informations, retire=retire)
+    if lead is not None and diagnostic is None:
+        action["detail"] += ". Le lead est historique : vérifier son service et sa ville."
     faits = composer_faits(
         type_transfert=type_transfert, categories=categories, termes=termes, canal=source or canal,
         horodatages=horodatages, lead=lead, lead_evalue=fenetre_minutes is not None, contact_source=contact_source,
-        declenche_par=declenche_par,
+        declenche_par=declenche_par, lead_a_verifier=lead is not None and diagnostic is None,
     )
     resume, origine, sain = faits, ORIGINE_CODE, True
     if resume_fourni:

@@ -614,6 +614,10 @@ def _importer_appel(
             )
             if ligne is not None:
                 ligne_id = reg.ajouter(ligne)
+                # M1-E : le transfert et son événement minimal entrent dans la MÊME transaction. Le rejeu ne repasse
+                # pas ici (le maillon `appel_importe` est retrouvé avant), et l'identifiant déterministe du bus rend
+                # une seconde publication inoffensive.
+                _publier_transfert_ouvert(ligne)
                 transfert_resultat = {"transfert_id": ligne["transfert_id"], "statut": "ouvert",
                                       "ligne_id": ligne_id, "envoi_automatique": False}
     elif decision == "TRANSFERT_EN_COURS":
@@ -1622,7 +1626,10 @@ def _ouvrir_pour_l_agent(
     Le transfert est daté du dernier message du client, heure de la plateforme : aucune horloge.
     """
     correspondant, contact = reception.correspondant_du_canal(canal, expediteur)
-    zone, _ = taxonomie.charger_zone_desservie()
+    zone, _verdict_zone = taxonomie.charger_zone_desservie()
+    # Une zone indisponible n'empêche pas d'ouvrir un transfert : elle ne doit jamais être itérée telle quelle
+    # (`list(None)`), et le diagnostic dit alors `non_evalue` au lieu de supposer une ville.
+    zone_desservie = list(zone) if zone else None
     services, verdict_services = taxonomie.charger_services()
     if verdict_services is not None:
         # Un profil de services absent ou invalide n'empêche pas d'ouvrir un transfert : les champs calculés disent
@@ -1665,7 +1672,7 @@ def _ouvrir_pour_l_agent(
         contact_source=_etiquette_du_contact(canal, contact),
         destinataire=destinataire,
         verdict_destinataire=verdict_destinataire, fenetre_minutes=fenetre, resume_agent=resume,
-        resume_fourni=resume is not None, zone_desservie=list(zone), services=services,
+        resume_fourni=resume is not None, zone_desservie=zone_desservie, services=services,
         retire=transferts.retire(lignes, conversation_id),
     )
     if ligne is None:

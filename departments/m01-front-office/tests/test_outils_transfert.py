@@ -306,6 +306,64 @@ def test_une_fenetre_declaree_mais_invalide_refuse_le_transfert_de_l_agent_sans_
     assert _lignes() == avant
 
 
+def _retirer_la_zone() -> None:
+    fichier = taxonomie.fichier_profil()
+    profil = yaml.safe_load(fichier.read_text(encoding="utf-8"))
+    profil.pop("zone_desservie", None)
+    fichier.write_text(yaml.safe_dump(profil, allow_unicode=True), encoding="utf-8")
+
+
+@pytest.mark.parametrize("outil", ["transferer", "escalader"])
+def test_une_zone_non_declaree_preserve_l_ouverture_des_deux_outils_sans_ville_inventee(capacites, outil):
+    expediteur = NUMERO if outil == "transferer" else AUTRE
+    _sms(capacites, "Bonjour, pouvez-vous me rappeler?", f"SM-Z-{outil}", expediteur=expediteur)
+    _retirer_la_zone()
+    avant = len(_lignes("transfert"))
+
+    if outil == "transferer":
+        resultat = _ok(_transferer(capacites, "ventes", expediteur=expediteur))
+    else:
+        resultat = _ok(_escalader(capacites, "autre", expediteur=expediteur))
+
+    informations = resultat["transfert"]["informations_manquantes"]
+    assert informations == {
+        "statut": "partielle", "champs": [], "non_evalues": ["service", "ville"],
+        "motif": "diagnostic_indisponible",
+    }
+    assert resultat["transfert"]["prochaine_action"]["code"] == "verifier_le_dossier"
+    assert resultat["transfert"]["prochaine_action"]["champs"] == []
+    assert len(_lignes("transfert")) == avant + 1
+    (ligne,) = [
+        ligne for ligne in _lignes("transfert")
+        if ligne["transfert_id"] == resultat["transfert"]["transfert_id"]
+    ]
+    assert ligne["lead_id"] is None
+    assert "Laval" not in str(informations) and "Québec" not in str(informations)
+    assert NUMERO not in str(informations) and NUMERO not in str(resultat["transfert"]["prochaine_action"])
+
+
+@pytest.mark.parametrize("outil", ["transferer", "escalader"])
+def test_un_lecteur_de_zone_qui_rend_none_n_empeche_pas_l_ouverture(capacites, monkeypatch, outil):
+    """Forme signalée par l'architecte (`None`) : la correction la couvre, même si le chargeur actuel rend `()`."""
+    expediteur = NUMERO if outil == "transferer" else AUTRE
+    _sms(capacites, "Bonjour, pouvez-vous me rappeler?", f"SM-N-{outil}", expediteur=expediteur)
+    monkeypatch.setattr(
+        outils_m1.taxonomie, "charger_zone_desservie",
+        lambda: (None, {"code": "REJ-ZONE-NON-CONFIGUREE", "detail": "zone fictive non déclarée"}),
+    )
+
+    if outil == "transferer":
+        resultat = _ok(_transferer(capacites, "ventes", expediteur=expediteur))
+    else:
+        resultat = _ok(_escalader(capacites, "autre", expediteur=expediteur))
+
+    informations = resultat["transfert"]["informations_manquantes"]
+    assert informations["statut"] == "partielle"
+    assert informations["non_evalues"] == ["service", "ville"]
+    assert resultat["transfert"]["prochaine_action"]["code"] == "verifier_le_dossier"
+    assert resultat["transfert"]["transfert_id"]
+
+
 # -- Escalader une plainte : le jugement de l'agent ---
 
 
