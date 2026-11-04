@@ -1,4 +1,4 @@
-"""Reports et incidents ouverts, pour l'admin (PLAN T4.27-a, §9.5 M4 « dispatch du jour, retards, incidents »).
+"""Retards et incidents, pour l'admin (PLAN T4.27-a, §9.5 M4 « dispatch du jour, retards, incidents » ; P4-04).
 
 Module pur (stdlib et modules de M4 ; aucun import ``opsys``, aucune horloge, aucun aléa, aucun réseau ; un test le
 vérifie par analyse du code). Il ne fait QUE lire : rien n'est écrit au registre, aucun statut ne change (outil T0).
@@ -17,10 +17,14 @@ donne pas d'âge : ``heures_ecoulees`` vaut ``None``, jamais un nombre négatif 
 depuis ``SEUIL_BLOCAGE_HEURES`` heures ou plus est « bloquée » : c'est le seuil du digest
 (``digest.SEUIL_BLOCAGE_HEURES``), jamais un second.
 
-CE QUE M4 NE SAIT PAS, et que ce relevé dit au lieu de l'inventer : le retard sur la cédule. Le plan d'une cédule
-numérote ses jours (0, 1, ...) sans date civile, et le registre ne garde aucune fenêtre planifiée : un créneau dépassé
-sans départ ne se détecte pas. Aucun « aucun retard » n'est jamais écrit ici ; ``retard_sur_cedule`` est
-``non_mesurable`` et dit pourquoi.
+RETARD SUR LA CÉDULE (P4-04). Le retard se mesure à partir du créneau DATÉ (``cedule_datee`` de
+``calendrier_civil`` : le plan appliqué dont les jours numérotés ont reçu une date civile) et du statut courant :
+une intervention ``planifiee`` ou ``en_route`` dont la fin du créneau est dépassée à ``horodatage_reference``,
+au-delà de la tolérance DÉCLARÉE par la direction (``tolerance_minutes``, entière >= 0), est « en retard » ;
+les autres sont « à l'heure ». Sans tolérance déclarée (``None``), la règle est « non évaluée » et dit quoi
+déclarer (fail-closed, jamais 0 ni « tout va bien »). Un créneau sans date civile (plan appliqué mais non daté)
+n'est pas mesurable : il est nommé « sans date », jamais deviné. Aucun « aucun retard » n'est jamais écrit ici :
+une liste vide dit seulement qu'aucune intervention datée n'est en retard à la référence donnée.
 
 D'OÙ VIENT L'HEURE D'UN FAIT (PLAN T4.27-a2). Chaque ligne dit ``origine_heure`` :
 
@@ -45,25 +49,42 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from . import cedule_tournees, digest, ecarts, etats, horodatage, pointage, verdicts
+from . import calendrier_civil, cedule_tournees, digest, ecarts, etats, horodatage, pointage, verdicts
 
 TYPE_RELEVE = "RETARDS_INCIDENTS"
 SEUIL_BLOCAGE_HEURES = digest.SEUIL_BLOCAGE_HEURES
 LIMITE_PAR_LISTE = 8
+# P4-04 : un créneau daté dont la fin est dépassée ne suffit pas sans la TOLÉRANCE de la direction.
+MANQUE_TOLERANCE_RETARD = (
+    "tolérance sur la cédule à déclarer par la direction (configuration.retard_cedule.tolerance_minutes, "
+    "m4.tolerance_retard_cedule_minutes) : sans elle, le retard sur la cédule n'est pas évalué"
+)
 MANQUE_RETARD_SUR_CEDULE = (
     "aucun calendrier : la cédule numérote ses jours (0, 1, ...) sans date civile et le registre ne garde aucune "
     "fenêtre planifiée ; un créneau dépassé sans départ ne se détecte pas ici"
 )
+MANQUE_DATE_CIVILE = (
+    "plan appliqué mais jour sans date civile confirmée (m4_confirmer_dates_cedule) : "
+    "le retard de ce créneau n'est pas mesurable"
+)
+# Statuts dont le créneau daté compte encore (avant le départ ou en route) : un report a quitté son créneau,
+# une intervention sur site ou terminée n'a plus de créneau à dépasser.
+STATUTS_A_CRENEAU_MESURABLE = ("planifiee", "en_route")
 
 __all__ = [
     "LIMITE_PAR_LISTE",
+    "MANQUE_DATE_CIVILE",
     "MANQUE_RETARD_SUR_CEDULE",
+    "MANQUE_TOLERANCE_RETARD",
     "SEUIL_BLOCAGE_HEURES",
+    "STATUTS_A_CRENEAU_MESURABLE",
     "TYPE_RELEVE",
+    "attente_tolerance_retard",
     "incidents_ouverts",
     "lire",
     "presenter",
     "reports_courants",
+    "retards_cedule",
 ]
 
 
@@ -143,13 +164,138 @@ def incidents_ouverts(instantane):
     ]
 
 
+def attente_tolerance_retard(tolerance_minutes, depuis=""):
+    """L'attente « tolérance à déclarer » pour la file de l'admin (P4-04), ou ``None`` si elle est déclarée.
+
+    ``tolerance_minutes`` : la valeur lue par l'adaptateur (``None`` = absente ou illisible). Sans elle, la règle
+    « retard sur la cédule » est « non évaluée » (``retards_cedule`` et ``lire`` disent quoi déclarer, jamais 0) :
+    cette attente N2 le rappelle dans la file, avec le geste (déclarer la tolérance, N3). Tolérance déclarée :
+    le retard se mesure, aucune attente. Pure : ne lit ni le registre ni l'horloge (``depuis`` laissée vide)."""
+    if type(tolerance_minutes) is int and tolerance_minutes >= 0:
+        return None
+    return {
+        "type": "tolerance_retard_a_configurer",
+        "id": "tolerance_retard_a_configurer",
+        "resume": (
+            "Tolérance de retard non déclarée : le retard sur la cédule n'est pas évalué "
+            "(m4_lire_retards_incidents, bloc retards_cedule « non évalué »). "
+            "Déclarer configuration.retard_cedule.tolerance_minutes, en minutes."
+        ),
+        "niveau": "N2",
+        "depuis": depuis,
+        "action_proposee": (
+            "Déclarer la tolérance (réglage de direction m4.tolerance_retard_cedule_minutes, "
+            "geste N3 du propriétaire)"
+        ),
+    }
+
+
 def _suite(reste, outil):
     if not reste:
         return None
     return f"{reste} de plus, du moins ancien au plus récent : {outil} les rend tous"
 
 
-def lire(registre_cible, horodatage_reference, limite_par_liste=None):
+def _minutes_de_retard(fin_creneau_texte, reference, tolerance_minutes):
+    """Minutes entières de retard d'un créneau daté à la référence, au-delà de la tolérance ; ``None`` à l'heure.
+
+    ``fin_creneau_texte`` : fin ISO 8601 avec fuseau du créneau daté (``calendrier_civil``). Illisible ou sans
+    fuseau : ``None`` (le créneau est « sans date », jamais deviné). Une référence antérieure à la fin + tolérance,
+    ou un dépassement de moins d'une minute pleine, donne ``None`` : jamais un nombre négatif, jamais zéro."""
+    try:
+        fin = _instant(fin_creneau_texte)
+    except ValueError:
+        return None
+    if fin.tzinfo is None:
+        return None
+    ecart = reference - fin - timedelta(minutes=tolerance_minutes)
+    if ecart < timedelta(minutes=1):
+        return None
+    return int(ecart.total_seconds() // 60)
+
+
+def retards_cedule(registre_cible, horodatage_reference, tolerance_minutes):
+    """Le retard mesurable sur la cédule datée (P4-04), ou ``(None, verdict)``.
+
+    ``tolerance_minutes`` : tolérance DÉCLARÉE par la direction (entière >= 0) ; ``None`` : règle « non évaluée »
+    (fail-closed, ``REJ-RETARD-TOLERANCE-A-DECLARER``, jamais un relevé sans dire quoi déclarer). Chaque ligne :
+    l'intervention, son créneau daté (début, fin, équipe, validité), son statut courant et ``statut_retard``
+    (``en_retard`` ou ``a_l_heure``), les minutes de retard (``None`` à l'heure, jamais zéro ni négatif). Les
+    interventions sans créneau daté (plan non daté, report en cours, sur site, terminée, annulée) ne sont pas
+    mesurables : elles sont comptées ``sans_date``, jamais devinées. Aucun nom d'employé, aucune position, aucun
+    texte libre du terrain. Une référence antérieure à la fin + tolérance donne « à l'heure », jamais un nombre
+    négatif ; une fin illisible donne « sans date », jamais un retard deviné."""
+    try:
+        horodatage.valider_horodatage(horodatage_reference)
+    except ValueError:
+        return None, verdicts.construire_verdict(
+            "REJ-HORODATAGE-INVALIDE",
+            detail="horodatage_reference : une heure ISO 8601 avec fuseau est attendue (ex. 2026-09-29T09:00:00-04:00)",
+        )
+    if tolerance_minutes is None or type(tolerance_minutes) is not int or tolerance_minutes < 0:
+        return None, verdicts.construire_verdict(
+            "REJ-RETARD-TOLERANCE-A-DECLARER",
+            detail=MANQUE_TOLERANCE_RETARD,
+        )
+    reference = _instant(horodatage_reference)
+    try:
+        lignes_datees, _sans_date = calendrier_civil._projection(calendrier_civil._index(registre_cible))
+    except (cedule_tournees.PreuvePlanInvalide, ValueError, KeyError):
+        lignes_datees = []
+    par_intervention = {}
+    for ligne in lignes_datees:
+        par_intervention.setdefault(ligne["intervention_id"], []).append(ligne)
+    lignes, en_retard, sans_date = [], 0, 0
+    for identifiant in sorted(par_intervention):
+        for ligne in sorted(par_intervention[identifiant], key=lambda creneau: creneau["debut"]):
+            if ligne["statut"] not in STATUTS_A_CRENEAU_MESURABLE or ligne["validite"] != "date_confirmee":
+                sans_date += 1
+                continue
+            try:
+                fin = _instant(ligne["fin"])
+            except ValueError:
+                fin = None
+            if fin is None or fin.tzinfo is None:
+                sans_date += 1
+                continue
+            minutes = _minutes_de_retard(ligne["fin"], reference, tolerance_minutes)
+            en_retard += 1 if minutes is not None else 0
+            lignes.append(
+                {
+                    "intervention_id": identifiant,
+                    "lead_id": ligne["lead_id"],
+                    "plan_id": ligne["plan_id"],
+                    "equipe_id": ligne["equipe_id"],
+                    "debut": ligne["debut"],
+                    "fin": ligne["fin"],
+                    "statut": ligne["statut"],
+                    "statut_retard": "en_retard" if minutes is not None else "a_l_heure",
+                    "minutes_retard": minutes,
+                    "tolerance_minutes": tolerance_minutes,
+                    "confirme_le": ligne["confirme_le"],
+                }
+            )
+    # Les plus en retard d'abord (minutes décroissantes), puis les à-l'heure par début : deux tris
+    # séparés, sans valeur par défaut — un `or 0` serait un repli mort (les `None` sont déjà à part).
+    lignes_en_retard = sorted(
+        (ligne for ligne in lignes if ligne["minutes_retard"] is not None),
+        key=lambda ligne: (-ligne["minutes_retard"], ligne["debut"], ligne["intervention_id"]))
+    lignes_a_l_heure = sorted(
+        (ligne for ligne in lignes if ligne["minutes_retard"] is None),
+        key=lambda ligne: (ligne["debut"], ligne["intervention_id"]))
+    lignes = lignes_en_retard + lignes_a_l_heure
+    return {
+        "statut": "evalue",
+        "tolerance_minutes": tolerance_minutes,
+        "total": len(lignes),
+        "en_retard": en_retard,
+        "sans_date": sans_date,
+        "lignes": lignes[:LIMITE_PAR_LISTE],
+        "reste": max(len(lignes) - LIMITE_PAR_LISTE, 0),
+    }, None
+
+
+def lire(registre_cible, horodatage_reference, limite_par_liste=None, tolerance_minutes="__absente__"):  # noqa: E501
     """``(relevé, None)`` ou ``(None, verdict)`` : les reports en cours et les incidents ouverts, avec leur âge.
 
     ``horodatage_reference`` : heure ISO 8601 avec fuseau que l'appelant donne (illisible : ``REJ-HORODATAGE-INVALIDE``,
@@ -158,7 +304,8 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
     Le relevé porte, pour chaque liste, son ``total``, la ventilation (``par_motif``, ``par_type``), ce qui est
     ``affiches`` et ce qui ``reste`` ; pour les incidents, ``bloques`` (comptés sur TOUS, pas seulement sur ceux qui
     sont affichés). Chaque ligne dit ``origine_heure`` (``serveur`` ou ``appelant``, voir le module).
-    ``retard_sur_cedule`` est toujours ``non_mesurable``, avec la raison."""
+    ``tolerance_minutes`` : tolérance DÉCLARÉE par la direction (entière >= 0) pour le retard sur la cédule ;
+    absente (défaut) : la règle est « non évaluée » et ``retards_cedule`` dit quoi déclarer (P4-04, fail-closed)."""
     try:
         horodatage.valider_horodatage(horodatage_reference)
     except ValueError:
@@ -166,6 +313,13 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
             "REJ-HORODATAGE-INVALIDE",
             detail="horodatage_reference : une heure ISO 8601 avec fuseau est attendue (ex. 2026-09-29T09:00:00-04:00)",
         )
+    if tolerance_minutes == "__absente__":
+        bloc_retard = {"statut": "non_evalue", "manque": MANQUE_TOLERANCE_RETARD}
+    else:
+        retard, _verdict_retard = retards_cedule(registre_cible, horodatage_reference, tolerance_minutes)
+        if _verdict_retard is not None:
+            return None, _verdict_retard
+        bloc_retard = {"statut": "evalue", **retard}
     limite = LIMITE_PAR_LISTE if limite_par_liste is None else limite_par_liste
     reference = _instant(horodatage_reference)
     instantane = cedule_tournees.instantane_du_registre(registre_cible)
@@ -173,7 +327,9 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
     reports = _plus_anciens_d_abord(reports_courants(instantane), "intervention_id")
     par_motif = {motif: 0 for motif in etats.MOTIFS_REPORT}
     for report in reports:
-        par_motif[report["motif"]] = par_motif.get(report["motif"], 0) + 1
+        # Indexation directe : le motif est validé à l'écriture (`etats.transitionner`, refusé sinon) ;
+        # un motif inconnu lève `KeyError` (fort) au lieu d'inventer une case silencieuse.
+        par_motif[report["motif"]] = par_motif[report["motif"]] + 1
     liste_reports = [
         {
             "intervention_id": report["intervention_id"],
@@ -189,7 +345,9 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
     par_type = {type_demande: 0 for type_demande in ecarts.TYPES_DEMANDE}
     bloques = 0
     for incident in incidents:
-        par_type[incident["type_demande"]] = par_type.get(incident["type_demande"], 0) + 1
+        # Indexation directe : le type est validé à l'écriture (`ecarts`) ; un type inconnu lève `KeyError`
+        # (fort) au lieu d'inventer une case silencieuse.
+        par_type[incident["type_demande"]] = par_type[incident["type_demande"]] + 1
         heures = _heures_ecoulees(incident["depuis"], reference)
         if heures is not None and heures >= SEUIL_BLOCAGE_HEURES:
             bloques += 1
@@ -230,6 +388,7 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
             "liste": liste_incidents,
         },
         "retard_sur_cedule": {"statut": "non_mesurable", "manque": MANQUE_RETARD_SUR_CEDULE},
+        "retards_cedule": bloc_retard,
     }, None
 
 

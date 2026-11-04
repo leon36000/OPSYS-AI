@@ -164,6 +164,12 @@ CODES_M4_LIST = [
     "REJ-ETA-QUOTA-MESSAGES",
     "REJ-SUIVI-CONSENTEMENT-INVALIDE",
     "REJ-SUIVI-SANS-APPROBATION",
+    # P4-04 (retards.py) : retard mesurable sur la cédule datée, tolérance déclarée par la direction.
+    "REJ-RETARD-REFUS",
+    "REJ-RETARD-TOLERANCE-A-DECLARER",
+    # P4-05 (replanification.py) : remise d'une intervention reportée ou perturbée dans le cycle.
+    "REJ-REPLANIFICATION-REFUS",
+    "REJ-REPLANIFICATION-NON-PRETE",
     # Groupe 3 — succès
     "OK",
 ]

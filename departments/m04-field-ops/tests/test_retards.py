@@ -163,9 +163,13 @@ def test_les_cles_du_releve_sont_exactement_celles_du_contrat():
         "reports",
         "incidents",
         "retard_sur_cedule",
+        "retards_cedule",
     }
     assert set(releve["reports"]) == {"total", "par_motif", "affiches", "reste", "suite", "liste"}
     assert set(releve["incidents"]) == {"total", "par_type", "bloques", "affiches", "reste", "suite", "liste"}
+    # P4-04 : sans tolérance déclarée, la règle est « non évaluée » et dit quoi déclarer (fail-closed).
+    assert releve["retards_cedule"] == {
+        "statut": "non_evalue", "manque": retards.MANQUE_TOLERANCE_RETARD}
 
 
 def test_le_seuil_de_blocage_est_celui_du_digest_pas_un_second():
@@ -567,6 +571,7 @@ def test_le_module_est_pur_sans_opsys_reseau_horloge_alea_ni_ecriture():
             assert noeud.module in autorises or noeud.level == 1, (noeud.module, noeud.level)
             if noeud.level == 1:
                 assert {a.name for a in noeud.names} == {
+                    "calendrier_civil",
                     "cedule_tournees",
                     "digest",
                     "ecarts",
