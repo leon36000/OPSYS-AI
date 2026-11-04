@@ -97,6 +97,7 @@ def donnees(session):
                 ),
                 f"{i + 1:064x}",
                 T,
+                "u",
             )
             for i in range(15)
         ]

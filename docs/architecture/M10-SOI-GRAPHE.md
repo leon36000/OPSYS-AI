@@ -257,8 +257,14 @@ manifestes), ou sans minimum déclaré, la valeur de base est conservée et le v
 **proposition de niveau N4** : la promotion de la leçon ne déclenche aucun geste de facturation, d'envoi ni de prix. La valeur
 corrigée suit l'arrondi de la grandeur (cent `ROUND_HALF_UP` pour une marge, 4 décimales pour une quantité) ; le canari se tire
 sur la version d'estimation, jamais sur le lead ; une marge exige un `droit_aux_couts` explicite dans le consommateur, sinon
-elle n'est ni calculée ni rendue ; deux unités pour une même clé sont refusées (`unite_ambigue`). Le facteur `ecart_materiau`
-n'est pas ventilé par service, saison, fournisseur ni équipe, et l'unité n'est pas stockée dans la leçon (voir §9 et
+elle n'est ni calculée ni rendue ; deux unités pour une même clé sont refusées (`unite_ambigue`). Depuis la correction du
+4 novembre 2026, une leçon d'écart de matériau porte l'unité EXACTE de ses observations dans `contenu.unite` et dans son
+identité (sans changer la clé `materiau`) ; deux unités du même matériau forment deux cohortes et deux leçons. L'évaluation et
+la surveillance ne comparent que la même unité. La consommation M3 exige que l'unité de l'entrée et celle de la leçon soient
+présentes et exactement égales ; une leçon d'une autre unité ne masque pas une leçon compatible, et deux leçons valides du
+même couple restent ambiguës (`plusieurs_lecons_actives`). Une leçon historique sans unité reste lisible et inchangée, mais
+n'est ni évaluable (`unite_absente`) ni applicable (`unite_lecon_absente`), sans migration ni promotion héritée. Le facteur
+`ecart_materiau` n'est pas ventilé par service, saison, fournisseur ni équipe (voir §9 et
 [LIMITES-CONNUES](../utilisation/LIMITES-CONNUES.md) §7 bis).
 
 ## 6. Console, CLI, événements
@@ -310,8 +316,8 @@ Socle : `src/opsys/mnemo/` (`soi*.py`, `lecons.py`, `promotion.py`, `garde_gabar
 3. **La consommation des leçons est réelle mais étroite.** M3 (quantités de matériaux) et M5 (marge prévue) lisent les leçons
    promues et n'en proposent qu'une correction attribuée ; leur minimum d'échantillon est VIDE à dessein dans les manifestes, donc
    aucune correction n'est proposée tant que la direction ne l'a pas déclaré. Aucun autre département ne consomme une leçon ; le
-   facteur d'écart de matériaux n'est pas ventilé par service, saison, fournisseur ni équipe, et une correction n'est jamais
-   appliquée automatiquement à un prix, un devis ou une marge.
+   facteur d'écart de matériaux n'est pas ventilé par service, saison, fournisseur ni équipe ; l'unité est stockée et comparée
+   exactement, sans conversion, et une correction n'est jamais appliquée automatiquement à un prix, un devis ou une marge.
 4. **La garde du gabarit prouve que le TEXTE d'une leçon est inoffensif pour les contrôles universels**, pas qu'un agent se
    comportera mieux avec elle.
 5. **Les leçons de quantités et de marge reposent sur peu de chantiers** (seuil de 6 ; 2 de test). Un seuil bas est un choix de PME

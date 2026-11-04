@@ -277,32 +277,38 @@ lecons:
   - id: l-regulier
     description: "Le réel dépasse le prévu de 15 % sur quinze chantiers : une leçon, ajustée et mesurée sur des chantiers tenus à l'écart."
     genre: ecart_materiau
+    unite: "u"
     segments: [{n: 15, facteur: "1.15"}]
     attendu: {lecon: true, parametre_entre: ["1.10", "1.20"], promouvable: true}
   - id: l-support
     description: "Cinq chantiers seulement : aucun apprentissage."
     genre: ecart_materiau
+    unite: "u"
     segments: [{n: 5, facteur: "1.30"}]
     attendu: {lecon: false, raison: support_insuffisant}
   - id: l-bruit
     description: "Moitié au-dessus, moitié en dessous : le signe est incohérent."
     genre: ecart_materiau
+    unite: "u"
     segments: [{n: 8, facteur: "1.30"}, {n: 8, facteur: "0.70"}]
     attendu: {lecon: false, raison: signe_incoherent}
   - id: l-negligeable
     description: "Écart de 2 % : sous le seuil, pas de leçon."
     genre: ecart_materiau
+    unite: "u"
     segments: [{n: 15, facteur: "1.02"}]
     attendu: {lecon: false, raison: ecart_negligeable}
   - id: l-aberrant
     description: "Un chantier aberrant (réel 90 fois le prévu) ne doit pas déplacer le paramètre."
     genre: ecart_materiau
+    unite: "u"
     segments: [{n: 15, facteur: "1.15"}]
     aberrants: [{prevu: "10", reel: "900"}]
     attendu: {lecon: true, parametre_entre: ["1.10", "1.20"], promouvable: true}
   - id: l-test-inverse
     description: "Les chantiers tenus à l'écart se comportent à l'inverse : la leçon DÉGRADE ; elle ne doit pas être promouvable."
     genre: ecart_materiau
+    unite: "u"
     segments: [{n: 15, facteur: "1.15"}]
     test_facteur: "0.60"
     attendu: {lecon: true, promouvable: false, raison_evaluation: regression_mesuree}

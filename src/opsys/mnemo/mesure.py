@@ -364,6 +364,7 @@ def _ecarts_depuis_spec(cas: Mapping[str, Any]) -> list[lecons.Ecart]:
                     (prevu * facteur).quantize(Decimal("0.01")),
                     f"{i + 1:064x}",
                     "2026-10-01T09:00:00+00:00",
+                    cas.get("unite") if cas["genre"] == "ecart_materiau" else None,
                 )
             )
         debut += seg["n"]
@@ -376,6 +377,7 @@ def _ecarts_depuis_spec(cas: Mapping[str, Any]) -> list[lecons.Ecart]:
                 Decimal(ab["reel"]),
                 f"{900 + j:064x}",
                 "2026-10-01T09:00:00+00:00",
+                cas.get("unite") if cas["genre"] == "ecart_materiau" else None,
             )
         )
     return sortie

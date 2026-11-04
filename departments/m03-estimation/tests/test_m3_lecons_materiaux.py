@@ -71,10 +71,15 @@ def _registre_lecons():
     return Registre(stockage.maillons("m10-memoire", "lecons"))
 
 
-def _promouvoir(genre, cible, cle, contenu, sources, *, horodatage=HORODATAGE):
+def _promouvoir(genre, cible, cle, contenu, sources, *, unite="pi", horodatage=HORODATAGE):
     """Écrit une leçon PROPOSÉE, son évaluation chiffrée favorable, sa garde et deux décisions humaines réelles."""
     registre = _registre_lecons()
-    ident = mnemo_lecons.lecon_id(genre, cible, cle, {"parametre": contenu["parametre"]})
+    contenu = dict(contenu)
+    identite = {"parametre": contenu["parametre"]}
+    if genre == "ecart_materiau" and unite is not None:
+        contenu["unite"] = unite
+        identite["unite"] = unite
+    ident = mnemo_lecons.lecon_id(genre, cible, cle, identite)
     registre.ajouter(
         {
             "type_entree": mnemo_lecons.TYPE_PROPOSEE,
@@ -122,6 +127,68 @@ def _promouvoir(genre, cible, cle, contenu, sources, *, horodatage=HORODATAGE):
         horodatage=horodatage, empreinte_garde="g" * 64,
     )
     return ident
+
+
+def _historique_sans_unite(cle, contenu, sources):
+    """Une leçon complète telle qu'un journal antérieur à l'unité peut en contenir (aucune migration)."""
+    registre = _registre_lecons()
+    ident = mnemo_lecons.lecon_id(
+        "ecart_materiau", "m06-material-control", cle, {"parametre": contenu["parametre"]}
+    )
+    registre.ajouter(
+        {
+            "type_entree": mnemo_lecons.TYPE_PROPOSEE,
+            "horodatage": HORODATAGE,
+            "lecon_id": ident,
+            "genre": "ecart_materiau",
+            "cible": "m06-material-control",
+            "cle": cle,
+            "contenu": contenu,
+            "libelle": "Leçon historique fictive sans unité.",
+            "texte_agent": mnemo_lecons.TEXTES["ecart_materiau"],
+            "sources": list(sources),
+            "propose_par": "m10-memoire",
+        }
+    )
+    for etape, quand, pourcentage in (("canari", HORODATAGE, 50), ("complete", HORODATAGE, None)):
+        entree = {
+            "type_entree": mnemo_lecons.TYPE_DECISION,
+            "horodatage": quand,
+            "lecon_id": ident,
+            "etape": etape,
+            "par": "nathan",
+            "role": "nathan_owner",
+            "source_decision": "cli",
+            "motif": "Décision historique fictive.",
+        }
+        if pourcentage is not None:
+            entree["pourcentage"] = pourcentage
+        registre.ajouter(entree)
+    return ident
+
+
+def _variance(i, *, unite="pi", facteur="1.15"):
+    prevu = Decimal(10 + i)
+    return {
+        "evenement_id": f"V-{i:03d}",
+        "wct_id": f"W-{i:03d}",
+        "intervention_id": f"I-{i:03d}",
+        "chantier_id": None,
+        "statut_variance": "evaluee",
+        "signal_critique": False,
+        "seuil_pourcentage": 20,
+        "horodatage_completion": f"2026-09-{1 + i:02d}T14:00:00-04:00",
+        "lignes": [
+            {
+                "materiau": MATERIAU,
+                "unite": unite,
+                "quantite_prevue": str(prevu),
+                "quantite_reelle": str((prevu * Decimal(facteur)).quantize(Decimal("0.01"))),
+                "ecart_pourcentage": "0.15",
+                "critique": False,
+            }
+        ],
+    }
 
 
 def _manifeste(tmp_path, monkeypatch, minimum=6):
@@ -382,6 +449,162 @@ def test_le_schema_du_nouvel_outil_borne_le_devis_id_et_ferme_les_arguments():
     assert schema["required"] == ["devis_id"] and schema["additionalProperties"] is False
     assert schema["properties"]["devis_id"]["minLength"] == 1
     assert schema["properties"]["devis_id"]["maxLength"] == 128
+
+
+# -- unité : la leçon n'est proposée que pour la cohorte exacte de l'entrée
+def test_une_lecon_d_une_autre_unite_n_est_pas_appliquee(tmp_path, monkeypatch, base_durable):
+    _manifeste(tmp_path, monkeypatch)
+    _promouvoir(
+        "ecart_materiau",
+        "m06-material-control",
+        MATERIAU,
+        {"parametre": "1.15", "mode": "facteur", "chantiers": 6, "coherence": "0.8000"},
+        ["ligne-fictive-1"],
+        unite="pi2",
+    )
+    prevision = _estimer()["prevision_materiaux_avec_lecons"]
+    (ligne,) = prevision["lignes"]
+    assert ligne["corrigee"] is False and Decimal(ligne["valeur"]) == Decimal("50")
+    assert ligne["raison"] == "unite_incompatible"
+    assert prevision["corrections"] == []
+
+
+def test_une_lecon_historique_sans_unite_reste_lisible_mais_n_est_pas_appliquee(
+    tmp_path, monkeypatch, base_durable
+):
+    _manifeste(tmp_path, monkeypatch)
+    ident = _historique_sans_unite(
+        MATERIAU,
+        {"parametre": "1.15", "mode": "facteur", "chantiers": 6, "coherence": "0.8000"},
+        ["ligne-fictive-1"],
+    )
+    prevision = _estimer()["prevision_materiaux_avec_lecons"]
+    (ligne,) = prevision["lignes"]
+    assert ligne["corrigee"] is False and ligne["raison"] == "unite_lecon_absente"
+    assert prevision["corrections"] == []
+    # la leçon reste lisible, intacte, et toujours active : aucune migration ni rétrogradation
+    lue = next(x for x in mnemo_lecons.vue(_registre_lecons())["lecons"] if x["lecon_id"] == ident)
+    assert "unite" not in lue["contenu"] and lue["etat"] == "complete"
+
+
+def test_une_lecon_compatible_n_est_pas_masquee_par_une_lecon_d_une_autre_unite(
+    tmp_path, monkeypatch, base_durable
+):
+    _manifeste(tmp_path, monkeypatch)
+    compatible = _promouvoir(
+        "ecart_materiau",
+        "m06-material-control",
+        MATERIAU,
+        {"parametre": "1.15", "mode": "facteur", "chantiers": 6, "coherence": "0.8000"},
+        ["ligne-fictive-1"],
+        unite="pi",
+    )
+    _promouvoir(
+        "ecart_materiau",
+        "m06-material-control",
+        MATERIAU,
+        {"parametre": "1.40", "mode": "facteur", "chantiers": 6, "coherence": "0.8000"},
+        ["ligne-fictive-2"],
+        unite="pi2",
+    )
+    prevision = _estimer()["prevision_materiaux_avec_lecons"]
+    (ligne,) = prevision["lignes"]
+    assert ligne["corrigee"] is True
+    assert ligne["attribution"]["lecon_id"] == compatible
+    assert ligne["attribution"]["unite"] == "pi"
+    assert Decimal(ligne["valeur"]) == Decimal("57.50")
+
+
+def test_deux_lecons_valides_du_meme_couple_materiau_unite_sont_ambigues(
+    tmp_path, monkeypatch, base_durable
+):
+    _manifeste(tmp_path, monkeypatch)
+    for parametre in ("1.15", "1.20"):
+        _promouvoir(
+            "ecart_materiau",
+            "m06-material-control",
+            MATERIAU,
+            {"parametre": parametre, "mode": "facteur", "chantiers": 6, "coherence": "0.8000"},
+            ["ligne-fictive-1"],
+            unite="pi",
+        )
+    prevision = _estimer()["prevision_materiaux_avec_lecons"]
+    (ligne,) = prevision["lignes"]
+    assert ligne["corrigee"] is False and ligne["raison"] == "plusieurs_lecons_actives"
+    assert len(ligne["lecons"]) == 2
+
+
+def test_une_entree_sans_unite_n_est_pas_corrigee_meme_avec_une_lecon_promue(
+    tmp_path, monkeypatch, base_durable
+):
+    _manifeste(tmp_path, monkeypatch)
+    _promouvoir(
+        "ecart_materiau",
+        "m06-material-control",
+        MATERIAU,
+        {"parametre": "1.15", "mode": "facteur", "chantiers": 6, "coherence": "0.8000"},
+        ["ligne-fictive-1"],
+    )
+    reponse = outils_m3._prevision_materiaux_avec_lecons(
+        {"lignes": [{"materiau": MATERIAU, "quantite_estimee": "50"}]}, "cas-fictif"
+    )
+    (ligne,) = reponse["lignes"]
+    assert ligne["corrigee"] is False and ligne["raison"] == "unite_entree_absente"
+    assert reponse["corrections"] == []
+
+
+def test_parcours_fictif_variance_extraction_evaluation_decision_puis_proposition_m3(
+    tmp_path, monkeypatch, base_durable
+):
+    """Le parcours complet, sur SQLite réelle : M6 -> M10 (extraction, mesure, gabarit, N3) -> M3."""
+    from m10_memoire import outils as m10_outils
+    from m10_memoire import soi_graphe
+
+    from opsys.departements import charger_departements
+    from opsys.mnemo import garde_gabarit
+
+    _manifeste(tmp_path, monkeypatch)
+    with stockage.transaction():
+        for i in range(15):
+            m10_outils._recevoir_variance_chantier(_variance(i, unite="pi"))
+    with stockage.transaction():
+        bilan = soi_graphe.extraire_lecons()
+    [ident] = bilan["proposees"]
+    lecon = mnemo_lecons.etat(_registre_lecons()).lecons[ident]
+    assert lecon["contenu"]["unite"] == "pi" and lecon["cle"] == MATERIAU
+
+    with stockage.transaction():
+        mesure = soi_graphe.evaluer_lecon(ident)
+    assert mesure["mesure"]["mesurable"] and mesure["mesure"]["ameliore"]
+
+    deps = charger_departements(Path(__file__).resolve().parents[2])
+    verdict = garde_gabarit.comparer_au_gabarit(deps, "m06-material-control", lecon["texte_agent"])
+    empreinte = garde_gabarit.empreinte_garde(deps, "m06-material-control")
+    assert verdict["regressions"] == [] and verdict["bloquants_nouveaux"] == []
+    with stockage.transaction():
+        mnemo_lecons.enregistrer_garde(
+            _registre_lecons(), ident, verdict, empreinte_garde=empreinte, horodatage=HORODATAGE
+        )
+    acteur = SimpleNamespace(par="nathan", role="nathan_owner", source="cli")
+    with stockage.transaction():
+        mnemo_lecons.decider(
+            _registre_lecons(), ident, "canari", acteur=acteur, motif="Canari fictif du parcours complet.",
+            horodatage=HORODATAGE, pourcentage=50, empreinte_garde=empreinte,
+        )
+        mnemo_lecons.decider(
+            _registre_lecons(), ident, "complete", acteur=acteur, motif="Promotion fictive du parcours complet.",
+            horodatage=HORODATAGE, empreinte_garde=empreinte,
+        )
+    assert mnemo_lecons.etat(_registre_lecons()).promotion.etats[ident] == "complete"
+
+    resultat = _estimer()
+    prevision = resultat["prevision_materiaux_avec_lecons"]
+    assert prevision["statut"] == "correction_proposee" and prevision["niveau_humain"] == "N4"
+    (ligne,) = [x for x in prevision["lignes"] if x["cle"] == MATERIAU]
+    assert Decimal(ligne["base"]) == Decimal("50") and Decimal(ligne["valeur"]) == Decimal("57.50")
+    assert ligne["attribution"]["lecon_id"] == ident and ligne["attribution"]["unite"] == "pi"
+    besoin = next(x for x in resultat["besoins_materiaux"]["lignes"] if x["materiau"] == MATERIAU)
+    assert Decimal(besoin["quantite_estimee"]) == Decimal("50")  # la proposition ne touche pas le registre
 
 
 # -- D2 : le canari se tire sur le CAS (version d'estimation), jamais sur le lead

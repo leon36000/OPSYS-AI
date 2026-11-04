@@ -29,6 +29,7 @@ def _lecon(**surcharges):
         "contenu": {
             "parametre": "1.15",
             "mode": "facteur",
+            "unite": "pi",
             "chantiers": 6,
             "coherence": "0.8000",
         },
@@ -66,7 +67,7 @@ def _appeler(lecons, *, genre="ecart_materiau", cible="m06-material-control", en
         cible=cible,
         genre=genre,
         entrees=entrees
-        or [{"cle": "gouttiere-alu-5po-fictif", "base": "20.00"}],
+        or [{"cle": "gouttiere-alu-5po-fictif", "base": "20.00", "unite": "pi"}],
         lecons_actives=lecons,
         minimum_echantillon=minimum,
         droit_aux_couts=droit_aux_couts,
@@ -258,7 +259,7 @@ def test_un_contenu_non_mapping_est_refuse():
 
 
 def test_un_facteur_inferieur_a_un_reste_une_valeur_admissible():
-    r = _appeler([_lecon(contenu={"parametre": "0.5", "mode": "facteur", "chantiers": 6})])
+    r = _appeler([_lecon(contenu={"parametre": "0.5", "mode": "facteur", "unite": "pi", "chantiers": 6})])
     assert r["lignes"][0]["corrigee"] is True
     assert Decimal(r["lignes"][0]["valeur"]) == Decimal("10.00")
 
@@ -324,7 +325,7 @@ def test_lecons_actives_non_sequence_est_traite_comme_aucune_lecon():
 
 
 def test_une_quantite_fractionnaire_positive_est_une_base_valide():
-    r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "0.5"}])
+    r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "0.5", "unite": "pi"}])
     assert r["lignes"][0]["corrigee"] is True
     assert Decimal(r["lignes"][0]["valeur"]) == Decimal("0.575")
 
@@ -368,7 +369,7 @@ def test_une_marge_corrigee_est_arrondie_au_cent_ROUND_HALF_UP():
 
 
 def test_une_quantite_corrigee_suit_la_precision_de_M3_sans_zeros_inutiles():
-    r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "50"}])
+    r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": "pi"}])
     (ligne,) = r["lignes"]
     assert ligne["valeur"] == "57.5", ligne
 
@@ -397,6 +398,81 @@ def test_un_droit_aux_couts_non_booleen_ne_debloque_pas_la_marge():
     )
     assert r["statut"] == "droit_aux_couts_absent"
     assert r["corrections"] == []
+
+
+# -- unité : l'entrée et la leçon doivent la porter, exactement la même
+def test_une_lecon_sans_unite_est_inapplicable_avec_une_raison_explicite():
+    lecon = _lecon()
+    lecon["contenu"] = {k: v for k, v in lecon["contenu"].items() if k != "unite"}
+    r = _appeler([lecon])
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is False and ligne["valeur"] == "20.00"
+    assert ligne["raison"] == "unite_lecon_absente"
+    vue = ligne["lecons_vues"][0]
+    assert vue["unite_lecon"] is None and vue["unite_entree"] == "pi"
+    assert r["corrections"] == []
+
+
+def test_une_entree_sans_unite_n_est_pas_corrigee():
+    r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "20.00"}])
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is False and ligne["valeur"] == "20.00"
+    assert ligne["raison"] == "unite_entree_absente"
+    assert r["corrections"] == []
+
+
+def test_une_lecon_d_une_autre_unite_n_est_pas_appliquee():
+    r = _appeler([_lecon(contenu={"parametre": "1.15", "mode": "facteur", "unite": "pi2", "chantiers": 6})])
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is False and ligne["valeur"] == "20.00"
+    assert ligne["raison"] == "unite_incompatible"
+    vue = ligne["lecons_vues"][0]
+    assert vue["unite_lecon"] == "pi2" and vue["unite_entree"] == "pi"
+    assert r["corrections"] == []
+
+
+def test_un_refus_qui_n_est_pas_un_probleme_d_unite_ne_porte_pas_ses_details():
+    r = _appeler([_lecon(sources=[])])
+    (ligne,) = r["lignes"]
+    assert ligne["raison"] == "sources_absentes"
+    assert "unite_lecon" not in ligne["lecons_vues"][0]
+    assert "unite_entree" not in ligne["lecons_vues"][0]
+
+
+def test_une_lecon_compatible_n_est_pas_masquee_par_une_lecon_d_une_autre_unite():
+    autre = _lecon(
+        lecon_id="lc-fictive-pi2",
+        contenu={"parametre": "1.40", "mode": "facteur", "unite": "pi2", "chantiers": 6},
+    )
+    r = _appeler([_lecon(), autre])
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is True
+    assert ligne["attribution"]["lecon_id"] == "lc-fictive-0001"
+    assert ligne["attribution"]["unite"] == "pi"
+    assert Decimal(ligne["valeur"]) == Decimal("23.00")
+
+
+def test_deux_lecons_valides_du_meme_couple_materiau_unite_sont_ambigues():
+    r = _appeler([_lecon(), _lecon(lecon_id="lc-fictive-0002")])
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is False
+    assert ligne["raison"] == "plusieurs_lecons_actives"
+
+
+def test_l_unite_est_comparee_exactement_sans_synonyme_ni_casse():
+    for unite in ("PI", "pi ", "pied", "pi2"):
+        r = _appeler([_lecon(contenu={"parametre": "1.15", "mode": "facteur", "unite": unite, "chantiers": 6})])
+        assert r["lignes"][0]["raison"] == "unite_incompatible", unite
+
+
+def test_une_lecon_sans_unite_et_une_lecon_compatible_ne_masquent_pas_la_compatible():
+    ancienne = _lecon(
+        lecon_id="lc-historique-sans-unite",
+        contenu={"parametre": "1.40", "mode": "facteur", "chantiers": 6},
+    )
+    r = _appeler([ancienne, _lecon()])
+    (ligne,) = r["lignes"]
+    assert ligne["corrigee"] is True and ligne["attribution"]["lecon_id"] == "lc-fictive-0001"
 
 
 # -- D4 : deux unités pour une même clé ne reçoivent jamais le même facteur
@@ -480,11 +556,11 @@ def test_des_unites_invalides_repetees_sont_ambigues_et_refusees():
     assert [ligne["raison"] for ligne in r["lignes"]] == ["unite_ambigue", "unite_ambigue"]
 
 
-def test_une_unite_non_texte_n_est_pas_recopiee_dans_la_ligne_corrigee():
+def test_une_unite_non_texte_ne_permet_pas_de_corriger():
     r = _appeler([_lecon()], entrees=[{"cle": "gouttiere-alu-5po-fictif", "base": "50", "unite": 123}])
     (ligne,) = r["lignes"]
-    assert ligne["corrigee"] is True
-    assert ligne["unite"] is None
+    assert ligne["corrigee"] is False
+    assert ligne["raison"] == "unite_entree_absente"
 
 
 def test_une_cle_vide_est_refusee_avant_toute_collecte_d_unite():
