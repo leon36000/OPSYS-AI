@@ -9,6 +9,8 @@ manquante ne peut pas être montrée comme à jour. Frontières exactes (≤ fen
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from m8_analytics import catalogue_mesures, jeux_fictifs, moteur_mesures
 from m8_analytics import fraicheur_mesures as fm
@@ -77,6 +79,54 @@ def test_un_fait_dans_le_futur_ou_sans_instant_lisible_est_inconnu():
         {**mesure, "dernier_fait_le": "hier soir"}, fm.lire_maintenant("2026-10-30T12:00:00Z"), fenetre
     )
     assert illisible["statut"] == fm.STATUT_INCONNU
+
+
+@pytest.mark.parametrize(
+    ("delta_us", "statut", "age_s"),
+    [
+        (-1, fm.STATUT_INCONNU, None),
+        (0, fm.STATUT_A_JOUR, 0),
+        (1, fm.STATUT_A_JOUR, 0),
+    ],
+)
+def test_signe_du_delta_est_verifie_avant_troncature_microseconde(delta_us, statut, age_s):
+    maintenant = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
+    dernier_fait = maintenant - timedelta(microseconds=delta_us)
+    mesure = {
+        **_MESURES["m8_leads_recus"],
+        "dernier_fait_le": dernier_fait.isoformat(),
+    }
+    fenetre = fm.fenetre_effective(_ENTREES["m8_leads_recus"], {})
+
+    resultat = fm.evaluer(mesure, maintenant, fenetre)
+
+    assert resultat["statut"] == statut
+    assert resultat["age_s"] == age_s
+    assert resultat["peut_etre_montree_comme_a_jour"] is (statut == fm.STATUT_A_JOUR)
+
+
+@pytest.mark.parametrize(
+    ("age_us", "statut", "age_s"),
+    [
+        (59_999_999, fm.STATUT_A_JOUR, 59),
+        (60_000_000, fm.STATUT_A_JOUR, 60),
+        # La fraîcheur conserve son contrat actuel en secondes entières (troncature des âges non négatifs).
+        (60_000_001, fm.STATUT_A_JOUR, 60),
+        (61_000_000, fm.STATUT_PERIME, 61),
+    ],
+)
+def test_seuil_de_fraicheur_preserve_les_ages_non_negatifs(age_us, statut, age_s):
+    maintenant = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
+    mesure = {
+        **_MESURES["m8_leads_recus"],
+        "dernier_fait_le": (maintenant - timedelta(microseconds=age_us)).isoformat(),
+    }
+    fenetre = {"secondes": 60, "origine": fm.ORIGINE_CATALOGUE}
+
+    resultat = fm.evaluer(mesure, maintenant, fenetre)
+
+    assert resultat["statut"] == statut
+    assert resultat["age_s"] == age_s
 
 
 @pytest.mark.parametrize("brut", [None, "", "2026-10-30T12:00:00", "demain", 12, "2026-13-45T00:00:00Z"])

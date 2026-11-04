@@ -30,7 +30,7 @@ Une mesure périmée, inconnue ou manquante n'est JAMAIS montrée comme à jour.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from . import entonnoir, fraicheur_lectures
@@ -176,9 +176,13 @@ def evaluer(mesure: dict[str, Any], maintenant: datetime, fenetre: dict[str, Any
             else "mesure non calculable : aucune valeur à dater",
         }
     instant = entonnoir.instant_lu(mesure.get("dernier_fait_le"))
+    futur = False
     if instant is not None:
-        age = int((maintenant - instant).total_seconds())
-        base["age_s"] = age if age >= 0 else None
+        delta = maintenant - instant
+        futur = delta < timedelta(0)
+        # Vérifier le signe avant `int`: int(-0.5) vaut 0, ce qui ferait passer un fait futur
+        # de moins d'une seconde pour un âge nul.
+        base["age_s"] = None if futur else int(delta.total_seconds())
     if fenetre["secondes"] is None:
         return {
             **base,
@@ -193,14 +197,14 @@ def evaluer(mesure: dict[str, Any], maintenant: datetime, fenetre: dict[str, Any
             "peut_etre_montree_comme_a_jour": False,
             "motif": "aucun instant de fait lisible : l'âge de la mesure est inconnu",
         }
-    age = int((maintenant - instant).total_seconds())
-    if age < 0:
+    if futur:
         return {
             **base,
             "statut": STATUT_INCONNU,
             "peut_etre_montree_comme_a_jour": False,
             "motif": "le dernier fait est daté après l'instant de l'appelant : l'âge est inconnu",
         }
+    age = base["age_s"]
     if age <= fenetre["secondes"]:
         return {
             **base,
