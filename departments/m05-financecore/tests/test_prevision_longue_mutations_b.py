@@ -15,7 +15,9 @@ Aucune valeur d'affaires n'est proposée ici : les hypothèses sont déclarées 
 
 from __future__ import annotations
 
-from m5_financecore import prevision_longue
+from copy import deepcopy
+
+from m5_financecore import prevision_longue, recu_calcul
 
 AUJOURD_HUI = "2026-09-29"
 MOIS_HISTORIQUE = ["2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"]
@@ -67,6 +69,90 @@ def _solde(resultat):
 
 def _limites_recurrentes(resultat):
     return [limite for limite in resultat["limites"] if "mois sans échéance ni budget" in limite]
+
+
+def test_deux_echeances_du_meme_mois_sont_additionnees():
+    carnet = [
+        _echeance("2026-10-01", "500.00", contrat="CTR-1"),
+        _echeance("2026-10-15", "250.00", contrat="CTR-2"),
+    ]
+    resultat, verdict = _calculer(carnet=carnet)
+    assert verdict is None
+    octobre = _scenario(resultat)["lignes"][0]
+    assert octobre["contrats"] == "750.00"
+    assert octobre["sources_produits"] == ["carnet"]
+    assert octobre["solde_projete"] == "4950.00"
+
+
+def test_un_montant_de_budget_invalide_ne_devient_pas_un_repli_sur_l_historique():
+    for produits, charges in [("abc", "800.00"), ("1000.00", "1.234")]:
+        resultat, verdict = _calculer(budget=[{
+            "mois": "2026-10", "produits": produits, "charges": charges,
+        }])
+        assert resultat is None
+        assert verdict["code"] == "REJ-PREVISION-LONGUE-BUDGET-INVALIDE"
+
+
+def test_une_ligne_historique_invalide_est_refusee_sans_projection():
+    for champ, valeur in [
+        ("produits", None), ("charges", None), ("ecritures", None),
+        ("ecritures", -1), ("brouillons", None), ("brouillons", -1),
+    ]:
+        historique = _historique()
+        historique[0][champ] = valeur
+        resultat, verdict = _calculer(historique=historique)
+        assert resultat is None
+        assert verdict["code"] == "REJ-PREVISION-LONGUE-HISTORIQUE-INVALIDE"
+
+
+def test_une_echeance_positive_inferieure_a_un_dollar_est_conservee():
+    resultat, verdict = _calculer(carnet=[_echeance("2026-10-15", "0.50")])
+    assert verdict is None
+    assert _scenario(resultat)["lignes"][0]["contrats"] == "0.50"
+    assert _scenario(resultat)["lignes"][0]["sources_produits"] == ["carnet"]
+
+
+def test_budget_partiel_declare_et_recu_sont_coherents():
+    resultat, verdict = _calculer(budget=[{"mois": "2026-10", "produits": "1200.00", "charges": None}])
+    assert verdict is None
+    octobre = _scenario(resultat)["lignes"][0]
+    assert octobre["sources_produits"] == ["budget"]
+    assert octobre["solde_projete"] == "5400.00"
+    assert resultat["recu"]["entrees"]["budget"][0]["produits"] == "1200.00"
+    assert resultat["recu"]["entrees"]["budget"][0]["charges"] is None
+    assert prevision_longue.rejouer(resultat["recu"]) == (True, "")
+    absent, refus = _calculer(budget=[{"mois": "2026-10", "produits": None, "charges": None}])
+    assert absent is None
+    assert refus["code"] == "REJ-PREVISION-LONGUE-BUDGET-INVALIDE"
+
+
+def test_un_recu_reempreinte_ne_valide_pas_un_calcul_different_ou_invalide():
+    resultat, verdict = _calculer()
+    assert verdict is None
+    recu = resultat["recu"]
+
+    def reconstruire(entrees, sortie):
+        return recu_calcul.construire(
+            moteur=recu["moteur"], version_moteur=recu["version_moteur"], methode=recu["methode"],
+            precision=recu["precision"], parametres=recu["parametres"], avertissements=recu["avertissements"],
+            entrees=entrees, resultat=sortie,
+        )
+
+    sans_configuration = deepcopy(recu["entrees"])
+    del sans_configuration["configuration"]
+    horizon_refuse = deepcopy(recu["entrees"])
+    horizon_refuse["horizon_mois"] = 7
+    sortie_alteree = deepcopy(recu["resultat"])
+    sortie_alteree["scenarios"][0]["solde_final"] = "0.01"
+    for faux in (
+        reconstruire(sans_configuration, recu["resultat"]),
+        reconstruire(horizon_refuse, recu["resultat"]),
+        reconstruire(recu["entrees"], sortie_alteree),
+    ):
+        assert recu_calcul.verifier(faux) == (True, "")
+        rejoue, raison = prevision_longue.rejouer(faux)
+        assert rejoue is False
+        assert raison
 
 
 # ===================================================================== 1. bornes exactes de l'horizon
