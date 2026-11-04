@@ -5,7 +5,7 @@ from decimal import Decimal
 # négatifs, comme CONSOMMATION) entrent dans le théorique au même titre. Chaque type
 # porte déjà le bon signe à l'écriture (materiel.soumettre_materiaux_utilises) : la simple
 # somme reste juste, aucun signe spécial à réappliquer ici.
-_TYPES_STOCK_THEORIQUE = frozenset({"RECEPTION", "CONSOMMATION", "RETOUR", "PERTE", "BRIS"})
+_TYPES_STOCK_THEORIQUE = frozenset({"RECEPTION", "CONSOMMATION", "RETOUR", "PERTE", "BRIS", "AJUSTEMENT"})
 
 
 def texte_canonique(valeur: Decimal) -> str:

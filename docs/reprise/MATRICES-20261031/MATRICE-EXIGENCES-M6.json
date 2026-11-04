@@ -463,7 +463,8 @@
      "tests": [
       "departments/m06-material-control/tests/test_lectures_pertes_appareil.py",
       "departments/m06-material-control/tests/test_preuves_pertes_bris_appareil.py",
-      "departments/m06-material-control/tests/test_stock_bas_cascade.py"
+      "departments/m06-material-control/tests/test_stock_bas_cascade.py",
+      "departments/m06-material-control/tests/test_alertes_approvisionnement.py"
      ],
      "docs": [
       "departments/m06-material-control/docs/LECTURES-PERTES-APPAREIL.md"
@@ -473,7 +474,7 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Déclencheurs partiels ; pas tous les déclencheurs de la définition."
+   "limite": "C9 (vague 14) : agrégats neutres par article et par équipe déclarée, commande reçue mais stock disparu, déclaration d'usage manquante, réception de PO au-delà du délai habituel déclaré ; le constat planifié reste INACTIF par défaut, sans nom d'employé. Reste : matériau cher non estimé, assignation/résolution d'une alerte, suite à la cause classée."
   },
   {
    "id": "M6.14",
@@ -491,7 +492,8 @@
     {
      "tests": [
       "departments/m06-material-control/tests/test_materiel_reception_et_comptage.py",
-      "departments/m06-material-control/tests/test_registre.py"
+      "departments/m06-material-control/tests/test_registre.py",
+      "departments/m06-material-control/tests/test_ajustements_inventaire.py"
      ],
      "docs": [],
      "niveau": "T"
@@ -499,8 +501,8 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Mouvements typés RETOUR/PERTE/BRIS et comptage (m6_soumettre_comptage) ; « inventaire physique » : 0 occurrence.",
-   "verification": "grep inventaire physique : 0"
+   "limite": "C10 (vague 14) : m6_ajuster_stock (N3) écrit un mouvement AJUSTEMENT avec motif typé (dont inventaire physique), avant/après, preuve CAS facultative et seuil d'approbation déclaré ; ajustement par emplacement via un transfert audité ; chaîne de l'existant inchangée. Reste : clôture d'un inventaire physique en lot (article par article seulement), comptage multi-emplacements, aucune suppression.",
+   "verification": "tests/test_ajustements_inventaire.py (19 tests)"
   },
   {
    "id": "M6.15",

@@ -280,3 +280,40 @@ M6 ne paie ni ne rembourse jamais. Bouts couverts : `tests/test_reception_enrich
 réception enrichie → événement → achat sous/hors plafond → idempotence → injection refusée).
 Limites : signaux BL retournés comme les écarts PO (aucune publication dédiée) ; seuils et plafond à adopter par la
 direction (recommandations d'agent, non validées).
+
+## C10 — ajustements d'inventaire audités, C9 — alertes et rappels planifiés (M6.14, M6.13)
+
+(2026-11-03, vague 14) **PARTIEL, prouvé sur SQLite réelle + registres durables, données fictives** : aucun service
+externe, aucun envoi, aucune suppression.
+
+*C10* (`ajustements.py`, pur ; nouvel outil `m6_ajuster_stock`, T1/N3, agent seulement) : un humain corrige le stock avec
+un motif de la liste FERMÉE (`correction`, `stock_retrouve`, `retour_fournisseur`, `erreur_saisie`,
+`inventaire_physique`, `annulation`), une quantité VISÉE (`quantite_apres`, jamais un écart fourni), une preuve CAS
+`fichier:sha256:` FACULTATIVE et un horodatage. L'écart (après - avant) est calculé contre le registre ; il est écrit
+comme mouvement `AJUSTEMENT` et change le stock total, jamais celui d'un chantier (`chantier_id` = `*`). Le maillon
+porte une extension `ajustement` (identifiant, motif, preuve, emplacement, avant/après, écart, niveau et seuil
+d'approbation, acteur, approbateur, horodatage) qui entre dans son empreinte ; les maillons antérieurs, qui ne la
+portent pas, gardent leur hash à l'octet près. Un ajustement sur un emplacement NOMMÉ écrit en plus un transfert audité
+entre ce lieu et `inconnu`, pour que le lieu porte vraiment la quantité corrigée. Idempotent par `ajustement_id` (même
+demande : aucun second maillon ; même identifiant, autre demande : refus). Seuil DÉCLARÉ
+`m6.seuil_ajustement_stock_quantite` : `abs(écart) <= seuil` reste N3 ; au-delà — ou seuil absent/illisible — il faut
+l'approbation d'un `admin` ou du `nathan_owner` (`approbations.approbateur_en_cours`), une approbation de `manager` ne
+suffit plus. Aucun prix n'est lu ni écrit.
+
+*C9* (`alertes_approvisionnement.py`, pur ; constat planifié existant `m6.constat.disponibilite`, **inactif par
+défaut** ; lecture `m6_lire_alertes_approvisionnement`, T0) : le constat calcule des agrégats NEUTRES par article et par
+équipe DÉCLARÉE — variance d'inventaire répétée, pertes/bris répétés, ajustements fréquents —, « commande reçue mais
+stock disparu », « déclaration d'usage manquante » (WCT reçu sans aucun mouvement), « réception de PO en retard »
+(statut `sent_to_supplier`, au-delà STRICT du `delai_habituel_jours` déclaré du fournisseur). Aucun nom d'employé, aucun
+prix, aucun texte libre ; un WCT dont le `technicien_id` n'est pas une équipe déclarée n'est jamais regroupé. La fenêtre
+`m6.alertes_fenetre_jours` et le seuil de répétition `m6.alertes_seuil_repetition` sont DÉCLARÉS (vides à dessein) :
+sans eux, l'instantané porte une entrée `non_evaluees` qui dit quoi déclarer, et les comptes ne sont pas présentés comme
+un verdict. L'instantané est écrit dans un registre chaîné `alertes_approvisionnement` (idempotent par instantané) ; les
+alertes remontent aussi dans les attentes de l'admin (`attentes()`), 20 au plus, plus une attente « à configurer ».
+Bouts couverts : `tests/test_ajustements_inventaire.py`, `tests/test_alertes_approvisionnement.py` (motifs hostiles,
+preuve mal formée, seuil à la borne, préparation d'approbation N4, rejeu idempotent, empreintes d'avant, emplacement,
+fuite de nom, PO à la borne du délai, fenêtre absente).
+Limites : la clôture d'un inventaire physique en lot n'existe pas (l'ajustement se fait article par article) ; le
+rapprochement par emplacement s'appuie sur les transferts, pas sur un comptage multi-emplacements ; le constat ne
+s'active pas seul ; aucune alerte n'est poussée vers un téléphone ou un courriel (« À voir » se lit dans l'app) ; les
+seuils et la fenêtre restent à adopter par la direction (aucune valeur proposée).

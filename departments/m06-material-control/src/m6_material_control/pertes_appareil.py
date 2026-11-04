@@ -201,7 +201,7 @@ def _mouvements(mov: list) -> None:
     for position, m in enumerate(mov):
         if (
             not isinstance(m, dict)
-            or not requis <= set(m) <= requis | {"wct_id", "unite", "origine_cout"}
+            or not requis <= set(m) <= requis | {"wct_id", "unite", "origine_cout", "ajustement"}
             or type(m["index"]) is not int
             or m["index"] != position
             or m["type_mouvement"] not in registre.TYPES_MOUVEMENT_VALIDES

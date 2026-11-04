@@ -100,6 +100,8 @@ from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 from . import (
     acces,
     achats_terrain,
+    ajustements,
+    alertes_approvisionnement,
     besoins_materiaux_recus,
     besoins_prevus,
     bons_commande,
@@ -148,6 +150,7 @@ _NOM_REGISTRE_BESOINS_COMMANDE = "besoins_commande"
 _NOM_REGISTRE_RESERVATIONS = "reservations"
 _NOM_REGISTRE_EMPLACEMENTS = "emplacements"
 _NOM_REGISTRE_ACHATS_TERRAIN = "achats_terrain"
+_NOM_REGISTRE_ALERTES = "alertes_approvisionnement"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _TYPE_EVENEMENT_WCT = "m4.travaux_termines"
 
@@ -362,6 +365,25 @@ _EMPLACEMENT = {
 }
 
 
+_AJUSTEMENT = {
+    "type": "object",
+    "description": (
+        "C10 : ajustement d'inventaire. quantite_apres est la quantité VISÉE (stock total, ou celui de emplacement) ; "
+        "l'écart avant/après est calculé contre le registre. preuve : référence CAS facultative. motif : liste fermée."
+    ),
+    "properties": {
+        "ajustement_id": {"type": "string"},
+        "materiau_id": {"type": "string"},
+        "motif": {"type": "string", "enum": sorted(ajustements.MOTIFS_AJUSTEMENT)},
+        "quantite_apres": {"type": "number", "minimum": 0},
+        "preuve": {"type": ["string", "null"]},
+        "emplacement": _EMPLACEMENT,
+        "horodatage": {"type": "string"},
+    },
+    "required": ["ajustement_id", "materiau_id", "motif", "quantite_apres", "horodatage"],
+    "additionalProperties": False,
+}
+
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
     """Reconstruit le registre M6 en rejouant l'historique fourni par l'appelant
     (mêmes maillons, même ordre -> mêmes hachages : reconstruction fidèle, pas une
@@ -527,6 +549,54 @@ def _plafond_achat_terrain() -> str | None:
     lue = reglages_lecture.superposer(donnees, ("configuration",), du_fichier)
     valeur = lue.get("plafond_achat_terrain") if isinstance(lue, dict) else None
     return valeur if isinstance(valeur, str) else None
+
+
+def _seuil_ajustement_stock() -> Decimal | None:
+    """Seuil DÉCLARÉ au-delà duquel un ajustement d'inventaire exige une approbation N4 (admin/propriétaire).
+
+    Même source et même discipline fail-closed que les seuils ci-dessus : la clé
+    `configuration.seuil_ajustement_stock_quantite` du manifeste, surchargeable par le réglage de direction CFG-1.
+    Absent ou illisible, `None` : l'outil escalade alors TOUT ajustement en N4, jamais un seuil inventé. Le seuil
+    porte sur la valeur absolue de l'écart, dans l'unité de l'article (une quantité, pas un montant).
+    """
+    valeur = _seuil_decimal("seuil_ajustement_stock_quantite")
+    if type(valeur) not in (int, float):
+        return None
+    try:
+        decimal = Decimal(str(valeur))
+    except ArithmeticError:
+        return None
+    return decimal if decimal.is_finite() and decimal > 0 else None
+
+
+def _configuration_alertes() -> dict[str, Any]:
+    """Les deux réglages DÉCLARÉS des alertes C9 (`configuration.alertes_approvisionnement`) : fenêtre en jours et
+    seuil de répétition. Absents ou illisibles, ils restent `None` : le module d'alertes rend alors une entrée
+    `non_evaluees` qui dit quoi déclarer, jamais une valeur par défaut."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration")
+    du_fichier = configuration if isinstance(configuration, dict) else {}
+    lue = reglages_lecture.superposer(donnees, ("configuration",), du_fichier)
+    bloc = lue.get("alertes_approvisionnement") if isinstance(lue, dict) else None
+    if not isinstance(bloc, dict):
+        return {"fenetre_jours": None, "seuil_repetition": None}
+    return {
+        "fenetre_jours": _entier_declare(bloc.get("fenetre_jours"), 1),
+        "seuil_repetition": _entier_declare(bloc.get("seuil_repetition"), 2),
+    }
+
+
+def _entier_declare(valeur: Any, minimum: int) -> int | None:
+    if isinstance(valeur, bool):
+        return None
+    if isinstance(valeur, str):
+        try:
+            valeur = int(valeur)
+        except ValueError:
+            return None
+    if isinstance(valeur, int) and valeur >= minimum:
+        return valeur
+    return None
 
 
 def _articles_reapprovisionnement() -> dict[str, Any] | None:
@@ -1401,6 +1471,224 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
+def _vue_ajustement(maillon: dict[str, Any]) -> dict[str, Any]:
+    """La projection d'audit d'un maillon AJUSTEMENT, sans le hash brut."""
+    audit = maillon.get("ajustement") or {}
+    return {
+        "ajustement_id": audit.get("ajustement_id"),
+        "materiau_id": maillon.get("materiau_id"),
+        "motif": audit.get("motif"),
+        "preuve": audit.get("preuve"),
+        "emplacement": audit.get("emplacement"),
+        "quantite_avant": audit.get("quantite_avant"),
+        "quantite_apres": audit.get("quantite_apres"),
+        "delta": audit.get("delta"),
+        "niveau_approbation": audit.get("niveau_approbation"),
+        "motif_approbation": audit.get("motif_approbation"),
+        "seuil": audit.get("seuil"),
+        "acteur": audit.get("acteur"),
+        "approbateur": audit.get("approbateur"),
+        "horodatage": audit.get("horodatage"),
+    }
+
+
+def ajuster_stock(
+    ajustement: dict[str, Any], registre_historique: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    """C10 (M6.14) : ajuste le stock d'un article avec un motif TYPÉ, en gardant acteur, avant et après.
+
+    `quantite_apres` est la quantité VISÉE (le stock total, ou celui de `emplacement` s'il est nommé) ; l'écart
+    (après - avant) est calculé contre le registre, jamais fourni par l'appelant. Un ajustement localisé écrit aussi
+    un TRANSFERT audité entre l'emplacement et `inconnu`, pour que le lieu porte vraiment la quantité corrigée.
+
+    N3. Au-delà du seuil DÉCLARÉ (`configuration.seuil_ajustement_stock_quantite`, réglage de direction CFG-1),
+    l'ajustement exige l'approbation d'un ADMIN ou du propriétaire (`approbations.approbateur_en_cours`) : une
+    approbation de manager ne suffit plus. Seuil absent ou illisible : TOUT ajustement escalade en N4, jamais un
+    seuil inventé. Borne incluse : `abs(ecart) <= seuil` reste N3.
+
+    Idempotent par `ajustement_id` : même identifiant et même demande rend le maillon existant sans rien écrire ; même
+    identifiant avec une autre demande est refusé. Aucune preuve n'est obligatoire ; une preuve fournie doit être une
+    référence CAS bien formée. La chaîne de l'existant n'est jamais réécrite (extension `ajustement` seulement).
+    """
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    acteur, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    demande = {**(ajustement if isinstance(ajustement, dict) else {}), "acteur": acteur}
+    normalisee, verdict = ajustements.valider_demande(demande)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+
+    registre_cible = _registre_de_l_appel(registre_historique)
+    mouvements = list(registre_cible.lire())
+    deja = ajustements.deja_enregistre(normalisee["ajustement_id"], mouvements)
+    if deja is not None:
+        audit = deja.get("ajustement") or {}
+        meme_demande = all(audit.get(cle) == normalisee[cle] for cle in normalisee)
+        if not meme_demande:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-AJUSTEMENT-ID-DEJA-UTILISE",
+                detail=f"ajustement_id {normalisee['ajustement_id']!r} déjà enregistré pour un autre geste",
+            )}
+        return {"accepte": True, "statut": "deja_enregistre", "ajustement": _vue_ajustement(deja),
+                "hash_maillon": deja.get("hash_maillon")}
+
+    stock_total = stock.deriver_stock_articles([normalisee["materiau_id"]], mouvements)[normalisee["materiau_id"]]
+    stock_avant = stock_total
+    repartition_avant = None
+    if normalisee["emplacement"] is not None:
+        repartition_avant = emplacements.repartition(
+            normalisee["materiau_id"], stock_total, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS))
+        stock_avant = repartition_avant.get(emplacements.cle(normalisee["emplacement"]), Decimal(0))
+
+    qualifie, verdict = ajustements.qualifier(normalisee, stock_avant, _seuil_ajustement_stock())
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    if qualifie["niveau_approbation"] == "N4":
+        signataire = approbations.approbateur_en_cours(
+            stockage.connexion_courante(), "m6_ajuster_stock", _DEPARTEMENT)
+        if signataire is None or signataire.role not in {"admin", "nathan_owner"}:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-AJUSTEMENT-APPROBATION-ADMIN-REQUISE",
+                detail=(
+                    "écart au-delà du seuil déclaré (ou seuil absent) : l'ajustement exige l'approbation d'un admin "
+                    "ou du propriétaire"
+                ),
+            )}
+        qualifie["approbateur"] = signataire.personne
+    if qualifie["aucun_ecart"]:
+        return {"accepte": True, "statut": "aucun_ecart", "ajustement": _vue_ajustement(
+            {"materiau_id": qualifie["materiau_id"], "ajustement": qualifie})}
+
+    mouvement = ajustements.construire_mouvement(qualifie)
+    maillon, erreur = registre_cible.ajouter(mouvement)
+    if erreur is not None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(erreur)}
+
+    reponse: dict[str, Any] = {
+        "accepte": True, "statut": "enregistre", "ajustement": _vue_ajustement(maillon),
+        "hash_maillon": maillon["hash_maillon"],
+    }
+    if qualifie["emplacement"] is not None:
+        total_apres = stock_total + Decimal(qualifie["delta"])
+        transfert = ajustements.construire_transfert(qualifie)
+        if transfert is not None:
+            registre_emplacements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+            construit, verdict = emplacements.construire_transfert(
+                transfert["transfert_id"], transfert["materiau_id"], transfert["quantite"], transfert["de"],
+                transfert["vers"], transfert["acteur"], transfert["motif"], transfert["horodatage"],
+                total_apres, registre_emplacements,
+            )
+            if verdict is not None:
+                return {"accepte": False, "verdict": verdict}
+            if not construit["deja_enregistre"]:
+                registre_emplacements.append(construit["maillon"])
+        reponse["repartition"] = {
+            emplacement: stock.texte_canonique(quantite)
+            for emplacement, quantite in emplacements.repartition(
+                qualifie["materiau_id"], total_apres,
+                stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)).items()
+        }
+    return reponse
+
+
+def _date_reference(instant: datetime) -> str:
+    return instant.astimezone(ZoneInfo("America/Montreal")).date().isoformat()
+
+
+def _equipes_par_wct(wct_recus: list[dict[str, Any]]) -> dict[str, str]:
+    """L'équipe DÉCLARÉE (technicien_id d'assignation) de chaque WCT reçu, relue à la charge que M4 a publiée."""
+    equipes: dict[str, str] = {}
+    for wct in wct_recus:
+        wct_id = wct.get("wct_id")
+        if not isinstance(wct_id, str) or not wct_id:
+            continue
+        charge = evenements.charge_publiee(_TYPE_EVENEMENT_WCT, wct_id)
+        if charge and isinstance(charge.get("technicien_id"), str):
+            equipes[wct_id] = charge["technicien_id"]
+    return equipes
+
+
+def _equipes_declarees() -> set[str] | None:
+    profil, _ = equipes_entreprise.charger_equipes()
+    if not isinstance(profil, dict) or not isinstance(profil.get("liste"), list):
+        return None
+    return {
+        equipe["id"] for equipe in profil["liste"]
+        if isinstance(equipe, dict) and isinstance(equipe.get("id"), str) and equipe["id"]
+    }
+
+
+def _alertes_instantane(instant: datetime) -> dict[str, Any]:
+    """Calcule et SCELLE (sans l'écrire) l'instantané C9 à partir des registres durables et de l'horloge fournie."""
+    wct_recus = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
+    configuration = _configuration_alertes()
+    instantane = alertes_approvisionnement.construire_instantane(
+        constate_le=instant.isoformat(),
+        date_reference=_date_reference(instant),
+        mouvements=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE),
+        bons_commande=bons_commande.lister(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BONS_COMMANDE)),
+        fournisseurs=fournisseurs.lister_fournisseurs(
+            stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FOURNISSEURS)),
+        wct_recus=wct_recus,
+        equipes_declarees=_equipes_declarees(),
+        equipes_par_wct=_equipes_par_wct(wct_recus),
+        seuil_repetition=configuration["seuil_repetition"],
+        fenetre_jours=configuration["fenetre_jours"],
+        maintenant=instant,
+    )
+    registre_alertes = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ALERTES)
+    for existant in registre_alertes:
+        if existant.get("constat_id") == instantane["constat_id"]:
+            return {"constat_id": instantane["constat_id"], "deja_constate": True,
+                    "alertes": len(instantane["alertes"]), "non_evaluees": len(instantane["non_evaluees"]),
+                    "maillon": existant}
+    maillon = alertes_approvisionnement.sceller(instantane, registre_alertes[-1] if registre_alertes else None)
+    registre_alertes.append(maillon)
+    return {"constat_id": instantane["constat_id"], "deja_constate": False,
+            "alertes": len(instantane["alertes"]), "non_evaluees": len(instantane["non_evaluees"]),
+            "maillon": maillon}
+
+
+def lire_alertes_approvisionnement(decalage: int = 0, limite: int = 20) -> dict[str, Any]:
+    """C9 (T0) : le dernier instantané d'alertes d'approvisionnement, en pages bornées.
+
+    Aucun nom d'employé, aucun prix, aucun texte libre : des types d'alerte, des identifiants d'article, d'équipe
+    DÉCLARÉE, de WCT, de PO et de fournisseur, et des comptes. `limite` de 1 à 100. Un registre encore vide rend
+    `constat: null` — jamais un « tout va bien » inventé.
+    """
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    if isinstance(decalage, bool) or not isinstance(decalage, int) or decalage < 0:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-ALERTES-PAGINATION-INVALIDE", detail="decalage : un entier positif ou nul")}
+    if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= 100:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-ALERTES-PAGINATION-INVALIDE", detail="limite : un entier de 1 à 100")}
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ALERTES)
+    maillons = list(registre)
+    if not maillons:
+        return {"accepte": True, "resultat": {"constat": None, "alertes": [], "non_evaluees": [], "tronque": False}}
+    dernier = maillons[-1]
+    alertes = dernier.get("alertes") or []
+    page = alertes[decalage:decalage + limite]
+    return {"accepte": True, "resultat": {
+        "constat_id": dernier.get("constat_id"),
+        "constate_le": dernier.get("constate_le"),
+        "date_reference": dernier.get("date_reference"),
+        "version_donnees": dernier.get("version_donnees"),
+        "alertes": page,
+        "non_evaluees": dernier.get("non_evaluees") or [],
+        "comptes": dernier.get("comptes") or {},
+        "tronque": decalage + limite < len(alertes),
+        "decalage": decalage,
+        "limite": limite,
+    }}
+
+
 def soumettre_comptage(
     comptage: dict[str, Any], registre_historique: list[dict[str, Any]] | None = None
 ) -> dict[str, Any]:
@@ -2232,8 +2520,14 @@ def constater_disponibilite(horodatage: str) -> dict[str, Any]:
     America/Montreal.
     Rejouer le MÊME constat (même instant) ne publie rien de plus ; un constat à un autre instant est un événement de
     plus
-    (le retour à une version antérieure des données ne se confond pas avec la première). Dans la transaction
-    seulement."""
+    (le retour à une version antérieure des données ne se confond pas avec la première).
+
+    C9 : le MÊME constat planifié calcule aussi les alertes d'approvisionnement (agrégats neutres par article et par
+    équipe DÉCLARÉE, commande reçue mais stock disparu, déclaration d'usage manquante, réception de PO en retard) et les
+    range dans le registre `alertes_approvisionnement` (idempotent par instantané). Aucun nom d'employé, aucun prix :
+    voir `alertes_approvisionnement.py`. Le constat planifié `m6.constat.disponibilite` reste INACTIF par défaut.
+
+    Dans la transaction seulement."""
     refus = _hors_transaction()
     if refus is not None:
         return refus
@@ -2257,7 +2551,9 @@ def constater_disponibilite(horodatage: str) -> dict[str, Any]:
         horodatage,
     )
     evenements.publier("m6.disponibilite_constatee", _DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
-    return {"accepte": True, "resultat": {"publie": True, **charge}}
+    alertes = _alertes_instantane(instant)
+    etat_alertes = {cle: alertes[cle] for cle in ("constat_id", "deja_constate", "alertes", "non_evaluees")}
+    return {"accepte": True, "resultat": {"publie": True, **charge, "alertes": etat_alertes}}
 
 def _snapshots_pertes_appareil(wct_id: str | None = None) -> dict[str, Any]:
     """Copie les sources dans la transaction courante ; les rangs viennent du stockage réel."""
@@ -3245,6 +3541,47 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T1,
             # §9 (inventaire) : comptage physique, constat de stock.
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_ajuster_stock",
+            description=(
+                "C10 : ajuste le stock d'un article avec un motif TYPÉ (correction, stock retrouvé, retour "
+                "fournisseur, erreur de saisie, inventaire physique, annulation), en gardant acteur, avant et après, "
+                "preuve CAS facultative et niveau d'approbation dans une chaîne hash-chaînée. Au-delà du seuil "
+                "DÉCLARÉ (ou seuil absent), exige l'approbation d'un admin ou du propriétaire ; idempotent par "
+                "ajustement_id. Un ajustement sur un emplacement nommé écrit aussi le transfert audité qui corrige "
+                "le lieu. Aucune suppression, aucun prix."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"ajustement": _AJUSTEMENT, "registre_historique": _REGISTRE_HISTORIQUE},
+                "required": ["ajustement"],
+                "additionalProperties": False,
+            },
+            fonction=ajuster_stock,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+        ),
+        Outil(
+            nom="m6_lire_alertes_approvisionnement",
+            description=(
+                "C9 (T0) : lit le dernier instantané d'alertes d'approvisionnement (agrégats neutres par article et "
+                "par équipe déclarée, commande reçue mais stock disparu, déclaration d'usage manquante, réception de "
+                "PO en retard), en pages bornées. Aucun nom d'employé, aucun prix, aucun texte libre. Registre vide : "
+                "constat null, jamais « tout va bien »."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "decalage": {"type": "integer", "minimum": 0},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=lire_alertes_approvisionnement,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
         ),
         Outil(
             nom="m6_produire_digest",
@@ -4334,6 +4671,75 @@ def _attentes_achats_terrain() -> list[dict[str, Any]]:
     return attentes_supplementaires.attentes_achats_terrain(decisions)
 
 
+_RESUMES_ALERTES = {
+    "ecarts_repetes_article": (
+        "Variance d'inventaire répétée sur l'article {materiau_id} ({compte} constats, seuil {seuil})."),
+    "items_manquants_repetes_article": (
+        "Pertes ou bris répétés sur l'article {materiau_id} ({compte} constats, seuil {seuil})."),
+    "items_manquants_repetes_equipe": (
+        "Pertes ou bris répétés pour l'équipe déclarée {equipe_id} ({compte} constats, seuil {seuil})."),
+    "ajustements_frequents_article": (
+        "Ajustements d'inventaire fréquents sur l'article {materiau_id} ({compte}, seuil {seuil})."),
+    "commande_recue_stock_disparu": (
+        "Commande reçue ({quantite_recue}) mais stock disparu pour l'article {materiau_id} (stock {stock_actuel})."),
+    "declaration_usage_manquante": (
+        "Déclaration d'usage manquante pour le WCT {wct_id} ({jours_depuis_completion} jour(s) depuis la "
+        "complétion)."),
+    "reception_po_en_retard": (
+        "Réception attendue du PO {po_id} chez {fournisseur_id} : {jours_depuis_envoi} jour(s) depuis l'envoi, "
+        "délai habituel déclaré {delai_habituel_jours} jour(s)."),
+}
+_ACTIONS_ALERTES = {
+    "ecarts_repetes_article": "Vérifier le comptage et l'usage de cet article ; aucun responsable n'est désigné.",
+    "items_manquants_repetes_article": "Vérifier les preuves de perte/bris et le classement de cause.",
+    "items_manquants_repetes_equipe": "Vérifier les preuves avec l'équipe déclarée ; jamais un nom de personne.",
+    "ajustements_frequents_article": "Vérifier la cause des ajustements et la saisie d'inventaire.",
+    "commande_recue_stock_disparu": "Localiser le stock ou documenter la sortie ; ne rien corriger sans motif.",
+    "declaration_usage_manquante": "Demander la déclaration de fin de chantier (m6_declarer_materiaux_utilises).",
+    "reception_po_en_retard": "Relancer le fournisseur ou vérifier la réception ; M6 n'envoie rien.",
+}
+
+
+def _attentes_alertes() -> list[dict[str, Any]]:
+    """C9 : les alertes du DERNIER instantané, une attente par alerte (20 au plus), plus une attente unique qui dit
+    quels réglages manquent. Aucun nom d'employé, aucun prix, aucun texte libre ; lecture seule."""
+    maillons = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ALERTES))
+    if not maillons:
+        return []
+    dernier = maillons[-1]
+    depuis = dernier.get("constate_le") or ""
+    sortie = []
+    for alerte in (dernier.get("alertes") or [])[:20]:
+        type_alerte = alerte.get("type")
+        gabarit = _RESUMES_ALERTES.get(type_alerte)
+        if gabarit is None:
+            continue
+        valeurs = {cle: alerte.get(cle, "") for cle in (
+            "materiau_id", "equipe_id", "compte", "seuil", "quantite_recue", "stock_actuel", "wct_id",
+            "jours_depuis_completion", "po_id", "fournisseur_id", "jours_depuis_envoi", "delai_habituel_jours")}
+        cle = alerte.get("materiau_id") or alerte.get("equipe_id") or alerte.get("wct_id") or alerte.get("po_id") or ""
+        sortie.append({
+            "type": "alerte_approvisionnement",
+            "id": f"alerte_approvisionnement:{type_alerte}:{cle}",
+            "resume": gabarit.format(**valeurs),
+            "niveau": "N2",
+            "depuis": depuis,
+            "action_proposee": _ACTIONS_ALERTES[type_alerte],
+        })
+    manquants = [n.get("cle") for n in (dernier.get("non_evaluees") or []) if n.get("cle")]
+    if manquants:
+        sortie.append({
+            "type": "alertes_a_configurer",
+            "id": "alertes_a_configurer",
+            "resume": "Règles d'alerte non évaluées faute de déclaration : " + ", ".join(sorted(set(manquants))) + ".",
+            "niveau": "N3",
+            "depuis": depuis,
+            "action_proposee": "La direction déclare les réglages manquants (fenêtre, seuil de répétition, délai du "
+                               "fournisseur) ; aucune valeur n'est supposée.",
+        })
+    return sortie
+
+
 def attentes() -> list[dict[str, Any]]:
     """Le stock bas et les seuils à configurer, tels qu'ils sont AUJOURD'HUI (`reapprovisionnement.attentes`) :
     une attente `besoin_commande` par article constaté dont le stock est encore sous le seuil, et une seule
@@ -4349,4 +4755,5 @@ def attentes() -> list[dict[str, Any]]:
         hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
     ) + _attentes_cout_sortie() + _attentes_ecart_critique() + _attentes_po(
     ) + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
-        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE)) + _attentes_achats_terrain()
+        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE)) + _attentes_achats_terrain(
+    ) + _attentes_alertes()

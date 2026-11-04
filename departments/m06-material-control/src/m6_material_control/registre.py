@@ -5,7 +5,7 @@ from . import encodage
 # PLAN T1.1-d2 : RETOUR/PERTE/BRIS, écrits uniquement par materiel.soumettre_materiaux_utilises
 # (garde_ecriture_stock de conformite.py l'autorise explicitement, DESIGNATION_TYPE_MOUVEMENT).
 TYPES_MOUVEMENT_VALIDES = frozenset(
-    {"RECEPTION", "CONSOMMATION", "VARIANCE_INVENTAIRE", "RETOUR", "PERTE", "BRIS"}
+    {"RECEPTION", "CONSOMMATION", "VARIANCE_INVENTAIRE", "RETOUR", "PERTE", "BRIS", "AJUSTEMENT"}
 )
 HASH_PREDECESSEUR_INITIAL = ""
 
@@ -71,6 +71,11 @@ class Registre:
         # son empreinte : changer la source d'un coût, c'est casser la chaîne. Absente, rien ne change.
         if "origine_cout" in mouvement:
             valeurs_hash.append({"origine_cout": mouvement["origine_cout"]})
+        # C10 : l'audit d'un ajustement d'inventaire (motif typé, avant/après, preuve, approbation) est DIT sur le
+        # maillon et entre dans son empreinte. Absent — tous les maillons antérieurs — rien ne change : leur forme et
+        # leur hash restent identiques bit à bit.
+        if "ajustement" in mouvement:
+            valeurs_hash.append({"ajustement": mouvement["ajustement"]})
         hash_maillon = encodage.empreinte(*valeurs_hash)
 
         maillon = {
@@ -89,6 +94,8 @@ class Registre:
             maillon["unite"] = mouvement["unite"]
         if "origine_cout" in mouvement:
             maillon["origine_cout"] = mouvement["origine_cout"]
+        if "ajustement" in mouvement:
+            maillon["ajustement"] = mouvement["ajustement"]
         return maillon
 
     def ajouter(self, mouvement):
@@ -169,6 +176,8 @@ class Registre:
                 valeurs_hash.append({"unite_declaree": maillon["unite"]})
             if "origine_cout" in maillon:
                 valeurs_hash.append({"origine_cout": maillon["origine_cout"]})
+            if "ajustement" in maillon:
+                valeurs_hash.append({"ajustement": maillon["ajustement"]})
             hash_attendu = encodage.empreinte(*valeurs_hash)
             if maillon["hash_maillon"] != hash_attendu:
                 return False, f"maillon invalide à l'index {index}"

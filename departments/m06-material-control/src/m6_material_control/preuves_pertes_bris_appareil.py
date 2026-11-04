@@ -106,7 +106,7 @@ def valider_snapshots(principal, preuves):
         for i, m in enumerate(principal):
             if (
                 type(m) is not dict
-                or not champs <= set(m) <= champs | {"wct_id", "unite", "origine_cout"}
+                or not champs <= set(m) <= champs | {"wct_id", "unite", "origine_cout", "ajustement"}
                 or type(m["index"]) is not int
                 or m["index"] != i
                 or not _metadata(m["chantier_id"])
