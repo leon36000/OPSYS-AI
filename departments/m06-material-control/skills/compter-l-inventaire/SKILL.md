@@ -18,3 +18,15 @@ description: Procédure pour soumettre un comptage physique et obtenir la varian
    distincte.
 5. Présente l'écart comme un CONSTAT chiffré et daté, jamais comme une
    accusation envers une personne.
+
+## Clôturer plusieurs comptages physiques
+
+Quand un inventaire porte sur plusieurs articles ou plusieurs emplacements, prépare
+une ligne `inventaire_physique` par cible, avec un `ajustement_id` distinct et la
+quantité comptée dans l'unité déjà utilisée par le registre. Soumets l'ensemble à
+`m6_clore_inventaire_physique` dans `ajustements`. Le lot refuse les doublons de
+cible et ne mélange pas une quantité globale avec des quantités par emplacement
+pour le même article. Le lot entier doit être accepté; si une approbation est
+requise, la demande porte sur tout le lot. En cas de refus, ne présente aucun
+comptage comme clôturé. Un rejeu du même lot est sans effet, même si le stock a
+été changé depuis; un nouvel inventaire doit utiliser de nouveaux identifiants.

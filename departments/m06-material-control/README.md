@@ -286,10 +286,12 @@ direction (recommandations d'agent, non validées).
 (2026-11-03, vague 14) **PARTIEL, prouvé sur SQLite réelle + registres durables, données fictives** : aucun service
 externe, aucun envoi, aucune suppression.
 
-*C10* (`ajustements.py`, pur ; nouvel outil `m6_ajuster_stock`, T1/N3, agent seulement) : un humain corrige le stock avec
+*C10* (`ajustements.py`, pur ; outils `m6_ajuster_stock` et `m6_clore_inventaire_physique`, T1/N3, mêmes gardes
+d'acteur et d'approbation) : un humain corrige le stock avec
 un motif de la liste FERMÉE (`correction`, `stock_retrouve`, `retour_fournisseur`, `erreur_saisie`,
 `inventaire_physique`, `annulation`), une quantité VISÉE (`quantite_apres`, jamais un écart fourni), une preuve CAS
-`fichier:sha256:` FACULTATIVE et un horodatage. L'écart (après - avant) est calculé contre le registre, en `Decimal`
+`fichier:sha256:` FACULTATIVE et un horodatage. Pour cet ajustement, seule la forme de la référence est vérifiée :
+elle ne prouve pas que le fichier existe ou correspond à son empreinte. L'écart (après - avant) est calculé contre le registre, en `Decimal`
 exact (la quantité écrite n'est jamais un flottant : l'audit égale le stock réel) ; il est écrit comme mouvement
 `AJUSTEMENT` et change le stock total, jamais celui d'un chantier (`chantier_id` = `*`). Le maillon
 porte une extension `ajustement` (identifiant, motif, preuve, emplacement, avant/après, écart, niveau et seuil
@@ -298,8 +300,15 @@ portent pas, gardent leur hash à l'octet près. Un ajustement sur un emplacemen
 entre ce lieu et `inconnu`, pour que le lieu porte vraiment la quantité corrigée ; le transfert est VALIDÉ avant la
 première écriture (tout-ou-rien, aucun `AJUSTEMENT` orphelin). Un ajustement GLOBAL qui rendrait le résidu `inconnu`
 négatif est refusé (`REJ-AJUSTEMENT-STOCK-LOCALISE-INCOHERENT`) : régulariser d'abord l'emplacement. Idempotent par
-`ajustement_id` (même
-demande : aucun second maillon ; même identifiant, autre demande : refus). Seuil DÉCLARÉ
+`ajustement_id` (même demande : aucun second maillon ; même identifiant, autre demande : refus). La clôture de lot
+accepte 1 à 50 comptages d'inventaire physique, vérifie le lot avant écriture, refuse les cibles répétées et ne mêle
+pas stock total et comptage local du même article. Les lignes passent dans la même transaction : un refus tardif annule
+les registres de stock et d'emplacements. Une approbation requise est rattachée au nom de l'outil et à la charge
+complète persistée par le socle. Un rejeu identique ne réécrit rien, même après un ajustement ultérieur ; un identifiant
+réutilisé avec une autre demande est refusé. Si l'accusé complet dépasse la borne de sortie du contexte, l'opération
+échoue avant validation de la transaction, sans résultat tronqué présenté comme une clôture réussie. Lors d'une
+décision différée, la borne métier est de 5 400 caractères ; une limite personnalisée du demandeur n'est pas conservée
+pour cette décision. Seuil DÉCLARÉ
 `m6.seuil_ajustement_stock_quantite` : `abs(écart) <= seuil` reste N3 ; au-delà — ou seuil absent/illisible — il faut
 l'approbation d'un `admin` ou du `nathan_owner` (`approbations.approbateur_en_cours`), une approbation de `manager` ne
 suffit plus. Aucun prix n'est lu ni écrit.
@@ -321,8 +330,8 @@ alertes remontent aussi dans les attentes de l'admin (`attentes()`), 20 au plus,
 Bouts couverts : `tests/test_ajustements_inventaire.py`, `tests/test_alertes_approvisionnement.py`,
 `tests/test_revue_adverse_c9_c10.py` (motifs hostiles, preuve mal formée, seuil à la borne, préparation d'approbation
 N4, rejeu idempotent, empreintes d'avant, emplacement, fuite de nom, PO à la borne du délai, fenêtre absente, D1-D8).
-Limites : la clôture d'un inventaire physique en lot n'existe pas (l'ajustement se fait article par article) ; le
-rapprochement par emplacement s'appuie sur les transferts, pas sur un comptage multi-emplacements ; le constat ne
+Limites : l'outil de lot ne publie pas d'événement métier dédié ; le rapprochement par emplacement s'appuie sur les
+transferts audités, pas sur un nouvel agrégat de comptage ; le constat ne
 s'active pas seul ; aucune alerte n'est poussée vers un téléphone ou un courriel (« À voir » se lit dans l'app) ; les
 seuils et la fenêtre restent à adopter par la direction (aucune valeur proposée).
 ## C7 — seuils de variance déclarés et éditables, C4 — cycle de vie du PO (2026-11-03)
