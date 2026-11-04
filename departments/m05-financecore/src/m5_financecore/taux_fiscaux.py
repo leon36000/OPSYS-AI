@@ -29,10 +29,16 @@ def charger_taux_fiscaux(chemin, *, contenu_octets: bytes | None = None):
 
     if contenu_octets is not None and not isinstance(contenu_octets, bytes):
         raise TypeError("les octets du fichier fiscal doivent être des bytes")
-    contenu = yaml.safe_load(
-        Path(chemin).read_text(encoding="utf-8") if contenu_octets is None
-        else contenu_octets.decode("utf-8", errors="strict")
-    )
+    try:
+        texte = (
+            Path(chemin).read_text(encoding="utf-8")
+            if contenu_octets is None
+            else contenu_octets.decode("utf-8", errors="strict")
+        )
+        contenu = yaml.safe_load(texte)
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        erreurs.append(f"fichier de taux illisible ({type(exc).__name__}) : {chemin}")
+        return dictionnaire, erreurs
 
     if not isinstance(contenu, dict) or contenu.get("schema_version") != 1:
         erreurs.append(f"schema_version invalide : {chemin}")
