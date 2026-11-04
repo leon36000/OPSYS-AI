@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 from pathlib import Path
 
 import pytest
@@ -139,6 +140,81 @@ def test_quatre_services_sont_chiffres_par_le_code_puis_rejoues_apres_revision(i
     falsifie["couts"]["probable_cad"] = "1.00"
     intact, verdict = estimateurs_service.verifier_recu(falsifie)
     assert intact is False and verdict["code"] == "REJ-ESTIMATEUR-RECU-ALTERE"
+
+
+def test_outil_public_garde_la_precision_des_produits_avant_arrondi_et_rejeu(instance):
+    params = ce.parametres()
+    params["estimateurs"] = {ce.GOUTTIERES: {
+        "unite_ouvrage": "pi.lin",
+        "composantes": [ce._composante(
+            "longueur_gouttiere", "pi2", "999839668.623711", conversion="999554818.085172",
+        )],
+    }}
+    lignes = deepcopy(ce.lignes())
+    ligne = next(candidate for candidate in lignes if candidate["service"] == ce.GOUTTIERES)
+    ligne.update(cout_unitaire_min="0.01", cout_unitaire_mode="0.01", cout_unitaire_max="0.01")
+    ligne.pop("duree_minutes_par_unite", None)
+    declaration = _appeler("m3_declarer_bareme", {
+        "bareme_id": "bareme-estimateurs-fictif", "version_attendue": 0, "lignes": lignes,
+        "date_effet": ce.JOUR_EFFET, "parametres": params, "soumission": deepcopy(cb.SOUMISSION),
+    }, qui=PROPRIO)
+    assert declaration["accepte"] is True, declaration
+    _declarer(ce.GOUTTIERES, "mesure-grande-fictive", "longueur_gouttiere", "999119883.823727", "pi2",
+              "999119883.823727", "999119883.823727")
+
+    resultat = _calculer(ce.GOUTTIERES, [{"mesure_id": "mesure-grande-fictive"}])["resultat"]
+    # Oracle indépendant calculé en précision suffisante, puis arrondi au cent selon le contrat du reçu.
+    with localcontext() as contexte_decimal:
+        contexte_decimal.prec = 80
+        quantite_exacte = Decimal("999839668.623711") * Decimal("999554818.085172") * Decimal("999119883.823727")
+        cout_exact = (quantite_exacte * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    assert resultat["quantite"]["retenue"] == format(quantite_exacte, "f")
+    assert resultat["couts"]["probable_cad"] == format(cout_exact, "f")
+    assert estimateurs_service.verifier_recu(resultat["recu"]) == (True, None)
+
+
+def test_outil_public_preserve_la_precision_a_la_borne_de_16_composantes(instance):
+    nombre_composantes = estimateurs_service.MAX_COMPOSANTES
+    valeur_maximale = "999999999.999999"
+    params = ce.parametres()
+    params["estimateurs"] = {ce.GOUTTIERES: {
+        "unite_ouvrage": "pi.lin",
+        "composantes": [
+            ce._composante(f"mesure_{index:02}", "pi2", valeur_maximale, conversion=valeur_maximale)
+            for index in range(nombre_composantes)
+        ],
+    }}
+    lignes = deepcopy(ce.lignes())
+    ligne = next(candidate for candidate in lignes if candidate["service"] == ce.GOUTTIERES)
+    ligne.update(cout_unitaire_min=valeur_maximale, cout_unitaire_mode=valeur_maximale,
+                 cout_unitaire_max=valeur_maximale)
+    ligne.pop("duree_minutes_par_unite", None)
+    declaration = _appeler("m3_declarer_bareme", {
+        "bareme_id": "bareme-estimateurs-fictif", "version_attendue": 0, "lignes": lignes,
+        "date_effet": ce.JOUR_EFFET, "parametres": params, "soumission": deepcopy(cb.SOUMISSION),
+    }, qui=PROPRIO)
+    assert declaration["accepte"] is True, declaration
+    for index in range(nombre_composantes):
+        grandeur = f"mesure_{index:02}"
+        _declarer(ce.GOUTTIERES, f"mesure-fictive-{index:02}", grandeur, valeur_maximale, "pi2",
+                  valeur_maximale, valeur_maximale)
+
+    resultat = _calculer(ce.GOUTTIERES, [
+        {"mesure_id": f"mesure-fictive-{index:02}"} for index in range(nombre_composantes)
+    ])["resultat"]
+    # 16 × (15-digit coefficient × 15-digit conversion × 15-digit measure), then a 15-digit unit cost.
+    # Exact intermediates need at most 62 significant digits: 45 per component, +2 for the sum, +15 for cost.
+    with localcontext() as contexte_decimal:
+        contexte_decimal.prec = 100
+        contribution = Decimal(valeur_maximale) ** 3
+        quantite_exacte = contribution * nombre_composantes
+        cout_exact = (quantite_exacte * Decimal(valeur_maximale)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP,
+        )
+    assert resultat["quantite"]["retenue"] == format(quantite_exacte, "f")
+    assert resultat["couts"]["probable_cad"] == format(cout_exact, "f")
+    assert len(resultat["recu"]["composantes"]) == nombre_composantes
+    assert estimateurs_service.verifier_recu(resultat["recu"]) == (True, None)
 
 
 def _appliquer(mesure_ref, service):

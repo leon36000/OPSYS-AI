@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 from pathlib import Path
 
 _TESTS = Path(__file__).resolve().parent
@@ -23,13 +24,12 @@ import _commun_estimateurs as ce  # noqa: E402
 from m3_estimation import estimateurs_service as es  # noqa: E402
 
 
-def test_un_produit_enorme_dit_quoi_reduire_au_lieu_d_accuser_les_entrees():
-    """DÉFAUT : des entrées DÉCLARÉES et VALIDES (format accepté à la déclaration)
-    font échouer le calcul par dépassement de précision Decimal (prec=28), et le
-    verdict dit « une valeur est absente ou mal formée » — ce qui est FAUX.
-    Attendu fail-closed : un verdict qui dit quoi fournir (ex. réduire la magnitude
-    ou découper l'estimation), jamais une accusation d'entrée mal formée.
-    CE TEST ÉCHOUE sur le code livré : il exige le verdict adéquat."""
+def test_un_produit_enorme_valide_est_calcule_exactement_et_recu_verifie():
+    """Le format admet les trois facteurs jusqu'à 9 chiffres et 6 décimales.
+
+    Le calcul doit garder leur précision complète, arrondir seulement les coûts au cent et produire un reçu qui
+    se vérifie avec les mêmes règles arithmétiques.
+    """
     version, journal = ce.declarer_ok([]), []
     mod = deepcopy(version)
     # 3 facteurs au maximum du format déclaré (9 chiffres + 6 décimales, acceptés
@@ -45,12 +45,20 @@ def test_un_produit_enorme_dit_quoi_reduire_au_lieu_d_accuser_les_entrees():
                            borne_haute="999999999.999999", service=ce.SOFFITE)
     resultat, verdict = es.estimer(version=mod, service=ce.SOFFITE, lead_id=ce.LEAD,
                                    mesures=[mesure], maintenant=ce.MAINTENANT)
-    assert resultat is None
-    # Le grief : le verdict actuel accuse les entrées (« absente ou mal formée »)
-    # alors qu'elles sont valides — exiger un verdict qui dit quoi fournir.
-    # Le code reste générique, mais le détail ne prétend plus que l'entrée est mal formée : il dit quoi faire.
-    assert verdict["code"] == "REJ-ESTIMATEUR-INVALIDE"
-    assert "magnitude" in verdict["detail"] and "découper" in verdict["detail"]
+    assert verdict is None, verdict
+    with localcontext() as contexte_decimal:
+        contexte_decimal.prec = 80
+        facteur = Decimal("999999999.999999") * Decimal("999999999.999999")
+        quantite_exacte = facteur * Decimal("999999999.999999")
+        couts_attendus = {
+            cle: format((quantite_exacte * Decimal(unitaire)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), "f")
+            for cle, unitaire in (("min_cad", "7.00"), ("probable_cad", "9.00"), ("max_cad", "12.00"))
+        }
+        duree_attendue = format(quantite_exacte * Decimal("3"), "f")
+    assert resultat["quantite"]["retenue"] == format(quantite_exacte, "f")
+    assert {cle: resultat["couts"][cle] for cle in couts_attendus} == couts_attendus
+    assert resultat["duree_minutes"] == duree_attendue
+    assert es.verifier_recu(resultat["recu"]) == (True, None)
 
 
 def test_une_borne_basse_relevee_par_le_minimum_est_dite_dans_le_recu():

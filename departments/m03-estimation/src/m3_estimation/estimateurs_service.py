@@ -52,7 +52,7 @@ import hashlib
 import json
 import re
 from datetime import datetime
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
 from typing import Any
 
 from . import devis_durable, mesure_declaree, verdicts
@@ -70,6 +70,11 @@ FORMULE = "m3-estimateur-service/1"
 # Même borne que la déclaration du barème (un test la garde) : un estimateur à plus de seize composantes est une
 # nomenclature, pas un estimateur de service.
 MAX_COMPOSANTES = 16
+# Les décimaux déclarés ont au plus 9 chiffres entiers et 6 décimales. Le produit coefficient x conversion x mesure
+# porte donc au plus 45 chiffres significatifs exacts; la somme des 16 composantes porte au plus 47. Le coût ou la
+# durée ajoute un opérande de 15 chiffres et une échelle de six décimales, soit au plus 62 chiffres à préserver
+# avant l'arrondi monétaire. 80 laisse une marge pour les comparaisons et normalisations de ces mêmes valeurs.
+_PRECISION_CALCUL = 80
 
 _CENT = Decimal("0.01")
 _CODE = re.compile(r"[A-Za-z0-9_.-]{1,64}")
@@ -345,7 +350,7 @@ def _prix(probable: str | None, normal: Any) -> tuple[str | None, list[str]]:
     return _montant(devis_durable.prix_depuis_cout(Decimal(probable), taux)), manquants
 
 
-def estimer(
+def _estimer_calcul(
     *, version: Any, service: Any, lead_id: Any, mesures: Any, maintenant: Any,
 ) -> tuple[dict[str, Any] | None, dict | None]:
     """Compose et chiffre l'estimation d'UN service à partir du barème déclaré et des mesures déclarées.
@@ -515,7 +520,18 @@ def estimer(
         )
 
 
-def verifier_recu(recu: Any) -> tuple[bool, dict | None]:
+def estimer(
+    *, version: Any, service: Any, lead_id: Any, mesures: Any, maintenant: Any,
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """Estime en conservant toute la précision permise par les décimaux déclarés."""
+    with localcontext() as contexte_decimal:
+        contexte_decimal.prec = _PRECISION_CALCUL
+        return _estimer_calcul(
+            version=version, service=service, lead_id=lead_id, mesures=mesures, maintenant=maintenant,
+        )
+
+
+def _verifier_recu_calcul(recu: Any) -> tuple[bool, dict | None]:
     """Refait l'arithmétique du reçu depuis ses entrées enregistrées et vérifie son empreinte.
 
     Ne relit PAS les registres : c'est une vérification de cohérence interne, pas d'authenticité de la source. Un
@@ -622,3 +638,10 @@ def verifier_recu(recu: Any) -> tuple[bool, dict | None]:
         return True, None
     except (AttributeError, KeyError, TypeError, ValueError, InvalidOperation, ArithmeticError):
         return _refus("le reçu est mal formé : une valeur absente ou non décimale empêche le recalcul")
+
+
+def verifier_recu(recu: Any) -> tuple[bool, dict | None]:
+    """Vérifie le reçu avec la même précision que le calcul qui l'a produit."""
+    with localcontext() as contexte_decimal:
+        contexte_decimal.prec = _PRECISION_CALCUL
+        return _verifier_recu_calcul(recu)
