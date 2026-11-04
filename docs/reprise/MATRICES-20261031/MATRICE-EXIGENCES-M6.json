@@ -194,7 +194,8 @@
       "departments/m06-material-control/tests/test_po_commandable.py",
       "departments/m06-material-control/tests/test_po_lecture.py",
       "departments/m06-material-control/tests/test_po_envoi_constate.py",
-      "tests/test_m6_scenario_sortie_article_po.py"
+      "tests/test_m6_scenario_sortie_article_po.py",
+      "departments/m06-material-control/tests/test_cycle_vie_po_c4.py"
      ],
      "docs": [
       "departments/m06-material-control/README.md"
@@ -204,7 +205,7 @@
    ],
    "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "C2/C3 : lignes à unité (= fiche article), perte déclarée appliquée une fois, date requise, livraison/ramassage, devis lié, un PO par fournisseur depuis un besoin (tout ou rien), lecture et liste des PO (`m6_lister_po`, `m6_lire_po`), pilotage de `pending_admin_review`, `disputed`, `invoiced`, `closed` (`m6_changer_statut_po`), prise d'acte de l'envoi constaté par M1 sans seconde approbation ; prouvé en S sur SQLite. Reste : `supplier_confirmed` n'est atteint que par la confirmation courriel (pas d'outil dédié), `invoiced`/`closed` ne se déduisent pas encore de M5 (geste de personne), prix confirmé et notes de ligne absents, `marquer_po_envoye` (N4) n'envoie rien, le test Core TS `opsys-m6-po-authority` fige l'ancien comportement (création N3) et n'est pas rejoué ici."
+   "limite": "C2/C3 : lignes à unité (= fiche article), perte déclarée appliquée une fois, date requise, livraison/ramassage, devis lié, un PO par fournisseur depuis un besoin (tout ou rien), lecture et liste des PO (`m6_lister_po`, `m6_lire_po`), pilotage de `pending_admin_review`, `disputed`, `invoiced`, `closed` (`m6_changer_statut_po`), prise d'acte de l'envoi constaté par M1 sans seconde approbation. C4 : un rapprochement M5 `CONCORDANT` sur un PO reçu produit une attente N3 `po_a_facturer` (proposition, jamais une transition automatique ; rejeu sans doublon) ; un PO partiel, déjà facturé, fermé, contesté ou inconnu ne propose rien ; `closed`/`disputed` restent des gestes N3 avec motif. Prouvé en S sur SQLite (`tests/test_cycle_vie_po_c4.py`) ; reste : `supplier_confirmed` n'est atteint que par la confirmation courriel (pas d'outil dédié), prix confirmé et notes de ligne absents, `marquer_po_envoye` (N4) n'envoie rien, aucune politique permanente de facturation, le test Core TS `opsys-m6-po-authority` fige l'ancien comportement (création N3) et n'est pas rejoué ici."
   },
   {
    "id": "M6.6",
@@ -239,7 +240,8 @@
       "departments/m06-material-control/tests/test_po_commandable.py",
       "departments/m06-material-control/tests/test_po_envoi_constate.py",
       "tests/test_m1_m6_courriel_flux.py",
-      "tests/test_m6_scenario_sortie_article_po.py"
+      "tests/test_m6_scenario_sortie_article_po.py",
+      "departments/m06-material-control/tests/test_cycle_vie_po_c4.py"
      ],
      "docs": [
       "departments/m06-material-control/README.md"
@@ -433,17 +435,20 @@
      "tests": [
       "departments/m06-material-control/tests/test_po_lecture.py",
       "tests/test_reglages_m6.py",
-      "tests/test_m6_scenario_sortie_article_po.py"
+      "tests/test_m6_scenario_sortie_article_po.py",
+      "departments/m06-material-control/tests/test_seuils_variance_c7.py",
+      "tests/test_console_seuils_m6.py"
      ],
      "docs": [
-      "departments/m06-material-control/README.md"
+      "departments/m06-material-control/README.md",
+      "docs/architecture/M6-SEUILS-VARIANCE-C7.md"
      ],
      "niveau": "S"
     }
    ],
    "verified_commit": "8ab4e0a45",
    "current_status": "PARTIEL",
-   "limite": "Le cœur (quantités, non prévu, non utilisé, retours, pertes, unités indéterminées, cause toujours None, classement humain) est prouvé en S/H ; l'écart de prix n'est pas dans ce moteur (il est évalué à la réception, M6.7). C3 : l'écart critique porte le MESSAGE IMPOSÉ de Nathan mot pour mot (attente de l'admin `ecart_materiaux_critique`, résultat de `m6_evaluer_variance_chantier`), jamais « vol » ; les seuils de variance et de prix sont des réglages de direction (adoption N3 du propriétaire, retour arrière), valeurs d'un agent étiquetées « recommandation, non validée ». Reste : seuils par matériau/catégorie, plancher en quantité et en dollars, variance de coût, scores d'estimation (non faits, à dessein pour les scores par personne).",
+   "limite": "Le cœur (quantités, non prévu, non utilisé, retours, pertes, unités indéterminées, cause toujours None, classement humain) est prouvé en S/H ; l'écart de prix n'est pas dans ce moteur (il est évalué à la réception, M6.7). C3 : l'écart critique porte le MESSAGE IMPOSÉ de Nathan mot pour mot (attente de l'admin `ecart_materiaux_critique`, résultat de `m6_evaluer_variance_chantier`), jamais « vol ». C7 : seuil par matériau, par catégorie déclarée ou global (matériau > catégorie > global), planchers obligatoires en quantité et en dollars (décimal exact, cent), édition par l'admin (ou le propriétaire) à l'écran « Seuils matériaux » avec registre append-only chaîné (avant/après, auteur, rôle, motif, version attendue) ; sans décision C7, le mode hérité garde le seul seuil global 0.30 (valeur d'agent, « recommandation, non validée »). **Limites** : aucune valeur réelle (seuils, planchers et table des catégories vides tant que la direction ne les déclare pas) ; un plancher en dollars sans valeur unitaire laisse l'écart critique ; la valeur unitaire est le coût de sortie (réception ou livre), pas le prix payé ; aucune variance de coût ; chaîne d'audit sans ancre externe ; PostgreSQL non rejoué ; variance de coût et scores d'estimation non faits (à dessein pour les scores par personne).",
    "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE ; la cible inclut l'écart de prix, absent du moteur de variance (variance_chantier.py ne traite pas les prix) : rétrogradée PARTIEL."
   },
   {
@@ -551,7 +556,8 @@
      "tests": [
       "departments/m06-material-control/tests/test_frontiere_finance_m5.py",
       "tests/e2e/test_m5_reception_consumer_concurrente.py",
-      "departments/m06-material-control/tests/test_evenements_reception_m6.py"
+      "departments/m06-material-control/tests/test_evenements_reception_m6.py",
+      "departments/m06-material-control/tests/test_cycle_vie_po_c4.py"
      ],
      "docs": [],
      "niveau": "S+P"
@@ -559,7 +565,7 @@
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "M6→M5 prouvé (réception consommée par M5 ; variante PostgreSQL non rejouée ici) ; le retour AP/coût validé vers M6 est absent."
+   "limite": "M6→M5 prouvé (réception consommée par M5 ; variante PostgreSQL non rejouée ici) ; C4 : M5→M6 propose `invoiced` sur un rapprochement `CONCORDANT` (attente N3, geste humain avec motif, jamais une transition automatique) ; le statut de paiement et le coût validé ne reviennent toujours pas à M6."
   },
   {
    "id": "M6.17",

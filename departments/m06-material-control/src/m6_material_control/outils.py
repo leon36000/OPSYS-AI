@@ -128,6 +128,7 @@ from . import (
     reapprovisionnement_appareil,
     reception,
     reservations,
+    seuils_variance,
     stock,
     validation,
     variance_chantier,
@@ -526,6 +527,52 @@ def _seuil_variance_chantier() -> float | None:
     return seuil if ok else None
 
 
+def _seuils_variance_effectifs() -> tuple[float | None, dict[str, Any] | None, str]:
+    """C7 : les seuils de variance en vigueur.
+
+    - une décision d'une personne au registre `seuils_variance_chantier` (validée, chaîne intacte) : elle est
+      AUTORITAIRE et porte le seuil global, les seuils par catégorie/matériau et les deux planchers ;
+    - aucune décision : mode `herite`, le seul seuil global déjà déclaré (manifeste / CFG-1) décide, exactement comme
+      avant C7 ;
+    - un registre non vide mais invalide ou retouché : `(None, None, "invalide")` — fail-closed, aucun seuil n'est
+      servi, et une attente dit qu'il faut le reconfigurer.
+
+    Rend `(seuil_global, config_complete_ou_None, mode)`."""
+    if stockage.connexion_courante() is not None:
+        registre = list(stockage.maillons(_DEPARTEMENT, seuils_variance.REGISTRE))
+        if registre:
+            config = seuils_variance.config_en_vigueur(registre)
+            if config is None:
+                return None, None, "invalide"
+            return float(config["global_pourcentage"]), config, "adopte"
+    seuil = _seuil_variance_chantier()
+    return seuil, None, "herite"
+
+
+def _valeurs_unitaires_variance(
+    chantier_id: str, besoins: list[dict[str, Any]], mouvements: list[dict[str, Any]], horodatage_completion: str,
+    wct_id: str,
+) -> dict[str, float | None]:
+    """La valeur unitaire DÉCLARÉE de chaque matériau touché par un écart, pour le plancher en dollars de C7.
+
+    Même résolution que le coût de sortie (C1) : dernière réception sous le chantier, sinon de l'article, sinon livre
+    de prix applicable au jour du WCT, sinon `None`. Aucun prix n'est inventé ; `None` rend le plancher « non évalué »
+    et l'écart reste soumis à la revue humaine."""
+    jour = cout_sortie.jour_du_wct(horodatage_completion)
+    livre = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_LIVRE_PRIX))
+    unites: dict[str, Any] = {besoin["materiau_id"]: besoin.get("unite") for besoin in besoins}
+    for mouvement in mouvements:
+        if mouvement.get("chantier_id") == chantier_id and mouvement.get("wct_id") == wct_id:
+            unites.setdefault(mouvement.get("materiau_id"), mouvement.get("unite"))
+    valeurs: dict[str, float | None] = {}
+    for materiau_id, unite in unites.items():
+        if not isinstance(materiau_id, str) or not materiau_id:
+            continue
+        resolution = cout_sortie.resoudre(chantier_id, materiau_id, unite, jour, mouvements, livre)
+        valeurs[materiau_id] = resolution["cout_unitaire"]
+    return valeurs
+
+
 def _seuil_ecart_prix_reception() -> float | None:
     """Seuil de criticité de l'ÉCART DE PRIX à la réception (M6.7, PLAN T2.5 point 4) : même
     source (`department.yaml/configuration`) et même discipline fail-closed que
@@ -710,7 +757,7 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
                 return mouvement["chantier_id"]
         return None
 
-    seuil = _seuil_variance_chantier()
+    seuil, config_seuils, _mode_seuils = _seuils_variance_effectifs()
     besoin = besoins_prevus.pour_devis(devis_id, besoins) if devis_id else None
     declaration_existe = any(mouvement.get("wct_id") == wct_id for mouvement in mouvements)
     lignes = None  # requis, mais nul tant que statut_variance != "evaluee" (même patron que
@@ -739,9 +786,14 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
         # non déclaré.
         chantier_id = besoin["chantier_id"] or _chantier_id_depuis_declaration()
         registre_cible = registre_module.Registre(maillons=mouvements)
+        valeurs_unitaires = (
+            _valeurs_unitaires_variance(chantier_id, besoin["lignes"], mouvements, horodatage_completion, wct_id)
+            if config_seuils is not None else None
+        )
         resultat, code = variance_chantier.evaluer(
             chantier_id, besoin["lignes"], seuil_pourcentage=seuil,
             registre=registre_cible, wct_id=wct_id,
+            seuils=config_seuils, valeurs_unitaires=valeurs_unitaires,
         )
         if code is not None:
             # Entrées déjà validées à l'écriture (besoins_prevus.enregistrer,
@@ -4659,6 +4711,37 @@ def _attentes_ecart_critique() -> list[dict[str, Any]]:
     return sortie
 
 
+def _attentes_po_a_facturer() -> list[dict[str, Any]]:
+    """C4 : les PO reçus dont le dernier rapprochement M5 est CONCORDANT, proposés à `invoiced` (N3, décision humaine).
+    Lecture seule : `bons_commande.lister` ne crée, n'envoie et ne paie rien."""
+    return rapprochements_recus.propositions_facturation(
+        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE),
+        bons_commande.lister(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BONS_COMMANDE)),
+    )
+
+
+def _attentes_seuils_variance() -> list[dict[str, Any]]:
+    """C7 : le registre des seuils existe mais ne se rejoue pas (maillon retouché, configuration invalide). Aucun
+    seuil n'est alors servi : l'admin doit reconfigurer depuis l'écran « Seuils matériaux ». Lecture seule."""
+    if stockage.connexion_courante() is None:
+        return []
+    registre = list(stockage.maillons(_DEPARTEMENT, seuils_variance.REGISTRE))
+    if not registre or seuils_variance.config_en_vigueur(registre) is not None:
+        return []
+    dernier = seuils_variance.dernier(registre)
+    return [{
+        "type": "seuils_variance_a_configurer",
+        "id": "seuils_variance_chantier",
+        "resume": (
+            "Seuils de variance illisibles ou chaîne d'audit invalide : aucun seuil n'est appliqué (les variances "
+            "sortent en « seuil absent »). Reconfigurer depuis l'écran « Seuils matériaux »."
+        ),
+        "niveau": "N3",
+        "depuis": (dernier or {}).get("horodatage", ""),
+        "action_proposee": "Écran « Seuils matériaux » : enregistrer une configuration complète avec un motif",
+    }]
+
+
 def _attentes_achats_terrain() -> list[dict[str, Any]]:
     """C6 : les achats sur place en attente d'approbation admin (N3), lus au registre durable
     dédié. Lecture seule : aucun montant n'est montré à l'employé (cette file est admin)."""
@@ -4755,5 +4838,5 @@ def attentes() -> list[dict[str, Any]]:
         hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
     ) + _attentes_cout_sortie() + _attentes_ecart_critique() + _attentes_po(
     ) + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
-        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE)) + _attentes_achats_terrain(
-    ) + _attentes_alertes()
+        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE)) + _attentes_po_a_facturer(
+    ) + _attentes_achats_terrain() + _attentes_seuils_variance() + _attentes_alertes()

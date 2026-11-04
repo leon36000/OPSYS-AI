@@ -317,3 +317,29 @@ Limites : la clôture d'un inventaire physique en lot n'existe pas (l'ajustement
 rapprochement par emplacement s'appuie sur les transferts, pas sur un comptage multi-emplacements ; le constat ne
 s'active pas seul ; aucune alerte n'est poussée vers un téléphone ou un courriel (« À voir » se lit dans l'app) ; les
 seuils et la fenêtre restent à adopter par la direction (aucune valeur proposée).
+## C7 — seuils de variance déclarés et éditables, C4 — cycle de vie du PO (2026-11-03)
+
+**PARTIEL, prouvé sur SQLite réelle + vrais outils/registres/bus, données fictives.** Voir
+[docs/architecture/M6-SEUILS-VARIANCE-C7.md](../../docs/architecture/M6-SEUILS-VARIANCE-C7.md).
+
+*C7* (`seuils_variance.py`, pur) : le seuil applicable est celui du **matériau**, sinon de sa **catégorie déclarée**
+(`categories`), sinon le global. Une configuration C7 complète porte en plus un **plancher de quantité** et un
+**plancher de dollars** obligatoires ; un écart sous l'un des deux ne déclenche pas la revue, même au-dessus du
+pourcentage. Le montant est en décimal exact, au cent, à partir d'une valeur unitaire fournie (réception ou livre de
+prix) ; sans valeur, le plancher n'est pas inventé : l'écart est marqué critique et une attente dit quel prix déclarer.
+L'écran console « Seuils matériaux » (`/seuils-materiaux`, admin ou propriétaire) écrit un registre append-only et
+chaîné (version, avant/après, auteur, rôle, motif, horodatage, approbation, empreintes) ; une chaîne retouchée ne sert
+plus aucun seuil (`seuil_absent` + attente de reconfiguration). Le message imposé de Nathan est déjà dans l'attente
+`ecart_materiaux_critique` et dans le résultat de `m6_evaluer_variance_chantier`, mot pour mot, sans « vol ». Sans
+décision C7, le mode `herite` conserve le seul seuil global (0.30, valeur d'agent « recommandation, non validée »).
+
+*C4* (`rapprochements_recus.py::propositions_facturation`, `outils.py::_attentes_po_a_facturer`) : un rapprochement
+M5 `CONCORDANT` sur un PO **reçu** produit une attente N3 `po_a_facturer` (une par PO, rejeu sans doublon) ; M6 ne
+facture pas seul, l'admin applique `m6_changer_statut_po` avec un motif. Un PO partiel, déjà facturé, fermé, contesté
+ou inconnu ne propose rien ; `ECART`/`INCOMPLET` garde l'attente « À voir » vers M5. `closed`/`disputed` restent des
+outils N3 avec motif ; l'envoi constaté par M1 (C2) n'exige plus de second clic N4, et `m6_marquer_po_envoye` reste la
+voie d'un envoi hors M1.
+
+Limites : aucun navigateur réel, aucun mobile, PostgreSQL non rejoué ; aucune valeur réelle (seuils, planchers et
+catégories vides tant que la direction ne les déclare pas) ; le plancher en dollars utilise le coût de sortie, pas le
+prix payé ; l'audit n'a pas d'ancre externe ; aucune politique permanente de facturation.
