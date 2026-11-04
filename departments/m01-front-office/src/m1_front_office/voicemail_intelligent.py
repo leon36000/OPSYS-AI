@@ -24,13 +24,16 @@ un événement du bus.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Sequence, Set
 from typing import Any
 
 from . import qualification
 
 MAX_ADRESSE = 120
 MAX_NOM = 80
+# Une suite d'adresse plus longue qu'une rue et son appartement est coupée : c'est une borne de
+# lecture, pas une donnée d'entreprise.
+MAX_MOTS_SUITE_ADRESSE = 8
 # Types de voie du français québécois courant. C'est du vocabulaire de lecture, pas une donnée d'entreprise : une
 # adresse sans type de voie n'est pas reconnue (fail-closed), même si elle contient un numéro civique.
 _TYPES_DE_VOIE = (
@@ -38,12 +41,34 @@ _TYPES_DE_VOIE = (
     "autoroute|lotissement"
 )
 _ADRESSE = re.compile(
-    rf"\b(?P<numero>\d{{1,6}})(?:\s*[-–]\s*\d{{1,6}})?\s+"
+    rf"\b(?P<numero>\d{{1,6}})(?:\s*[-–]\s*\d{{1,6}})?(?:\s*,\s*|\s+)"
     rf"(?:(?:app(?:artement|art)?\.?\s*)\d+\s+)?"
     rf"(?P<voie>{_TYPES_DE_VOIE})\s+"
-    r"(?P<suite>[A-Za-zÀ-ÿ0-9'’\- ]{2,70})",
+    r"(?P<suite>[A-Za-zÀ-ÿ0-9'’.\- ]{2,120})",
     re.IGNORECASE,
 )
+# Mots après lesquels la suite d'adresse s'arrête : formule de rappel, consigne, conjonction. Sans
+# ponctuation (STT), c'est ce qui empêche l'adresse d'avaler la phrase suivante, une consigne ou un
+# numéro de téléphone. Liste FERMÉE, vocabulaire de lecture : elle ne décrit aucune rue réelle.
+_MOTS_PIVOT_ADRESSE = frozenset(
+    {
+        "rappelez", "rappeler", "rappelle", "rappel", "ignore", "ignores", "ignorez", "ignorer",
+        "oublie", "oublies", "oubliez", "oublier", "envoie", "envoyez", "envoyer", "instructions",
+        "instruction", "consignes", "consigne", "prompt", "prompts", "systeme", "system", "et",
+        "puis", "mais", "car", "donc", "merci", "bonjour", "svp", "stp",
+    }
+)
+# Verbes d'instruction et mots d'injection : un nom ou une adresse qui en contient un est refusé
+# (champ manquant déclaré), jamais recopié dans le résumé. Liste FERMÉE et testée.
+_MOTS_INSTRUCTION = frozenset(
+    {
+        "ignore", "ignores", "ignorez", "ignorer", "oublie", "oublies", "oubliez", "oublier",
+        "envoie", "envoyez", "envoyer", "instructions", "instruction", "consignes", "consigne",
+        "prompt", "prompts", "systeme", "system",
+    }
+)
+_ABREVIATIONS_ADRESSE = frozenset({"app", "appart", "av", "boul", "ch", "st", "ste"})
+_PREPOSITIONS_FIN_ADRESSE = frozenset({"a", "à", "au", "aux"})
 _NOM_APRES_FORMULE = re.compile(
     r"(?i:\b(?:je m'appelle|mon nom est|mon nom c'est|ici)\b)\s+"
     r"(?P<nom>[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]+(?:\s+[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]+){1,3})"
@@ -62,7 +87,18 @@ _MOTS_NON_NOM = frozenset(
     }
 )
 _DEMANDE_RAPPEL = re.compile(
-    r"\b(?:rappele[rz]|rappel|rappelle|retour\s+d['’]appel|demande\s+un\s+rappel)\b", re.IGNORECASE
+    r"\b(?:rappele[rz](?:[-\s]moi)?|retour\s+d['’]appel|demande\s+(?:une?)\s+rappel)\b", re.IGNORECASE
+)
+# « Ne me rappelez pas », « sans retour d'appel » : la négation explicite touche la formule.
+_NEGATION_AVANT_RAPPEL = re.compile(
+    r"(?:\b(?:ne|n['’])\s*(?:me\s+|m['’]\s*|vous\s+|nous\s+|te\s+|t['’]\s*)?"
+    r"|\bpas\s+(?:de\s+)?(?:me\s+|m['’]\s*|vous\s+|nous\s+)?"
+    r"|\bsans\s+(?:me\s+|m['’]\s*|vous\s+|nous\s+)?"
+    r"|\baucun(?:e)?\s+(?:demande\s+de\s+)?)\s*$",
+    re.IGNORECASE,
+)
+_NEGATION_APRES_RAPPEL = re.compile(
+    r"^\s*(?:-\s*)?(?:moi\s*)?(?:surtout\s+|vraiment\s+)?(?:pas|plus|jamais)\b", re.IGNORECASE
 )
 
 
@@ -80,40 +116,71 @@ def _nom(texte: str, mots_de_services: frozenset[str] = frozenset()) -> str | No
             if len(mots) < 2:
                 continue
             nom = " ".join(mots).strip(" .,;:!?")
+            if any(_sans_accent(mot).strip(".,;:!?") in _MOTS_INSTRUCTION for mot in mots):
+                continue
             if 2 <= len(nom) <= MAX_NOM:
                 return nom
     return None
+
+
+def _suite_adresse(suite: str, zone_desservie: Sequence[str]) -> list[str]:
+    """Mots de la suite d'adresse, coupés à la première consigne, ponctuation, ville ou téléphone."""
+    villes = {_sans_accent(ville) for ville in zone_desservie}
+    mots = []
+    for brut in suite.split():
+        mot = brut.strip(" ,;:!?")
+        if not mot:
+            continue
+        nu = _sans_accent(mot).strip(".,;:!?")
+        if not nu or nu in _PREPOSITIONS_FIN_ADRESSE or nu in _MOTS_PIVOT_ADRESSE or nu in villes:
+            break
+        chiffres = re.sub(r"\D", "", mot)
+        if len(chiffres) >= 3 and not re.search(r"[A-Za-zÀ-ÿ]", mot):
+            break
+        if mot.endswith((".", "!", "?", ";")) and nu not in _ABREVIATIONS_ADRESSE:
+            mots.append(mot.rstrip(".!?;,"))
+            break
+        if len(mots) >= MAX_MOTS_SUITE_ADRESSE:
+            break
+        mots.append(mot.rstrip(",;!?"))
+    return [mot for mot in mots if mot]
 
 
 def _adresse(texte: str, zone_desservie: Sequence[str]) -> str | None:
     trouve = _ADRESSE.search(texte)
     if trouve is None:
         return None
-    suite = trouve.group("suite").strip(" ,;:!?")
-    # « 123 rue des Lilas à Laval » : la ville est un fait séparé, pas le nom de la rue.
-    for ville in sorted(zone_desservie, key=len, reverse=True):
-        suite = re.split(
-            rf"\s+(?:à|a|au|aux)\s+{re.escape(ville)}\b.*$", suite, maxsplit=1, flags=re.IGNORECASE
-        )[0].strip(" ,;:!?")
+    suite = _suite_adresse(trouve.group("suite"), zone_desservie)
     if not suite:
         return None
-    adresse = f"{trouve.group('numero')} {trouve.group('voie')} {suite}"
+    adresse = f"{trouve.group('numero')} {trouve.group('voie')} {' '.join(suite)}"
     adresse = re.sub(r"\s+", " ", adresse).strip(" ,;:!?")
     return adresse if 4 <= len(adresse) <= MAX_ADRESSE else None
 
 
 def _telephone_mentionne(texte: str, telephone: str) -> str | None:
-    contact = qualification.contact_du_texte(texte) or {}
-    brut = contact.get("telephone")
-    if not isinstance(brut, str) or not brut.strip():
-        return None
-    chiffres = re.sub(r"\D", "", brut)
-    if len(chiffres) == 10:
-        chiffres = "1" + chiffres
-    if not (len(chiffres) == 11 and chiffres.startswith("1")):
-        return None
-    normalise = "+" + chiffres
-    return None if normalise == telephone else normalise
+    """Le premier numéro du texte qui n'est pas celui de l'appelant, normalisé en E.164, ou `None`."""
+    for brut in qualification.telephones_du_texte(texte):
+        chiffres = re.sub(r"\D", "", brut)
+        if len(chiffres) == 10:
+            chiffres = "1" + chiffres
+        if len(chiffres) == 11 and chiffres.startswith("1"):
+            normalise = "+" + chiffres
+            if normalise != telephone:
+                return normalise
+    return None
+
+
+def _demande_rappel(texte: str) -> bool:
+    """Vrai si une formule explicite de rappel est présente et qu'aucune négation ne la touche."""
+    for trouve in _DEMANDE_RAPPEL.finditer(texte):
+        avant = re.split(r"[.!?;,\n]", texte[: trouve.start()])[-1]
+        if _NEGATION_AVANT_RAPPEL.search(avant):
+            continue
+        if _NEGATION_APRES_RAPPEL.match(texte[trouve.end():]):
+            continue
+        return True
+    return False
 
 
 def _composer_resume(
@@ -138,6 +205,21 @@ def _composer_resume(
     return " ".join(phrases)
 
 
+def _valider_zone(zone_desservie: Sequence[str]) -> list[str]:
+    """La zone du profil : une séquence (liste, tuple, ensemble) de noms de villes non vides, jamais une chaîne."""
+    if isinstance(zone_desservie, (str, bytes)) or not isinstance(zone_desservie, (Sequence, Set)):
+        raise ValueError(
+            "REJ-VOICEMAIL-ZONE: la zone desservie du profil doit être une séquence de villes non vides "
+            "(liste, tuple ou ensemble de chaînes), jamais une chaîne ni un itérable unique"
+        )
+    villes = list(zone_desservie)
+    if not villes or any(not isinstance(ville, str) or not ville.strip() for ville in villes):
+        raise ValueError(
+            "REJ-VOICEMAIL-ZONE: la zone desservie du profil est requise et chaque ville doit être une chaîne non vide"
+        )
+    return villes
+
+
 def analyser(
     transcription: str,
     *,
@@ -148,14 +230,14 @@ def analyser(
     """Ce que la transcription établit, sans rien inventer. Lève `ValueError` sur une entrée inutilisable.
 
     `services` : les services DÉCLARÉS par le profil (`opsys.taxonomie.Service`), jamais une liste locale.
-    `zone_desservie` : les villes de la zone déclarée par le profil, requise et non vide.
+    `zone_desservie` : les villes de la zone déclarée par le profil, requise et non vide (liste, tuple ou
+    ensemble de chaînes ; une chaîne est refusée plutôt que lue lettre par lettre).
     """
     if not isinstance(transcription, str) or not transcription.strip():
         raise ValueError("REJ-VOICEMAIL-TRANSCRIPTION-VIDE: une transcription non vide est requise")
     if not isinstance(telephone, str) or not re.fullmatch(r"\+[1-9][0-9]{6,14}", telephone):
         raise ValueError("REJ-VOICEMAIL-TELEPHONE: un numéro E.164 de l'appel est requis")
-    if not zone_desservie:
-        raise ValueError("REJ-VOICEMAIL-ZONE: la zone desservie du profil est requise")
+    zone_desservie = _valider_zone(zone_desservie)
     diagnostic = qualification.diagnostiquer(
         transcription, zone_desservie, services, contact_canal={"telephone": telephone}
     )
@@ -177,7 +259,7 @@ def analyser(
         "urgence": diagnostic["urgence_declaree"],
     }
     manquants = [champ for champ in ("nom", "service", "ville", "adresse") if extraction[champ] is None]
-    demande_rappel = _DEMANDE_RAPPEL.search(transcription) is not None
+    demande_rappel = _demande_rappel(transcription)
     return {
         "extraction": extraction,
         "services_evoques": list(diagnostic["services_evoques"]),

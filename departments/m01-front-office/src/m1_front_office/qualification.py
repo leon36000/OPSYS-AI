@@ -16,14 +16,32 @@ from . import verdicts
 # par l'appelant à chaque appel (paramètre zone_desservie de qualifier()),
 # jamais inventée ni figée ici.
 
-# Marqueurs d'urgence explicites (jamais inférés)
+# Marqueurs d'urgence explicites (jamais inférés). `urgent` et `urgence` sont lus EN MOT ENTIER
+# (jamais « urgentiste ») avec leurs formes fléchies (« urgente », « urgences »). Une négation
+# explicite (« aucune urgence », « pas urgent », « sans fuite », « rien d'urgent ») annule le
+# marqueur ; une expression de lieu (« aux urgences de Laval », « à l'urgence ») n'en est pas un.
 _URGENCE_PATTERNS = [
-    re.compile(r"urgent", re.IGNORECASE),
-    re.compile(r"urgence", re.IGNORECASE),
-    re.compile(r"au\s+plus\s+vite", re.IGNORECASE),
-    re.compile(r"d[ée]g[âa]t\s+d['’]?eau", re.IGNORECASE),
+    re.compile(r"\burgent(?:s|e|es)?\b", re.IGNORECASE),
+    re.compile(r"\burgences?\b", re.IGNORECASE),
+    re.compile(r"\bau\s+plus\s+vite\b", re.IGNORECASE),
+    re.compile(r"\bd[ée]g[âa]t\s+d['’]?eau\b", re.IGNORECASE),
     re.compile(r"\bfuite\b", re.IGNORECASE),
 ]
+_MOTIF_URGENCE = re.compile(r"\burgences?\b", re.IGNORECASE)
+# La négation ne porte que sur la proposition courante : on coupe le préfixe à la dernière
+# ponctuation forte ou virgule. Le groupe final exige que la négation touche le marqueur.
+_NEGATION_AVANT = re.compile(
+    r"(?:\bne\b|\bn['’])\s*(?:[\wÀ-ÿ'’\-]+\s+){0,5}$"
+    r"|\b(?:aucun(?:e)?|pas|sans|jamais|rien|ni)\s+"
+    r"(?:(?:de|d['’]|une?|tr[èe]s|vraiment|du\s+tout)\s*)*$",
+    re.IGNORECASE,
+)
+_LIEU_AVANT = re.compile(
+    r"(?:\b(?:aux|au|des|les)\s*|\b(?:à|a)\s+l['’]\s*)$", re.IGNORECASE
+)
+_LIEU_APRES = re.compile(
+    r"^\s+(?:de|du|des|d['’])\s+(?:l['’])?\s*(?:h[oô]pital|hopital|chu|clsc|centre)\b", re.IGNORECASE
+)
 
 # Marqueur de neutralisation posé par S005, à ignorer
 _MARQUEUR = re.compile(r"\[CONTENU_NON_FIABLE\]", re.IGNORECASE)
@@ -233,9 +251,34 @@ def _raison_du_champ(champ: str, diagnostic: dict) -> str:
     return "aucun téléphone ni courriel : demander comment joindre le client"
 
 
+def _proposition_avant(contenu: str, position: int) -> str:
+    """Le texte de la proposition courante avant `position` (coupé à la dernière ponctuation ou virgule)."""
+    return re.split(r"[.!?;,\n]", contenu[:position])[-1]
+
+
+def _negation_avant(contenu: str, position: int) -> bool:
+    """Vrai si une négation explicite touche le marqueur qui commence à `position`."""
+    return _NEGATION_AVANT.search(_proposition_avant(contenu, position)) is not None
+
+
+def _urgence_lieu(contenu: str, trouve: re.Match) -> bool:
+    """Vrai si « urgence(s) » désigne un lieu (« aux urgences de Laval ») plutôt qu'un état urgent."""
+    avant = _proposition_avant(contenu, trouve.start())
+    if _LIEU_AVANT.search(avant):
+        return True
+    return _LIEU_APRES.search(contenu[trouve.end():]) is not None
+
+
 def _extraire_urgence(contenu: str) -> bool:
-    """Détecte la présence d'un marqueur d'urgence explicite."""
-    return any(p.search(contenu) for p in _URGENCE_PATTERNS)
+    """Détecte un marqueur d'urgence explicite que ni une négation ni une expression de lieu n'annule."""
+    for motif in _URGENCE_PATTERNS:
+        for trouve in motif.finditer(contenu):
+            if _negation_avant(contenu, trouve.start()):
+                continue
+            if _MOTIF_URGENCE.fullmatch(trouve.group()) and _urgence_lieu(contenu, trouve):
+                continue
+            return True
+    return False
 
 
 def _extraire_contact(contenu: str) -> dict | None:
@@ -250,6 +293,21 @@ def _extraire_contact(contenu: str) -> dict | None:
     if courriel:
         contact["courriel"] = courriel
     return contact if contact else None
+
+
+def telephones_du_texte(contenu_filtre: str) -> list[str]:
+    """Tous les téléphones que le client a ÉCRITS, dans l'ordre et sans doublon (texte brut).
+
+    Sert au voicemail : le premier numéro peut être celui de l'appelant, le numéro de rappel est
+    alors le premier numéro DIFFÉRENT (`voicemail_intelligent._telephone_mentionne`)."""
+    vus: set[str] = set()
+    telephones = []
+    for trouve in _PHONE_REGEX.finditer(_clean(contenu_filtre)):
+        brut = trouve.group().strip()
+        if brut and brut not in vus:
+            vus.add(brut)
+            telephones.append(brut)
+    return telephones
 
 
 def contact_du_texte(contenu_filtre: str) -> dict | None:
