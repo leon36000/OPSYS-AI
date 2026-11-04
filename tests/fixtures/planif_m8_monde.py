@@ -172,6 +172,8 @@ def monter(tmp_path: Any, monkeypatch: Any, declarer_services: Any, *, url: str 
     chemin_manifeste = tmp_path / "m5-department-fictif.yaml"
     chemin_manifeste.write_text(yaml.safe_dump(manifeste, allow_unicode=True), encoding="utf-8")
     monkeypatch.setattr(m5_outils, "_MANIFESTE", chemin_manifeste)
+    # les travailleurs multi-processus (`spawn`) relisent le manifeste : ils le trouvent par cette variable
+    monkeypatch.setenv("OPSYS_TEST_M5_MANIFESTE", str(chemin_manifeste))
     horloge = pq.Horloge(DEBUT.timestamp())
     planificateur.reinitialiser_arret()
     plan = pq.Planif(horloge, Ports(horloge=horloge), bus.departements)
@@ -351,8 +353,18 @@ def semer_m5_tresorerie(monde: Monde, tmp_path: Any, monkeypatch: Any) -> dict[s
 
     aide = _charger("planif_aide_m5", RACINE / "departments/m05-financecore/tests/test_constat_cash_libre_outils.py")
     manifeste = tmp_path / "department-m5-fictif.yaml"
-    manifeste.write_text(yaml.safe_dump({"configuration": aide.CONFIGURATION_COMPLETE}, allow_unicode=True),
-                         encoding="utf-8")
+    # + la déclaration de la prévision (horizon, seuil, délais, échéances : valeurs FICTIVES de l'essai) : sans elle le
+    # constat « tresorerie-prevue » dirait honnêtement « horizon à configurer » et le monde n'aurait pas d'« ok ».
+    prevision = {
+        "horizon_semaines": 6,
+        "seuil_alerte": {"montant": "16000.00", "source": "décision de Nathan (fictive)", "au": "2026-09-25"},
+        "delai_encaissement_clients_jours": 30,
+        "delai_paiement_fournisseurs_jours": 30,
+        "echeances_obligations": {"paies": "2026-10-09", "das": "2026-10-15", "dettes": "2026-10-31"},
+    }
+    manifeste.write_text(
+        yaml.safe_dump({"configuration": {**aide.CONFIGURATION_COMPLETE, "prevision": prevision}}, allow_unicode=True),
+        encoding="utf-8")
     monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
     taux, erreurs = taux_fiscaux.charger_taux_fiscaux(m5_outils._CHEMIN_TAUX_FISCAUX)
     assert erreurs == []

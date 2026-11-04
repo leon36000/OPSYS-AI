@@ -36,6 +36,8 @@ def _departements() -> dict[str, Any]:
     m1.utiliser_stockage_durable()
     m2.utiliser_stockage_durable()
     m5.utiliser_stockage_durable()
+    if os.environ.get("OPSYS_TEST_M5_MANIFESTE"):  # le manifeste FICTIF du monde de test (horizon de prévision déclaré)
+        m5._MANIFESTE = Path(os.environ["OPSYS_TEST_M5_MANIFESTE"])
     return charger_departements(RACINE / "departments")
 
 
