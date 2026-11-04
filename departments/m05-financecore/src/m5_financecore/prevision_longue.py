@@ -194,6 +194,12 @@ def _mois_valide(brut: Any) -> tuple[int, int] | None:
     return (annee, mois) if 1900 <= annee <= 2999 and 1 <= mois <= 12 else None
 
 
+def _fenetre_dates_valide(jour: date, horizon: int, historique: int) -> bool:
+    """La plage acceptée par les lecteurs de mois contient toute la fenêtre demandée."""
+    mois_courant = jour.year * 12 + jour.month - 1
+    return mois_courant - historique >= 1900 * 12 and mois_courant + horizon <= 2999 * 12 + 11
+
+
 def _mois_de(jour: date) -> str:
     return f"{jour.year:04d}-{jour.month:02d}"
 
@@ -544,9 +550,7 @@ def calculer(
     assert configuration_lue is not None
     # Les helpers de mois acceptent 1900–2999 : refuser toute fenêtre qui
     # dépasserait cette plage avant de construire les mois ou leurs dates.
-    mois_courant = jour.year * 12 + jour.month - 1
-    if (mois_courant - configuration_lue["mois_historique"] < 1900 * 12
-            or mois_courant + horizon_mois > 2999 * 12 + 11):
+    if not _fenetre_dates_valide(jour, horizon_mois, configuration_lue["mois_historique"]):
         return None, _verdict(
             "REJ-PREVISION-LONGUE-DATE-INVALIDE",
             "la fenêtre historique et l'horizon doivent rester entre 1900-01 et 2999-12",

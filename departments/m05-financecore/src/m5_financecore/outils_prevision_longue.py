@@ -338,16 +338,21 @@ def prevoir_tresorerie_longue(
     configuration = _configuration()
     if configuration is None:
         return refuse(_verdict("REJ-PREVISION-LONGUE-A-DECLARER", _A_DECLARER))
-    ctx, refus = _contexte()
-    if refus is not None:
-        return refuse(refus)
-    assert ctx is not None
     nombre_historique = configuration.get("mois_historique") if isinstance(configuration, Mapping) else None
     if type(nombre_historique) is not int or not 3 <= nombre_historique <= 24:
         return refuse(_verdict(
             "REJ-PREVISION-LONGUE-MOIS-HISTORIQUE-INVALIDE",
             "mois_historique : entier de 3 à 24 (mois complets avant le mois courant)",
         ))
+    if not prevision_longue._fenetre_dates_valide(jour, horizon_mois, nombre_historique):
+        return refuse(_verdict(
+            "REJ-PREVISION-LONGUE-DATE-INVALIDE",
+            "la fenêtre historique et l'horizon doivent rester entre 1900-01 et 2999-12",
+        ))
+    ctx, refus = _contexte()
+    if refus is not None:
+        return refuse(refus)
+    assert ctx is not None
     mois = _mois_projetes(jour, horizon_mois)
     _, fin_horizon = _premier_et_dernier(mois[-1])
     historique, refus = _lire_historique(ctx["etat"], ctx["plan"], _mois_historique(jour, nombre_historique))

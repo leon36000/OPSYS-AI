@@ -402,3 +402,24 @@ def test_les_modules_sont_couverts_par_la_garde_anti_decaissement():
     assert "verdicts_prevision_longue" in conformite._SURVEILLE_SANS_DECAISSEMENT
     assert "outils_prevision_longue" in conformite._SURVEILLE_EN_LECTURE_SEULE
     assert conformite.verifier_aucun_decaissement(racine) == (True, "")
+
+
+@pytest.mark.parametrize("aujourd_hui", ["2999-12-31", "9999-12-01"])
+def test_l_outil_refuse_une_fenetre_hors_plage_avant_de_lire_l_historique(
+    par_nom, cas_fictif, aujourd_hui, monkeypatch
+):
+    from m5_financecore import outils_prevision_longue
+
+    appels = []
+    original = outils_prevision_longue._lire_historique
+
+    def noter_lecture(*arguments):
+        appels.append(True)
+        return original(*arguments)
+
+    monkeypatch.setattr(outils_prevision_longue, "_lire_historique", noter_lecture)
+    verdict = refus(appeler(
+        par_nom, "m5_prevoir_tresorerie_longue", {"aujourd_hui": aujourd_hui, "horizon_mois": 6}
+    ))
+    assert verdict["code"] == "REJ-PREVISION-LONGUE-DATE-INVALIDE"
+    assert not appels
