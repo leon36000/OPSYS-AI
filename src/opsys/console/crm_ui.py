@@ -211,6 +211,7 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str, re
         )
     return (
         '<section class="carte"><h2>Répertoire clients et prospects</h2>'
+        f'<p><a href="{pages.e(prefixe)}/crm/pipeline">Pipeline commercial (aperçu)</a></p>'
         f'<p><a href="{pages.e(prefixe)}/crm/cedule">Cédule hebdomadaire des équipes</a></p>'
         f'<p><a href="{pages.e(prefixe)}/crm/agenda">Agenda des vendeurs</a></p>'
         '<p class="note">Lecture seule : recherche dans M2, sur tous les dossiers autorisés avant pagination. '
@@ -219,6 +220,135 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str, re
         + filtre + "".join(notes) + corps
         + (f"<p>{' · '.join(navigation)}</p>" if navigation else "")
         + "</section>"
+    )
+
+
+def _lien_pipeline(prefixe: str, decalages: Mapping[str, int]) -> str:
+    requete = [
+        f"decalage_{pages._segment(statut)}={decalages[statut]}"
+        for statut in STATUTS if decalages.get(statut, 0)
+    ]
+    return f"{pages.e(prefixe)}/crm/pipeline" + (("?" + "&amp;".join(requete)) if requete else "")
+
+
+def _valider_page_pipeline(page: Any, *, statut: str, decalage: int) -> Mapping[str, Any]:
+    """Une page illisible n'est jamais rendue comme une colonne vide."""
+    if not isinstance(page, Mapping):
+        raise ValueError("page M2 indisponible")
+    leads = page.get("leads")
+    total = page.get("total")
+    filtre = page.get("filtre")
+    suivant = page.get("suivant")
+    if (not isinstance(leads, list) or not isinstance(total, int) or isinstance(total, bool) or total < 0
+            or not isinstance(page.get("decalage"), int) or isinstance(page.get("decalage"), bool)
+            or page["decalage"] != decalage or not isinstance(filtre, Mapping) or filtre.get("statut") != statut
+            or len(leads) > LIMITE_PAGE):
+        raise ValueError("page M2 indisponible")
+    if any(not isinstance(lead, Mapping) or not isinstance(lead.get("lead_id"), str) or not lead["lead_id"]
+           or lead.get("statut") != statut for lead in leads):
+        raise ValueError("page M2 indisponible")
+    fin_page = decalage + len(leads)
+    if (leads and fin_page > total) or (not leads and decalage < total):
+        raise ValueError("page M2 indisponible")
+    if (suivant is not None and (not isinstance(suivant, int) or isinstance(suivant, bool)
+                                 or suivant <= decalage or suivant != fin_page or suivant >= total)
+            or suivant is None and decalage + len(leads) < total):
+        raise ValueError("page M2 indisponible")
+    return page
+
+
+def contenu_pipeline(
+    pages_par_statut: Mapping[str, Mapping[str, Any]], *, decalages: Mapping[str, int], prefixe: str,
+) -> str:
+    """Aperçu par colonnes de statuts. Les données et les totaux restent ceux de chaque réponse M2."""
+    colonnes = []
+    non_calculables: set[str] = set()
+    suites_hors_borne: list[str] = []
+    for statut, libelle in STATUTS.items():
+        decalage = decalages.get(statut, 0)
+        page = _valider_page_pipeline(pages_par_statut.get(statut), statut=statut, decalage=decalage)
+        leads = page["leads"]
+        total = page["total"]
+        non_calculables.update(_noms_segments(page.get("segments_non_calculables")))
+        cartes = []
+        for lead in leads:
+            if not isinstance(lead, Mapping) or not isinstance(lead.get("lead_id"), str):
+                continue
+            detail = [
+                f'<p class="code">{_lien_dossier(lead["lead_id"], prefixe)}</p>',
+                f'<p>Travaux : {_texte(lead.get("travaux"))}</p>',
+                f'<p>Ville : {_texte(lead.get("ville"))}</p>',
+                f'<p>Propriétaire : {_texte(lead.get("proprietaire"))}</p>',
+            ]
+            action = lead.get("prochaine_action")
+            if isinstance(action, Mapping):
+                detail.append(f'<p>Prochaine action : {_action(action)}</p>')
+            else:
+                detail.append('<p>Prochaine action : non précisée par M2.</p>')
+            segments = _noms_segments(lead.get("segments"))
+            if segments:
+                detail.append(f'<p>Segments M2 : {pages.e(", ".join(segments))}</p>')
+            cartes.append('<li class="pipeline-lead">' + "".join(detail) + "</li>")
+
+        ancre = f"#pipeline-{pages.e(statut)}"
+        navigation = []
+        if decalage:
+            debut = dict(decalages)
+            debut[statut] = 0
+            navigation.append(
+                f'<a aria-label="Début — {pages.e(libelle)}" href="{_lien_pipeline(prefixe, debut)}{ancre}">'
+                f'Début — {pages.e(libelle)}</a>'
+            )
+        suivant = page.get("suivant")
+        if isinstance(suivant, int) and not isinstance(suivant, bool) and suivant <= DECALAGE_MAX:
+            suite = dict(decalages)
+            suite[statut] = suivant
+            navigation.append(
+                f'<a aria-label="Page suivante — {pages.e(libelle)}" '
+                f'href="{_lien_pipeline(prefixe, suite)}{ancre}">Page suivante — {pages.e(libelle)}</a>'
+            )
+        elif isinstance(suivant, int) and not isinstance(suivant, bool) and suivant > DECALAGE_MAX:
+            suites_hors_borne.append(libelle)
+        if cartes:
+            liste = "<ul class=\"pipeline-liste\">" + "".join(cartes) + "</ul>"
+            repere_page = f'<p class="note">Page à partir du dossier {decalage + 1}.</p>'
+        elif decalage >= total and total > 0:
+            liste = pages._vide(f"Page vide hors plage; M2 indique {total} dossier(s) au total.")
+            repere_page = '<p class="note">La page demandée ne contient aucune ligne.</p>'
+        elif decalage > 0:
+            liste = pages._vide("Page vide hors plage; M2 ne rapporte aucun dossier.")
+            repere_page = '<p class="note">La page demandée ne contient aucune ligne.</p>'
+        else:
+            liste = pages._vide("Aucun dossier dans cette colonne selon M2.")
+            repere_page = ""
+        colonnes.append(
+            f'<section class="carte pipeline-colonne" aria-labelledby="pipeline-{pages.e(statut)}">'
+            f'<h2 id="pipeline-{pages.e(statut)}">{pages.e(libelle)} · {total}</h2>'
+            f'{repere_page}{liste}'
+            + (f'<p class="actions">{" · ".join(navigation)}</p>' if navigation else "")
+            + "</section>"
+        )
+
+    notes = []
+    if suites_hors_borne:
+        notes.append(
+            '<p class="note">M2 indique des résultats au-delà de la limite de pagination de la console pour : '
+            f'{pages.e(", ".join(suites_hors_borne))}. La suite n’est pas accessible depuis cette vue.</p>'
+        )
+    if non_calculables:
+        notes.append(
+            '<p class="note">Segments non calculables selon M2 : '
+            f'{pages.e(", ".join(sorted(non_calculables)))}. Ils ne sont pas traités comme des résultats négatifs.</p>'
+        )
+    return (
+        '<section class="carte"><h2>Aperçu en lecture seule</h2>'
+        '<p class="note">Vue partielle : chaque colonne montre une page fournie par M2. Les colonnes sont lues '
+        'séparément et peuvent refléter des instants différents. La pagination par décalage ne fige pas le registre; '
+        'après une modification concurrente, une ligne peut changer de colonne, se répéter ou manquer jusqu’au '
+        'rafraîchissement. Aucun SLA, rappel, doublon ou prévision n’est calculé ici.</p>'
+        + "".join(notes)
+        + '</section><div class="pipeline-board" role="region" aria-label="Leads par statut" tabindex="0">'
+        + "".join(colonnes) + "</div>"
     )
 
 
@@ -568,6 +698,34 @@ def creer_router(
         page = lire(session, "m2_lister_leads", arguments)
         return rendre(session, "Répertoire CRM",
                       contenu_repertoire(page, statut=statut, prefixe=prefixe, recherche=recherche))
+
+    @router.get("/crm/pipeline", response_class=HTMLResponse)
+    def pipeline(request: Request) -> Response:
+        session = session_page(request)
+        parametres = request.query_params
+        cles = {f"decalage_{statut}" for statut in STATUTS}
+        if set(parametres) - cles or any(len(parametres.getlist(cle)) > 1 for cle in parametres):
+            raise HTTPException(400, "requête invalide")
+        decalages: dict[str, int] = {}
+        for statut in STATUTS:
+            brut = parametres.get(f"decalage_{statut}", "0")
+            if (len(brut) > len(str(DECALAGE_MAX)) or not brut.isascii() or not brut.isdigit()
+                    or int(brut) > DECALAGE_MAX):
+                raise HTTPException(400, "requête invalide")
+            decalages[statut] = int(brut)
+        pages_par_statut = {}
+        for statut in STATUTS:
+            try:
+                pages_par_statut[statut] = _valider_page_pipeline(lire(session, "m2_lister_leads", {
+                "statut": statut, "decalage": decalages[statut], "limite": LIMITE_PAGE,
+                }), statut=statut, decalage=decalages[statut])
+            except ValueError:
+                raise HTTPException(503, "CRM temporairement indisponible") from None
+        try:
+            contenu = contenu_pipeline(pages_par_statut, decalages=decalages, prefixe=prefixe)
+        except ValueError:
+            raise HTTPException(503, "CRM temporairement indisponible") from None
+        return rendre(session, "Pipeline commercial", contenu)
 
     @router.get("/crm/cedule", response_class=HTMLResponse)
     def cedule_semaine(request: Request) -> Response:

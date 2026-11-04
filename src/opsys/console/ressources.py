@@ -48,6 +48,14 @@ section > h2 { margin-bottom: .75rem; }
 .note { font-size: .9em; margin: 0; }
 .vide { color: var(--attenue); font-style: italic; }
 .grille { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.pipeline-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(18rem, 22rem); gap: 1rem;
+  max-width: 100%; overflow-x: auto; padding: .25rem .1rem 1rem; }
+.pipeline-board:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pipeline-colonne { align-self: start; scroll-snap-align: start; }
+.pipeline-liste { display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
+.pipeline-lead { padding: .75rem; border: 1px solid var(--bordure); border-radius: var(--rayon);
+  background: var(--fond); }
+.pipeline-lead > p { margin: .2rem 0; }
 .carte { display: flex; flex-direction: column; gap: .75rem; padding: 1rem; background: var(--surface);
   border: 1px solid var(--bordure); border-radius: var(--rayon); }
 .carte p { margin: 0; }

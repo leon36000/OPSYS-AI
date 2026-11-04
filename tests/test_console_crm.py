@@ -134,6 +134,192 @@ def test_repertoire_liste_les_leads_de_m2_avec_lien_dossier_et_heure_de_montreal
     assert "alert(1)" not in page.text  # le nom du contact n'est pas dans la liste
 
 
+def test_pipeline_lecture_seule_presentant_les_colonnes_m2_et_leurs_limites(client_crm, session):
+    _connecter(client_crm, "admin.fictif")
+    ville_piege = "Québec <img src=x onerror=alert(1)>"
+    contrat = _contrat("lead-pipeline-xss-fictif", _contact("Contact FICTIF", "xss@example.test"))
+    contrat["ville"] = ville_piege
+    with session():
+        assert outils_m2.ingerer_lead(contrat, H0)["accepte"] is True
+    avant = _instantane_base(session)
+
+    page = client_crm.get("/crm/pipeline")
+
+    assert page.status_code == 200, page.text
+    assert page.headers["cache-control"] == "no-store"
+    assert "Pipeline commercial" in page.text
+    assert "Vue partielle" in page.text and "lues séparément" in page.text
+    assert "ne fige pas le registre" in page.text and "se répéter ou manquer" in page.text
+    assert "lead-pipeline-xss-fictif" in page.text
+    assert "Québec &lt;img src=x onerror=alert(1)&gt;" in page.text
+    assert "Québec <img" not in page.text
+    assert "Nouveau" in page.text and "Qualifié" in page.text and "Perdu" in page.text
+    assert _instantane_base(session) == avant
+
+
+def test_pipeline_refuse_les_sessions_non_admin(client_crm):
+    for utilisateur in (None, "employe", "nathan"):
+        if utilisateur:
+            _connecter(client_crm, utilisateur)
+        refus = client_crm.get("/crm/pipeline", follow_redirects=False)
+        if utilisateur is None:
+            assert refus.status_code == 303 and refus.headers["location"].endswith("/connexion")
+        else:
+            assert refus.status_code == 403
+            assert "lead-fictif-001" not in refus.text
+            assert "example.test" not in refus.text
+
+
+def test_pipeline_pagine_chaque_colonne_independamment(client_crm, monkeypatch):
+    _connecter(client_crm, "admin.fictif")
+    appels = []
+
+    def lire_fictive(cnx, deps, session, nom, arguments):
+        assert nom == "m2_lister_leads"
+        appels.append(dict(arguments))
+        statut = arguments["statut"]
+        decalage = arguments["decalage"]
+        resultat = {
+            "leads": [{"lead_id": f"lead-{statut}-{i}-fictif", "statut": statut,
+                       "travaux": "FICTIF", "ville": "Québec"} for i in range(20)],
+            "total": 41,
+            "decalage": decalage,
+            "suivant": decalage + 20,
+            "filtre": {"statut": statut, "segment": None},
+            "segments_non_calculables": [],
+        }
+        return {"ok": True, "resultat": {"accepte": True, "resultat": resultat}}
+
+    monkeypatch.setattr(crm_ui.metier, "executer", lire_fictive)
+    page = client_crm.get("/crm/pipeline?decalage_nouveau=20&decalage_qualifie=20")
+
+    assert page.status_code == 200, page.text
+    assert len(appels) == len(statuts_m2.STATUTS)
+    assert {appel["statut"] for appel in appels} == set(statuts_m2.STATUTS)
+    assert all(appel["limite"] == crm_ui.LIMITE_PAGE for appel in appels)
+    assert next(a["decalage"] for a in appels if a["statut"] == "nouveau") == 20
+    assert next(a["decalage"] for a in appels if a["statut"] == "qualifie") == 20
+    assert "decalage_nouveau=20&amp;decalage_qualifie=40" in page.text
+    assert "Prochaine action : non précisée par M2." in page.text
+    assert client_crm.get("/crm/pipeline?decalage_inexistant=20").status_code == 400
+
+
+@pytest.mark.parametrize("malforme", ["leads_absent", "leads_mauvais_type", "total_absent", "total_mauvais_type"])
+def test_pipeline_refuse_page_m2_incomplete_au_lieu_de_simuler_vide(client_crm, monkeypatch, malforme):
+    _connecter(client_crm, "admin.fictif")
+    page_m2 = {"leads": [], "total": 0, "decalage": 0, "suivant": None,
+               "filtre": {"statut": "nouveau"}, "segments_non_calculables": []}
+    if malforme == "leads_absent":
+        del page_m2["leads"]
+    elif malforme == "leads_mauvais_type":
+        page_m2["leads"] = None
+    elif malforme == "total_absent":
+        del page_m2["total"]
+    else:
+        page_m2["total"] = "0"
+
+    def lire_incomplete(cnx, deps, session, nom, arguments):
+        return {"ok": True, "resultat": {"accepte": True, "resultat": page_m2}}
+
+    monkeypatch.setattr(crm_ui.metier, "executer", lire_incomplete)
+    reponse = client_crm.get("/crm/pipeline")
+
+    assert reponse.status_code == 503
+    assert "Aucun dossier" not in reponse.text
+
+
+@pytest.mark.parametrize("page_m2", [
+    {"leads": [{"ville": "Québec"}], "total": 1, "decalage": 0, "suivant": None,
+     "filtre": {"statut": "nouveau"}},
+    {"leads": [], "total": 5, "decalage": 40, "suivant": None,
+     "filtre": {"statut": "nouveau"}},
+    {"leads": [{"lead_id": "lead-fictif-1", "statut": "nouveau"}], "total": 41,
+     "decalage": 20, "suivant": 0, "filtre": {"statut": "nouveau"}},
+    {"leads": [{"lead_id": "lead-fictif-1", "statut": "nouveau"}], "total": 41,
+     "decalage": 0, "suivant": "1", "filtre": {"statut": "nouveau"}},
+])
+def test_pipeline_refuse_ligne_malformee_hors_plage_incoherente_ou_suivant_reculant(
+    client_crm, monkeypatch, page_m2,
+):
+    _connecter(client_crm, "admin.fictif")
+
+    def lire_incoherente(cnx, deps, session, nom, arguments):
+        page = dict(page_m2)
+        page["filtre"] = {"statut": arguments["statut"]}
+        return {"ok": True, "resultat": {"accepte": True, "resultat": page}}
+
+    monkeypatch.setattr(crm_ui.metier, "executer", lire_incoherente)
+    decalage = f"?decalage_nouveau={page_m2['decalage']}" if page_m2["decalage"] else ""
+    reponse = client_crm.get("/crm/pipeline" + decalage)
+    assert reponse.status_code == 503
+    assert "Aucun dossier" not in reponse.text
+
+
+def test_pipeline_nomme_page_vide_et_hors_plage_sans_faux_numero(client_crm, monkeypatch):
+    _connecter(client_crm, "admin.fictif")
+    decalage = 40
+
+    def lire_hors_plage(cnx, deps, session, nom, arguments):
+        offset = decalage if arguments["statut"] == "nouveau" else 0
+        return {"ok": True, "resultat": {"accepte": True, "resultat": {
+            "leads": [], "total": 5 if offset else 0, "decalage": offset, "suivant": None,
+            "filtre": {"statut": arguments["statut"]},
+        }}}
+
+    monkeypatch.setattr(crm_ui.metier, "executer", lire_hors_plage)
+    reponse = client_crm.get("/crm/pipeline?decalage_nouveau=40")
+    assert reponse.status_code == 200
+    assert "Page vide hors plage" in reponse.text
+    assert "dossier 41" not in reponse.text
+    assert "dossier 1." not in reponse.text
+    assert "Nouveau · 5" in reponse.text
+    assert "Aucun dossier dans cette colonne selon M2." in reponse.text
+
+
+def test_pipeline_liens_pagination_identifient_colonne_et_ancrent_la_destination(client_crm, monkeypatch):
+    _connecter(client_crm, "admin.fictif")
+
+    def lire_paginee(cnx, deps, session, nom, arguments):
+        statut = arguments["statut"]
+        return {"ok": True, "resultat": {"accepte": True, "resultat": {
+            "leads": [{"lead_id": f"lead-{statut}-fictif", "statut": statut}],
+            "total": 2, "decalage": 0, "suivant": 1,
+            "filtre": {"statut": statut},
+        }}}
+
+    monkeypatch.setattr(crm_ui.metier, "executer", lire_paginee)
+    reponse = client_crm.get("/crm/pipeline")
+    assert reponse.status_code == 200
+    assert 'aria-label="Page suivante — Nouveau"' in reponse.text
+    assert 'aria-label="Page suivante — Qualifié"' in reponse.text
+    assert "#pipeline-nouveau" in reponse.text
+    assert "#pipeline-qualifie" in reponse.text
+    assert ">Page suivante — Nouveau</a>" in reponse.text
+
+
+def test_pipeline_signale_suite_m2_au_dela_du_decalage_maximal_sans_lien_casse(client_crm, monkeypatch):
+    _connecter(client_crm, "admin.fictif")
+    decalage_max = crm_ui.DECALAGE_MAX
+
+    def lire_longue(cnx, deps, session, nom, arguments):
+        statut = arguments["statut"]
+        decalage = decalage_max if statut == "nouveau" else 0
+        total = decalage_max + 100 if statut == "nouveau" else 0
+        leads = ([{"lead_id": f"lead-long-{i}-fictif", "statut": statut} for i in range(20)]
+                 if statut == "nouveau" else [])
+        suivant = decalage + len(leads) if leads and decalage + len(leads) < total else None
+        return {"ok": True, "resultat": {"accepte": True, "resultat": {
+            "leads": leads, "total": total, "decalage": decalage, "suivant": suivant,
+            "filtre": {"statut": statut},
+        }}}
+
+    monkeypatch.setattr(crm_ui.metier, "executer", lire_longue)
+    reponse = client_crm.get(f"/crm/pipeline?decalage_nouveau={decalage_max}")
+    assert reponse.status_code == 200
+    assert "M2 indique des résultats au-delà de la limite de pagination de la console" in reponse.text
+    assert f"decalage_nouveau={decalage_max + 20}" not in reponse.text
+
+
 def test_filtre_par_statut_et_parametres_invalides(client_crm):
     _connecter(client_crm, "admin.fictif")
     qualifies = client_crm.get("/crm?statut=qualifie")
