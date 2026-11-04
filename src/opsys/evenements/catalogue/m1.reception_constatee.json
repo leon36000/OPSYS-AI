@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.reception_constatee",
+  "title": "M1 — Métriques de réception sur une période",
+  "description": "Émis par M1 (outils.py::constater_reception, M1-H) quand l'agent CONSTATE la réception d'une période. Agrégats DÉTERMINISTES du registre anti-perte : délai médian/maximal jusqu'à la première prise en charge humaine (échantillon et transferts en attente), part des appels manqués rappelés, leads par service et par ville. Chaque métrique porte un ÉTAT : une source absente donne NON_EVALUEE et une valeur null, JAMAIS zéro. Hors zone et photos reçues sont NON_EVALUÉES tant que M1 n'a pas la source. Aucun contact, aucun texte, aucun identifiant de lead, aucune conversation. evenement_id déterministe m1-reception-<date>-<jours>-<empreinte[:16]> : un rejeu sur le même registre est un no-op. Consommateur visé : M8 (mesures de réception).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "jours": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 92
+    },
+    "periode": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "debut": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "fin": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      },
+      "required": [
+        "debut",
+        "fin"
+      ]
+    },
+    "delai_premiere_prise_en_charge_s": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statut": {
+          "type": "string",
+          "enum": [
+            "CALCULEE",
+            "NON_EVALUEE"
+          ]
+        },
+        "motif": {
+          "enum": [
+            "AUCUN_TRANSFERT",
+            "AUCUNE_PRISE_EN_CHARGE",
+            null
+          ]
+        },
+        "median_s": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "max_s": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "echantillon": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "en_attente": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "statut",
+        "motif",
+        "median_s",
+        "max_s",
+        "echantillon",
+        "en_attente"
+      ]
+    },
+    "appels_manques_rappeles_pct": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statut": {
+          "type": "string",
+          "enum": [
+            "CALCULEE",
+            "NON_EVALUEE"
+          ]
+        },
+        "motif": {
+          "enum": [
+            "AUCUN_APPEL_MANQUE",
+            null
+          ]
+        },
+        "valeur": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9]+\\.[0-9]{2}$"
+        },
+        "numerateur": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "denominateur": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "statut",
+        "motif",
+        "valeur",
+        "numerateur",
+        "denominateur"
+      ]
+    },
+    "leads_par_service": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statut": {
+          "type": "string",
+          "enum": [
+            "CALCULEE",
+            "NON_EVALUEE"
+          ]
+        },
+        "motif": {
+          "enum": [
+            "AUCUN_SIGNAL",
+            null
+          ]
+        },
+        "comptes": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "total": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "statut",
+        "motif",
+        "comptes",
+        "total"
+      ]
+    },
+    "leads_par_ville": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statut": {
+          "type": "string",
+          "enum": [
+            "CALCULEE",
+            "NON_EVALUEE"
+          ]
+        },
+        "motif": {
+          "enum": [
+            "AUCUN_SIGNAL",
+            null
+          ]
+        },
+        "comptes": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "total": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "statut",
+        "motif",
+        "comptes",
+        "total"
+      ]
+    },
+    "hors_zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statut": {
+          "type": "string",
+          "enum": [
+            "NON_EVALUEE"
+          ]
+        },
+        "motif": {
+          "const": "HORS_ZONE_NON_TRACE"
+        },
+        "valeur": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "statut",
+        "motif",
+        "valeur"
+      ]
+    },
+    "photos_recues_pct": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statut": {
+          "type": "string",
+          "enum": [
+            "NON_EVALUEE"
+          ]
+        },
+        "motif": {
+          "const": "PHOTOS_NON_TRACEES"
+        },
+        "valeur": {
+          "type": "null"
+        },
+        "numerateur": {
+          "type": "null"
+        },
+        "denominateur": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "statut",
+        "motif",
+        "valeur",
+        "numerateur",
+        "denominateur"
+      ]
+    },
+    "empreinte_contenu": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "evenement_id",
+    "date_reference",
+    "jours",
+    "periode",
+    "delai_premiere_prise_en_charge_s",
+    "appels_manques_rappeles_pct",
+    "leads_par_service",
+    "leads_par_ville",
+    "hors_zone",
+    "photos_recues_pct",
+    "empreinte_contenu"
+  ]
+}

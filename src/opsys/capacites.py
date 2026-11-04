@@ -168,7 +168,8 @@ class Capacites:
             }
         if "m01-front-office" in self.departements:
             ports_prives["m01-front-office"] = {
-                "lecteur_capacite_m4": self._lecteur_capacite_m4(departements, cnx_factory)
+                "lecteur_capacite_m4": self._lecteur_capacite_m4(departements, cnx_factory),
+                "lecteur_statut_client": self._lecteur_statut_client(departements, cnx_factory),
             }
         if "m09-strategic-intelligence" in self.departements:
             ports_prives["m09-strategic-intelligence"] = {
@@ -276,6 +277,61 @@ class Capacites:
             if entree is None or entree[0] is None or entree[0].id != "m04-field-ops":
                 return {"ok": False, "erreur": "lecteur_capacite_m4_indisponible",
                         "details": "L'outil M4 de lecture n'est pas disponible."}
+            if entree[1].autonomie is not Autonomie.T0 or entree[1].niveau_effectif is not Niveau.N0:
+                return {"ok": False, "erreur": "lecture_non_autorisee", "details": "seule une lecture T0/N0 est admise"}
+            if not isinstance(arguments, Mapping):
+                return {"ok": False, "erreur": "arguments_invalides", "details": "arguments objet requis"}
+            return lecteur.appeler(outil, dict(arguments))
+
+        return lire
+
+    _LECTURES_STATUT_CLIENT = {
+        "m02-revenue-crm": frozenset({"m2_trouver_client_de_lead", "m2_obtenir_client_360"}),
+        "m03-estimation": frozenset({"m3_lire_devis"}),
+        "m04-field-ops": frozenset({"m4_lister_interventions"}),
+        "m05-financecore": frozenset({"m5_lire_plan_facturation"}),
+    }
+
+    @classmethod
+    def _lecteur_statut_client(
+        cls,
+        departements: Mapping[str, Departement],
+        cnx_factory: Callable[[], AbstractContextManager[Connection]],
+    ) -> Callable[..., dict[str, Any]]:
+        """Compose M1 (statut client, M1.10) vers QUATRE lectures T0 déjà existantes : le client de M2, le devis de
+        M3, la liste des interventions de M4 et le plan de facturation de M5. Aucun droit n'est ajouté : chaque
+        département revérifie son propre accès à chaque lecture, le lecteur exige le contexte de M1, et un outil hors
+        de cette liste est refusé. Une lecture absente (département non installé) rend un refus nommé, jamais une
+        valeur par défaut."""
+        outils_permis = {
+            outil: dep_id for dep_id, outils in cls._LECTURES_STATUT_CLIENT.items() for outil in outils
+        }
+        lecteurs: dict[str, Capacites] = {}
+        for dep_id in cls._LECTURES_STATUT_CLIENT:
+            if dep_id in departements:
+                lecteurs[dep_id] = Capacites(
+                    departements, cnx_factory, filtre={dep_id}, appelant="m01-front-office", memoire=False
+                )
+
+        def lire(outil: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+            if outil not in outils_permis:
+                return {"ok": False, "erreur": "lecture_non_autorisee",
+                        "details": "M1 ne lit que ces quatre lectures T0 pour le statut d'un client."}
+            dep_id = outils_permis[outil]
+            if (
+                contexte_appel.DEPARTEMENT_APPELANT.get() != "m01-front-office"
+                or contexte_appel.departement_origine_appelante() != "m01-front-office"
+            ):
+                return {"ok": False, "erreur": "contexte_m1_requis",
+                        "details": "La lecture privée du statut client exige le contexte du département M1."}
+            lecteur = lecteurs.get(dep_id)
+            if lecteur is None:
+                return {"ok": False, "erreur": "lecteur_statut_client_indisponible",
+                        "details": f"Le département {dep_id} n'est pas installé."}
+            entree = lecteur.index.get(outil)
+            if entree is None or entree[0] is None or entree[0].id != dep_id:
+                return {"ok": False, "erreur": "lecteur_statut_client_indisponible",
+                        "details": "L'outil de lecture n'est pas disponible."}
             if entree[1].autonomie is not Autonomie.T0 or entree[1].niveau_effectif is not Niveau.N0:
                 return {"ok": False, "erreur": "lecture_non_autorisee", "details": "seule une lecture T0/N0 est admise"}
             if not isinstance(arguments, Mapping):

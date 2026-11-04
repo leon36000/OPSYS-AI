@@ -214,7 +214,7 @@ class Departement:
             self.id == "m01-front-office"
             and self.module_outils == "m1_front_office.outils"
             and bool(ports)
-            and set(ports) <= {"lecteur_capacite_m4"}
+            and set(ports) <= {"lecteur_capacite_m4", "lecteur_statut_client"}
             and all(callable(port) for port in ports.values())
         )
         if ports and not port_m9 and not port_m1 and (

@@ -490,7 +490,8 @@ def test_l_outil_est_une_lecture_pure_fermee_a_tout_appareil_et_n_ajoute_aucun_d
         "publie": [
             "m1.lead_qualifie", "m1.retrait_consentement", "m1.courriel_recu", "m1.brouillon_courriel_pret",
             "m1.approbation_envoi_demandee", "m1.courriel_envoye", "m1.envoi_courriel_echoue",
-            "m1.courriel_aiguille", "m1.commande_courriel_envoyee", "m1.plaintes_constatees"]}
+            "m1.courriel_aiguille", "m1.commande_courriel_envoyee", "m1.plaintes_constatees",
+            "m1.transfert_ouvert", "m1.plainte_ouverte", "m1.reception_constatee"]}
     assert manifeste["mode"] == "ombre"
 
 

@@ -46,6 +46,21 @@
       "raison": "Type fictif réservé aux tests du bus (tests/test_evenements.py) et aux départements de démonstration ; il ne décrit aucun flux métier.",
       "revue_le": "2026-11-01",
       "a_revoir_avant": "2027-02-01"
+    },
+    "m1.transfert_ouvert": {
+      "raison": "Ouverture d'un transfert humain (M1-E) : le consommateur visé est la tâche de suivi de M2 et le fait d'affaire de M10, livrés par les agents de la vague 14 sur leurs propres branches. D'ici leur raccordement, le transfert se lit dans le registre de M1 (m1_lire_transfert) ; aucun consommateur ne doit être inventé ici.",
+      "revue_le": "2026-11-04",
+      "a_revoir_avant": "2027-02-04"
+    },
+    "m1.plainte_ouverte": {
+      "raison": "Spécialisation plainte/urgence de l'ouverture d'un transfert (M1-E) : consommateur visé M10 (fait d'affaire) et M2 (tâche de suivi), agents de la vague 14 ; en attendant, la plainte se lit par m1_lire_plaintes_structurees ou m1_lire_transfert. Aucun consommateur local n'est ajouté.",
+      "revue_le": "2026-11-04",
+      "a_revoir_avant": "2027-02-04"
+    },
+    "m1.reception_constatee": {
+      "raison": "Métriques agrégées de réception (M1-H) : M8 n'a pas encore de mesure de réception dans son catalogue fermé ; l'agent M8 doit d'abord déclarer la mesure, puis consommer ce constat. D'ici là, le constat se lit par l'outil m1_constater_reception et son résultat au bus reste une donnée de M1.",
+      "revue_le": "2026-11-04",
+      "a_revoir_avant": "2027-02-04"
     }
   }
 }

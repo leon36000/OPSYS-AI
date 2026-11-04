@@ -108,6 +108,14 @@ GABARITS: Mapping[str, Gabarit] = {
             proactif=True,
         ),
         Gabarit(
+            "statut_client",
+            1,
+            "sms",
+            None,
+            "Bonjour,\n\nVoici l'état de votre {sujet} : {statut}.\nSi vous avez une question, une personne de "
+            "l'équipe vous répondra. Répondez STOP pour ne plus recevoir de messages.\n\nL'équipe",
+        ),
+        Gabarit(
             "courriel_rdv_confirmation",
             1,
             "courriel",

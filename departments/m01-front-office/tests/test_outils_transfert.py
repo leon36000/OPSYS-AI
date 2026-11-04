@@ -182,7 +182,7 @@ def test_transferer_chaque_type_ouvre_un_transfert_et_une_attente_sans_aucune_ap
         assert outils_m1._obtenir_registre().valider_chaine() == (True, None)
 
 
-def test_transferer_ne_produit_aucun_message_au_client_ni_aucun_lead_ni_aucun_evenement(capacites, monkeypatch):
+def test_transferer_ne_produit_aucun_message_ni_lead_et_seulement_les_evenements_minimaux(capacites, monkeypatch):
     monkeypatch.setattr(outils_m1.adaptateurs, "creer_bus", lambda mode_ombre=True: pytest.fail("aucun envoi"))
     _sms(capacites, "Où en est ma facture?")
     avant = len(_lignes("lead_emis"))
@@ -191,7 +191,12 @@ def test_transferer_ne_produit_aucun_message_au_client_ni_aucun_lead_ni_aucun_ev
     assert len(_lignes("lead_emis")) == avant
     with stockage.transaction() as cnx:
         publies = cnx.execute(EVENEMENTS_SORTANTS.select()).all()
-    assert all(ligne.type_evenement == "m1.lead_qualifie" for ligne in publies), "seul un lead publie au bus"
+    # M1-E : les transferts publient désormais `m1.transfert_ouvert` / `m1.plainte_ouverte` (charge minimale, sans
+    # contact ni texte). Aucun autre événement ne part ; rien n'est envoyé au client (le bus de notification est
+    # remplacé par un échec exprès).
+    assert {ligne.type_evenement for ligne in publies} <= {
+        "m1.lead_qualifie", "m1.transfert_ouvert", "m1.plainte_ouverte"
+    }
 
 
 def test_transferer_reste_automatique_en_supervise_et_en_ombre(capacites, dep):

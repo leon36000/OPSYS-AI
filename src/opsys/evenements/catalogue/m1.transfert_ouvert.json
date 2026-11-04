@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.transfert_ouvert",
+  "title": "M1 — Transfert humain ouvert",
+  "description": "Émis par M1 (departments/m01-front-office/src/m1_front_office/outils.py) dans la MÊME transaction que la ligne `transfert/ouvert` du registre anti-perte, dès qu'une conversation est mise devant une personne (ventes, estimation, admin, finance, plainte, urgence, technique, propriétaire). Contrat VOLONTAIREMENT MINIMAL (M1-E) : identifiants (transfert, conversation pseudonyme, lead quand il existe), type fermé, catégories reconnues, niveau d'attente, canal, déclencheur et heure de réception. JAMAIS de texte du client, de contact, de résumé, de terme du vocabulaire ni de donnée financière. `conversation_id` est déjà un pseudonyme (empreinte du correspondant) ; `lead_id` vaut null quand aucun lead n'a été ouvert (une plainte prime). evenement_id déterministe `m1-transfert-ouvert-<transfert_id>` : la redélivrance ou le rejeu est un no-op du bus. Consommateurs visés : M2 (tâche de suivi) et M10 (fait d'affaire) ; changer ce schéma après livraison est un changement de contrat.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "transfert_id": {"type": "string", "pattern": "^tr-[0-9a-f]{20}$"},
+    "conversation_id": {"type": "string", "minLength": 1, "maxLength": 200},
+    "lead_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+    "type_transfert": {
+      "type": "string",
+      "enum": ["ventes", "estimation", "admin", "finance", "plainte", "urgence", "technique", "proprietaire"]
+    },
+    "categories": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "enum": ["insatisfaction", "degat", "garantie", "avocat", "securite"]}
+    },
+    "niveau": {"type": "string", "enum": ["N3", "N4", "N5"]},
+    "canal": {"type": "string", "minLength": 1, "maxLength": 40},
+    "declenche_par": {"type": "string", "enum": ["regles", "agent"]},
+    "horodatage": {"type": "string", "minLength": 1, "format": "date-time"}
+  },
+  "required": [
+    "evenement_id", "transfert_id", "conversation_id", "lead_id", "type_transfert", "categories", "niveau",
+    "canal", "declenche_par", "horodatage"
+  ]
+}

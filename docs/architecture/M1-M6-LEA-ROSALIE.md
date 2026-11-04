@@ -25,7 +25,7 @@ Les décisions de personne refusent un agent **même en mode `autonome`**, où u
 |---|---|---|---|
 | M1.6 Tri des courriels | ABSENT | **PARTIEL** | Classification par règles explicables, aiguillage par événements, corpus fictif de 260 cas : justesse 0,64 (dev) et 0,69 (test) ; jamais mesuré sur du courrier réel. |
 | M1.9 Rappels et rendez-vous via M4 | ABSENT | **PARTIEL** | Capacité et cédule lues dans le VRAI M4 ; granularité = la semaine ; aucun déclencheur automatique de rappel ; aucune écriture dans M4. |
-| M1.10 Statut client après vérification d'identité | ABSENT | **PARTIEL** | Machine d'états et preuves minimales prouvées ; **aucune lecture bornée M2/M3/M4/M5** : M1 décide s'il PEUT répondre, pas ce qu'il dit. |
+| M1.10 Statut client après vérification d'identité | ABSENT | **PARTIEL** | Machine d'états et preuves minimales prouvées ; **lecture bornée M2/M3** prouvée avec les vrais outils, M4/M5 avec un port contrôlé et un plan absent ; gabarit fixe, repli exact, aucune donnée financière. |
 | M1.13 Boucle d'apprentissage | ABSENT | **PARTIEL** | Retours humains -> propositions -> canari -> promotion -> retour arrière, hors ligne ; gain mesuré +3,0 points sur un corpus fictif ; les métriques de conversion et de temps de réponse ne sont pas là. |
 | M1.7 Assistant SMS | SIMULE | **PARTIEL** (gouvernance réelle, transport simulé) | Divulgation, opt-in, STOP, message exact approuvé, pas de rejeu, prouvés ; **aucun SMS réel** : le bus d'émission est un double. |
 | M1.2 Agent vocal | SIMULE | **SIMULE (inchangé)** | Vérifié : aucun runtime STT/TTS/SIP/VAD n'existe ; `CANAUX_REALISES = {messagerie}`. Rien n'a été branché. |
@@ -145,10 +145,14 @@ QUOTÉ de notre propre courriel (aucun essai consommé) ; deux codes candidats ;
 l'ouverture ; code expiré ; verrouillage après trois mauvais codes ; valider sans moyen ; un agent qui atteste ou valide (queue N3, et refus même en `autonome`) ;
 un correspondant vérifié n'élève pas un autre correspondant.
 
-**Ce que M1.10 ne fait PAS** : il n'existe aucune lecture bornée de M2/M3/M4/M5 depuis M1. `reponse_autorisee` dit si M1 peut parler de statut ou de sensible ; ce qu'il
-dit (état d'une soumission, d'une visite, d'une facture) reste à fournir par une personne ou par un futur pont de lecture. Sans niveau suffisant : « Je vais vérifier
-avec l'équipe. » **Loi 25** : finalité déclarée (énumérée), rétention bornée, pseudonymisation, aucune pièce conservée ; la purge physique d'une ligne n'est pas
-livrée (registre append-only) : l'adresse et l'objet d'un courriel reçu sont désormais scellés par une clé propre, détruite à l'échéance du compte
+**Lecture bornée de M2/M3/M4/M5 (M1-G, 4 novembre 2026)** : `m1_statut_client` lit, après vérification et seulement au niveau `general` (ou `sensible` pour une
+facture), l'état d'un dossier M2, d'une soumission M3, d'une visite M4 ou d'une facture M5 par le port privé `lecteur_statut_client`. Quatre lectures T0 existantes
+seulement, aucun droit d'appareil ajouté ; la réponse est un gabarit fixe (aucun texte libre, aucun montant) ou le repli exact « Je vais vérifier avec l'équipe. ».
+Une référence d'un autre client rend le même repli qu'une référence inconnue. Détail, abus testés et limites : [M1-TRANSFERT-STATUT-RECEPTION.md](M1-TRANSFERT-STATUT-RECEPTION.md).
+
+**Ce que M1.10 ne fait toujours pas** : aucune purge physique d'une ligne (registre append-only), aucune lecture d'un document PDF de facture, aucune réponse au
+client autre qu'un brouillon/gabarit (l'envoi reste une décision N4). **Loi 25** : finalité déclarée (énumérée), rétention bornée, pseudonymisation, aucune pièce
+conservée ; l'adresse et l'objet d'un courriel reçu sont désormais scellés par une clé propre, détruite à l'échéance du compte
 ([PLANIFICATION.md](PLANIFICATION.md) §5) ; le texte neutralisé et le contact du lead restent. À valider auprès d'un avocat / conseiller en protection des
 renseignements personnels (EFVP) avant tout usage réel.
 

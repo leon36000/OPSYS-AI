@@ -33,7 +33,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 
 <!-- interconnexion:debut -->
 
-61 types au catalogue : 52 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
+64 types au catalogue : 52 ont au moins un consommateur réel, 12 n'en ont pas (chacun avec sa justification datée).
 
 | Type | Producteur | Consommateurs réels | Sans consommateur : justification |
 |---|---|---|---|
@@ -45,8 +45,11 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m1.courriel_recu` | M1 | M1 |  |
 | `m1.envoi_courriel_echoue` | M1 | — | Alerte pour un humain (refus de garde, échec définitif, issue INCERTAINE : vérifier la boîte Envoyés, jamais de reprise automatique). Elle est lue... (revue 2026-11-01) |
 | `m1.lead_qualifie` | M1 | M2, M8, M10 |  |
+| `m1.plainte_ouverte` | M1 | — | Spécialisation plainte/urgence de l'ouverture d'un transfert (M1-E) : consommateur visé M10 (fait d'affaire) et M2 (tâche de suivi), agents de la v... (revue 2026-11-04) |
 | `m1.plaintes_constatees` | M1 | M8 |  |
+| `m1.reception_constatee` | M1 | — | Métriques agrégées de réception (M1-H) : M8 n'a pas encore de mesure de réception dans son catalogue fermé ; l'agent M8 doit d'abord déclarer la me... (revue 2026-11-04) |
 | `m1.retrait_consentement` | M1 | M2, M7 |  |
+| `m1.transfert_ouvert` | M1 | — | Ouverture d'un transfert humain (M1-E) : le consommateur visé est la tâche de suivi de M2 et le fait d'affaire de M10, livrés par les agents de la... (revue 2026-11-04) |
 | `m10.arete_en_attente` | M10 | — | File « à confirmer » de la direction (N3, Loi 25) : l'arête personnelle en brouillon ne répond à aucune requête avant la confirmation d'une personn... (revue 2026-11-01) |
 | `m10.lecon_decidee` | M10 | — | Une leçon promue est lisible par le département visé par tirage (opsys_lecons_actives) et ne s'applique jamais seule. La mesure d'amélioration par... (revue 2026-11-01) |
 | `m10.soi_revision_proposee` | M10 | — | Révision du modèle de soi en attente de la décision d'une personne (N3) : lue par la console de la direction. M9 (revue) la relira par le registre... (revue 2026-11-01) |

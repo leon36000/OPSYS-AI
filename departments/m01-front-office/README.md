@@ -5,6 +5,27 @@ Front Office IA — reception omnicanale, voix 0->5, qualification, adjointe
 Statut: PARTIAL (EPIC E — vague 1 livrée en mode ombre : registre, machine à états des phases
 voix 0->5, garde-fou des interdits absolus, qualification, adaptateurs, digest.)
 
+## Transfert enrichi, statut client borné et métriques de réception — tranche du 4 novembre 2026
+
+**M1-E (M1.12 / M1.16).** Un transfert porte désormais `informations_manquantes` et `prochaine_action`, calculés par les
+règles de qualification (aucun texte du client, aucun contact, aucune valeur de modèle) : un champ non évalué est dit
+`non_evalue` (profil incomplet), jamais supposé manquant. Deux événements minimaux sont publiés dans la transaction du
+registre : `m1.transfert_ouvert` (tout transfert) et `m1.plainte_ouverte` (plainte/urgence), avec identifiants, type,
+catégories, niveau, canal, déclencheur et heure — **jamais** de contact, de texte ni de résumé. Schéma gelé pour M2 et
+M10 ; M10 ne consommait auparavant que `m1.lead_qualifie`.
+
+**M1-G (M1.10).** `m1_statut_client` lit l'état d'un dossier (M2), d'une soumission (M3), d'une visite (M4) ou d'une
+facture (M5) **après** vérification d'identité, par le port privé `lecteur_statut_client` (quatre lectures T0
+existantes, aucun droit d'appareil ajouté). La réponse est un gabarit fixe, sans montant ; le repli est exactement
+« Je vais vérifier avec l'équipe. ». Une référence d'un autre client rend le même repli qu'une référence inconnue.
+
+**M1-H (M1.13 / M1.15).** `m1_constater_reception` publie `m1.reception_constatee` : délai jusqu'à la première prise en
+charge humaine, appels manqués rappelés, leads par service/ville. Hors zone et photos reçues sont `NON_EVALUEE` tant
+que la source n'existe pas (jamais un zéro). Le constat n'est pas planifié : aucune mesure de réception n'existe encore
+dans le catalogue fermé de M8.
+
+Détail, abus et limites : [`docs/architecture/M1-TRANSFERT-STATUT-RECEPTION.md`](../../docs/architecture/M1-TRANSFERT-STATUT-RECEPTION.md).
+
 ## Appel manqué complet et messagerie vocale intelligente — tranche du 3 novembre 2026
 
 **M1-C (M1.4).** Le gabarit fixe `sms_appel_manque` dit « Nous avons manqué votre appel » et porte la divulgation
