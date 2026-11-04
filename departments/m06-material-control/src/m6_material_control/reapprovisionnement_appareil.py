@@ -117,7 +117,7 @@ def _principal(rows: list[dict], chiffres: list[Decimal]) -> None:
     }
     for position, m in enumerate(rows):
         if (
-            not requis <= set(m) <= requis | {"wct_id", "unite", "origine_cout"}
+            not requis <= set(m) <= requis | {"wct_id", "unite", "origine_cout", "ajustement"}
             or type(m["index"]) is not int
             or m["index"] != position
             or m["type_mouvement"] not in registre.TYPES_MOUVEMENT_VALIDES

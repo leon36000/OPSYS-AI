@@ -53,7 +53,10 @@ constats_planifies:
   - nom: disponibilite
     outil: m6_constater_disponibilite
     mesures: [m8_articles_en_rupture, m8_articles_sur_reserves, m8_reservations_incompletes]
-    description: Cinq comptes de disponibilité du matériel, sans article, quantité ni prix.
+    description: >-
+      Cinq comptes de disponibilité du matériel, sans article, quantité ni prix, et les alertes d'approvisionnement
+      C9 (agrégats neutres par article et par équipe déclarée, commande reçue mais stock disparu, déclaration d'usage
+      manquante, réception de PO en retard), sans nom d'employé.
     appels:
       - horodatage: {calcul: instant}
 budget:
@@ -112,6 +115,14 @@ configuration:
   # absence). Absent ou illisible, tout achat attend l'admin (fail-closed, jamais un montant
   # inventé). Aucune valeur réelle n'est proposée ici : la direction adopte son plafond.
   plafond_achat_terrain: "150"
+  # C10 : seuil DÉCLARÉ au-delà duquel un ajustement d'inventaire exige l'approbation d'un admin ou du propriétaire.
+  # Aucune valeur ici (la direction la déclare, CFG-1) : absent, TOUT ajustement escalade en N4, jamais un seuil
+  # inventé. Il porte sur la valeur absolue de l'écart, dans l'unité de l'article.
+  # C9 : fenêtre et seuil de répétition des alertes d'approvisionnement. Vides à dessein : chaque règle non évaluée
+  # dit quelle clé déclarer, et aucun compte n'est présenté comme un verdict.
+  alertes_approvisionnement:
+    fenetre_jours: null
+    seuil_repetition: null
   # Réapprovisionnement par article (M6.15, PLAN T1.5-d) : à « travaux terminés », M6 compare le stock
   # théorique de chaque article touché à SON seuil ; sous le seuil, il signale un besoin de commande
   # (quantité cible - stock) à l'admin, jamais un bon de commande. Un article absent de cette liste, ou aux
@@ -200,3 +211,38 @@ reglages:
         Ordre de grandeur d'une quincaillerie courante ; aucune calibration sur les achats réels de
         l'entreprise. Valeur en vigueur aujourd'hui, à confirmer ou changer.
       source: "departments/m06-material-control/department.yaml (configuration, C6) ; ANALYSE-M6 §5 question 3"
+  # C10/C9 (vague 14) : aucune valeur proposée, aucune calibration. La direction décide.
+  - cle: m6.seuil_ajustement_stock_quantite
+    libelle: "Écart d'inventaire qui exige l'approbation d'un admin"
+    chemin: configuration.seuil_ajustement_stock_quantite
+    type: decimal
+    unite: "quantité de l'article"
+    min: "0.01"
+    max: "100000"
+    niveau: N3
+    debloque: >-
+      Un ajustement d'inventaire (m6_ajuster_stock) dont la valeur absolue de l'écart dépasse ce seuil exige
+      l'approbation d'un admin ou du propriétaire (N4) ; à la borne ou sous elle, une approbation N3 suffit.
+      Seuil absent ou illisible : tout ajustement exige l'admin.
+  - cle: m6.alertes_fenetre_jours
+    libelle: "Fenêtre d'observation des alertes d'approvisionnement"
+    chemin: configuration.alertes_approvisionnement.fenetre_jours
+    type: entier
+    unite: "jours"
+    min: 1
+    max: 365
+    niveau: N3
+    debloque: >-
+      La fenêtre des rappels C9 (déclaration d'usage manquante, réception de PO en retard) ; sans elle, aucune
+      alerte datée n'est évaluée et le système dit quoi déclarer.
+  - cle: m6.alertes_seuil_repetition
+    libelle: "Nombre de constats à partir duquel un écart est répété"
+    chemin: configuration.alertes_approvisionnement.seuil_repetition
+    type: entier
+    unite: "constats"
+    min: 2
+    max: 100
+    niveau: N3
+    debloque: >-
+      Les agrégats C9 par article et par équipe déclarée (variance répétée, pertes/bris répétés, ajustements
+      fréquents) ; sans lui, les comptes restent visibles mais aucun verdict de répétition n'est rendu.

@@ -38,6 +38,7 @@ DESIGNATION_TYPE_MOUVEMENT = {
     "RETOUR": ("soumettre_materiaux_utilises",),
     "PERTE": ("soumettre_materiaux_utilises",),
     "BRIS": ("soumettre_materiaux_utilises",),
+    "AJUSTEMENT": ("construire_mouvement",),
 }
 
 
