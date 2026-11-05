@@ -72,20 +72,35 @@ _CHEMIN_POLITIQUE_PHOTOS = (
     / "POLITIQUE-photos-non-contractuelles.md"
 )
 
+# ``str.strip()`` is the existing runtime contract for nonblank photo text. JSON Schema regular
+# expressions use ECMA-262, whose ``\S`` whitespace set differs from Python's (notably FEFF/NEL).
+# Keep one cross-engine pattern that excludes exactly Python's current whitespace codepoints.
+_PHOTO_TEXTE_NON_BLANC = (
+    r"[^\u0009-\u000D\u001C-\u0020\u0085\u00A0\u1680\u2000-\u200A"
+    r"\u2028-\u2029\u202F\u205F\u3000]"
+)
+
 _PHOTO = {
     "type": "object",
     "properties": {
-        "photo_id": {"type": "string"},
-        "resolution_largeur": {"type": "integer"},
-        "resolution_hauteur": {"type": "integer"},
-        "eclairage": {"type": "number", "description": "0 à 10"},
-        "angle": {"type": "string"},
+        "photo_id": {"type": "string", "minLength": 1, "pattern": _PHOTO_TEXTE_NON_BLANC},
+        "resolution_largeur": {"type": "integer", "minimum": 1},
+        "resolution_hauteur": {"type": "integer", "minimum": 1},
+        "eclairage": {"type": "number", "minimum": 0, "maximum": 10, "description": "0 à 10"},
+        "angle": {"type": "string", "minLength": 1, "pattern": _PHOTO_TEXTE_NON_BLANC},
         "reference_echelle": {
             "type": ["object", "null"],
             "description": "{type, dimensions_connues} ou null si aucun objet de référence",
+            "properties": {
+                "type": {"type": "string", "minLength": 1, "pattern": _PHOTO_TEXTE_NON_BLANC},
+                "dimensions_connues": {"type": "boolean"},
+            },
+            "required": ["type", "dimensions_connues"],
+            "additionalProperties": False,
         },
     },
     "required": list(contrats.CHAMPS_PHOTO),
+    "additionalProperties": False,
 }
 _BAREME_REF = {
     "type": ["object", "null"],
@@ -117,8 +132,12 @@ _MESURE_REF = {
 _LIBRE_ESSAI = "Voie d'essai seulement : refusé avec bareme_ref et à tout agent (la valeur vient des déclarations)."
 _SEUILS = {
     "type": "object",
-    "properties": {"resolution_minimale": {"type": "integer"}, "eclairage_minimal": {"type": "number"}},
+    "properties": {
+        "resolution_minimale": {"type": "integer", "minimum": 1},
+        "eclairage_minimal": {"type": "number", "minimum": 0, "maximum": 10},
+    },
     "required": list(contrats.CHAMPS_SEUILS_QUALITE),
+    "additionalProperties": False,
 }
 _BAREME = {
     "type": "object",

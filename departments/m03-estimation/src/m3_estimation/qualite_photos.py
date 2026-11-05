@@ -12,7 +12,38 @@ transmis, rien n'est comparé et l'entrée est rejetée — aucune valeur par
 défaut n'est inventée.
 """
 
+import math
+
 from . import contrats, verdicts
+
+
+def _entier_json(valeur):
+    """Normalise un entier JSON en ``int``, sans booléen.
+
+    JSON Schema définit ``integer`` par la valeur mathématique, pas par la forme lexicale
+    ``1280`` contre ``1280.0``. Accepter ici un flottant fini intégral garde le contrôle métier
+    aligné sur le contrat public; les booléens restent exclus malgré leur relation Python avec int.
+    """
+    if type(valeur) is int:
+        return valeur
+    if type(valeur) is float and math.isfinite(valeur) and valeur.is_integer():
+        return int(valeur)
+    return None
+
+
+def _normaliser_seuils(seuils):
+    return {**seuils, "resolution_minimale": _entier_json(seuils["resolution_minimale"])}
+
+
+def _normaliser_photos(photos):
+    return [
+        {
+            **photo,
+            "resolution_largeur": _entier_json(photo["resolution_largeur"]),
+            "resolution_hauteur": _entier_json(photo["resolution_hauteur"]),
+        }
+        for photo in photos
+    ]
 
 
 def _cles_fautives(cles_recues, cles_attendues):
@@ -48,8 +79,8 @@ def _valider_seuils(seuils):
                 + _cles_fautives(seuils, contrats.CHAMPS_SEUILS_QUALITE)
             ),
         )
-    # type(...) is int : un booléen est refusé car bool est sous-classe de int.
-    if type(seuils["resolution_minimale"]) is not int or seuils["resolution_minimale"] <= 0:
+    resolution = _entier_json(seuils["resolution_minimale"])
+    if resolution is None or resolution <= 0:
         return verdicts.construire_verdict(
             "REJ-SEUILS-INVALIDES",
             detail="clé fautive : resolution_minimale",
@@ -84,12 +115,11 @@ def _valider_photo(photo, index):
         )
     if not isinstance(photo["photo_id"], str) or not photo["photo_id"].strip():
         return _rejet_champ_photo(index, "photo_id")
-    # type(...) is int : un booléen est refusé car bool est sous-classe de int.
-    largeur = photo["resolution_largeur"]
-    if type(largeur) is not int or largeur <= 0:
+    largeur = _entier_json(photo["resolution_largeur"])
+    if largeur is None or largeur <= 0:
         return _rejet_champ_photo(index, "resolution_largeur")
-    hauteur = photo["resolution_hauteur"]
-    if type(hauteur) is not int or hauteur <= 0:
+    hauteur = _entier_json(photo["resolution_hauteur"])
+    if hauteur is None or hauteur <= 0:
         return _rejet_champ_photo(index, "resolution_hauteur")
     eclairage = photo["eclairage"]
     if type(eclairage) not in (int, float) or not 0 <= eclairage <= 10:
@@ -134,6 +164,11 @@ def qualifier_photos(photos, seuils):
         rejet = _valider_photo(photo, index)
         if rejet is not None:
             return None, rejet
+
+    # Les entiers transmis sous forme flottante intégrale (ex. 1280.0) sont convertis en int
+    # avant toute comparaison, conformément au type `integer` du schéma JSON.
+    seuils = _normaliser_seuils(seuils)
+    photos = _normaliser_photos(photos)
 
     resolution_minimale = seuils["resolution_minimale"]
     eclairage_minimal = seuils["eclairage_minimal"]

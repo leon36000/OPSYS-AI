@@ -115,6 +115,11 @@ def classifier_niveau_confiance(photos, seuils):
         if rejet is not None:
             return None, rejet
 
+    # Même normalisation que le qualificateur : un integer JSON reçu comme 1280.0 devient int
+    # avant la classification, sans muter la charge d'appel.
+    seuils = qualite_photos._normaliser_seuils(seuils)
+    photos = qualite_photos._normaliser_photos(photos)
+
     motifs, au_dessus_resolution = _compter_motifs(
         photos,
         seuils["resolution_minimale"],

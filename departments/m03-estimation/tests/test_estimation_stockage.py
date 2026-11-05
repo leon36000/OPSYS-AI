@@ -118,6 +118,104 @@ def test_estimer_projet_ecrit_au_registre_durable_principal(base_durable):
     assert len(registre_production().lire()) == 1
 
 
+def test_estimer_projet_accepte_et_normalise_les_entiers_json_lexes_comme_flottants(
+    base_durable, monkeypatch,
+):
+    """Le chemin public M3 accepte integer JSON (ex. 3000.0) et le normalise avant calcul."""
+    monkeypatch.setenv("OPSYS_M3_VOIE_LIBRE", "essai")
+    photo = _photo(reference={"type": "porte", "dimensions_connues": True})
+    photo["resolution_largeur"] = 3000.0
+    photo["resolution_hauteur"] = 2000.0
+    seuils = {"resolution_minimale": 1000.0, "eclairage_minimal": 4.0}
+
+    reponse = _estimer(photos=[photo], seuils=seuils)
+
+    assert reponse["ok"] is True, reponse
+    assert reponse["resultat"]["accepte"] is True
+    assert len(registre_production().lire()) == 1
+    assert photo["resolution_largeur"] == 3000.0  # l'entrée appelant reste inchangée
+    from m3_estimation import qualite_photos
+    normalisee = qualite_photos._normaliser_photos([photo])[0]
+    assert type(normalisee["resolution_largeur"]) is int
+    assert type(normalisee["resolution_hauteur"]) is int
+    assert type(qualite_photos._normaliser_seuils(seuils)["resolution_minimale"]) is int
+
+
+@pytest.mark.parametrize("champ", ["photo_id", "angle", "reference_echelle.type"])
+@pytest.mark.parametrize(("valeur", "acceptee"), [("\ufeff", True), ("\u0085", False)])
+def test_estimer_projet_unicode_photo_suit_strip_sans_effet_sur_entree(
+    base_durable, monkeypatch, champ, valeur, acceptee,
+):
+    from copy import deepcopy
+
+    from jsonschema import Draft202012Validator
+
+    monkeypatch.setenv("OPSYS_M3_VOIE_LIBRE", "essai")
+    photo = _photo(reference={"type": "porte", "dimensions_connues": True})
+    if champ == "reference_echelle.type":
+        photo["reference_echelle"]["type"] = valeur
+    else:
+        photo[champ] = valeur
+    photo_avant = deepcopy(photo)
+    arguments_schema = {
+        "contrat": _contrat(),
+        "marqueur": _marqueur(),
+        "photos": [photo],
+        "seuils": SEUILS,
+        "bareme": BAREME,
+        "quantite": 1200,
+        "plancher_rentable": 9000,
+    }
+    erreurs_schema = list(Draft202012Validator(_outil("m3_estimer_projet").parametres).iter_errors(arguments_schema))
+    assert bool(erreurs_schema) is (not acceptee)
+
+    reponse = _estimer(photos=[photo], seuils=SEUILS)
+
+    assert reponse["ok"] is True, reponse
+    assert reponse["resultat"]["accepte"] is acceptee
+    assert photo == photo_avant
+    if acceptee:
+        assert len(registre_production().lire()) == 1
+    else:
+        assert reponse["resultat"]["etape"] == "qualite_photos"
+        assert registre_production().lire() == []
+
+
+@pytest.mark.parametrize(
+    "photos,seuils",
+    [
+        ([{**_photo(reference={"type": "porte", "dimensions_connues": True}), "resolution_largeur": True}], SEUILS),
+        ([{**_photo(reference={"type": "porte", "dimensions_connues": True}), "resolution_largeur": 0}], SEUILS),
+        ([{**_photo(reference={"type": "porte", "dimensions_connues": True}), "eclairage": 10.1}], SEUILS),
+        ([{**_photo(reference={"type": "porte", "dimensions_connues": True}), "exif_libre": "fictif"}], SEUILS),
+        ([{**_photo(reference={"type": "porte", "dimensions_connues": True}),
+          "reference_echelle": {"type": "porte", "dimensions_connues": True, "extra": "fictif"}}], SEUILS),
+        ([_photo(reference={"type": "porte", "dimensions_connues": True})],
+         {"resolution_minimale": True, "eclairage_minimal": 4}),
+        ([_photo(reference={"type": "porte", "dimensions_connues": True})],
+         {"resolution_minimale": 1000, "eclairage_minimal": 10.1}),
+        ([_photo(reference={"type": "porte", "dimensions_connues": True})],
+         {"resolution_minimale": 1000, "eclairage_minimal": 4, "extra": "fictif"}),
+    ],
+    ids=[
+        "largeur-booleenne", "largeur-nulle", "eclairage-hors-plage", "photo-cle-extra",
+        "reference-cle-extra", "seuil-resolution-booleen", "seuil-eclairage-hors-plage", "seuil-cle-extra",
+    ],
+)
+def test_estimer_projet_public_refuse_les_photos_et_seuils_invalides_sans_maillon(
+    base_durable, monkeypatch, photos, seuils,
+):
+    monkeypatch.setenv("OPSYS_M3_VOIE_LIBRE", "essai")
+
+    reponse = _estimer(photos=photos, seuils=seuils)
+
+    assert reponse["ok"] is True, reponse
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["etape"] == "qualite_photos"
+    assert reponse["resultat"]["verdict"]["code"] in {"REJ-PHOTOS-INVALIDES", "REJ-SEUILS-INVALIDES"}
+    assert registre_production().lire() == []
+
+
 def test_estimer_projet_relu_par_une_nouvelle_instance_depuis_le_stockage_durable(base_durable):
     premiere = _estimer()
     devis_id = premiere["resultat"]["estimation"]["devis_id"]
