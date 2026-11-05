@@ -23,6 +23,8 @@ toutes scannent `src/`, jamais `tests/` — aucune adaptation n'a donc été né
 
 from __future__ import annotations
 
+import threading
+
 import pytest
 from m4_field_ops import cedule, etats, outbox, pointage
 from m4_field_ops.registre import Registre, VerificationError
@@ -231,3 +233,85 @@ def test_deux_catalogues_de_production_partagent_la_chaine_durable(base_durable)
     statut_vu_par_a = executer_atomique(processus_a["m4_statut_intervention"], {"intervention_id": i_id})
     assert statut_vu_par_a["resultat"]["statut"] == "reportee"
     assert Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)).valider_chaine() is True
+
+
+def test_pg_deux_outils_publics_sur_meme_tete_refusent_le_second_append(monkeypatch):
+    """Deux outils M4 calculent la même tête; un seul append hashé peut la prolonger."""
+    from copy import deepcopy
+
+    from m4_field_ops.outils import outils
+    from memoire.doubles import postgres_ephemere, raison_sans_docker
+
+    from opsys.outils import executer_atomique
+    from opsys.stockage.maillons import MaillonsDurables
+
+    raison = raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+
+    with postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        try:
+            par_nom = {outil.nom: outil for outil in outils()}
+            ids = []
+            for suffixe in ("A", "B"):
+                contrat = deepcopy(CONTRAT)
+                contrat["lead_id"] = f"L-RACE-{suffixe}"
+                contrat["conversation_id"] = f"C-RACE-{suffixe}"
+                marqueur = deepcopy(MARQUEUR)
+                marqueur["lead_id"] = contrat["lead_id"]
+                plan = executer_atomique(par_nom["m4_planifier_intervention"], {
+                    "contrat": contrat, "marqueur": marqueur, "horodatage": H_INSCRIPTION,
+                    "sel": SEL, "techniciens_disponibles": ["T1"], "fenetres_disponibles": [FENETRE],
+                })
+                assert plan["ok"] and plan["resultat"]["accepte"], plan
+                ids.append(plan["resultat"]["intervention_id"])
+            taille_avant = len(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+
+            barriere = threading.Barrier(2)
+            premiere_terminee = threading.Event()
+            original = MaillonsDurables.append
+            observations = []
+
+            def aligner(self, maillon, *, rang_attendu=None):
+                if (self.departement, self.registre) == (_DEPARTEMENT, _NOM_REGISTRE):
+                    identifiant = maillon.get("intervention_id")
+                    observations.append(identifiant)
+                    barriere.wait(30)
+                    if identifiant == ids[1] and not premiere_terminee.wait(30):
+                        raise TimeoutError("le premier outil n'a pas terminé")
+                return original(self, maillon, rang_attendu=rang_attendu)
+
+            monkeypatch.setattr(MaillonsDurables, "append", aligner)
+            resultats = {}
+            erreurs = {}
+
+            def demarrer(cle, intervention_id):
+                try:
+                    resultats[cle] = executer_atomique(par_nom["m4_demarrer_route"], {
+                        "intervention_id": intervention_id, "technicien_id": "T1", "horodatage": H_ROUTE,
+                    })
+                except BaseException as exc:
+                    erreurs[cle] = exc
+                finally:
+                    if intervention_id == ids[0]:
+                        premiere_terminee.set()
+
+            threads = [threading.Thread(target=demarrer, args=(str(i), ident)) for i, ident in enumerate(ids)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(60)
+            assert all(not thread.is_alive() for thread in threads), "threads stalled"
+
+            chaine = Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+            assert chaine.valider_chaine() is True
+            assert sorted(observations) == sorted(ids)
+            assert len(erreurs) == 1, erreurs
+            assert len(resultats) == 1, resultats
+            assert isinstance(next(iter(erreurs.values())), stockage.EcritureConcurrente), erreurs
+            assert next(iter(resultats.values()))["ok"] is True
+            assert chaine.taille() == taille_avant + 1
+        finally:
+            stockage.liberer(url)

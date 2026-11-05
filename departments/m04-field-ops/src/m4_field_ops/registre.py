@@ -144,14 +144,22 @@ class Registre:
         entree_copy.pop("precedent_ligne_id", None)
 
         # --- Chaînage ---
-        precedent = self._chain[-1]["ligne_id"] if self._chain else None
+        # Le rang lu et la tête utilisée pour l'empreinte doivent rester cohérents
+        # jusqu'à l'INSERT du registre durable. Un écrivain concurrent qui a calculé
+        # la même tête doit échouer, pas s'ajouter avec un prédécesseur périmé.
+        rang_attendu = len(self._chain)
+        precedent = self._chain[rang_attendu - 1]["ligne_id"] if rang_attendu else None
         ligne_id = encodage.empreinte(entree_copy, precedent)
 
         maillon = dict(entree_copy)
         maillon["ligne_id"] = ligne_id
         maillon["precedent_ligne_id"] = precedent
 
-        self._chain.append(maillon)
+        append_preconditionnel = getattr(self._chain, "append_avec_rang_attendu", None)
+        if callable(append_preconditionnel):
+            append_preconditionnel(maillon, rang_attendu=rang_attendu)
+        else:
+            self._chain.append(maillon)
         # Mise à jour de l'empreinte globale : recalcul intégral depuis self._chain, PAS un
         # pliage incrémental (empreinte_precedente, nouveau ligne_id). Un pliage incrémental
         # serait correct (sha256 est un digest en flux, `_hash_chaine` ne fait que concaténer un
