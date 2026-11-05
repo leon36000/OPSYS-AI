@@ -39,7 +39,7 @@ from typing import Any
 
 from . import contenus, encodage, entonnoir, mesures_chantier, moteur_mesures
 
-VERSION_SCHEMA = 1
+VERSION_SCHEMA = 2
 
 TABLE_CONSTRUCTIONS = "m8_ent_constructions"
 TABLE_MESURES = "m8_ent_mesures_courantes"
@@ -113,6 +113,7 @@ def _lignes_mesures(mesures: list[dict[str, Any]], construction_id: str) -> list
                 "statut": mesure["statut"],
                 "valeur": mesure["valeur"],
                 "detail": mesure["detail"],
+                "couverture": mesure["couverture"],
                 "source": mesure["source"],
                 "version_definition": mesure["version_definition"],
                 "dernier_fait_le": mesure["dernier_fait_le"],
@@ -137,6 +138,7 @@ def _lignes_historique(
             "construit_le_utc": construit_le_utc,
             "statut": mesure["statut"],
             "valeur": mesure["valeur"],
+            "couverture": mesure["couverture"],
             "version_definition": mesure["version_definition"],
             "dernier_fait_le": mesure["dernier_fait_le"],
         }

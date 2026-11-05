@@ -133,9 +133,9 @@ def test_le_schema_complet_se_compile_pour_postgresql():
         assert "CREATE TABLE" in str(CreateTable(table).compile(dialect=postgresql.dialect()))
         for index in table.indexes:
             assert "CREATE INDEX" in str(CreateIndex(index).compile(dialect=postgresql.dialect()))
-    # aucune colonne propre à SQLite : texte, entier, booléen seulement
+    # Aucun type propre à SQLite : y compris le JSON portable de la couverture M8.
     types = {type(c.type).__name__ for t in (*schema.M8_ENTREPOT_TABLES, *schema.PONT_BI_TABLES) for c in t.columns}
-    assert types <= {"String", "Text", "Integer", "BigInteger", "Boolean"}
+    assert types <= {"String", "Text", "Integer", "BigInteger", "Boolean", "JSON"}
 
 
 def _raison_sans_docker():

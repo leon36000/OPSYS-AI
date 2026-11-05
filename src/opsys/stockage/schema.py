@@ -6,6 +6,7 @@ Toute évolution passe par une migration Alembic (`migrations/versions/`), jamai
 from __future__ import annotations
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -2004,6 +2005,7 @@ M8_ENT_MESURES_COURANTES = Table(
     Column("statut", String(16), nullable=False),
     Column("valeur", Text, nullable=True),
     Column("detail", Text, nullable=True),
+    Column("couverture", JSON(none_as_null=True), nullable=True),
     Column("source", Text, nullable=False),
     Column("version_definition", String(64), nullable=False),
     Column("dernier_fait_le", Text, nullable=True),
@@ -2024,6 +2026,7 @@ M8_ENT_MESURES_HIST = Table(
     Column("construit_le_utc", Text, nullable=True),
     Column("statut", String(16), nullable=False),
     Column("valeur", Text, nullable=True),
+    Column("couverture", JSON(none_as_null=True), nullable=True),
     Column("version_definition", String(64), nullable=False),
     Column("dernier_fait_le", Text, nullable=True),
     Index("ix_m8_ent_mesures_hist_metrique", "metric_id", "construit_le"),

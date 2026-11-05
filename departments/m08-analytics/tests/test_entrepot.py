@@ -294,4 +294,4 @@ def test_le_schema_de_l_entrepot_se_compile_pour_postgresql():
         assert table.name in ddl and "CREATE TABLE" in ddl
     # aucune colonne de type propre à SQLite : tout est portable (texte, entier, booléen)
     types = {type(colonne.type).__name__ for table in entrepot_stockage.tables().values() for colonne in table.columns}
-    assert types <= {"String", "Text", "Integer", "Boolean"}
+    assert types <= {"String", "Text", "Integer", "Boolean", "JSON"}
