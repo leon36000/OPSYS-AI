@@ -93,14 +93,22 @@ class Registre:
         entree_copy.pop("precedent_ligne_id", None)
 
         # --- Chaînage ---
-        precedent = self._chain[-1]["ligne_id"] if self._chain else None
+        # Le rang lu et le prédécesseur utilisé pour l'empreinte doivent encore
+        # correspondre au registre durable au moment de l'INSERT. Cela protège
+        # les registres dédiés aussi bien que `principal`.
+        rang_attendu = len(self._chain)
+        precedent = self._chain[rang_attendu - 1]["ligne_id"] if rang_attendu else None
         ligne_id = encodage.encoder_canonique(entree_copy, precedent)
 
         maillon = dict(entree_copy)
         maillon["ligne_id"] = ligne_id
         maillon["precedent_ligne_id"] = precedent
 
-        self._chain.append(maillon)
+        append_preconditionnel = getattr(self._chain, "append_avec_rang_attendu", None)
+        if callable(append_preconditionnel):
+            append_preconditionnel(maillon, rang_attendu=rang_attendu)
+        else:
+            self._chain.append(maillon)
         # Mise à jour de l'empreinte globale
         self._empreinte = _hash_chaine(self._chain)
 
