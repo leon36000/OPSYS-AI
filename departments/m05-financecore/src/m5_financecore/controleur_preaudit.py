@@ -122,6 +122,7 @@ _PIECES_VERIFIEES = ("facture_client", "facture_fournisseur", "note_credit", "de
 _ZERO = Decimal("0.00")
 _CENT = Decimal("0.01")
 _SEUIL_MAX = Decimal("999999999999.99")
+_SEUIL_AFFICHAGE_MAX = 120  # borne de présentation, pas de saisie ni de calcul monétaire
 _FENETRE_DOUBLON_MAX = 366
 _HISTORIQUE_MAX = 50
 _SOURCES_MAX = 12
@@ -146,7 +147,10 @@ def seuils_depuis(brut: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
             valeur = Decimal(str(montant))
             if not (Decimal(0) < valeur <= _SEUIL_MAX) or isinstance(montant, bool):
                 raise ValueError
-            seuils["transaction_hors_norme_cad"] = format(valeur.quantize(_CENT, rounding=ROUND_HALF_UP), "f")
+            # Le seuil est une déclaration de direction, pas un montant comptabilisé : aucun arrondi ne doit le
+            # déplacer. Les valeurs exactes au cent gardent le format historique `123.00`; un seuil sub-cent reste
+            # en notation décimale/scientifique compacte sans expansion d'exposants extrêmes.
+            seuils["transaction_hors_norme_cad"] = _texte_seuil_exact(valeur)
         except (ValueError, ArithmeticError):
             problemes.append("seuil_transaction_hors_norme_cad : montant décimal positif exigé")
     for cle, sortie, maximum in (
@@ -161,6 +165,26 @@ def seuils_depuis(brut: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
         else:
             problemes.append(f"{cle} : entier de 1 à {maximum} exigé")
     return seuils, problemes
+
+
+def _texte_seuil_exact(valeur: Decimal) -> str:
+    """Formate au cent seulement si le Decimal vaut exactement un multiple de 0,01; sinon le garde compact et exact."""
+    signe, chiffres, exposant = valeur.as_tuple()
+    if exposant < -2:
+        chiffres_a_retirer = -2 - exposant
+        if chiffres_a_retirer > len(chiffres) or any(chiffres[-chiffres_a_retirer:]):
+            return str(valeur)
+        chiffres = chiffres[:-chiffres_a_retirer]
+        exposant = -2
+    texte = "".join(map(str, chiffres))
+    position_point = len(texte) + exposant
+    if position_point <= 0:
+        entier, fraction = "0", "0" * -position_point + texte
+    elif position_point >= len(texte):
+        entier, fraction = texte + "0" * (position_point - len(texte)), ""
+    else:
+        entier, fraction = texte[:position_point], texte[position_point:]
+    return ("-" if signe else "") + entier + "." + fraction.ljust(2, "0")[:2]
 
 
 # ------------------------------------------------------------------------------------------------ normalisation
@@ -519,8 +543,13 @@ def _hors_norme(d: Mapping[str, Any]) -> Resultat:
     constats = [
         _constat(
             "TRANSACTION_HORS_NORME",
-            f"La pièce {cle[0]}:{cle[1]} passe au grand livre pour {_txt(total)} $, au-delà du seuil déclaré de "
-            f"{seuil} $.",
+            f"La pièce {cle[0]}:{cle[1]} passe au grand livre pour {_txt(total)} $, "
+            + (
+                f"atteint ou dépasse le seuil déclaré de {seuil} $."
+                if len(str(seuil)) <= _SEUIL_AFFICHAGE_MAX
+                else "atteint ou dépasse le seuil déclaré (valeur longue non affichée; consulter les réglages de "
+                "direction)."
+            ),
             [{"registre": "grand_livre", "reference": i} for i in ids],
             "Confirmer que la transaction est voulue et documentée (à confirmer, pas une erreur en soi).",
             montant=_txt(total),

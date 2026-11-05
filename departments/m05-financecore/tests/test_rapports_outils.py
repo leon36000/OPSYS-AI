@@ -1187,3 +1187,195 @@ def test_preaudit_ne_calcule_pas_les_regles_dependantes_d_une_chaine_ap_alteree(
     )
     assert "DEPENSE_SANS_RECU" in {r["regle"] for r in resultat["regles_non_evaluees"]}
     assert resultat["par_regle"]["DEPENSE_SANS_RECU"] is None
+
+
+# =================================================================================== seuils du pré-audit : exacts
+def test_preaudit_ne_declenche_pas_a_100_00_pour_un_seuil_de_100_004(par_nom, declare, dep):
+    declare({"preaudit": {"seuil_transaction_hors_norme_cad": "100.004"}})
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-SOUS-CENT-FICTIF",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "100.00", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "100.00"},
+        ],
+    )
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+
+    assert resultat["par_regle"]["TRANSACTION_HORS_NORME"] == 0
+    assert not any(c["regle"] == "TRANSACTION_HORS_NORME" for c in resultat["constats"])
+    recu = resultat["recu"]
+    assert "entrees" not in recu and "reçu est compact" in resultat["entrees_omises"]
+    rejoue = utile(appeler(par_nom, "m5_rejouer_rapport_financier", {"recu": recu}))
+    assert rejoue["recu_valide"] is True and rejoue["rejoue"] is False
+
+
+def test_preaudit_seuil_subcent_et_seuil_egal_sont_affiches_fidelement(par_nom, declare, dep):
+    declare({"preaudit": {"seuil_transaction_hors_norme_cad": "100.004"}})
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-PLUS-UN-CENT",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "100.01", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "100.01"},
+        ],
+    )
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    constat = next(c for c in resultat["constats"] if c["regle"] == "TRANSACTION_HORS_NORME")
+    assert resultat["par_regle"]["TRANSACTION_HORS_NORME"] == 1
+    assert "100.004 $" in constat["raison"]
+    assert "atteint ou dépasse" in constat["raison"]
+
+
+def test_preaudit_seuil_egal_est_inclusif_et_libelle_exact(par_nom, declare, dep):
+    declare({"preaudit": {"seuil_transaction_hors_norme_cad": "100.00"}})
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-EGAL-FICTIF",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "100.00", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "100.00"},
+        ],
+    )
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    constat = next(c for c in resultat["constats"] if c["regle"] == "TRANSACTION_HORS_NORME")
+    assert "atteint ou dépasse le seuil déclaré de 100.00 $" in constat["raison"]
+
+
+def test_preaudit_seuil_100_01_exclut_100_00_et_inclut_100_01(par_nom, declare, dep):
+    declare({"preaudit": {"seuil_transaction_hors_norme_cad": "100.01"}})
+    for reference, montant in (("SEUIL-100-00", "100.00"), ("SEUIL-100-01", "100.01")):
+        ecriture(
+            par_nom,
+            dep,
+            reference,
+            "2026-03-01",
+            [
+                {"compte": "5600", "debit": montant, "credit": None},
+                {"compte": "1010", "debit": None, "credit": montant},
+            ],
+        )
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+
+    (constat,) = [c for c in resultat["constats"] if c["regle"] == "TRANSACTION_HORS_NORME"]
+    assert resultat["par_regle"]["TRANSACTION_HORS_NORME"] == 1
+    assert "SEUIL-100-01" in constat["raison"] and "100.01 $" in constat["raison"]
+
+
+def test_preaudit_seuil_scientifique_extreme_reste_compact_dans_la_sortie_publique(par_nom, declare, dep):
+    declare({"preaudit": {"seuil_transaction_hors_norme_cad": "1E-999999999"}})
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-EXPONENTIEL-FICTIF",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "0.01", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "0.01"},
+        ],
+    )
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+
+    constat = next(c for c in resultat["constats"] if c["regle"] == "TRANSACTION_HORS_NORME")
+    assert "1E-999999999 $" in constat["raison"]
+    assert len(constat["raison"]) < 300
+
+
+def test_preaudit_seuil_non_fini_reste_non_evalue_sans_zero(par_nom, declare):
+    declare({"preaudit": {"seuil_transaction_hors_norme_cad": "NaN"}})
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+
+    assert resultat["par_regle"]["TRANSACTION_HORS_NORME"] is None
+    assert any(r["regle"] == "TRANSACTION_HORS_NORME" for r in resultat["regles_non_evaluees"])
+    assert any("seuil_transaction_hors_norme_cad" in detail for detail in resultat["seuils_problemes"])
+
+
+def test_preaudit_seuil_long_est_compare_exactement_sans_saturer_la_page_publique(par_nom, declare, dep):
+    seuil = "99." + "9" * 5000
+    declare({"preaudit": {"seuil_transaction_hors_norme_cad": seuil}})
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-LONG-FICTIF",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "100.00", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "100.00"},
+        ],
+    )
+
+    resultat = utile(
+        appeler(
+            par_nom,
+            "m5_controler_preaudit",
+            {"aujourd_hui": "2026-03-31", "depart": 1, "limite": 1},
+        )
+    )
+
+    (constat,) = resultat["constats"]
+    assert resultat["par_regle"]["TRANSACTION_HORS_NORME"] == 1
+    assert constat["regle"] == "TRANSACTION_HORS_NORME"
+    assert "atteint ou dépasse le seuil déclaré" in constat["raison"]
+    assert "valeur longue non affichée; consulter les réglages de direction" in constat["raison"]
+    assert seuil not in constat["raison"] and len(constat["raison"]) < 300
+
+
+def test_preaudit_borne_d_affichage_preserve_120_caracteres_et_omet_121(par_nom, declare, dep):
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-BORNE-AFFICHAGE-FICTIF",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "100.00", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "100.00"},
+        ],
+    )
+
+    for longueur in (120, 121):
+        seuil = "99." + "9" * (longueur - 3)
+        declare({"preaudit": {"seuil_transaction_hors_norme_cad": seuil}})
+        resultat = utile(
+            appeler(
+                par_nom,
+                "m5_controler_preaudit",
+                {"aujourd_hui": "2026-03-31", "depart": 1, "limite": 1},
+            )
+        )
+        (constat,) = resultat["constats"]
+        assert constat["regle"] == "TRANSACTION_HORS_NORME"
+        assert (seuil in constat["raison"]) is (longueur == 120)
+        assert ("valeur longue non affichée" in constat["raison"]) is (longueur == 121)
+
+
+def test_seuils_preaudit_gardent_decimal_exact_compact_et_refusent_toujours_les_invalides():
+    from m5_financecore import controleur_preaudit
+
+    for valeur, attendu in (
+        ("100.004", "100.004"),
+        ("100.00400", "100.00400"),
+        ("1E+2", "100.00"),
+        ("100.000", "100.00"),
+        ("1E-999999999", "1E-999999999"),
+    ):
+        seuils, problemes = controleur_preaudit.seuils_depuis({"seuil_transaction_hors_norme_cad": valeur})
+        assert seuils["transaction_hors_norme_cad"] == attendu
+        assert problemes == []
+        assert len(seuils["transaction_hors_norme_cad"]) < 40
+
+    for valeur in ("-1", "0", True, "NaN", "Infinity", "1000000000000.00"):
+        seuils, problemes = controleur_preaudit.seuils_depuis({"seuil_transaction_hors_norme_cad": valeur})
+        assert seuils["transaction_hors_norme_cad"] is None
+        assert problemes
