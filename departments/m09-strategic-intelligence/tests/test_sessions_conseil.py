@@ -430,7 +430,8 @@ def test_public_abstention_sans_decision_majeure_n_emet_pas_son_avertissement(mo
     assert projection["cloture"]["avertissements"] == []
     page = outils["m9_lire_rapport_conseil"].fonction(session_id)
     assert page["actions_a_classement_non_verifie"] == 0
-    assert page["avertissements"] == [AVERTISSEMENT_HYPOTHESES]
+    assert page["avertissements"][:-1] == [AVERTISSEMENT_HYPOTHESES]
+    assert page["avertissements"][-1]["code"] == "VALIDITE_RAPPORT_ARCHIVE"
     assert page["sha256"] == cs.empreinte(cloture["rapport"])
     assert page["contenu_json"] == cs.canonique(cloture["rapport"])
     assert all(len(json.dumps(rep, ensure_ascii=False)) <= 5900 for rep in (reponse, projection, page))
@@ -502,6 +503,7 @@ def test_public_rapport_mixte_garde_un_avertissement_exact_quand_decision_majeur
         "PORTEE_DECISION_MAJEURE",
         "CLASSEMENT_NON_VERIFIE",
         "HYPOTHESES_NON_VERIFIEES",
+        "VALIDITE_RAPPORT_ARCHIVE",
     ]
     assert page["avertissements"][2] == AVERTISSEMENT_HYPOTHESES
     message = page["avertissements"][1]["message"]
@@ -568,7 +570,7 @@ def test_lecture_publique_avertit_sur_le_classement_legacy_sans_recrire_le_rappo
     assert "PROPOSABLE" in contenu and "CLASSEMENT_HISTORIQUE_NON_VERIFIE" not in contenu
     for page in pages:
         assert page["actions_a_classement_non_verifie"] == 1
-        assert page["avertissements"] == [
+        assert page["avertissements"][:-1] == [
             {
                 "code": "PORTEE_DECISION_MAJEURE",
                 "message": (
@@ -588,6 +590,8 @@ def test_lecture_publique_avertit_sur_le_classement_legacy_sans_recrire_le_rappo
             },
             AVERTISSEMENT_HYPOTHESES,
         ]
+        assert page["avertissements"][-1]["code"] == "VALIDITE_RAPPORT_ARCHIVE"
+        assert page["avertissements"][-1]["statut"] == "RAPPORT_V2_SCHEMA_ET_ID_CONCORDANTS"
         assert page["sha256"] == cs.empreinte(rapport_historique)
         assert page["rapport_id"] == rapport_historique["rapport_id"]
     assert cloture["rapport"] == rapport_historique, "le texte historique et son empreinte restent inchangés"
@@ -610,7 +614,7 @@ def test_lecture_publique_signale_portee_sans_action_a_classement_incertain(monk
     page = outil.fonction(session_id)
 
     assert page["actions_a_classement_non_verifie"] == 0
-    assert page["avertissements"] == [
+    assert page["avertissements"][:-1] == [
         {
             "code": "PORTEE_DECISION_MAJEURE",
             "message": (
@@ -621,6 +625,7 @@ def test_lecture_publique_signale_portee_sans_action_a_classement_incertain(monk
         },
         AVERTISSEMENT_HYPOTHESES,
     ]
+    assert page["avertissements"][-1]["code"] == "VALIDITE_RAPPORT_ARCHIVE"
 
 
 def test_lecture_publique_signale_hypothese_declaree_sans_texte_ni_mutation(monkeypatch):
@@ -1055,12 +1060,11 @@ def test_rapport_sans_hypotheses_ne_requalifie_pas_les_tours_hypothese(monkeypat
         depart = suivant
     assert len(pages) > 1
     assert "le client accepte un report d'une semaine" not in str(pages[0]["avertissements"])
-    assert (
-        "ne permet pas d’établir que ces éléments figurent dans le rapport"
-        in pages[0]["avertissements"][-1]["message"]
+    divergence = next(
+        a for a in pages[0]["avertissements"] if a["code"] == "DIVERGENCE_HYPOTHESES_TOURS_RAPPORT"
     )
-    assert "HYPOTHESE_DECLAREE" not in pages[0]["avertissements"][-1]["message"]
-    assert "DIVERGENCE_HYPOTHESES_TOURS_RAPPORT" in pages[0]["avertissements"][-1]["code"]
+    assert "ne permet pas d’établir que ces éléments figurent dans le rapport" in divergence["message"]
+    assert "HYPOTHESE_DECLAREE" not in divergence["message"]
     assert "".join(page["contenu_json"] for page in pages) == contenu_attendu
     assert historique == historique_avant
     assert sc.valider_chaine(historique) == (True, "")
@@ -1190,3 +1194,244 @@ def test_preparation_memoire_valide_cite_exactement_le_rapport_v2(monkeypatch):
     assert decision["decision_id"] == f"m9:{session_id}"
     assert f"rapport {cloture['rapport_id']}" in decision["raison"]
     assert evenements == avant
+def _outil_lecture_rapport(monkeypatch, historique, *, budget=5900):
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    return next(
+        outil
+        for outil in oc.construire_outils(budget_sortie=budget, captures_cible=[], sessions_cible=historique)
+        if outil.nom == "m9_lire_rapport_conseil"
+    )
+
+
+def _historique_cloture_fictif():
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    return _rechaîner_historique([*evenements, cloture]), session_id
+
+
+def test_lecture_publique_signale_v2_valide_sans_affirmer_authenticite(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    rapport = copy.deepcopy(historique[-1]["rapport"])
+    historique_avant = copy.deepcopy(historique)
+
+    page = _outil_lecture_rapport(monkeypatch, historique).fonction(session_id)
+
+    assert page["validite_rapport"] == {
+        "statut": "RAPPORT_V2_SCHEMA_ET_ID_CONCORDANTS",
+        "format": rd.SCHEMA,
+        "contrat_v2": "VALIDE",
+        "id_cloture": "CONCORDANT",
+        "code_validation": None,
+        "authenticite": "NON_ETABLIE",
+    }
+    assert page["contenu_json"] == cs.canonique(rapport)
+    assert page["sha256"] == cs.empreinte(rapport)
+    assert any(a["code"] == "VALIDITE_RAPPORT_ARCHIVE" for a in page["avertissements"])
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+def test_lecture_publique_restitue_v2_invalide_comme_brut_non_fiable(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    cloture = historique[-1]
+    rapport = copy.deepcopy(cloture["rapport"])
+    rapport["sections"]["question"]["statut"] = "SCHEMA_CORROMPU"
+    rapport["rapport_id"] = rd.identifiant(rapport)
+    cloture["rapport"] = rapport
+    cloture["rapport_id"] = rapport["rapport_id"]
+    historique = _rechaîner_historique(historique)
+    assert sc.valider_chaine(historique) == (True, "")
+    valide, code = rd.valider_rapport_decision_v2(rapport)
+    assert valide is False and code == "REJ-RAPPORT-V2-SECTION"
+    historique_avant = copy.deepcopy(historique)
+
+    page = _outil_lecture_rapport(monkeypatch, historique).fonction(session_id)
+
+    assert page["accepte"] is True
+    assert page["validite_rapport"]["statut"] == "RAPPORT_V2_NON_FIABLE_VALIDATION_REFUSEE"
+    assert page["validite_rapport"]["contrat_v2"] == "INVALIDE"
+    assert page["validite_rapport"]["code_validation"] == code
+    assert page["validite_rapport"]["authenticite"] == "NON_ETABLIE"
+    assert page["contenu_json"] == cs.canonique(rapport) and "SCHEMA_CORROMPU" in page["contenu_json"]
+    assert page["sha256"] == cs.empreinte(rapport)
+    assert any(a["code"] == "VALIDITE_RAPPORT_ARCHIVE" for a in page["avertissements"])
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+def test_lecture_publique_signale_id_cloture_divergent_sur_chaque_page(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    rapport = copy.deepcopy(historique[-1]["rapport"])
+    historique[-1]["rapport_id"] = "f" * 64
+    historique = _rechaîner_historique(historique)
+    historique_avant = copy.deepcopy(historique)
+    assert rd.valider_rapport_decision_v2(rapport) == (True, None)
+    assert sc.valider_chaine(historique) == (True, "")
+    outil = _outil_lecture_rapport(monkeypatch, historique)
+
+    for depart in (0, 100):
+        page = outil.fonction(session_id, depart)
+        assert page["accepte"] is True
+        assert page["rapport_id"] == "f" * 64
+        assert page["validite_rapport"]["statut"] == "RAPPORT_V2_NON_FIABLE_ID_CLOTURE_NON_CONCORDANT"
+        assert page["validite_rapport"]["id_cloture"] == "DIVERGENT"
+        assert page["contenu_json"] == cs.canonique(rapport)[depart : depart + len(page["contenu_json"])]
+        assert page["sha256"] == cs.empreinte(rapport)
+        assert any(a["code"] == "VALIDITE_RAPPORT_ARCHIVE" for a in page["avertissements"])
+        assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+def test_lecture_publique_legacy_15_cles_est_structure_seule_et_non_convertie(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    rapport_legacy = {cle: None for cle in rd.contrats.CHAMPS_RAPPORT_STRATEGIQUE}
+    historique[-1]["rapport"] = rapport_legacy
+    # Un jeu de clés exactes ne prouve pas le contenu; l'ID v2 de la clôture n'est pas attribué au legacy.
+    historique = _rechaîner_historique(historique)
+    assert rd.rapport_strategique.valider_rapport_strategique(rapport_legacy) == (True, None)
+    historique_avant = copy.deepcopy(historique)
+
+    page = _outil_lecture_rapport(monkeypatch, historique).fonction(session_id)
+
+    assert page["validite_rapport"] == {
+        "statut": "FORMAT_LEGACY_15_CLES_STRUCTURE_SEULEMENT",
+        "format": "historique_15_cles",
+        "contrat_v2": "NON_APPLICABLE",
+        "id_cloture": "NON_VERIFIABLE",
+        "code_validation": "INFO-RAPPORT-LEGACY-STRUCTURE-SEULEMENT",
+        "authenticite": "NON_ETABLIE",
+    }
+    assert page["contenu_json"] == cs.canonique(rapport_legacy)
+    assert page["sha256"] == cs.empreinte(rapport_legacy)
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+def test_lecture_publique_id_v2_absent_est_signale_divergent_et_conserve_le_brut(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    rapport = copy.deepcopy(historique[-1]["rapport"])
+    del historique[-1]["rapport_id"]
+    historique = _rechaîner_historique(historique)
+    historique_avant = copy.deepcopy(historique)
+
+    page = _outil_lecture_rapport(monkeypatch, historique).fonction(session_id)
+
+    assert page["rapport_id"] is None
+    assert page["validite_rapport"]["statut"] == "RAPPORT_V2_NON_FIABLE_ID_CLOTURE_NON_CONCORDANT"
+    assert page["validite_rapport"]["id_cloture"] == "NON_VERIFIABLE"
+    assert page["contenu_json"] == cs.canonique(rapport)
+    assert page["sha256"] == cs.empreinte(rapport)
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+@pytest.mark.parametrize("mode", ["deux_absents", "types_anormaux"])
+def test_lecture_publique_ne_declare_pas_concordants_deux_ids_absents_ou_mal_formes(monkeypatch, mode):
+    historique, session_id = _historique_cloture_fictif()
+    cloture = historique[-1]
+    rapport = copy.deepcopy(cloture["rapport"])
+    if mode == "deux_absents":
+        rapport.pop("rapport_id")
+        cloture.pop("rapport_id")
+    else:
+        rapport["rapport_id"] = 42
+        cloture["rapport_id"] = 42
+    cloture["rapport"] = rapport
+    historique = _rechaîner_historique(historique)
+    assert sc.valider_chaine(historique) == (True, "")
+    assert rd.valider_rapport_decision_v2(rapport)[0] is False
+    historique_avant = copy.deepcopy(historique)
+
+    page = _outil_lecture_rapport(monkeypatch, historique).fonction(session_id)
+
+    assert page["validite_rapport"]["statut"] == "RAPPORT_V2_NON_FIABLE_VALIDATION_REFUSEE"
+    assert page["validite_rapport"]["id_cloture"] == "NON_VERIFIABLE"
+    assert page["validite_rapport"]["id_cloture"] != "CONCORDANT"
+    assert page["contenu_json"] == cs.canonique(rapport)
+    assert page["sha256"] == cs.empreinte(rapport)
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+def test_lecture_publique_format_inconnu_restitue_le_brut_sans_validation(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    rapport_inconnu = {"schema": "opsys.m9.rapport_decision/v999", "contenu_fictif": [1, 2]}
+    historique[-1]["rapport"] = rapport_inconnu
+    historique = _rechaîner_historique(historique)
+    historique_avant = copy.deepcopy(historique)
+
+    page = _outil_lecture_rapport(monkeypatch, historique).fonction(session_id)
+
+    assert page["validite_rapport"]["statut"] == "FORMAT_INCONNU_NON_VALIDE"
+    assert page["validite_rapport"]["contrat_v2"] == "NON_RECONNU"
+    assert page["validite_rapport"]["authenticite"] == "NON_ETABLIE"
+    assert page["contenu_json"] == cs.canonique(rapport_inconnu)
+    assert page["sha256"] == cs.empreinte(rapport_inconnu)
+    assert any(a["code"] == "VALIDITE_RAPPORT_ARCHIVE" for a in page["avertissements"])
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+def test_validite_et_avertissements_persistent_sur_pagination_sans_perte(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    cloture = historique[-1]
+    sections = copy.deepcopy(cloture["rapport"]["sections"])
+    sections["question"]["contenu"]["texte"] = "Q" * 3000
+    rapport = rd.assembler(sections, version=cloture["rapport"]["version"])
+    cloture["rapport"] = rapport
+    cloture["rapport_id"] = rapport["rapport_id"]
+    historique = _rechaîner_historique(historique)
+    contenu = cs.canonique(rapport)
+    assert len(contenu) > 4000 and rd.valider_rapport_decision_v2(rapport) == (True, None)
+    historique_avant = copy.deepcopy(historique)
+    outil = _outil_lecture_rapport(monkeypatch, historique)
+    pages = []
+    depart = 0
+
+    while True:
+        page = outil.fonction(session_id, depart)
+        pages.append(page)
+        assert page["validite_rapport"]["statut"] == "RAPPORT_V2_SCHEMA_ET_ID_CONCORDANTS"
+        assert any(a["code"] == "VALIDITE_RAPPORT_ARCHIVE" for a in page["avertissements"])
+        assert page["sha256"] == cs.empreinte(rapport)
+        assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+        suivant = page["prochain_depart"]
+        if suivant is None:
+            break
+        assert suivant == depart + len(page["contenu_json"]) > depart
+        depart = suivant
+
+    assert len(pages) > 1 and "".join(page["contenu_json"] for page in pages) == contenu
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+
+def test_borne_publique_mesure_les_caracteres_json_pas_les_octets_utf8(monkeypatch):
+    historique, session_id = _historique_cloture_fictif()
+    cloture = historique[-1]
+    sections = copy.deepcopy(cloture["rapport"]["sections"])
+    sections["question"]["contenu"]["texte"] = "中" * 2100
+    rapport = rd.assembler(sections, version=cloture["rapport"]["version"])
+    cloture["rapport"] = rapport
+    cloture["rapport_id"] = rapport["rapport_id"]
+    historique = _rechaîner_historique(historique)
+    historique_avant = copy.deepcopy(historique)
+
+    outil = _outil_lecture_rapport(monkeypatch, historique, budget=5900)
+    pages = []
+    depart = 0
+    while True:
+        page = outil.fonction(session_id, depart)
+        pages.append(page)
+        json_externe = json.dumps(page, ensure_ascii=False, allow_nan=False)
+        assert len(json_externe) <= 5900
+        assert page["sha256"] == cs.empreinte(rapport)
+        assert page["validite_rapport"]["statut"] == "RAPPORT_V2_SCHEMA_ET_ID_CONCORDANTS"
+        suivant = page["prochain_depart"]
+        if suivant is None:
+            break
+        assert suivant == depart + len(page["contenu_json"]) > depart
+        depart = suivant
+
+    assert len(json.dumps(pages[0], ensure_ascii=False, allow_nan=False).encode("utf-8")) > 5900
+    assert "".join(page["contenu_json"] for page in pages) == cs.canonique(rapport)
+    assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")

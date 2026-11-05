@@ -28,7 +28,14 @@ from opsys import admission_agents, stockage
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import capture_strategique as cs
-from . import conseil, dossier_strategique, scenarios, sessions_conseil
+from . import (
+    conseil,
+    dossier_strategique,
+    rapport_decision_v2,
+    rapport_strategique,
+    scenarios,
+    sessions_conseil,
+)
 from .outils_tissu import DEPARTEMENT, MAX_PAGE_OCTETS, borner, exiger_admin_strict
 
 REGISTRE_SESSIONS = "sessions_conseil"
@@ -55,6 +62,92 @@ def _avertissements_portee_si_applicable(gouvernance: object) -> list[dict[str, 
     if isinstance(gouvernance, Mapping) and type(gouvernance.get("decision_majeure")) is bool:
         return [_avertissement_portee_decision_majeure()]
     return []
+
+
+def _est_id_rapport_sha256(valeur: object) -> bool:
+    return type(valeur) is str and len(valeur) == 64 and all(caractere in "0123456789abcdef" for caractere in valeur)
+
+
+def _validite_rapport_archive(cloture: Mapping, rapport: object) -> tuple[dict[str, object], dict[str, str]]:
+    """Décrit la validité observable sans authentifier, convertir ni modifier l'archive."""
+    authentification = "NON_ETABLIE"
+    if isinstance(rapport, Mapping) and rapport.get("schema") == rapport_decision_v2.SCHEMA:
+        valide, code = rapport_decision_v2.valider_rapport_decision_v2(rapport)
+        id_interne = rapport.get("rapport_id")
+        id_cloture = cloture.get("rapport_id")
+        ids_valides = _est_id_rapport_sha256(id_interne) and _est_id_rapport_sha256(id_cloture)
+        concorde = ids_valides and id_cloture == id_interne
+        statut_id = "CONCORDANT" if concorde else "DIVERGENT" if ids_valides else "NON_VERIFIABLE"
+        if not valide:
+            resultat = {
+                "statut": "RAPPORT_V2_NON_FIABLE_VALIDATION_REFUSEE",
+                "format": rapport_decision_v2.SCHEMA,
+                "contrat_v2": "INVALIDE",
+                "id_cloture": statut_id,
+                "code_validation": code,
+                "authenticite": authentification,
+            }
+            message = (
+                "Le validateur v2 a rejeté le rapport. Le contenu brut est restitué sans validation; l'empreinte "
+                "n'établit pas son authenticité."
+            )
+        elif not concorde:
+            resultat = {
+                "statut": "RAPPORT_V2_NON_FIABLE_ID_CLOTURE_NON_CONCORDANT",
+                "format": rapport_decision_v2.SCHEMA,
+                "contrat_v2": "VALIDE",
+                "id_cloture": statut_id,
+                "code_validation": (
+                    "REJ-RAPPORT-ID-CLOTURE-DIVERGENT"
+                    if statut_id == "DIVERGENT"
+                    else "REJ-RAPPORT-ID-CLOTURE-ABSENT-OU-INVALIDE"
+                ),
+                "authenticite": authentification,
+            }
+            message = (
+                "Le rapport v2 est valide selon son contrat, mais les IDs valides ne concordent pas ou l'un est absent "
+                "ou mal formé. Le contenu brut est restitué sans considérer cette incohérence comme résolue."
+            )
+        else:
+            resultat = {
+                "statut": "RAPPORT_V2_SCHEMA_ET_ID_CONCORDANTS",
+                "format": rapport_decision_v2.SCHEMA,
+                "contrat_v2": "VALIDE",
+                "id_cloture": "CONCORDANT",
+                "code_validation": None,
+                "authenticite": authentification,
+            }
+            message = (
+                "La forme v2 et la concordance des IDs sont vérifiées. Cela n'établit ni l'authenticité, ni la vérité "
+                "du contenu."
+            )
+    elif rapport_strategique.valider_rapport_strategique(rapport)[0]:
+        resultat = {
+            "statut": "FORMAT_LEGACY_15_CLES_STRUCTURE_SEULEMENT",
+            "format": "historique_15_cles",
+            "contrat_v2": "NON_APPLICABLE",
+            "id_cloture": "NON_VERIFIABLE",
+            "code_validation": "INFO-RAPPORT-LEGACY-STRUCTURE-SEULEMENT",
+            "authenticite": authentification,
+        }
+        message = (
+            "Les 15 clés historiques sont présentes, mais cette vérification ne valide ni les valeurs, ni leur "
+            "provenance. Le rapport est restitué brut, sans conversion ni authentification."
+        )
+    else:
+        resultat = {
+            "statut": "FORMAT_INCONNU_NON_VALIDE",
+            "format": "INCONNU",
+            "contrat_v2": "NON_RECONNU",
+            "id_cloture": "NON_VERIFIABLE",
+            "code_validation": "REJ-RAPPORT-FORMAT-INCONNU",
+            "authenticite": authentification,
+        }
+        message = (
+            "Le format de ce rapport n'est pas reconnu comme v2 valide ni comme structure historique à 15 clés. "
+            "Le contenu brut est restitué sans interprétation ni authentification."
+        )
+    return resultat, {"code": "VALIDITE_RAPPORT_ARCHIVE", "statut": str(resultat["statut"]), "message": message}
 
 
 def _avertissement_hypotheses_non_verifiees(projection: Mapping, rapport: object) -> dict[str, str] | None:
@@ -529,14 +622,17 @@ def construire_outils(
         avertissement_hypotheses = _avertissement_hypotheses_non_verifiees(projection, cloture.get("rapport"))
         if avertissement_hypotheses is not None:
             avertissements.append(avertissement_hypotheses)
+        validite_rapport, avertissement_validite = _validite_rapport_archive(cloture, cloture.get("rapport"))
+        avertissements.append(avertissement_validite)
 
         def construire_page(longueur_effective: int) -> dict[str, Any]:
             return {
                 "accepte": True,
                 "session_id": session_id,
-                "rapport_id": cloture["rapport_id"],
+                "rapport_id": cloture.get("rapport_id"),
                 "actions_a_classement_non_verifie": actions_incertaines,
                 "avertissements": avertissements,
+                "validite_rapport": validite_rapport,
                 **_tranche(cloture["rapport"], depart, longueur_effective),
             }
 
