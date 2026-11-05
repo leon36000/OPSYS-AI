@@ -32,7 +32,9 @@ def _dernier_cout_unitaire_connu(chantier_id, materiau_id, registre):
     return None
 
 
-def consommer_materiaux(wct, formulaire, registre, *, wct_id=None) -> tuple[dict | None, str | None]:
+def consommer_materiaux(
+    wct, formulaire, registre, *, wct_id=None, en_main_global=None
+) -> tuple[dict | None, str | None]:
     ok, code = validation.valider_wct(wct)
     if not ok:
         return None, code
@@ -70,7 +72,7 @@ def consommer_materiaux(wct, formulaire, registre, *, wct_id=None) -> tuple[dict
 
     # 1. Vérification disponibilité stock via fonction existante (ne jamais confirmer en stock négatif)
     ok, code = stock.verifier_disponibilite_consommation(
-        formulaire["chantier_id"], formulaire["lignes_consommees"], registre
+        formulaire["chantier_id"], formulaire["lignes_consommees"], registre, en_main_global
     )
     if not ok:
         return None, code

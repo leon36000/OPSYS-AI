@@ -86,7 +86,7 @@ def deriver_stock_theorique(chantier_id, materiau_id, registre) -> float:
 
 
 def verifier_disponibilite_consommation(
-    chantier_id, lignes_consommees, registre
+    chantier_id, lignes_consommees, registre, en_main_global=None
 ) -> tuple[bool, str | None]:
     if not chantier_id:
         return False, "REJ-STOCK-CHANTIER-MANQUANT"
@@ -108,6 +108,20 @@ def verifier_disponibilite_consommation(
             registre,
         )
         if quantite_demandee > stock_theorique:
+            return False, "REJ-STOCK-INSUFFISANT"
+
+        # L'ancien contrat n'est permis que si le registre d'emplacements prouve aussi que la
+        # quantité existe en main à l'échelle globale. `en_main_global` est absent pour les
+        # appelants historiques en mémoire et n'est transmis par l'outil public qu'après
+        # validation de la chaîne durable d'emplacements. Ce contrôle ne répartit jamais le
+        # disponible d'un autre chantier vers celui-ci. C'est seulement une borne globale
+        # nécessaire : elle ne prouve pas que le stock soit au chantier demandé. Le contrat
+        # historique ne reconstruit pas cette attribution physique.
+        if (
+            en_main_global is not None
+            and materiau_id in en_main_global
+            and quantite_demandee > en_main_global[materiau_id]
+        ):
             return False, "REJ-STOCK-INSUFFISANT"
 
     return True, None

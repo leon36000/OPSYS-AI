@@ -69,6 +69,12 @@ d'appareil (agent, console) : aucun contrôle de personne, comme avant. Pour TOU
 le connaisse, un employé doit envoyer l'`intervention_id` du WCT (un chantier de M4 EST une
 intervention), un admin ou un agent restent libres, rien n'est deviné.
 
+Limite du contrat historique `m6_consommer_materiaux` : sa confirmation de succès ne suffit pas, à elle seule, à
+établir que les unités sont physiquement localisées dans le chantier demandé ni qu'elles restent disponibles après
+les réservations. La garde ajoutée compare aussi l'en-main global lorsque les chaînes de stock sont valides, comme
+borne nécessaire, mais ne reconstitue pas une disponibilité physique par chantier. En cas de doute, consulter le
+stock détaillé (`en_main`, `disponible`, `par_emplacement`) et les réservations avant de conclure sur le stock local.
+
 PLAN T1.5-d — stock bas et besoin de commande à « travaux terminés » (DEFINITION-PRODUIT.md §6, ligne M6).
 `m6_declarer_materiaux_utilises` évalue, après avoir sorti du stock, chaque article touché contre SON seuil
 (`reapprovisionnement.py`, règle pure : stock théorique de l'article, tous lieux, strictement sous le seuil ⇒

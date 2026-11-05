@@ -1605,11 +1605,82 @@ def consommer_materiaux(
 
     _verrouiller_stock_durable()
     registre_cible = _registre_de_l_appel(registre_historique)
+    mouvements = list(registre_cible.lire())
+    transferts = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+    try:
+        chaine_emplacements_valide = emplacements.valider_chaine(transferts)[0]
+        chaine_principale_valide = registre_cible.valider_chaine()[0]
+    except (KeyError, TypeError, ValueError, InvalidOperation, AttributeError, OverflowError):
+        chaine_emplacements_valide = chaine_principale_valide = False
+    if not chaine_emplacements_valide or not chaine_principale_valide:
+        return {
+            "accepte": False,
+            "verdict": {
+                "code": "REJ-REGISTRE-INVALIDE",
+                "detail": (
+                    "la chaîne du registre de mouvements ou d'emplacements est invalide; "
+                    "la disponibilité physique n'est pas vérifiable. Aucun mouvement n'a été écrit."
+                ),
+            },
+        }
+    lignes = formulaire.get("lignes_consommees")
+    materiaux = {
+        ligne.get("materiau_id")
+        for ligne in lignes
+        if isinstance(lignes, list) and isinstance(ligne, dict) and isinstance(ligne.get("materiau_id"), str)
+    } if isinstance(lignes, list) else set()
+    try:
+        # Cette garde vérifie seulement un plancher physique global. Elle ne déduit pas la
+        # disponibilité du chantier de la provenance d'un autre chantier et ne soustrait pas
+        # les réservations : `en_main` est distinct de `disponible`. Le contrat legacy ne porte
+        # pas de correspondance des emplacements par chantier; une borne globale suffisante
+        # n'est donc pas une preuve de stock physiquement local au chantier demandé.
+        disponibilites = stock.deriver_disponibilite(
+            materiaux,
+            mouvements,
+            emplacements.hors_main_par_article(transferts),
+            {},
+        )
+        en_main_global = {materiau: chiffres["en_main"] for materiau, chiffres in disponibilites.items()}
+    except (KeyError, TypeError, ValueError, InvalidOperation, AttributeError, OverflowError):
+        return {
+            "accepte": False,
+            "verdict": {
+                "code": "REJ-REGISTRE-INVALIDE",
+                "detail": (
+                    "les sources de stock ne permettent pas de vérifier la borne physique globale. "
+                    "Aucun mouvement n'a été écrit."
+                ),
+            },
+        }
     resultat, code = materiel.consommer_materiaux(
-        wct_canonique, formulaire, registre_cible, wct_id=wct_id
+        wct_canonique, formulaire, registre_cible, wct_id=wct_id, en_main_global=en_main_global
     )
     if code is not None:
-        return {"accepte": False, "verdict": {"code": code}}
+        verdict = {"code": code}
+        if code == "REJ-STOCK-INSUFFISANT" and en_main_global is not None:
+            quantites = {}
+            for ligne in formulaire.get("lignes_consommees", []):
+                if not isinstance(ligne, dict) or not isinstance(ligne.get("materiau_id"), str):
+                    continue
+                materiau_id = ligne["materiau_id"]
+                try:
+                    quantite = Decimal(str(ligne["quantite"]))
+                except (KeyError, TypeError, ValueError, InvalidOperation):
+                    continue
+                quantites[materiau_id] = quantites.get(materiau_id, Decimal(0)) + quantite
+            insuffisants = sorted(
+                materiau_id for materiau_id, quantite in quantites.items()
+                if materiau_id in en_main_global and quantite > en_main_global[materiau_id]
+            )
+            if insuffisants:
+                materiau_id = insuffisants[0]
+                verdict["detail"] = (
+                    f"stock en main global {stock.texte_canonique(en_main_global[materiau_id])} insuffisant pour "
+                    f"la quantité demandée {stock.texte_canonique(quantites[materiau_id])} de {materiau_id!r}; "
+                    "la chaîne d'emplacements consultée est valide. Aucun mouvement n'a été écrit."
+                )
+        return {"accepte": False, "verdict": verdict}
     # T4.14 : du stock vient de sortir ; le WCT relu de M4 clôture la réservation de son devis.
     _cloturer_et_reconcilier(
         wct_canonique.get("devis_id"), wct_canonique["wct_id"], wct_canonique["horodatage_completion"],
