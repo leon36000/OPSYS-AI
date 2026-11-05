@@ -37,7 +37,7 @@ import re
 import unicodedata
 from typing import Any
 
-from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, qualite_mesures, wallboards
+from . import catalogue_mesures, encodage, entonnoir, fraicheur_mesures, qualite_mesures, tendances, wallboards
 
 SCHEMA_RECU = "opsys.m8.copilote.recu/v1"
 QUESTION_MIN, QUESTION_MAX = 2, 400
@@ -344,36 +344,32 @@ def _phrase_tendance(
         return f"{ligne['nom']} : bloquée par le contrôle de qualité, aucune tendance n'est donnée.", []
     if not historique:
         return f"{ligne['nom']} : aucun historique enregistré dans l'entrepôt (il n'a pas encore été construit).", []
-    valeurs = [
-        h for h in historique
-        if h.get("valeur") is not None
-        and (
-            cle_historique := entonnoir.instant_utc(
-                h.get("construit_le_utc") if h.get("construit_le_utc") is not None else h.get("construit_le")
-            )
-        ) is not None
-        and cle_historique <= maintenant_cle
-        and h.get("version_definition") == ligne.get("version_definition")
-        and h.get("statut") == entonnoir.STATUT_CALCULEE
-    ]
+    entree = {"metric_id": ligne["metric_id"], "version_definition": ligne["version_definition"]}
+    comptes, _, valeurs, futurs = tendances._preparer(historique, entree, maintenant_cle)
+    exclus = sum(comptes.values()) + len(futurs)
+    reserve = (
+        f" {exclus} observation(s) futures ou non comparables sont exclues."
+        if exclus else ""
+    )
     if len(valeurs) < 2:
         return (
             f"{ligne['nom']} : un seul point d'historique ({valeurs[0]['valeur']}), pas assez pour une tendance."
             if valeurs
-            else f"{ligne['nom']} : l'historique ne contient aucune valeur calculée."
-        ), [valeurs[0]["valeur"]] if valeurs else []
-    recent, ancien = valeurs[0], valeurs[-1]
-    from decimal import Decimal
-
-    a, b = Decimal(ancien["valeur"]), Decimal(recent["valeur"])
+            else f"{ligne['nom']} : l'historique ne contient aucune valeur calculée à couverture complète."
+        ) + reserve, ([str(valeurs[0]["valeur"])] if valeurs else []) + ([str(exclus)] if exclus else [])
+    ancien, recent = valeurs[0], valeurs[-1]
+    a, b = ancien["valeur"], recent["valeur"]
     sens = "en hausse" if b > a else "en baisse" if b < a else "stable"
     phrase = (
-        f"{ligne['nom']} : {sens} entre la construction du {ancien['construit_le'][:10]} ({ancien['valeur']}) "
-        f"et celle du {recent['construit_le'][:10]} ({recent['valeur']}), sur {len(valeurs)} points enregistrés."
+        f"{ligne['nom']} : {sens} entre la construction du {ancien['cle_utc']} ({ancien['valeur']}) "
+        f"et celle du {recent['cle_utc']} ({recent['valeur']}), sur {len(valeurs)} points enregistrés."
     )
-    chiffres = [ancien["valeur"], recent["valeur"], str(len(valeurs))]
+    chiffres = [str(ancien["valeur"]), str(recent["valeur"]), str(len(valeurs))]
+    if exclus:
+        chiffres.append(str(exclus))
     if not ligne["a_jour"]:
         phrase += " La mesure actuelle n'est pas à jour : cette tendance vaut jusqu'à la dernière construction."
+    phrase += reserve
     return phrase, chiffres
 
 
@@ -427,7 +423,7 @@ def _recu(
 
 
 def verifier_recu(recu: Any) -> bool:
-    """Vrai si l'empreinte du reçu correspond à son contenu (un reçu modifié, tronqué ou forgé est faux)."""
+    """Vrai si l'empreinte correspond au contenu : ce hachage non signé ne prouve pas son authenticité."""
     if not isinstance(recu, dict) or recu.get("schema") != SCHEMA_RECU or not isinstance(recu.get("empreinte"), str):
         return False
     corps = {cle: valeur for cle, valeur in recu.items() if cle != "empreinte"}
@@ -438,8 +434,7 @@ def verifier_recu(recu: Any) -> bool:
 
 
 def recu_correspond(recu: dict[str, Any], mesures: list[dict[str, Any]]) -> bool:
-    """Vrai si le reçu est authentique ET que chaque mesure qu'il cite a encore la même valeur, le même statut et la
-    même
+    """Vrai si le condensat est cohérent et les mesures citées ont la même valeur, le même statut et la même
     version de définition dans ``mesures`` (la lecture actuelle du moteur)."""
     if not verifier_recu(recu):
         return False

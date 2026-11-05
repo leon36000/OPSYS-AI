@@ -12,6 +12,8 @@ Règles :
   aucune valeur : les calculs sont ``non_calculable`` ou ``non_evalue`` et le disent.
 * **Même version, même unité.** Seules les observations dont ``version_definition`` est celle du catalogue COURANT
   sont retenues ; l'unité vient de ce catalogue et n'est jamais devinée.
+* **Couverture des observations.** Seule une couverture explicitement complète est retenue. Partielle, inconnue,
+  absente (notamment ancien historique SQL NULL) ou invalide : exclusion comptée séparément, jamais supposée complète.
 * **Variation** : absolue = dernière − première (ou avant-dernière → dernière) ; relative en pourcentage seulement si
   la base est strictement positive. Base nulle ou négative : ``non_calculable`` (jamais une division par zéro, jamais
   un pourcentage trompeur). La variation porte sur des OBSERVATIONS, pas sur des périodes calendaires.
@@ -29,6 +31,7 @@ Règles :
   dans la variation, la moyenne, le XmR ou la prévision. La lecture de l'historique reste bornée AVANT l'analyse :
   ``couverture.lecture`` dit si la borne est atteinte et ``couverture.futur`` dit que des observations antérieures
   peuvent exister au-delà de la fenêtre lue, sans prétendre les récupérer.
+  Une construction future autrement valide est comptée comme future quelle que soit sa couverture, sans double compte.
 * **Bornes de sortie** : historique lu borné (1000 lignes au plus), fenêtre 2 à 200 observations, moyenne mobile 2 à
   12, horizon 1 à 12. Le résultat est paginé par l'outil sous la limite du socle.
 * **Lecture pure** : aucun import d'``opsys``, aucune horloge, aucune écriture. ``maintenant`` est injecté.
@@ -88,6 +91,10 @@ _RAISONS = (
     "version_incompatible",
     "instant_fait_invalide",
     "instant_ambigu",
+    "couverture_partielle",
+    "couverture_inconnue",
+    "couverture_absente",
+    "couverture_invalide",
 )
 
 _NON_LIVRE = {
@@ -98,13 +105,12 @@ _NON_LIVRE = {
 }
 
 _LIMITES = (
-    "Historique de constructions déclenchées par changement de source, non régulier.",
-    "Variation entre observations construites, pas entre périodes calendaires.",
-    "XmR et prévision : cadence exactement régulière et n >= 8, sinon non évalués.",
-    "Constructions strictement après maintenant écartées et comptées ; lecture bornée avant l'analyse.",
-    "Trous non déduits : aucune cadence attendue n'est déclarée.",
-    "Aucune saisonnalité, aucun intervalle de confiance ; une prévision n'est jamais un fait observé.",
-    "À valider par un comptable (CPA) si une valeur financière sert à décider.",
+    "Historique irrégulier ; couverture absente = inconnue ; seules les complètes sont retenues.",
+    "Variations entre observations, pas périodes calendaires.",
+    "XmR et prévision : cadence régulière et n >= 8.",
+    "Futur exclu ; lecture bornée ; trous non déduits.",
+    "Pas de saisonnalité ni intervalle de confiance ; prévision non observée.",
+    "Décision financière : validation CPA requise.",
 )
 
 
@@ -188,6 +194,23 @@ def _valeur_lue(valeur: Any) -> Decimal | None:
     elif isinstance(valeur, bool) or not isinstance(valeur, (int, float, Decimal)):
         return None
     return nombres.decimal_lu(valeur)
+
+
+def raison_couverture(ligne: dict[str, Any]) -> str | None:
+    """Une couverture historique absente n'est pas la couverture inconnue déclarée par le producteur."""
+    couverture = ligne.get("couverture")
+    if couverture is None:
+        return "couverture_absente"
+    if not isinstance(couverture, dict):
+        return "couverture_invalide"
+    etat = couverture.get("etat")
+    if not isinstance(etat, str):
+        return "couverture_invalide"
+    return {
+        "complete": None,
+        "partielle": "couverture_partielle",
+        "inconnue": "couverture_inconnue",
+    }.get(etat, "couverture_invalide")
 
 
 def _valider_ligne(ligne: dict[str, Any], entree: dict[str, Any]) -> str | None:
@@ -287,6 +310,7 @@ def _preparer(
             "valeur": valeur,
             "version_definition": ligne["version_definition"],
             "dernier_fait_le": ligne.get("dernier_fait_le"),
+            "raison_couverture": raison_couverture(ligne),
         }
         if cle_utc > maintenant_cle:
             futurs.append(point)
@@ -304,7 +328,12 @@ def _preparer(
                 for point in groupe[: _EXEMPLES_MAX - len(exemples)]:
                     exemples.append(_exemple(point["construction_id"], "instant_ambigu"))
             continue
-        uniques.append(groupe[0])
+        point = groupe[0]
+        raison = point["raison_couverture"]
+        if raison is not None:
+            comptes[raison] += 1
+            continue
+        uniques.append(point)
     uniques.sort(key=lambda point: (point["cle_utc"], point["construction_id"]))
     futurs.sort(key=lambda point: (point["cle_utc"], point["construction_id"]))
     return comptes, exemples, uniques, futurs
@@ -630,6 +659,7 @@ def _recu(
     xmr_resultat: dict[str, Any],
     prevision: dict[str, Any],
     futures_ecartees: int,
+    exclusions: dict[str, int],
     maintenant_cle: str,
 ) -> dict[str, Any]:
     corps = {
@@ -644,6 +674,7 @@ def _recu(
         "n_points": len(serie),
         "empreinte_serie": encodage.empreinte(serie),
         "futures_ecartees": futures_ecartees,
+        "empreinte_exclusions": encodage.empreinte(exclusions),
         "variation_absolue": variation["absolue"]["valeur"],
         "variation_relative_pct": variation["relative_pct"]["valeur"],
         "moyenne_mobile": moyenne["valeur"],
@@ -658,7 +689,7 @@ def _recu(
 
 
 def verifier_recu(recu: Any) -> bool:
-    """Vrai si l'empreinte du reçu correspond exactement à son contenu (un reçu modifié est faux)."""
+    """Vrai si l'empreinte correspond au contenu : ce hachage non signé ne prouve pas son authenticité."""
     if not isinstance(recu, dict) or recu.get("schema") != SCHEMA_RECU or not isinstance(recu.get("empreinte"), str):
         return False
     corps = {cle: valeur for cle, valeur in recu.items() if cle != "empreinte"}
@@ -714,6 +745,13 @@ def analyser(
         raise ValueError(f"{REJ_MAINTENANT_INVALIDE} : maintenant et maintenant_cle sont incohérents")
     comptes, exemples, uniques, futurs = _preparer(historique, entree, maintenant_cle)
     borne_atteinte = None if limite_lecture is None else len(historique) >= limite_lecture
+    # Même un point futur exclu pour une autre raison peut occuper la borne et masquer des points plus anciens.
+    futur_lu = any(
+        isinstance(ligne, dict)
+        and (cle := entonnoir.instant_utc(ligne.get("construit_le"))) is not None
+        and cle > maintenant_cle
+        for ligne in historique
+    )
     if len(uniques) > fenetre_observations:
         hors_fenetre = len(uniques) - fenetre_observations
         points = uniques[-fenetre_observations:]
@@ -749,7 +787,7 @@ def analyser(
         "futurs_ecartes": len(futurs),
         "limite_lecture": limite_lecture,
         "lecture_bornee": borne_atteinte,
-        "anterieures_non_lues_possibles": bool(futurs) and borne_atteinte is True,
+        "anterieures_non_lues_possibles": futur_lu and borne_atteinte is True,
         "fenetre_pleine": len(points) == fenetre_observations,
         "premier_construit_le": points[0]["construit_le"] if points else None,
         "dernier_construit_le": points[-1]["construit_le"] if points else None,
@@ -798,6 +836,7 @@ def analyser(
         xmr_resultat=resultat_xmr,
         prevision=prevision,
         futures_ecartees=len(futurs),
+        exclusions=comptes,
         maintenant_cle=maintenant_cle,
     )
     return resultat

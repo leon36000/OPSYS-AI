@@ -21,7 +21,7 @@ import json
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
-from m8_analytics import catalogue_mesures, copilote, entrepot_stockage, jeux_fictifs, tendances
+from m8_analytics import catalogue_mesures, copilote, encodage, entrepot_stockage, jeux_fictifs, tendances
 from m8_analytics import outils as m8_outils
 from m8_analytics.registre import RegistreSnapshots
 from sqlalchemy import func, select
@@ -66,6 +66,7 @@ def _ligne(
         "metric_id": METRIQUE,
         "construit_le": _instant(heures),
         "statut": statut,
+        "couverture": {"etat": "complete"},
         "valeur": valeur,
         "version_definition": version,
         "dernier_fait_le": _instant(heures - 1) if derniere is None else derniere,
@@ -728,6 +729,13 @@ def test_e2e_la_sortie_est_paginee_sous_la_borne_avec_pres_de_trente_points(base
         _synchroniser(cibles, registres)
         _appeler(outils, "m8_construire_entrepot", maintenant=(MAINTENANT + timedelta(hours=heure)).isoformat())
 
+    with stockage.transaction() as cnx:
+        for heure, couverture in ((1, None), (2, {"etat": "partielle"})):
+            cnx.execute(M8_ENT_MESURES_HIST.update().where(
+                M8_ENT_MESURES_HIST.c.metric_id == "m8_cash_libre_cad",
+                M8_ENT_MESURES_HIST.c.construit_le == (MAINTENANT + timedelta(hours=heure)).isoformat(),
+            ).values(couverture=couverture))
+
     premiere = _appeler(
         outils, "m8_lire_tendances", metric_id="m8_cash_libre_cad",
         maintenant=(MAINTENANT + timedelta(hours=60)).isoformat(), fenetre_observations=40
@@ -737,7 +745,9 @@ def test_e2e_la_sortie_est_paginee_sous_la_borne_avec_pres_de_trente_points(base
     assert len(json.dumps(resultat, ensure_ascii=False)) <= m8_outils.BUDGET_SORTIE
     assert resultat["prochain_depart"] is not None
     assert len(resultat["serie"]) < 40
-    assert resultat["couverture"]["retenues"] == 40
+    assert resultat["couverture"]["retenues"] == 38
+    assert resultat["exclusions"]["couverture_absente"] == 1
+    assert resultat["exclusions"]["couverture_partielle"] == 1
     assert tendances.verifier_recu(resultat["recu"]) is True
 
     seconde = _appeler(
@@ -746,6 +756,8 @@ def test_e2e_la_sortie_est_paginee_sous_la_borne_avec_pres_de_trente_points(base
         depart=resultat["prochain_depart"],
     )
     assert seconde["ok"] is True and seconde["resultat"]["serie"]
+    assert seconde["resultat"]["recu"] == resultat["recu"]
+    assert seconde["resultat"]["exclusions"] == resultat["exclusions"]
     assert seconde["resultat"]["serie"][0]["construction_id"] != resultat["serie"][0]["construction_id"]
 
 
@@ -957,7 +969,8 @@ def test_une_limite_de_lecture_invalide_est_refusee(limite):
         _analyse([], limite_lecture=limite)
 
 
-def test_e2e_la_borne_de_lecture_saturee_par_le_futur_est_dite_sans_recuperation(base):
+@pytest.mark.parametrize("couverture", [{"etat": "complete"}, {"etat": "partielle"}, None])
+def test_e2e_la_borne_de_lecture_saturee_par_le_futur_est_dite_sans_recuperation(base, couverture):
     """51 lignes : 1 passée et 50 futures. La borne de lecture (50) ne rend que les futures ; la réponse ne
     prétend pas récupérer la passée, elle dit que des observations antérieures peuvent ne pas avoir été lues."""
     registres = jeux_fictifs.registres_fictifs(cash_libre_cad="20000.00")
@@ -971,6 +984,11 @@ def test_e2e_la_borne_de_lecture_saturee_par_le_futur_est_dite_sans_recuperation
         _synchroniser(cibles, registres)
         construit = _appeler(outils, "m8_construire_entrepot", maintenant=(debut + timedelta(seconds=i)).isoformat())
         assert construit["ok"] is True and construit["resultat"]["statut"] == "construit"
+    with stockage.transaction() as cnx:
+        cnx.execute(M8_ENT_MESURES_HIST.update().where(
+            M8_ENT_MESURES_HIST.c.metric_id == "m8_cash_libre_cad",
+            M8_ENT_MESURES_HIST.c.construit_le != _instant(10),
+        ).values(couverture=couverture))
 
     resultat = _tendances_completes(
         outils,
@@ -982,6 +1000,9 @@ def test_e2e_la_borne_de_lecture_saturee_par_le_futur_est_dite_sans_recuperation
     assert resultat["couverture"]["lues"] == 50
     assert resultat["couverture"]["retenues"] == 0
     assert resultat["couverture"]["futurs_ecartes"] == 50
+    assert resultat["couverture"]["exclues_total"] == 0
+    assert resultat["exclusions"]["couverture_partielle"] == 0
+    assert resultat["exclusions"]["couverture_absente"] == 0
     assert resultat["couverture"]["limite_lecture"] == 50
     assert resultat["couverture"]["lecture_bornee"] is True
     assert resultat["couverture"]["anterieures_non_lues_possibles"] is True
@@ -991,6 +1012,14 @@ def test_e2e_la_borne_de_lecture_saturee_par_le_futur_est_dite_sans_recuperation
     assert resultat["recu"]["n_points"] == 0
     assert resultat["recu"]["futures_ecartees"] == 50
     assert tendances.verifier_recu(resultat["recu"]) is True
+
+
+def test_une_ligne_future_invalide_peut_masquer_un_point_ancien():
+    futur = _ligne(1, None, 13, statut="non_calculable")
+    resultat = _analyse([futur], limite_lecture=1)
+    assert resultat["exclusions"]["non_calculable"] == 1
+    assert resultat["couverture"]["futurs_ecartes"] == 0
+    assert resultat["couverture"]["anterieures_non_lues_possibles"] is True
 
 
 
@@ -1188,24 +1217,28 @@ def test_pont_bi_pagine_l_historique_en_ordre_utc_sans_exposer_la_cle(base):
 
 
 def test_copilote_exclut_historique_futur_et_definition_perimee():
-    ligne = {"nom": "Mesure fictive", "qualite_en_echec": False, "version_definition": VERSION, "a_jour": True}
+    ligne = {"nom": "Mesure fictive", "metric_id": METRIQUE, "qualite_en_echec": False,
+             "version_definition": VERSION, "a_jour": True}
     historique = [
         {
-            "construit_le": "2026-10-30T13:00:00+00:00", "construit_le_utc": "2026-10-30T13:00:00.000000000Z",
+            "construction_id": "c1", "construit_le": "2026-10-30T13:00:00+00:00",
+            "construit_le_utc": "2026-10-30T13:00:00.000000000Z",
             "valeur": "999", "version_definition": VERSION, "statut": "calculee",
         },
         {
-            "construit_le": "2026-10-30T11:00:00+00:00", "construit_le_utc": "2026-10-30T11:00:00.000000000Z",
+            "construction_id": "c2", "construit_le": "2026-10-30T11:00:00+00:00",
+            "construit_le_utc": "2026-10-30T11:00:00.000000000Z",
             "valeur": "100", "version_definition": "b" * 64, "statut": "calculee",
         },
         {
-            "construit_le": "2026-10-30T10:00:00+00:00", "construit_le_utc": "2026-10-30T10:00:00.000000000Z",
-            "valeur": "10", "version_definition": VERSION, "statut": "calculee",
+            "construction_id": "c3", "construit_le": "2026-10-30T10:00:00+00:00",
+            "construit_le_utc": "2026-10-30T10:00:00.000000000Z",
+            "valeur": "10", "version_definition": VERSION, "statut": "calculee", "couverture": {"etat": "complete"},
         },
     ]
     texte, chiffres = copilote._phrase_tendance(ligne, historique, "2026-10-30T12:00:00.000000000Z")
     assert "10" in texte and "999" not in texte and "100" not in texte
-    assert chiffres == ["10"]
+    assert chiffres == ["10", "2"]
 
 
 def test_e2e_l_outil_public_utilise_la_borne_a_la_nanoseconde(base):
@@ -1231,3 +1264,155 @@ def test_e2e_l_outil_public_utilise_la_borne_a_la_nanoseconde(base):
     assert resultat["couverture"]["fraicheur"]["age_construction_s"] == 0
     assert resultat["couverture"]["fraicheur"]["construction_dans_le_futur"] is False
     assert tendances.verifier_recu(resultat["recu"]) is True
+
+
+def test_public_coverage_historique_protege_moyenne_et_recu(base):
+    registres = jeux_fictifs.registres_fictifs(cash_libre_cad='10.00')
+    cibles = _cibles(registres)
+    outils = _outils(cibles)
+    cas = [
+        ('10.00', {'etat': 'complete'}), ('1000.00', {'etat': 'partielle', 'couverts': 1, 'attendus': 2}),
+        ('2000.00', {'etat': 'inconnue'}), ('3000.00', None), ('30.00', {'etat': 'complete'}),
+    ]
+    for heure, (valeur, couverture) in enumerate(cas):
+        registres = jeux_fictifs.registres_fictifs(cash_libre_cad=valeur)
+        _synchroniser(cibles, registres)
+        instant = (MAINTENANT + timedelta(hours=heure)).isoformat()
+        construction = _appeler(outils, 'm8_construire_entrepot', maintenant=instant)
+        assert construction['ok'] and construction['resultat']['statut'] == 'construit'
+        with stockage.transaction() as cnx:
+            cnx.execute(M8_ENT_MESURES_HIST.update().where(
+                M8_ENT_MESURES_HIST.c.metric_id == 'm8_cash_libre_cad',
+                M8_ENT_MESURES_HIST.c.construit_le == instant,
+            ).values(couverture=couverture))
+    resultat = _tendances_completes(outils, metric_id='m8_cash_libre_cad',
+                                   maintenant=(MAINTENANT + timedelta(hours=5)).isoformat())
+    assert [p['valeur'] for p in resultat['serie']] == ['10.00', '30.00']
+    assert resultat['moyenne_mobile']['valeur'] == '20.00'
+    for raison in ('couverture_partielle', 'couverture_inconnue', 'couverture_absente'):
+        assert resultat['exclusions'][raison] == 1
+    assert resultat['couverture']['exclues_total'] == 3
+    exclusions = {k: v for k, v in resultat['exclusions'].items() if k != 'exemples'}
+    assert resultat['recu']['empreinte_exclusions'] == encodage.empreinte(exclusions)
+    assert tendances.verifier_recu(resultat['recu'])
+    recu_modifie = json.loads(json.dumps(resultat['recu']))
+    recu_modifie['empreinte_exclusions'] = '0' * 64
+    assert not tendances.verifier_recu(recu_modifie)
+
+
+def test_couvertures_non_completes_ne_produisent_aucune_tendance():
+    lignes = [_ligne(1, '10', 1), _ligne(2, '20', 2), _ligne(3, '30', 3), _ligne(4, '40', 4)]
+    lignes[0]['couverture'] = {'etat': 'partielle'}
+    lignes[1]['couverture'] = {'etat': 'inconnue'}
+    lignes[2]['couverture'] = None
+    lignes[3]['couverture'] = {'etat': []}
+    resultat = _analyse(lignes)
+    for raison in ('couverture_partielle', 'couverture_inconnue', 'couverture_absente', 'couverture_invalide'):
+        assert resultat['exclusions'][raison] == 1
+    assert resultat['serie'] == [] and resultat['couverture']['exclues_total'] == 4
+    assert resultat['moyenne_mobile']['valeur'] is None
+    assert resultat['variation']['absolue']['valeur'] is None
+    assert resultat['xmr']['statut'] == 'non_evalue'
+    assert resultat['prevision']['statut'] == 'non_evaluee'
+
+
+def test_ambiguite_temporelle_reste_refusee_meme_si_un_point_est_partiel():
+    complete, partielle = _ligne(1, '10', 0), _ligne(2, '20', 0)
+    partielle['couverture'] = {'etat': 'partielle'}
+    resultat = _analyse([complete, partielle])
+    assert resultat['serie'] == [] and resultat['exclusions']['instant_ambigu'] == 2
+
+
+def test_copilote_public_ecarte_couvertures_non_completes(base):
+    registres = jeux_fictifs.registres_fictifs(leads=20)
+    cibles = _cibles(registres)
+    outils = _outils(cibles)
+    for heure, valeur, couverture in ((9, 20, {'etat': 'complete'}), (10, 40, {'etat': 'partielle'}),
+                                     (11, 60, None)):
+        _synchroniser(cibles, jeux_fictifs.registres_fictifs(leads=valeur))
+        instant = f'2026-10-30T{heure:02d}:00:00Z'
+        assert _appeler(outils, 'm8_construire_entrepot', maintenant=instant)['ok']
+        with stockage.transaction() as cnx:
+            cnx.execute(M8_ENT_MESURES_HIST.update().where(
+                M8_ENT_MESURES_HIST.c.metric_id == 'm8_leads_recus',
+                M8_ENT_MESURES_HIST.c.construit_le == instant,
+            ).values(couverture=couverture))
+    reponse = _appeler(outils, 'm8_repondre_question', question='Évolution des leads reçus',
+                       maintenant='2026-10-30T12:00:00Z')
+    assert reponse['ok']
+    assert 'un seul point' in reponse['resultat']['texte']
+    assert '2 observation(s)' in reponse['resultat']['texte']
+    assert '40' not in reponse['resultat']['chiffres'] and '60' not in reponse['resultat']['chiffres']
+
+
+@pytest.mark.parametrize('cas', ['instant_ambigu', 'nan'])
+def test_copilote_public_partage_filtre_tendances(base, cas):
+    cibles = _cibles(jeux_fictifs.registres_fictifs(leads=20))
+    outils = _outils(cibles)
+    instants = ['2026-10-30T10:00:00Z',
+                '2026-10-30T10:00:00Z' if cas == 'instant_ambigu' else '2026-10-30T11:00:00Z']
+    for valeur, instant in zip((20, 21), instants, strict=True):
+        _synchroniser(cibles, jeux_fictifs.registres_fictifs(leads=valeur))
+        assert _appeler(outils, 'm8_construire_entrepot', maintenant=instant)['ok']
+    if cas == 'nan':
+        with stockage.transaction() as cnx:
+            cnx.execute(M8_ENT_MESURES_HIST.update().where(
+                M8_ENT_MESURES_HIST.c.metric_id == 'm8_leads_recus',
+                M8_ENT_MESURES_HIST.c.construit_le == instants[1],
+            ).values(valeur='NaN'))
+    courant = _appeler(outils, 'm8_repondre_question', question='Évolution des leads reçus',
+                       maintenant='2026-10-30T12:00:00Z')
+    assert courant['ok']
+    texte = courant['resultat']['texte']
+    assert 'en hausse' not in texte and 'en baisse' not in texte
+    assert ('aucune valeur' if cas == 'instant_ambigu' else 'un seul point') in texte
+    assert copilote.verifier_recu(courant['resultat']['recu'])
+    mesure = _tendances_completes(outils, metric_id='m8_leads_recus', maintenant='2026-10-30T12:00:00Z')
+    assert mesure['exclusions']['instant_ambigu' if cas == 'instant_ambigu' else 'valeur_invalide'] == (
+        2 if cas == 'instant_ambigu' else 1
+    )
+    assert len(mesure['serie']) == (0 if cas == 'instant_ambigu' else 1)
+    assert tendances.verifier_recu(mesure['recu'])
+
+
+def test_copilote_trie_les_observations_comparables():
+    ligne = {'nom': 'Mesure', 'metric_id': METRIQUE, 'qualite_en_echec': False,
+             'version_definition': VERSION, 'a_jour': True}
+    historique = [_ligne(2, '20.00', 2), _ligne(3, '30.00', 3), _ligne(1, '10.00', 1)]
+    texte, chiffres = copilote._phrase_tendance(ligne, historique, '2026-10-30T12:00:00.000000000Z')
+    assert 'en hausse' in texte and chiffres == ['10.00', '30.00', '3']
+
+
+def test_copilote_ordonne_selon_instants_utc_et_cite_bornes_correctes():
+    ligne = {'nom': 'Mesure', 'metric_id': METRIQUE, 'qualite_en_echec': False,
+             'version_definition': VERSION, 'a_jour': True}
+    historique = [
+        _ligne_a('tard', '2026-11-01T01:15:00-05:00', '12.00'),
+        _ligne_a('tot', '2026-11-01T01:30:00-04:00', '20.00'),
+    ]
+    texte, chiffres = copilote._phrase_tendance(ligne, historique, '2026-11-01T07:00:00.000000000Z')
+    assert 'en baisse' in texte
+    assert chiffres == ['20.00', '12.00', '2']
+
+
+def test_copilote_public_affiche_instants_utc_et_nanosecondes(base):
+    cibles = _cibles(jeux_fictifs.registres_fictifs(leads=20))
+    outils = _outils(cibles)
+    # Le premier instant a une date locale postérieure, malgré son instant UTC antérieur d'une nanoseconde.
+    for valeur, instant in (
+        (20, '2026-11-01T00:30:00.000000001+02:00'),
+        (21, '2026-10-31T18:30:00.000000002-04:00'),
+    ):
+        _synchroniser(cibles, jeux_fictifs.registres_fictifs(leads=valeur))
+        assert _appeler(outils, 'm8_construire_entrepot', maintenant=instant)['ok']
+    reponse = _appeler(outils, 'm8_repondre_question', question='Évolution des leads reçus',
+                       maintenant='2026-11-01T00:00:00Z')
+    assert reponse['ok']
+    resultat = reponse['resultat']
+    texte = resultat['texte']
+    ancien = '2026-10-31T22:30:00.000000001Z (20)'
+    recent = '2026-10-31T22:30:00.000000002Z (21)'
+    assert 'en hausse' in texte and ancien in texte and recent in texte
+    assert texte.index(ancien) < texte.index(recent)
+    assert len(json.dumps(resultat, ensure_ascii=False)) <= m8_outils.BUDGET_SORTIE
+    assert copilote.verifier_recu(resultat['recu'])

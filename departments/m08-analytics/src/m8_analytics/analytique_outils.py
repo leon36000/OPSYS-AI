@@ -485,6 +485,7 @@ def construire(
         resultat["maintenant"] = maintenant
         resultat["etat_courant"] = {
             "statut": mesure["statut"],
+            "couverture": mesure["couverture"]["etat"],
             "valeur": mesure["valeur"] if mesure["statut"] == entonnoir.STATUT_CALCULEE else None,
             "qualite": (mesure.get("qualite") or {}).get("statut"),
             "dernier_fait_le": mesure["dernier_fait_le"],

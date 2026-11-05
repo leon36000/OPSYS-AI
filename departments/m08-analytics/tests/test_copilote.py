@@ -45,14 +45,16 @@ def _repondre(question, mesures, **kw):
     historiques = {
         "m8_taux_acceptation_pct": [
             {
+                "construction_id": "c1",
                 "valeur": "50.00", "construit_le": "2026-10-30T20:00:00-04:00",
                 "construit_le_utc": "2026-10-31T00:00:00.000000000Z", "version_definition": version_taux,
-                "statut": "calculee",
+                "statut": "calculee", "couverture": {"etat": "complete"},
             },
             {
+                "construction_id": "c2",
                 "valeur": "40.00", "construit_le": "2026-10-20T20:00:00-04:00",
                 "construit_le_utc": "2026-10-21T00:00:00.000000000Z", "version_definition": version_taux,
-                "statut": "calculee",
+                "statut": "calculee", "couverture": {"etat": "complete"},
             },
         ]
     }
@@ -124,7 +126,11 @@ def test_tout_nombre_du_texte_vient_du_moteur(cas, mesures):
             permis |= _nombres(fraicheur_mesures.formater_duree(ligne["fraicheur"]["fenetre_s"]))
     permis |= _nombres(
         " ".join(
-            c["construit_le"] for h in [{"construit_le": "2026-10-30"}, {"construit_le": "2026-10-20"}] for c in [h]
+            c["construit_le_utc"]
+            for c in [
+                {"construit_le_utc": "2026-10-31T00:00:00.000000000Z"},
+                {"construit_le_utc": "2026-10-21T00:00:00.000000000Z"},
+            ]
         )
     )
     permis |= {"100", "5", "2026", "10", "20", "30"}  # « sur 100 », « 5 mesures », dates de l'historique fictif
