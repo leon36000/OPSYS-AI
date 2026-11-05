@@ -208,7 +208,6 @@ def _instantane_cloture(ctx: Mapping[str, Any]) -> tuple[dict[str, Any] | None, 
     SQL de ces quatre registres est couverte. Le verrou transactionnel sérialise les deux producteurs de constats
     idempotents concernés avant leur snapshot, pour que le second relise l'opération déjà consignée.
     """
-    from . import registre as registre_module
     from opsys.stockage.concurrence import verrou_consultatif
 
     noms = (
@@ -221,7 +220,7 @@ def _instantane_cloture(ctx: Mapping[str, Any]) -> tuple[dict[str, Any] | None, 
     if cnx is not None:
         verrou_consultatif(cnx, "m05-financecore:precloture-dossier-cpa")
     maillons = stockage.lire_instantane_maillons(_o._DEPARTEMENT, noms)
-    registres = {nom: registre_module.Registre(maillons=maillons[nom]) for nom in noms}
+    registres = {nom: _o._registre_capture(maillons[nom]) for nom in noms}
 
     valide, raison = registres[_o._NOM_REGISTRE_GRAND_LIVRE].valider_chaine()
     if not valide:

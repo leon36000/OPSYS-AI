@@ -968,7 +968,7 @@ def test_une_panne_du_controle_est_comptee_et_n_arrete_pas_le_tour(monde, monkey
     def panne(*args, **kwargs):
         raise RuntimeError("panne fictive du contrôle")
 
-    monkeypatch.setattr(m5_outils, "_registre_grand_livre", panne)
+    monkeypatch.setattr(stockage, "lire_instantane_maillons", panne)
     monde.activer("actif", noms=(CONSTAT,))
     resume = monde.tour(1)[CONSTAT]
     assert resume["statut"] == "erreur" and resume["code"] == "REJ-PLAN-DEFAUT-EXECUTEUR"

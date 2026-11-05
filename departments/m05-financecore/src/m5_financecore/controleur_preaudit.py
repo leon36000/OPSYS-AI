@@ -94,6 +94,23 @@ _GRAVITE_DE_REGLE = {
 _REGLES_DU_GRAND_LIVRE = frozenset(
     {"PAIEMENT_SANS_FACTURE", "TAXE_INCOHERENTE", "TRANSACTION_HORS_NORME", "FACTURE_MODIFIEE", "DOCUMENT_MANQUANT"}
 )
+_REGLES_PAR_REGISTRE = {
+    "factures": frozenset(
+        {"FACTURE_SANS_PAIEMENT", "PAIEMENT_SANS_FACTURE", "TAXE_INCOHERENTE", "DOCUMENT_MANQUANT"}
+    ),
+    "comptes_a_payer": frozenset(
+        {
+            "PAIEMENT_SANS_FACTURE",
+            "DEPENSE_SANS_RECU",
+            "TAXE_INCOHERENTE",
+            "DOUBLON_PROBABLE",
+            "FACTURE_MODIFIEE",
+            "CHANGEMENT_COMPTE_INHABITUEL",
+            "DOCUMENT_MANQUANT",
+        }
+    ),
+    "operations_comptables": frozenset({"DEPENSE_SANS_RECU", "TAXE_INCOHERENTE", "DOCUMENT_MANQUANT"}),
+}
 _PIECES_MANUELLES = ("manuelle", "recu", "releve_bancaire")
 _PIECES_VERIFIEES = ("facture_client", "facture_fournisseur", "note_credit", "depense_employe")
 _ZERO = Decimal("0.00")
@@ -466,7 +483,9 @@ def _doublon(d: Mapping[str, Any]) -> Resultat:
     limites = []
     if fenetre is None:
         limites.append("m5.jours_fenetre_doublon non déclaré : seuls les doublons de la MÊME date sont évalués")
-    return constats, "PARTIELLE" if fenetre is None else "EVALUEE", limites
+    if not d["gl_utilisable"]:
+        limites.append("grand livre non utilisable : les doublons d'écritures manuelles ne sont pas évalués")
+    return constats, "PARTIELLE" if limites else "EVALUEE", limites
 
 
 def _hors_norme(d: Mapping[str, Any]) -> Resultat:
@@ -618,6 +637,9 @@ def _changement_de_compte(d: Mapping[str, Any]) -> Resultat:
 
 def _piste_incomplete(d: Mapping[str, Any]) -> Resultat:
     constats: list[dict[str, Any]] = []
+    chaines_invalides = {
+        chaine["registre"] for chaine in d["chaines"] if chaine["ok"] is False
+    }
     for chaine in d["chaines"]:
         if not chaine["ok"]:
             constats.append(
@@ -655,7 +677,12 @@ def _piste_incomplete(d: Mapping[str, Any]) -> Resultat:
                     outil="m5_verifier_numerotation_factures",
                 )
             )
-    manque = [] if numerotation is not None else ["suite des numéros de facture non lue (registre absent)"]
+    if numerotation is not None:
+        manque = list(numerotation.get("manque", []))
+    elif "numerotation_factures" in chaines_invalides:
+        manque = ["suite des numéros de facture non vérifiable (chaîne du registre altérée)"]
+    else:
+        manque = ["suite des numéros de facture non lue (registre absent)"]
     return constats, "PARTIELLE" if manque else "EVALUEE", manque
 
 
@@ -749,6 +776,11 @@ def controler(dossier: Mapping[str, Any]) -> dict[str, Any]:
     recu}`. Aucune règle ne lève : une règle dont la donnée manque est « NON_EVALUEE » et dit laquelle."""
     regles: list[dict[str, Any]] = []
     constats: list[dict[str, Any]] = []
+    chaines_invalides = {
+        chaine["registre"]
+        for chaine in dossier.get("chaines", [])
+        if chaine.get("ok") is False and isinstance(chaine.get("registre"), str)
+    }
     for nom in REGLES:
         if _gl_altere(dossier) and nom in _REGLES_DU_GRAND_LIVRE:
             regles.append(
@@ -757,6 +789,28 @@ def controler(dossier: Mapping[str, Any]) -> dict[str, Any]:
                     "etat": "NON_EVALUEE",
                     "constats": None,
                     "manque": ["le grand livre est altéré (voir PISTE_AUDIT_INCOMPLETE) : aucune lecture n'est fiable"],
+                }
+            )
+            continue
+        registres_requis_invalides = [
+            registre
+            for registre, regles_registre in _REGLES_PAR_REGISTRE.items()
+            if nom in regles_registre and registre in chaines_invalides
+        ]
+        if registres_requis_invalides:
+            sources = ", ".join(sorted(registres_requis_invalides))
+            detail_ops = (
+                "registre des opérations illisible ; " if "operations_comptables" in registres_requis_invalides else ""
+            )
+            regles.append(
+                {
+                    "regle": nom,
+                    "etat": "NON_EVALUEE",
+                    "constats": None,
+                    "manque": [
+                        f"{detail_ops}registre(s) {sources} altéré(s) (voir PISTE_AUDIT_INCOMPLETE) : "
+                        "les données dépendantes ne sont pas fiables"
+                    ],
                 }
             )
             continue

@@ -669,25 +669,38 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
     seuils, problemes_seuils = controleur_preaudit.seuils_depuis(_preaudit_declare())
     chaines: list[dict[str, Any]] = []
 
+    noms_registres = (
+        _o._NOM_REGISTRE_GRAND_LIVRE,
+        _o._NOM_REGISTRE_FACTURES,
+        _o._NOM_REGISTRE_COMPTES_A_PAYER,
+        _o._NOM_REGISTRE_OPERATIONS,
+        _o._NOM_REGISTRE_NUMEROTATION,
+    )
+    instantane = stockage.lire_instantane_maillons(_o._DEPARTEMENT, noms_registres)
+
+    def registre_capture(nom: str) -> Any:
+        return _o._registre_capture(instantane[nom])
+
     def chaine(nom: str, registre: Any) -> bool:
         valide, raison = registre.valider_chaine()
         chaines.append({"registre": nom, "ok": bool(valide), "detail": _une_ligne(raison or "")})
         return bool(valide)
 
-    registre_gl = _o._registre_grand_livre()
+    registre_gl = registre_capture(_o._NOM_REGISTRE_GRAND_LIVRE)
     gl_chaine = chaine("grand_livre", registre_gl)
     etat_gl = grand_livre.etat_grand_livre(registre_gl.lire())
     gl_utilisable = gl_chaine and not etat_gl["anomalies"]
-    registre_factures = _o._registre_factures(None)
-    chaine("factures", registre_factures)
-    registre_ap = _o._registre_comptes_a_payer()
+    registre_factures = registre_capture(_o._NOM_REGISTRE_FACTURES)
+    factures_chaine = chaine("factures", registre_factures)
+    registre_ap = registre_capture(_o._NOM_REGISTRE_COMPTES_A_PAYER)
     ap_chaine = chaine("comptes_a_payer", registre_ap)
-    registre_ops = _o._registre_operations()
+    registre_ops = registre_capture(_o._NOM_REGISTRE_OPERATIONS)
     ops_chaine = chaine("operations_comptables", registre_ops)
-    registre_numeros = _o._registre_numerotation()
-    chaine("numerotation_factures", registre_numeros)
+    registre_numeros = registre_capture(_o._NOM_REGISTRE_NUMEROTATION)
+    numerotation_chaine = chaine("numerotation_factures", registre_numeros)
 
-    clients_bruts = facturation.etats_des_factures(registre_factures)
+    # Une chaîne invalide sert au constat d'intégrité seulement : ne pas projeter, calculer, ni raccorder ses pièces.
+    clients_bruts = facturation.etats_des_factures(registre_factures) if factures_chaine else []
     clients = [
         {
             "facture_id": f["facture_id"],
@@ -799,13 +812,28 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
                     "illisibles": len(resultat["factures_illisibles"])
                     + len(resultat["factures_fournisseurs_illisibles"]),
                 }
-    verification = facturation_jalons.verifier_numerotation(registre_numeros.lire())
-    defauts = [f"trou dans la suite : {n}" for n in verification["trous"]]
-    defauts += verification["doublons"] + verification["anomalies"]
-    numeros_attribues = {m["facture_id"]: m["numero_facture"] for m in registre_numeros.lire() if m.get("facture_id")}
-    for f in clients_bruts:
-        if f.get("numero_facture") and numeros_attribues.get(f["facture_id"]) != f["numero_facture"]:
-            defauts.append(f"facture {f['facture_id']} numérotée hors du registre de numérotation")
+    defauts: list[str] = []
+    numerotation: dict[str, Any] | None = None
+    if numerotation_chaine:
+        verification = facturation_jalons.verifier_numerotation(registre_numeros.lire())
+        defauts = [f"trou dans la suite : {n}" for n in verification["trous"]]
+        defauts += verification["doublons"] + verification["anomalies"]
+        if factures_chaine:
+            numeros_attribues = {
+                m["facture_id"]: m["numero_facture"]
+                for m in registre_numeros.lire()
+                if m.get("facture_id")
+            }
+            for f in clients_bruts:
+                if f.get("numero_facture") and numeros_attribues.get(f["facture_id"]) != f["numero_facture"]:
+                    defauts.append(f"facture {f['facture_id']} numérotée hors du registre de numérotation")
+        numerotation = {
+            "ok": not defauts,
+            "defauts": [_une_ligne(d) for d in defauts[:100]],
+            "manque": []
+            if factures_chaine
+            else ["vérification croisée des numéros avec les factures indisponible (chaîne factures altérée)"],
+        }
     dossier = {
         "aujourd_hui": aujourd_hui.isoformat(),
         "gl_utilisable": gl_utilisable,
@@ -826,7 +854,7 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
         "pieces_illisibles": illisibles,
         "taxes": taxes,
         "chaines": chaines,
-        "numerotation": {"ok": not defauts, "defauts": [_une_ligne(d) for d in defauts[:100]]},
+        "numerotation": numerotation,
         "seuils": seuils,
         "seuils_problemes": problemes_seuils,
         "sources": [

@@ -1998,7 +1998,8 @@ def test_preaudit_ops_a_hash_invalide_ne_reutilise_pas_la_piece(base_durable, pa
     taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
     assert "registre des opérations illisible" in " ".join(taxe["manque"])
     assert rapport["par_regle"]["TAXE_INCOHERENTE"] is None
-    assert rapport["par_regle"]["DEPENSE_SANS_RECU"] == 0
+    assert rapport["par_regle"]["DEPENSE_SANS_RECU"] is None
+    assert any(r["regle"] == "DEPENSE_SANS_RECU" for r in rapport["regles_non_evaluees"])
     assert not any(c["regle"] == "DEPENSE_SANS_RECU" for c in rapport["constats"])
     assert not any(c["regle"] == "TAXE_INCOHERENTE" for c in rapport["constats"])
     assert "99999.00" not in json.dumps(reponse, ensure_ascii=False)

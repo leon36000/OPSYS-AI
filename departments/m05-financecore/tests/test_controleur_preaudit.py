@@ -449,6 +449,40 @@ def test_doublon_meme_fournisseur_meme_montant_a_moins_de_la_fenetre():
     assert "N-1" in k["raison"] and "N-1B" in k["raison"]
 
 
+def test_doublons_ap_restent_visibles_mais_regle_partielle_si_grand_livre_indisponible():
+    d = dossier_propre()
+    ajouter_fournisseur(d, "A3", "N-1B", "2026-02-14")
+    frais = (("5990", "25.00", None), ("1010", None, "25.00"))
+    d["ecritures"] += [
+        ecriture("gle-7", "saisie:manuelle:7", "2026-03-04", "manuelle", "M-7", frais),
+        ecriture("gle-8", "saisie:manuelle:8", "2026-03-04", "manuelle", "M-8", frais),
+    ]
+    attendu = controler(d)
+    constats_ap_attendus = [
+        k for k in attendu["constats"]
+        if k["regle"] == "DOUBLON_PROBABLE" and all(s["registre"] == "comptes_a_payer" for s in k["sources"])
+    ]
+    constats_gl_attendus = [
+        k for k in attendu["constats"]
+        if k["regle"] == "DOUBLON_PROBABLE" and all(s["registre"] == "grand_livre" for s in k["sources"])
+    ]
+    assert len(constats_ap_attendus) == 1
+    assert len(constats_gl_attendus) == 1
+    assert next(r for r in attendu["regles"] if r["regle"] == "DOUBLON_PROBABLE")["etat"] == "EVALUEE"
+
+    d["gl_utilisable"] = False
+    next(ch for ch in d["chaines"] if ch["registre"] == "grand_livre")["ok"] = False
+    partiel = controler(d)
+    constats_ap = [
+        k for k in partiel["constats"]
+        if k["regle"] == "DOUBLON_PROBABLE" and all(s["registre"] == "comptes_a_payer" for s in k["sources"])
+    ]
+    regle = next(r for r in partiel["regles"] if r["regle"] == "DOUBLON_PROBABLE")
+    assert constats_ap == constats_ap_attendus
+    assert regle["etat"] == "PARTIELLE"
+    assert any("grand livre non utilisable" in manque for manque in regle["manque"])
+
+
 def test_doublon_hors_fenetre_autre_montant_autre_fournisseur_ne_sont_pas_des_doublons():
     d = dossier_propre()
     ajouter_fournisseur(d, "A3", "N-3", "2026-02-16")  # 4 jours : hors fenêtre de 3

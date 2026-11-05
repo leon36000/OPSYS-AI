@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from decimal import Decimal
 from pathlib import Path
 
@@ -813,3 +814,376 @@ def test_les_ecarts_de_taxe_a_net_nul_sans_facture_vivante_ne_sont_pas_des_const
         ("intrants", "A-3"),
     ]
     assert [e["sans_ecriture"] for e in ecarts] == [False, False, True, False, False]  # F-1 et A-1 : net nul, écartés
+
+
+def test_preaudit_garde_tetes_des_sources_du_snapshot_utilise(par_nom, monkeypatch):
+    from m5_financecore import facturation
+
+    facture_id = "PREAUDIT-RACE-FICTIF"
+    creee = appeler(par_nom, "m5_creer_facture_brouillon", {
+        "facture_id": facture_id, "chantier_id": "CHANTIER-RACE-FICTIF", "devis_id": "DEVIS-RACE-FICTIF",
+        "client_id": "CLIENT-RACE-FICTIF",
+        "lignes": [{"description": "travail fictif", "quantite": "1", "unite": "forfait",
+                    "prix_unitaire": "100.00", "reference_ligne_devis": "L1"}],
+        "horodatage": H,
+    })
+    utile(creee)
+
+    original = facturation.etats_des_factures
+    captures = {}
+    commit_simule = False
+
+    def lire_puis_simuler_commit(registre):
+        nonlocal commit_simule
+        factures = original(registre)
+        if not commit_simule:
+            commit_simule = True
+            recu_depuis = registre.lire()
+            captures["factures"] = {
+                "taille": len(recu_depuis), "tete": recu_depuis[-1]["ligne_id"] if recu_depuis else None,
+                "statut": next(f["statut"] for f in factures if f["facture_id"] == facture_id),
+            }
+            registre_concurrent = m5_outils._registre_factures(None)
+            transition, refus_transition = facturation.envoyer_facture(
+                facture_id, "2026-03-31T13:00:00-04:00", registre_concurrent
+            )
+            assert refus_transition is None and transition is not None
+        return factures
+
+    monkeypatch.setattr(facturation, "etats_des_factures", lire_puis_simuler_commit)
+    reponse = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    source = next(s for s in reponse["sources"] if s["registre"] == "factures")
+    assert captures["factures"]["statut"] == "BROUILLON"
+    assert source == {key: captures["factures"][key] for key in ("taille", "tete") } | {"registre": "factures"}
+
+
+def test_panne_du_select_snapshot_du_preaudit_ne_publie_pas(par_nom, monkeypatch):
+    """Le point de lecture actuel est le SELECT multi-registres, pas `_registre_grand_livre`."""
+    def panne(*_args, **_kwargs):
+        raise RuntimeError("panne fictive du snapshot")
+
+    monkeypatch.setattr(stockage, "lire_instantane_maillons", panne)
+    with pytest.raises(RuntimeError, match="panne fictive du snapshot"):
+        appeler(par_nom, "m5_constater_preaudit", {"aujourd_hui": "2026-03-31", "horodatage": H})
+    assert publies() == []
+
+
+def test_preaudit_postgresql_tete_et_contenu_proviennent_du_meme_snapshot(
+    par_nom, monkeypatch, declare, m5_postgres_doubles
+):
+    """Un append validé après le SELECT ne doit pas mélanger tête récente et contenu antérieur."""
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+    from m5_financecore import controleur_preaudit, facturation
+
+    facture_id = "PREAUDIT-PG-SNAPSHOT-FICTIF"
+    with m5_postgres_doubles.postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        m5_outils.utiliser_stockage_durable()
+        with stockage.transaction(url) as cnx:
+            identite.creer_personne(
+                cnx, "nathan.fictif", "Nathan fictif", "mot-de-passe-fictif-1234", ["nathan_owner", "admin"]
+            )
+        declare({})
+        utile(appeler(par_nom, "m5_creer_facture_brouillon", {
+            "facture_id": facture_id, "chantier_id": "CHANTIER-PG-FICTIF", "devis_id": "DEVIS-PG-FICTIF",
+            "client_id": "CLIENT-PG-FICTIF",
+            "lignes": [{"description": "travail fictif", "quantite": "1", "unite": "forfait",
+                        "prix_unitaire": "100.00", "reference_ligne_devis": "L1"}],
+            "horodatage": H,
+        }))
+
+        lecteur = threading.get_ident
+        reached, release = threading.Event(), threading.Event()
+        erreurs: list[BaseException] = []
+        instantanes: list[dict[str, list[dict]]] = []
+        dossiers_controles: list[dict] = []
+        reponses: list[dict] = []
+        original_snapshot = stockage.lire_instantane_maillons
+        original_controler = controleur_preaudit.controler
+        ident_lecteur: list[int] = []
+
+        def capturer_dossier(dossier):
+            dossiers_controles.append(dossier)
+            return original_controler(dossier)
+
+        def snapshot_puis_attendre(departement, registres):
+            resultat = original_snapshot(departement, registres)
+            if departement == DEPARTEMENT and lecteur() == ident_lecteur[0]:
+                instantanes.append({nom: list(maillons) for nom, maillons in resultat.items()})
+                reached.set()
+                if not release.wait(40):
+                    raise TimeoutError("transition concurrente non terminée")
+            return resultat
+
+        def lire_preaudit():
+            try:
+                ident_lecteur.append(lecteur())
+                reponses.append(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+            except BaseException as exc:  # remonter toute erreur du thread au test principal
+                erreurs.append(exc)
+
+        def envoyer_concurrentement():
+            try:
+                if not reached.wait(40):
+                    raise TimeoutError("le SELECT du pré-audit n'a pas été atteint")
+                with stockage.transaction(url):
+                    registre_factures = m5_outils._registre_factures(None)
+                    transition, refus_transition = facturation.envoyer_facture(
+                        facture_id, "2026-03-31T13:00:00-04:00", registre_factures
+                    )
+                    assert refus_transition is None and transition is not None, refus_transition
+            except BaseException as exc:  # remonter toute erreur du thread au test principal
+                erreurs.append(exc)
+            finally:
+                release.set()
+
+        monkeypatch.setattr(stockage, "lire_instantane_maillons", snapshot_puis_attendre)
+        monkeypatch.setattr(controleur_preaudit, "controler", capturer_dossier)
+        t_lecteur = threading.Thread(target=lire_preaudit, daemon=True)
+        t_ecrivain = threading.Thread(target=envoyer_concurrentement, daemon=True)
+        t_lecteur.start()
+        t_ecrivain.start()
+        t_lecteur.join(60)
+        t_ecrivain.join(60)
+        try:
+            assert not t_lecteur.is_alive() and not t_ecrivain.is_alive(), "threads bloqués"
+            assert not erreurs, erreurs
+            assert len(instantanes) == 1 and len(dossiers_controles) == 1 and len(reponses) == 1, (
+                instantanes, dossiers_controles, reponses
+            )
+            rapport = utile(reponses[0])
+            snapshot_factures = instantanes[0]["factures"]
+            source = next(s for s in rapport["sources"] if s["registre"] == "factures")
+            assert source == {
+                "registre": "factures", "taille": len(snapshot_factures),
+                "tete": snapshot_factures[-1]["ligne_id"],
+            }
+            dossier = dossiers_controles[0]
+            source_controle = next(s for s in dossier["sources"] if s["registre"] == "factures")
+            assert source_controle == source
+            facture_snapshot = next(f for f in dossier["factures_clients"] if f["facture_id"] == facture_id)
+            assert facture_snapshot["statut"] == "BROUILLON"
+            with stockage.transaction(url):
+                registre_final = m5_outils._registre_factures(None)
+                maillons_finaux = registre_final.lire()
+                facture_finale = next(
+                    f for f in facturation.etats_des_factures(registre_final) if f["facture_id"] == facture_id
+                )
+            assert len(maillons_finaux) == len(snapshot_factures) + 1
+            assert maillons_finaux[-1]["ligne_id"] != source["tete"]
+            assert facture_finale["statut"] == "ENVOYEE"
+        finally:
+            stockage.liberer(url)
+
+
+def test_preaudit_ne_calcule_pas_les_regles_dependantes_d_une_chaine_factures_alteree(par_nom, dep):
+    facture_id = "PREAUDIT-CHAINE-FACTURE-FICTIF"
+    utile(
+        appeler(
+            par_nom,
+            "m5_creer_facture_brouillon",
+            {
+                "facture_id": facture_id,
+                "chantier_id": "CHANTIER-CHAINE-FICTIF",
+                "devis_id": "DEVIS-CHAINE-FICTIF",
+                "client_id": "CLIENT-CHAINE-FICTIF",
+                "lignes": [
+                    {
+                        "description": "travail fictif",
+                        "quantite": "1",
+                        "unite": "forfait",
+                        "prix_unitaire": "100.00",
+                        "reference_ligne_devis": "L1",
+                    }
+                ],
+                "horodatage": H,
+            },
+        )
+    )
+    decision = decider(
+        dep,
+        "m5_envoyer_facture",
+        {"facture_id": facture_id, "horodatage": "2026-03-01T12:00:00-05:00"},
+    )
+    assert decision["statut"] == "executee", decision
+
+    # Altération fictive de la pièce persistée : la valeur devient échue, mais son empreinte reste ancienne.
+    altérer("factures", lambda maillon: maillon.update(echeance="2026-03-01"))
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    assert any(
+        c["regle"] == "PISTE_AUDIT_INCOMPLETE" and "factures" in c["raison"]
+        for c in resultat["constats"]
+    )
+    assert "FACTURE_SANS_PAIEMENT" in {r["regle"] for r in resultat["regles_non_evaluees"]}
+    assert resultat["par_regle"]["FACTURE_SANS_PAIEMENT"] is None
+    assert "PISTE_AUDIT_INCOMPLETE" in {r["regle"] for r in resultat["regles_partielles"]}
+
+
+def test_preaudit_ne_projete_pas_une_facture_malformee_si_sa_chaine_est_invalide(par_nom, dep):
+    facture_id = "PREAUDIT-FACTURE-MALFORMEE-FICTIF"
+    utile(
+        appeler(
+            par_nom,
+            "m5_creer_facture_brouillon",
+            {
+                "facture_id": facture_id,
+                "chantier_id": "CHANTIER-MALFORME-FICTIF",
+                "devis_id": "DEVIS-MALFORME-FICTIF",
+                "client_id": "CLIENT-MALFORME-FICTIF",
+                "lignes": [
+                    {
+                        "description": "travail fictif",
+                        "quantite": "1",
+                        "unite": "forfait",
+                        "prix_unitaire": "100.00",
+                        "reference_ligne_devis": "L1",
+                    }
+                ],
+                "horodatage": H,
+            },
+        )
+    )
+    decision = decider(
+        dep,
+        "m5_envoyer_facture",
+        {"facture_id": facture_id, "horodatage": "2026-03-01T12:00:00-05:00"},
+    )
+    assert decision["statut"] == "executee", decision
+    # Une valeur JSON non hashable dans la transition ferait planter le projecteur de factures.
+    altérer("factures", lambda maillon: maillon.update(facture_id=[]))
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    assert any(
+        c["regle"] == "PISTE_AUDIT_INCOMPLETE" and "factures" in c["raison"]
+        for c in resultat["constats"]
+    )
+    assert "FACTURE_SANS_PAIEMENT" in {r["regle"] for r in resultat["regles_non_evaluees"]}
+    assert "PISTE_AUDIT_INCOMPLETE" in {r["regle"] for r in resultat["regles_partielles"]}
+
+
+def test_preaudit_ne_raccorde_pas_un_numero_a_des_factures_non_fiables(par_nom, dep, declare):
+    declare(
+        {
+            "facturation": {
+                "numerotation": {"prefixe": "F-", "premier_numero": 1001, "largeur": 4},
+                "conditions_paiement": {"delai_jours": 30},
+            }
+        }
+    )
+    facture_id = "PREAUDIT-FAUX-RATTACHEMENT-FICTIF"
+    utile(
+        appeler(
+            par_nom,
+            "m5_creer_facture_brouillon",
+            {
+                "facture_id": facture_id,
+                "chantier_id": "CHANTIER-RATTACHEMENT-FICTIF",
+                "devis_id": "DEVIS-RATTACHEMENT-FICTIF",
+                "client_id": "CLIENT-RATTACHEMENT-FICTIF",
+                "lignes": [
+                    {
+                        "description": "travail fictif",
+                        "quantite": "1",
+                        "unite": "forfait",
+                        "prix_unitaire": "100.00",
+                        "reference_ligne_devis": "L1",
+                    }
+                ],
+                "horodatage": H,
+            },
+        )
+    )
+    decision = decider(
+        dep,
+        "m5_envoyer_facture",
+        {"facture_id": facture_id, "horodatage": "2026-03-01T12:00:00-05:00"},
+    )
+    assert decision["statut"] == "executee", decision
+    altérer("factures", lambda maillon: maillon.update(numero_facture="FAKE-9999"))
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    raisons = [c["raison"] for c in resultat["constats"] if c["regle"] == "PISTE_AUDIT_INCOMPLETE"]
+    assert any("factures" in raison for raison in raisons)
+    assert all("numérotée hors du registre" not in raison for raison in raisons)
+    assert "PISTE_AUDIT_INCOMPLETE" in {r["regle"] for r in resultat["regles_partielles"]}
+
+
+def test_preaudit_ne_verifie_pas_les_numeros_depuis_une_chaine_numerotation_alteree(par_nom, dep, declare):
+    declare(
+        {
+            "facturation": {
+                "numerotation": {"prefixe": "F-", "premier_numero": 1001, "largeur": 4},
+                "conditions_paiement": {"delai_jours": 30},
+            }
+        }
+    )
+    facture_id = "PREAUDIT-CHAINE-NUMERO-FICTIF"
+    utile(
+        appeler(
+            par_nom,
+            "m5_creer_facture_brouillon",
+            {
+                "facture_id": facture_id,
+                "chantier_id": "CHANTIER-NUMERO-FICTIF",
+                "devis_id": "DEVIS-NUMERO-FICTIF",
+                "client_id": "CLIENT-NUMERO-FICTIF",
+                "lignes": [
+                    {
+                        "description": "travail fictif",
+                        "quantite": "1",
+                        "unite": "forfait",
+                        "prix_unitaire": "100.00",
+                        "reference_ligne_devis": "L1",
+                    }
+                ],
+                "horodatage": H,
+            },
+        )
+    )
+    decision = decider(
+        dep,
+        "m5_envoyer_facture",
+        {"facture_id": facture_id, "horodatage": "2026-03-01T12:00:00-05:00"},
+    )
+    assert decision["statut"] == "executee", decision
+    altérer("numerotation_factures", lambda maillon: maillon.update(fictif_alteration=True))
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    assert any(
+        c["regle"] == "PISTE_AUDIT_INCOMPLETE" and "numerotation_factures" in c["raison"]
+        for c in resultat["constats"]
+    )
+    assert "PISTE_AUDIT_INCOMPLETE" in {r["regle"] for r in resultat["regles_partielles"]}
+
+
+def test_preaudit_ne_calcule_pas_les_regles_dependantes_d_une_chaine_ap_alteree(par_nom, declare):
+    declare({"categories_depense_sans_po": ["carburant"]})
+    identite_appelante = contexte.IdentiteAppelante(personne="comptable", role="admin")
+    utile(
+        appeler(
+            par_nom,
+            "m5_saisir_facture_sans_po",
+            {
+                "fournisseur_id": "FOURNISSEUR-AP-FICTIF",
+                "categorie": "carburant",
+                "numero_facture": "AP-CHAIN-FICTIVE",
+                "date_facture": "2026-03-10",
+                "montant_avant_taxes": "100.00",
+                "total_facture": None,
+                "horodatage": "2026-03-10T10:00:00-04:00",
+            },
+            identite_appelante,
+        )
+    )
+    altérer("comptes_a_payer", lambda maillon: maillon.update(fictif_alteration=True))
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+    assert any(
+        c["regle"] == "PISTE_AUDIT_INCOMPLETE" and "comptes_a_payer" in c["raison"]
+        for c in resultat["constats"]
+    )
+    assert "DEPENSE_SANS_RECU" in {r["regle"] for r in resultat["regles_non_evaluees"]}
+    assert resultat["par_regle"]["DEPENSE_SANS_RECU"] is None

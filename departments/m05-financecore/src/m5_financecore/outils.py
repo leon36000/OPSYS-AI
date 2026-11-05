@@ -480,6 +480,11 @@ def _etat_mouvements(historique: list[dict[str, Any]] | None, registre_cible: re
     return {"mouvements_historique": registre_cible.lire()}
 
 
+def _registre_capture(maillons: list[dict[str, Any]]) -> registre_module.Registre:
+    """Registre en mémoire construit depuis une capture, sans accès au registre des mouvements."""
+    return registre_module.Registre(maillons=list(maillons))
+
+
 def _registre_factures(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
     """Registre des FACTURES pour un appel — même patron d'adaptateur que `_registre_mouvements`
     (mandat T1.1-e, tâche 2), y compris la bascule `_stockage_durable_actif` déjà en place pour
