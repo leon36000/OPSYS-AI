@@ -178,6 +178,7 @@ def garde_lecon(ident: str, par: str) -> dict[str, Any]:
     """La garde du gabarit pour une leçon de l'instance, hors de toute transaction, puis l'écriture du verdict."""
     from .. import etat as etat_instance
     from ..departements import charger_departements, racine_departements
+    from ..stockage.concurrence import verrou_consultatif
     from . import codes, garde_gabarit, lecons, registres, service
 
     with etat_instance.session():
@@ -187,7 +188,8 @@ def garde_lecon(ident: str, par: str) -> dict[str, Any]:
     deps = charger_departements(racine_departements())
     verdict = garde_gabarit.comparer_au_gabarit(deps, lc["cible"], lc["texte_agent"])
     empreinte = garde_gabarit.empreinte_garde(deps, lc["cible"])
-    with etat_instance.session():
+    with etat_instance.session() as cnx:
+        verrou_consultatif(cnx, lecons.VERROU_REGISTRE)
         lecons.enregistrer_garde(
             registres.lecons(),
             ident,

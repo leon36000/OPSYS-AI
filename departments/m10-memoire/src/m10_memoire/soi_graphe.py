@@ -32,6 +32,7 @@ from opsys.mnemo import codes, lecons, registres, service, soi, soi_dimensions, 
 from opsys.mnemo.codes import ErreurMnemo
 from opsys.mnemo.graphe import DemandeArete, GrapheSql, NoeudRef, alimentation, schema
 from opsys.outils import Autonomie, Niveau, Outil
+from opsys.stockage.concurrence import verrou_consultatif
 from opsys.stockage.schema import CONNAISSANCES_VERSIONS
 
 from . import apprentissage_marketing, classification, etapes
@@ -564,7 +565,10 @@ def _ecarts() -> tuple[list[lecons.Ecart], list[lecons.Ecart]]:
 
 
 def extraire_lecons() -> dict[str, Any]:
-    service.connexion()
+    cnx = service.connexion()
+    # Tous les écrivains du registre leçons prennent le même verrou avant leurs lectures :
+    # le prédécesseur de chaîne ne peut ainsi pas devenir périmé entre lecture et append.
+    verrou_consultatif(cnx, lecons.VERROU_REGISTRE)
     mat, mar = _ecarts()
     bilan = lecons.extraire(
         registres.lecons(),
@@ -586,7 +590,8 @@ def extraire_lecons() -> dict[str, Any]:
 def evaluer_lecon(lecon_id: str) -> dict[str, Any]:
     """La MESURE hors ligne (chantiers tenus à l'écart). La garde du gabarit monte une instance fictive : elle ne
     tourne pas dans un appel d'outil, c'est `opsys-metier mnemo garde-lecon`."""
-    service.connexion()
+    cnx = service.connexion()
+    verrou_consultatif(cnx, lecons.VERROU_REGISTRE)
     mat, mar = _ecarts()
     r = lecons.evaluer_mesure(
         registres.lecons(), lecon_id, ecarts_mat=mat, ecarts_mar=mar, horodatage=_instant(), par=AGENT
@@ -597,6 +602,8 @@ def evaluer_lecon(lecon_id: str) -> dict[str, Any]:
 
 def decider_lecon(lecon_id: str, etape: str, motif: str, pourcentage: int | None = None) -> dict[str, Any]:
     acteur = _acteur_humain("m10_decider_lecon")
+    cnx = service.connexion()
+    verrou_consultatif(cnx, lecons.VERROU_REGISTRE)
     empreinte = _empreinte_garde_de(lecon_id)
     maintenant = _instant()
     r = lecons.decider(

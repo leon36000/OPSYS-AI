@@ -51,6 +51,7 @@ from .codes import ErreurMnemo
 TYPE_PROPOSEE = "lecon_proposee"
 TYPE_EVALUATION = "lecon_evaluation"
 TYPE_DECISION = "lecon_decision"
+VERROU_REGISTRE = "m10-registre-lecons"
 
 GENRES = ("ecart_materiau", "ecart_marge", "refus_recurrent", "rejets_soi", "apprentissage_marketing")
 GENRES_CHIFFRES = ("ecart_materiau", "ecart_marge")
