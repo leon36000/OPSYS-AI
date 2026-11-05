@@ -296,7 +296,8 @@ def analyser_url(url: Any) -> dict[str, Any]:
     if doubles:
         return {
             "verdict": NON_NORMALISABLE,
-            "raison": f"paramètre répété : {', '.join(doubles)}",
+            # Les noms de clés viennent de l'URL et peuvent eux-mêmes porter des données personnelles.
+            "raison": "paramètre UTM répété",
             "parametres": {},
             "identifiants_ecartes": ecartes,
         }
@@ -309,7 +310,8 @@ def analyser_url(url: Any) -> dict[str, Any]:
         "verdict": resultat["verdict"],
         "raison": None,
         "parametres": resultat["parametres"],
-        "utm_inconnus": inconnus,
+        # La liste garde sa longueur publique, mais ne recopie aucun nom de clé fourni par l'appelant.
+        "utm_inconnus": ["nom masqué" for _ in inconnus],
         "identifiants_ecartes": ecartes,
     }
 

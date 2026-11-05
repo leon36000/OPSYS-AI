@@ -96,6 +96,10 @@ def test_normaliser_utm_exclusivite_des_entrees():
         urls=["https://x.test/?utm_source=google&utm_medium=cpc&utm_campaign=fenetre-a-2026&gclid=SECRET"]
     )
     assert r["couverture"]["conformes"] == 1 and "SECRET" not in repr(r)
+    url = "https://x.test/?utm_source=google&utm_medium=cpc&utm_campaign=fenetre-a-2026&utm_alice%40example.test=x"
+    r = mo.normaliser_utm(urls=[url])
+    assert r["accepte"] and r["urls"][0]["utm_inconnus"] == ["nom masqué"]
+    assert "alice@example.test" not in repr(r)
     refus = mo.normaliser_utm(urls=["https://x.test/"] * 501)
     assert refus["accepte"] is False and refus["refus"][0]["code"] == "REJ-MESURE-UTM-ENTREE-INVALIDE"
 

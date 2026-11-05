@@ -127,6 +127,27 @@ def test_parametre_utm_repete_est_refuse():
     assert r["verdict"] == utm.NON_NORMALISABLE and "répété" in r["raison"]
 
 
+def test_nom_de_cle_utm_inconnu_est_masque():
+    url = (
+        f"{BASE}?utm_source=google&utm_medium=cpc&utm_campaign=fenetre-a-2026"
+        "&utm_alice%40example.test=x&utm_bob%40example.test=y"
+    )
+    r = utm.analyser_url(url)
+    assert r["utm_inconnus"] == ["nom masqué", "nom masqué"]
+    assert "alice@example.test" not in repr(r) and "bob@example.test" not in repr(r) and url not in repr(r)
+
+
+def test_nom_de_cle_utm_pii_repete_n_est_pas_dans_le_refus():
+    url = (
+        f"{BASE}?utm_source=google&utm_medium=cpc&utm_campaign=fenetre-a-2026"
+        "&utm_alice%40example.test=x&utm_alice%40example.test=y"
+    )
+    r = utm.analyser_url(url)
+    assert r["verdict"] == utm.NON_NORMALISABLE
+    assert r["raison"] == "paramètre UTM répété"
+    assert "alice@example.test" not in repr(r) and url not in repr(r)
+
+
 @pytest.mark.parametrize(
     "hostile",
     [
