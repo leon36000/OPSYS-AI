@@ -97,7 +97,11 @@ class Registre:
         horodatage.valider_horodatage(horodatage_str)
 
         # Préparer le lien précédent
-        precedent_ligne_id = self._entrees[-1]["ligne_id"] if self._entrees else None
+        # Le rang lu et le prédécesseur utilisé pour l'empreinte doivent être
+        # encore ceux du registre durable au moment de l'INSERT. Si un autre
+        # écrivain a prolongé la chaîne entre-temps, son append doit être refusé.
+        rang_attendu = len(self._entrees)
+        precedent_ligne_id = self._entrees[rang_attendu - 1]["ligne_id"] if rang_attendu else None
 
         # Calcul du hash intégrant le lien
         contenu_bytes = _canonical_material(entree)
@@ -106,7 +110,11 @@ class Registre:
         entree_stockee = entree
         entree_stockee["ligne_id"] = ligne_id
         entree_stockee["precedent_ligne_id"] = precedent_ligne_id
-        self._entrees.append(entree_stockee)
+        append_preconditionnel = getattr(self._entrees, "append_avec_rang_attendu", None)
+        if callable(append_preconditionnel):
+            append_preconditionnel(entree_stockee, rang_attendu=rang_attendu)
+        else:
+            self._entrees.append(entree_stockee)
         return ligne_id
 
     def lire(self, depuis: str | None = None) -> list:
