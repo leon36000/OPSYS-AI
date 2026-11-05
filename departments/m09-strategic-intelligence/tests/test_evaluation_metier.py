@@ -21,6 +21,14 @@ SOURCE = M9 / "src" / "m9_strategic_intelligence" / "evaluation_metier.py"
 ROUGES_ATTENDUS = {
     "mkt-A07",  # limite connue : type d'action déclaré par le modèle
     "rep-V02",  # limite connue : entier nu en texte libre
+    # Cas gelés dont l'attente PROPOSABLE précède le contrat CLASSEMENT_NON_VERIFIE.
+    "mkt-A01",
+    "mkt-A02",
+    "tre-A06",
+    "tre-A07",
+    "vil-A06",
+    "rep-A01",
+    "rep-A03",
 }
 
 
@@ -108,6 +116,23 @@ def test_les_cas_rouges_sont_exactement_ceux_attendus_et_jamais_moyennes():
     seule = em.evaluer(CORPUS, partition="verification")
     assert seule["partition_evaluee"] == "verification" and seule["effectifs"]["cas"] == 18
     assert _rouges(seule) == {"rep-V02"}
+
+
+def test_attentes_proposables_gelées_sont_maintenant_non_verifiees_sans_effet():
+    cas_attentes = [
+        c
+        for c in CORPUS["cas"]
+        if "PROPOSABLE" in c.get("attentes", {}).get("cloture", {}).get("actions", {}).values()
+    ]
+    assert cas_attentes
+    for cas in cas_attentes:
+        observe = em.evaluer_cas(cas)["observe"]
+        cloture = observe.get("cloture", {})
+        attendues = cas["attentes"].get("cloture", {}).get("actions", {})
+        for action, attendu in attendues.items():
+            if attendu == "PROPOSABLE":
+                assert cloture["actions"][action] == "CLASSEMENT_NON_VERIFIE", cas["id"]
+        assert cloture.get("autorite_d_effet") is False, cas["id"]
 
 
 def test_latence_du_harnais_est_unknown_sans_horloge_injectee_et_mesuree_avec():

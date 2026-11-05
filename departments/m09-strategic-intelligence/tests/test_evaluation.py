@@ -45,14 +45,17 @@ def test_corpus_versionne_couvre_les_six_categories_avec_justification_et_regle(
     assert all(c["justification"].strip() and c["regle"].strip() for c in cas)
 
 
-def test_toutes_les_attentes_tiennent_et_le_taux_est_rendu_avec_son_intervalle():
+def test_ecart_attente_historique_est_expose_et_le_taux_garde_son_intervalle():
     rapport = ev.evaluer(CORPUS)
     echecs = {c: b["echecs"] for c, b in rapport["par_categorie"].items() if b["echecs"]}
-    assert echecs == {}, echecs
+    # Le contrat de gouvernance actuel n'accorde plus PROPOSABLE à suivi_interne.
+    # Le corpus historique reste intact et son unique attente obsolète est exposée.
+    assert {c: [e["id"] for e in v] for c, v in echecs.items()} == {"gouvernance": ["gov-suivi"]}, echecs
     glob = rapport["global"]
-    assert glob["effectif"] == len(CORPUS["cas"]) and glob["reussites"] == glob["effectif"] and glob["taux"] == "1.0000"
+    assert glob["effectif"] == len(CORPUS["cas"])
+    assert glob["reussites"] == glob["effectif"] - 1 and glob["taux"] == "0.9836"
     bas, haut = (float(x) for x in glob["wilson95"])
-    assert 0.9 < bas < 1.0 and haut == 1.0, "100 % sur 61 cas n'est pas 100 % de confiance : l'intervalle le dit"
+    assert 0.9 < bas < 60 / 61 < haut < 1.0, "l'intervalle doit refléter le seul écart historique"
     assert rapport["modele_reel"] is False and rapport["cout_modele"]["tokens"] == 0 and rapport["biais_connus"]
     assert len(rapport["corpus_sha256"]) == 64 and rapport["par_categorie"]["gouvernance"]["effectif"] >= 12
 
@@ -74,9 +77,9 @@ def test_une_attente_fausse_ou_un_code_casse_est_un_echec_conserve_et_non_moyenn
     faux["cas"][0]["attente"] = {"verdict": "REFUSE", "code": "REJ-CONSEIL-CITATION"}
     faux["cas"][1]["attente"] = {"verdict": "ADMIS"}
     rapport = ev.evaluer(faux)
-    assert rapport["global"]["echecs_total"] == 2
+    assert rapport["global"]["echecs_total"] == 3
     ids = {e["id"] for b in rapport["par_categorie"].values() for e in b["echecs"]}
-    assert ids == {faux["cas"][0]["id"], faux["cas"][1]["id"]}
+    assert ids == {faux["cas"][0]["id"], faux["cas"][1]["id"], "gov-suivi"}
     un = next(e for b in rapport["par_categorie"].values() for e in b["echecs"] if e["id"] == faux["cas"][0]["id"])
     assert "attendu 'REFUSE'" in un["ecarts"][0] and un["regle"]
     assert float(rapport["global"]["taux"]) < 1.0
