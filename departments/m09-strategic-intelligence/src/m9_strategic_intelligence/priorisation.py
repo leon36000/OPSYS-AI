@@ -128,6 +128,18 @@ def classer(candidats: Sequence[object]) -> list[dict]:
 UNITES_INCOMPATIBLES = {"m4.capacite_equipe": "heures_declarees"}
 
 
+def _alternative_faisable(dernier: Mapping, candidat: Mapping, conserves: Sequence[Mapping]) -> bool:
+    """Une substitution simple garde les dépendances et conflits des options retenues restantes."""
+    ids_apres = {c["id"] for c in conserves} | {candidat["id"]}
+    if any(dep not in ids_apres for dep in candidat["depend_de"]):
+        return False
+    if any(dernier["id"] in c["depend_de"] for c in conserves):
+        return False
+    return not any(
+        c["id"] in candidat["incompatible_avec"] or candidat["id"] in c["incompatible_avec"] for c in conserves
+    )
+
+
 def allouer(candidats: Sequence[object], *, capacite: str | None, source_capacite: str | None = None) -> dict:
     """Classement, puis allocation gloutonne dans l'ordre des rangs sur ``capacite`` (jours-personnes)."""
     if type(source_capacite) is str and source_capacite.split("#", 1)[0] in UNITES_INCOMPATIBLES:
@@ -233,11 +245,22 @@ def allouer(candidats: Sequence[object], *, capacite: str | None, source_capacit
     if retenus:
         dernier = par_id[retenus[-1]]
         liberee = reste + dernier["effort"]
+        conserves = [par_id[i] for i in retenus[:-1]]
         for n in non:
             candidat = par_id[n["id"]]
-            if n["raison"] == "CAPACITE_INSUFFISANTE" and candidat["effort"] <= liberee and len(alternatives) < 3:
-                alternatives.append({"retirer": dernier["id"], "ajouter": candidat["id"],
-                                     "capacite_restante_apres": str(liberee - candidat["effort"])})  # fmt: skip
+            if (
+                n["raison"] == "CAPACITE_INSUFFISANTE"
+                and candidat["effort"] <= liberee
+                and _alternative_faisable(dernier, candidat, conserves)
+                and len(alternatives) < 3
+            ):
+                alternatives.append(
+                    {
+                        "retirer": dernier["id"],
+                        "ajouter": candidat["id"],
+                        "capacite_restante_apres": str(liberee - candidat["effort"]),
+                    }
+                )
     resultat["alternatives"] = alternatives
     return _signer(resultat)
 

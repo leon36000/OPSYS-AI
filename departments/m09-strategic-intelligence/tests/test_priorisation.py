@@ -62,6 +62,37 @@ def test_alternative_seulement_si_elle_tient():
     assert res["alternatives"] == [{"retirer": "B", "ajouter": "C", "capacite_restante_apres": "0.5"}]
 
 
+def test_alternative_refuse_un_ajout_dependant_de_l_element_retire():
+    dernier = {"id": "fondation", "depend_de": [], "incompatible_avec": []}
+    candidat = {"id": "dependante", "depend_de": ["fondation"], "incompatible_avec": []}
+    assert not priorisation._alternative_faisable(dernier, candidat, [])
+
+
+def test_alternative_refuse_de_supprimer_une_dependance_d_un_retenu_conserve():
+    dernier = {"id": "fondation", "depend_de": [], "incompatible_avec": []}
+    candidat = {"id": "remplacement", "depend_de": [], "incompatible_avec": []}
+    conserve = {"id": "dependante_existante", "depend_de": ["fondation"], "incompatible_avec": []}
+    assert not priorisation._alternative_faisable(dernier, candidat, [conserve])
+
+
+@pytest.mark.parametrize(
+    "incompatible_ajout, incompatible_conserve",
+    [(["conserve"], []), ([], ["ajout"])],
+)
+def test_alternative_refuse_un_conflit_avec_un_retenu(incompatible_ajout, incompatible_conserve):
+    dernier = {"id": "dernier", "depend_de": [], "incompatible_avec": []}
+    candidat = {"id": "ajout", "depend_de": [], "incompatible_avec": incompatible_ajout}
+    conserve = {"id": "conserve", "depend_de": [], "incompatible_avec": incompatible_conserve}
+    assert not priorisation._alternative_faisable(dernier, candidat, [conserve])
+
+
+def test_alternative_faisable_reste_admise():
+    dernier = {"id": "dernier", "depend_de": [], "incompatible_avec": []}
+    candidat = {"id": "ajout", "depend_de": [], "incompatible_avec": []}
+    conserve = {"id": "conserve", "depend_de": [], "incompatible_avec": []}
+    assert priorisation._alternative_faisable(dernier, candidat, [conserve])
+
+
 def test_dependance_retenue_d_abord_puis_dependant_revu():
     res = priorisation.allouer([cand("A", 5, 5, 5, "2", depend_de=["B"]), cand("B", 4, 4, 4, "2")], capacite="10")
     assert [r["id"] for r in res["retenus"]] == ["B", "A"] and res["non_retenus"] == []

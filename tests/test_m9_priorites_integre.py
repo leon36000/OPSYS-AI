@@ -82,6 +82,24 @@ def test_capacite_declaree_est_nommee_comme_hypothese_et_validation_humaine_cons
     assert len(res["priorisation_id"]) == 64
 
 
+def test_alternative_ne_retire_pas_la_dependance_requise(capacites):
+    avant = _registres()
+    pistes = [
+        piste("fondation", 5, 5, 5, "2"),
+        piste("dependante", 4, 4, 4, "1", depend_de=["fondation"]),
+    ]
+    resultat = _appel(
+        capacites,
+        "m9_prioriser_options",
+        {"candidats": pistes, "reference": REF, "capacite_declaree": "2"},
+    )["resultat"]
+    assert [ligne["id"] for ligne in resultat["retenus"]] == ["fondation"]
+    assert resultat["non_retenus"] == [{"id": "dependante", "raison": "CAPACITE_INSUFFISANTE"}]
+    # Avant le correctif, alternatives proposait de retirer fondation et d'ajouter dependante malgré sa dépendance.
+    assert resultat["alternatives"] == []
+    assert _registres() == avant, "la priorisation est une lecture seule"
+
+
 def test_capacite_citee_depuis_un_fait_du_dossier(capacites):
     # Mécanisme : le fait cité doit exister dans le dossier et être un décimal ; son SENS reste l'affirmation de
     # l'appelant, inscrite telle quelle dans source_capacite (aucun producteur n'expose de capacité d'équipe).
