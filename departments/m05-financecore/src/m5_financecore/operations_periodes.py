@@ -76,6 +76,11 @@ def soldes_avant(etat_gl: Mapping[str, Any], jour: date) -> dict[str, Decimal]:
     return {compte: s for compte, s in sorted(soldes.items()) if s != 0}
 
 
+def _empreinte_soldes_ouverture(soldes: Mapping[str, Decimal]) -> str:
+    """Même empreinte canonique pour l'ouverture consignée et le contrôle de préclôture."""
+    return encodage.empreinte("m5.ouverture.soldes.v1", {c: _txt(s) for c, s in soldes.items()})
+
+
 # ------------------------------------------------------------------------------------------------ ouverture
 def ouvrir_periode(
     registre_ops: Any,
@@ -101,7 +106,7 @@ def ouvrir_periode(
     soldes = soldes_avant(etat_gl, debut)
     sans_historique = not any(date.fromisoformat(e["date_effet"]) < debut for e in etat_gl["ecritures"].values())
     precedente_close = verrou is not None and verrou >= veille
-    empreinte = encodage.empreinte("m5.ouverture.soldes.v1", {c: _txt(s) for c, s in soldes.items()})
+    empreinte = _empreinte_soldes_ouverture(soldes)
     corps = {
         "periode": periode,
         "soldes_ouverture": {c: _txt(s) for c, s in soldes.items()},
@@ -314,12 +319,29 @@ def preclore_periode(
             len(jugements),
         )
     )
-    ouvertures = [o for o in etat_ops["par_type"]["op_periode_ouverte"].values() if o["periode"] == periode]
+    ouvertures = [
+        etat_ops["par_type"]["op_periode_ouverte"][identifiant]
+        for identifiant in etat_ops["ordre"]["op_periode_ouverte"]
+        if etat_ops["par_type"]["op_periode_ouverte"][identifiant]["periode"] == periode
+    ]
+    empreinte_soldes_actuels = _empreinte_soldes_ouverture(soldes_avant(etat_gl, debut))
+    ouverture_a_jour = any(o.get("empreinte_soldes") == empreinte_soldes_actuels for o in ouvertures)
+    if ouverture_a_jour:
+        statut_ouverture = "OK"
+        detail_ouverture = "une ouverture consignée correspond aux soldes d'ouverture actuels"
+    elif ouvertures:
+        statut_ouverture = "A_VERIFIER"
+        detail_ouverture = (
+            "empreinte d'ouverture absente ou différente des soldes actuels : relancer m5_ouvrir_periode_comptable"
+        )
+    else:
+        statut_ouverture = "A_VERIFIER"
+        detail_ouverture = "ouverture du mois non consignée (m5_ouvrir_periode)"
     controles.append(
         _controle(
             "ouverture_consignee",
-            "OK" if ouvertures else "A_VERIFIER",
-            "soldes d'ouverture consignés" if ouvertures else "ouverture du mois non consignée (m5_ouvrir_periode)",
+            statut_ouverture,
+            detail_ouverture,
         )
     )
     bloquants = [c for c in controles if c["statut"] == "BLOQUANT"]

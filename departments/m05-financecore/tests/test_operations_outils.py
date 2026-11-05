@@ -872,6 +872,125 @@ def test_ouverture_et_precloture_puis_cloture_humaine(dep, par_nom, declare):
     )
 
 
+def test_precloture_signale_ouverture_perimee_apres_ecriture_anterieure(dep, par_nom, declare):
+    ouverture_initiale = _accepte(
+        _appeler(par_nom, "m5_ouvrir_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    )
+    assert ouverture_initiale["total_debiteur"] == "0.00"
+    precloture_initiale = _accepte(
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    )
+    controles_initiaux = {c["controle"]: c for c in precloture_initiale["controles"]}
+    assert controles_initiaux["ouverture_consignee"]["statut"] == "OK"
+
+    _accepte(
+        _appeler(
+            par_nom,
+            "m5_proposer_ecriture_comptable",
+            {
+                "date_effet": "2026-09-30",
+                "libelle": "Écriture antérieure fictive après ouverture",
+                "piece_type": "manuelle",
+                "piece_reference": "ouverture-stale-fictive",
+                "horodatage": H,
+                "lignes": [
+                    {"compte": "1010", "debit": "10.00", "credit": None},
+                    {"compte": "4100", "debit": None, "credit": "10.00"},
+                ],
+            },
+        )
+    )
+    _tout_valider(dep)
+
+    precloture_stale = _accepte(
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    )
+    controls_stale = {c["controle"]: c for c in precloture_stale["controles"]}
+    assert controls_stale["ouverture_consignee"]["statut"] == "A_VERIFIER"
+    assert "empreinte d'ouverture absente ou différente" in controls_stale["ouverture_consignee"]["detail"]
+
+    ouverture_actualisee = _accepte(
+        _appeler(par_nom, "m5_ouvrir_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    )
+    assert ouverture_actualisee["total_debiteur"] == "10.00"
+    precloture_actualisee = _accepte(
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    )
+    controls_actualisee = {c["controle"]: c for c in precloture_actualisee["controles"]}
+    assert controls_actualisee["ouverture_consignee"]["statut"] == "OK"
+
+    # Si les soldes reviennent à une empreinte déjà consignée, cette ouverture idempotente reste utilisable.
+    _accepte(
+        _appeler(
+            par_nom,
+            "m5_proposer_ecriture_comptable",
+            {
+                "date_effet": "2026-09-30",
+                "libelle": "Mouvement fictif compensatoire de septembre",
+                "piece_type": "manuelle",
+                "piece_reference": "ouverture-retour-fictif",
+                "horodatage": H,
+                "lignes": [
+                    {"compte": "4100", "debit": "10.00", "credit": None},
+                    {"compte": "1010", "debit": None, "credit": "10.00"},
+                ],
+            },
+        )
+    )
+    _tout_valider(dep)
+    controles_retour = {
+        c["controle"]: c
+        for c in _accepte(
+            _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+        )["controles"]
+    }
+    assert controles_retour["ouverture_consignee"]["statut"] == "OK"
+
+    ouverture_revenue = _accepte(
+        _appeler(par_nom, "m5_ouvrir_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    )
+    assert ouverture_revenue["statut"] == "deja_consignee"
+    assert ouverture_revenue["total_debiteur"] == "0.00"
+    controles_revenue = {
+        c["controle"]: c
+        for c in _accepte(
+            _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+        )["controles"]
+    }
+    assert controles_revenue["ouverture_consignee"]["statut"] == "OK"
+
+
+def test_precloture_signale_une_ouverture_historique_sans_empreinte_sans_deviner_la_cause(dep, par_nom):
+    # Une ancienne opération valide peut ne pas porter l'empreinte introduite ultérieurement.
+    with stockage.transaction():
+        registre_ops = registre_module.Registre(maillons=stockage.maillons(DEPARTEMENT, "operations_comptables"))
+        etat = operations_registre.etat_operations(registre_ops.lire())
+        _, refus = operations_registre.ajouter_operation(
+            registre_ops,
+            etat,
+            "op_periode_ouverte",
+            "ouverture-historique-sans-empreinte",
+            {
+                "periode": "2026-10",
+                "soldes_ouverture": {},
+                "total_debiteur": "0.00",
+                "total_crediteur": "0.00",
+            },
+            H,
+        )
+        assert refus is None
+
+    precloture = _accepte(
+        _appeler(par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    )
+    controles = {c["controle"]: c for c in precloture["controles"]}
+    ouverture = controles["ouverture_consignee"]
+    assert ouverture["statut"] == "A_VERIFIER"
+    assert ouverture["detail"] == (
+        "empreinte d'ouverture absente ou différente des soldes actuels : relancer m5_ouvrir_periode_comptable"
+    )
+
+
 # ==================================================================================================== mesures pour M8
 def test_mesures_publiees_une_fois_par_jour_et_version_sans_texte_libre(dep, par_nom, declare):
     _facturer("F-1")
