@@ -1124,6 +1124,173 @@ describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => 
     });
   });
 
+  it("keeps M2 postflight uncertain after its N3 approval executes", async () => {
+    const python = requiredPython();
+    const home = await mkdtemp(resolve(tmpdir(), "opsys-m2-postflight-approval-http-"));
+    tempDirs.push(home);
+    await runFixture(python, home, "prepare");
+    const agentId = "m02-revenue-crm";
+    const sessionId = "opsys-real-python-m2-postflight-approval";
+    const toolCallId = "m2-fictif-postflight-approval-call";
+    const coreState = resolve(home, "core-state");
+    const target = {
+      agentId,
+      cwd: coreState,
+      sessionId,
+      sessionKey: SESSION,
+      storePath: resolve(coreState, "agents", agentId, "sessions", "sessions.json"),
+    };
+    await mkdir(dirname(target.storePath), { recursive: true });
+    const authority = new AbortController();
+    let database: ReturnType<typeof openOpenClawAgentDatabase> | undefined;
+    try {
+      const sessionEntry = await upsertSessionEntryCore(target, { sessionId, updatedAt: 1 });
+      if (!sessionEntry) {
+        throw new Error("fictive M2 transcript entry was not persisted");
+      }
+      const recorder = createUserTurnTranscriptRecorder({
+        message: {
+          role: "user",
+          content: "fictif: interaction commerciale à approuver",
+          timestamp: 2,
+        },
+        target: () => ({ ...target, sessionEntry }),
+        updateMode: "none",
+      });
+      expect(await recorder.persistApproved()).toBeDefined();
+      const receipt = recorder.getAdmissionReceipt();
+      if (!receipt || receipt.agentId !== agentId || receipt.sessionId !== sessionId) {
+        throw new Error("canonical M2 transcript admission absent");
+      }
+      const options = { agentId: receipt.agentId, path: receipt.storePath };
+      database = openOpenClawAgentDatabase(options);
+      const collector = new OpsysPostflightCollector({
+        runId: "m2-fictif-postflight-approval-run",
+        sessionId,
+        sessionKey: SESSION,
+        agentId,
+        recorder,
+        // Explicitly scoped to this fixture; no production profile or tool rights are changed.
+        depositTools: [TOOL],
+        assertCurrent: () => authority.signal.throwIfAborted(),
+      });
+      collector.recordRuntimeAdmission({
+        runId: "m2-fictif-postflight-approval-run",
+        agentId,
+        profileId: "m2-fictif-postflight-profile",
+        profileRevision: 1,
+        departement: agentId,
+        attemptId: "m2-fictif-postflight-attempt",
+        cycleId: "m2-fictif-postflight-cycle",
+      });
+      await collector.prepareBeforeProviderDispatch();
+      const port = await reservePort();
+      await startPythonMcp(python, home, port);
+      const runtime = await getOrCreateSessionMcpRuntime({
+        sessionId: "opsys-real-python-cible-ticket",
+        sessionKey: SESSION,
+        workspaceDir: home,
+        cfg: { plugins: { enabled: false }, ...opsysConfig(port) },
+      });
+      opsysContexteGuardStore.set(SESSION, {
+        kind: "ready",
+        affaireId: ARGS.lead_id,
+        nbOuverts: 0,
+        atMs: Date.now(),
+      });
+      const observer = collector.beginToolCall({
+        toolCallId,
+        toolName: TOOL,
+        serverName: "opsys_m2",
+      });
+      if (!observer) {
+        throw new Error("M2 postflight observer must be attached to the actual Core call");
+      }
+      const result = await runtime.callTool("opsys_m2", TOOL, ARGS, observer);
+      expect(result.isError).not.toBe(true);
+      const pendingResponse = JSON.parse(
+        result.content.find((item) => item.type === "text")?.text ?? "null",
+      ) as { statut?: string; demande_id?: string };
+      expect(pendingResponse).toMatchObject({
+        statut: "en_attente_approbation",
+        demande_id: expect.any(String),
+      });
+      expect(JSON.parse(await runFixture(python, home, "inspect"))).toStrictEqual({
+        interactions: 0,
+        linked: true,
+      });
+      const pending = await listOpsysPostflightIntents({ database, options, now: Date.now() });
+      expect(pending).toHaveLength(1);
+      expect(pending[0]).toMatchObject({
+        factKey: depositKey(sessionId, toolCallId),
+        affaireId: ARGS.lead_id,
+        departementSource: agentId,
+        outil: TOOL,
+        state: "uncertain",
+      });
+      expect(await listOpsysPostflightLots({ database, options, now: Date.now() })).toEqual([]);
+      expect(await collector.flushPending()).toMatchObject({ remaining: 0, failures: 1 });
+
+      const approval = JSON.parse(
+        await runFixture(python, home, "approve", ["--request-id", pendingResponse.demande_id!]),
+      ) as Record<string, unknown>;
+      expect(approval).toMatchObject({ statut: "executee" });
+      expect(JSON.parse(await runFixture(python, home, "inspect"))).toStrictEqual({
+        interactions: 1,
+        linked: true,
+      });
+      expect(
+        await listOpsysPostflightIntents({ database, options, now: Date.now() }),
+      ).toStrictEqual(pending);
+      expect(await listOpsysPostflightLots({ database, options, now: Date.now() })).toEqual([]);
+
+      const next = collector.beginToolCall({
+        toolCallId: "m2-fictif-postflight-next-call",
+        toolName: TOOL,
+        serverName: "opsys_m2",
+      });
+      if (!next) {
+        throw new Error("expected the same live collector's next-call observer");
+      }
+      await expect(runtime.callTool("opsys_m2", TOOL, ARGS, next)).rejects.toThrow(
+        "durable capture is unresolved",
+      );
+      expect(JSON.parse(await runFixture(python, home, "inspect"))).toStrictEqual({
+        interactions: 1,
+        linked: true,
+      });
+      expect(
+        await listOpsysPostflightIntents({ database, options, now: Date.now() }),
+      ).toStrictEqual(pending);
+      expect(await listOpsysPostflightLots({ database, options, now: Date.now() })).toEqual([]);
+
+      const databasePath = database.path;
+      await closeOpenClawAgentDatabaseByPathAsync(databasePath, agentId);
+      expect(database.db.isOpen).toBe(false);
+      database = undefined;
+      const disk = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        expect(disk.prepare("SELECT fact_key, state FROM opsys_postflight_intents").all()).toEqual([
+          { fact_key: depositKey(sessionId, toolCallId), state: "uncertain" },
+        ]);
+        expect(
+          disk.prepare("SELECT COUNT(*) AS count FROM opsys_postflight_outbox").get()?.count,
+        ).toBe(0);
+      } finally {
+        disk.close();
+      }
+    } finally {
+      authority.abort();
+      try {
+        if (database) {
+          await closeOpenClawAgentDatabaseByPathAsync(database.path, agentId);
+        }
+      } finally {
+        await cleanupSessionStateForTest({ stateDir: coreState });
+      }
+    }
+  }, 90_000);
+
   it("mutates a canonical M2 lead once and refuses after the active M10 link is revoked", async () => {
     const python = requiredPython();
     const home = await mkdtemp(resolve(tmpdir(), "opsys-cible-ticket-http-"));
