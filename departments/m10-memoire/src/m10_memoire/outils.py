@@ -53,6 +53,7 @@ from sqlalchemy import Connection, func, select
 from opsys import approbations, idempotence, jetons, stockage
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.concurrence import verrou_consultatif
 from opsys.stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from opsys.stockage.schema import REGISTRES
 
@@ -829,6 +830,16 @@ def rechercher_affaire_appareil(
 def consolider_affaire(affaire_id: str, jour: str, horodatage: str) -> dict[str, Any]:
     """Consolidation nocturne d'une affaire (PLAN T3.3, `consolidation.py`) : idempotente tant que
     l'ensemble des sources du jour n'a pas changé; reprend les événements arrivés tard."""
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        # Les appels directs historiques sont légitimes : comme les registres durables,
+        # ouvrir leur transaction ici conserve cette API tout en tenant le verrou jusqu'au commit.
+        with stockage.transaction():
+            return consolider_affaire(affaire_id, jour, horodatage)
+    # Le test d'idempotence est une séquence relire-puis-ajouter sans contrainte SQL
+    # d'unicité sur (affaire, jour, sources). Sérialiser ces appels avant le premier
+    # snapshot empêche deux déclenchements PostgreSQL de publier le même agrégat.
+    verrou_consultatif(cnx, "m10-consolidation-affaire")
     return consolidation.consolider_affaire(affaire_id, jour, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
 
 
