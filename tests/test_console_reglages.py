@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+from decimal import Decimal
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -398,3 +399,180 @@ def test_l_audit_du_socle_ne_garde_que_la_cle_la_version_et_l_empreinte(client):
         lignes = cnx.execute(select(JOURNAL)).mappings().all()
     assert any(ligne["action"] == "reglage.adopter" for ligne in lignes)
     assert "5151" not in json.dumps([{k: str(v) for k, v in ligne.items()} for ligne in lignes], ensure_ascii=False)
+
+
+def test_api_n3_compare_exactement_la_frontiere_decimal_sans_ecriture(client):
+    csrf = _connecter(client)
+    # La conversion flottante ramène ce nombre à 10.0; Decimal doit voir qu'il dépasse la borne déclarée 10.
+    charge_depasse = (
+        '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+        '"valeur":10.0000000000000001,"raison":"Frontière fictive","version_attendue":0}'
+    )
+    refus = client.post(
+        "/api/reglages", content=charge_depasse,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+    assert refus.status_code == 400 and "REJ-REGLAGE-HORS-BORNES" in refus.text, refus.text
+    assert _etat() == {"demandes": [], "chaine": 0}
+
+    charge_dedans = (
+        '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+        '"valeur":9.9999999999999999,"raison":"Frontière fictive","version_attendue":0}'
+    )
+    accepte = client.post(
+        "/api/reglages", content=charge_dedans,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+    assert accepte.status_code == 200, accepte.text
+    assert accepte.json()["resultat"]["valeur"] == "9.9999999999999999"
+    assert aide.chaine()[0]["nouvelle_valeur"] == "9.9999999999999999"
+
+    maximum = (
+        '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+        '"valeur":10.0,"raison":"Frontière exacte","version_attendue":1}'
+    )
+    exactement_max = client.post(
+        "/api/reglages", content=maximum,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+    assert exactement_max.status_code == 200, exactement_max.text
+    assert exactement_max.json()["resultat"]["valeur"] == "10"
+
+
+def test_api_n3_refuse_nan_et_types_non_decimaux_sans_ecriture(client):
+    csrf = _connecter(client)
+    for valeur in ("NaN", "Infinity", "-Infinity", "1e999999999", "1e-999999999",
+                   "1e999999999999999999999999", "1e-999999999999999999999999", "true", "null", "[]"):
+        charge = (
+            '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+            f'"valeur":{valeur},"raison":"Type fictif","version_attendue":0}}'
+        )
+        reponse = client.post(
+            "/api/reglages", content=charge,
+            headers={"content-type": "application/json", "x-csrf-token": csrf},
+        )
+        assert reponse.status_code == 400, (valeur, reponse.text)
+        assert _etat() == {"demandes": [], "chaine": 0}
+
+
+def test_parseur_decimal_est_limite_a_api_reglages_et_parseur_general_inchange():
+    import asyncio
+
+    from starlette.requests import Request
+
+    async def _requete(parseur):
+        body = b'{"valeur":1.0000000000000001}'
+        delivered = False
+
+        async def receive():
+            nonlocal delivered
+            if delivered:
+                return {"type": "http.request", "body": b"", "more_body": False}
+            delivered = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        request = Request({"type": "http", "method": "POST", "headers": [], "query_string": b""}, receive)
+        return await parseur(request)
+
+    general = asyncio.run(_requete(application._objet_json))
+    exact = asyncio.run(_requete(application._objet_json_decimal))
+    assert type(general["valeur"]) is float and general["valeur"] == 1.0
+    assert isinstance(exact["valeur"], Decimal) and str(exact["valeur"]) == "1.0000000000000001"
+
+
+def test_api_n3_conserve_compatibilite_avec_valeur_decimal_en_chaine(client):
+    csrf = _connecter(client)
+    reponse = client.post(
+        "/api/reglages",
+        json={"action": "adopter", "cle": "m9.estimation_ecart_relatif_max",
+              "valeur": "1.0000000000000000000000000001", "raison": "Texte décimal fictif",
+              "version_attendue": 0},
+        headers={"x-csrf-token": csrf},
+    )
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["resultat"]["valeur"] == "1.0000000000000000000000000001"
+    assert aide.chaine()[0]["nouvelle_valeur"] == "1.0000000000000000000000000001"
+
+
+def test_api_n3_preserve_le_minimum_exact_et_refuse_juste_en_dessous(client):
+    csrf = _connecter(client)
+    sous_min = (
+        '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+        '"valeur":0.009999999999999999,"raison":"Borne fictive","version_attendue":0}'
+    )
+    refus = client.post(
+        "/api/reglages", content=sous_min,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+    assert refus.status_code == 400 and "REJ-REGLAGE-HORS-BORNES" in refus.text, refus.text
+    assert _etat() == {"demandes": [], "chaine": 0}
+
+    minimum = (
+        '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+        '"valeur":0.010000000000000001,"raison":"Borne fictive","version_attendue":0}'
+    )
+    accepte = client.post(
+        "/api/reglages", content=minimum,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+    assert accepte.status_code == 200, accepte.text
+    assert accepte.json()["resultat"]["valeur"] == "0.010000000000000001"
+    assert aide.chaine()[0]["nouvelle_valeur"] == "0.010000000000000001"
+
+    exactement_min = (
+        '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+        '"valeur":0.01,"raison":"Borne exacte","version_attendue":1}'
+    )
+    accepte_min = client.post(
+        "/api/reglages", content=exactement_min,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+    assert accepte_min.status_code == 200, accepte_min.text
+    assert accepte_min.json()["resultat"]["valeur"] == "0.01"
+
+
+def test_entree_json_et_formulaire_conservent_les_decimales_de_plus_de_28_chiffres(client):
+    csrf = _connecter(client)
+    json_exact = (
+        '{"action":"adopter","cle":"m9.estimation_ecart_relatif_max",'
+        '"valeur":1.0000000000000000000000000001,"raison":"Précision fictive","version_attendue":0}'
+    )
+    reponse = client.post(
+        "/api/reglages", content=json_exact,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+    attendu_json = "1.0000000000000000000000000001"
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["resultat"]["valeur"] == attendu_json
+    assert aide.chaine()[0]["nouvelle_valeur"] == attendu_json
+
+    retour = client.post(
+        "/api/reglages",
+        json={"action": "revenir", "cle": "m9.estimation_ecart_relatif_max",
+              "raison": "Retour fictif", "version_attendue": 1},
+        headers={"x-csrf-token": csrf},
+    )
+    assert retour.status_code == 200, retour.text
+    attendu_form = "9.999999999999999999999999999999999999"
+    formulaire = client.post(
+        "/reglages/geste",
+        data={"csrf": csrf, "action": "adopter", "cle": "m9.estimation_ecart_relatif_max",
+              "saisie": attendu_form, "raison": "Précision fictive", "version_attendue": "2"},
+        follow_redirects=False,
+    )
+    assert formulaire.status_code == 303, formulaire.text
+    assert aide.chaine()[-1]["nouvelle_valeur"] == attendu_form
+
+
+def test_api_n3_refuse_une_recursion_json_profonde_sous_la_borne_sans_ecriture(client):
+    csrf = _connecter(client)
+    corps = b'{"nested":' + b"[" * 10_000 + b"0" + b"]" * 10_000 + b"}"
+    assert len(corps) < application.LIMITE_CORPS
+
+    reponse = client.post(
+        "/api/reglages", content=corps,
+        headers={"content-type": "application/json", "x-csrf-token": csrf},
+    )
+
+    assert reponse.status_code == 400 and "corps JSON invalide" in reponse.text, reponse.text
+    assert _etat() == {"demandes": [], "chaine": 0}

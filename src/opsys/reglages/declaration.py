@@ -91,24 +91,32 @@ class Reglage:
 # Valeurs
 # ---------------------------------------------------------------------------------------------------------
 def texte_decimal(valeur: Decimal) -> str:
-    """Texte décimal canonique, sans exposant ni « -0 » : `Decimal('40.0')` -> `'40'`, `12.50` -> `'12.5'`."""
+    """Texte décimal exact, sans exposant ni « -0 » : `Decimal('40.0')` -> `'40'`, `12.50` -> `'12.5'`."""
     if valeur.is_zero():
         return "0"
-    texte = format(valeur.normalize(), "f")
+    texte = format(valeur, "f")
+    if "." in texte:
+        texte = texte.rstrip("0").rstrip(".")
     return texte
 
 
 def _decimal(brut: Any, code_type: str = "REJ-REGLAGE-TYPE") -> Decimal:
-    """Un nombre décimal fini lu d'un entier, d'un texte décimal ou d'un flottant ; jamais un booléen."""
-    if brut is None or isinstance(brut, bool) or not isinstance(brut, (int, float, str)):
+    """Un nombre décimal fini lu d'un entier, texte, Decimal ou flottant ; jamais un booléen.
+
+    Un flottant reçu par un autre outil a déjà perdu son lexème JSON ; la console N3 évite cette perte en
+    décodant ses nombres en Decimal avant d'appeler cette validation.
+    """
+    if brut is None or isinstance(brut, bool) or not isinstance(brut, (int, float, str, Decimal)):
         raise ReglageRefuse(code_type, "un nombre est attendu")
     if isinstance(brut, str) and (not brut.strip() or len(brut) > 40):
         raise ReglageRefuse(code_type, "un nombre est attendu")
+    if isinstance(brut, Decimal) and len(str(brut)) > 40:
+        raise ReglageRefuse(code_type, "un nombre est attendu")
     try:
-        lu = Decimal(str(brut).strip())
+        lu = brut if isinstance(brut, Decimal) else Decimal(str(brut).strip())
     except (InvalidOperation, ValueError):
         raise ReglageRefuse(code_type, "un nombre est attendu") from None
-    if not lu.is_finite() or abs(lu) >= _DECIMAL_MAX:
+    if not lu.is_finite() or lu.copy_abs() >= _DECIMAL_MAX:
         raise ReglageRefuse(code_type, "un nombre fini est attendu")
     if not lu.is_zero() and lu.adjusted() < -9:
         raise ReglageRefuse(code_type, "nombre trop petit pour être un seuil")

@@ -44,6 +44,13 @@ def _lire(entrees, code="M2", departement="m02-revenue-crm"):
     return declaration.lire(entrees, "manifeste-fictif", code, departement)
 
 
+def test_decimal_proche_de_la_limite_technique_ne_s_arrondit_pas():
+    valeur = "999999999999999.99999999999999"
+    assert declaration._decimal(valeur) == Decimal(valeur)
+    with pytest.raises(ReglageRefuse):
+        declaration._decimal("1000000000000000")
+
+
 # -- les manifestes livrés ---------------------------------------------------------------------------------------
 def test_les_manifestes_livres_declarent_les_reglages_de_m2_et_de_m8():
     m2 = _declarations("m02-revenue-crm")

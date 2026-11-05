@@ -32,6 +32,7 @@ import sys
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import replace
+from decimal import Decimal, InvalidOperation
 from http import HTTPStatus
 from importlib import import_module
 from pathlib import Path
@@ -219,6 +220,21 @@ async def _objet_json(request: Request) -> dict[str, Any]:
     try:
         donnees = json.loads(corps) if corps.strip() else {}
     except ValueError as exc:
+        raise HTTPException(400, "corps JSON invalide") from exc
+    if not isinstance(donnees, dict):
+        raise HTTPException(400, "objet JSON attendu")
+    return donnees
+
+
+async def _objet_json_decimal(request: Request) -> dict[str, Any]:
+    """Parse les nombres JSON en Decimal, réservé au port N3 des réglages.
+
+    Le parseur JSON général reste inchangé : les autres routes conservent leur contrat numérique.
+    """
+    corps = await _corps(request)
+    try:
+        donnees = json.loads(corps, parse_float=Decimal) if corps.strip() else {}
+    except (ValueError, InvalidOperation, RecursionError) as exc:
         raise HTTPException(400, "corps JSON invalide") from exc
     if not isinstance(donnees, dict):
         raise HTTPException(400, "objet JSON attendu")
@@ -470,7 +486,10 @@ def creer_application(
     app.include_router(marketing_performance_ui.creer_router(**callbacks_metier))
     app.include_router(strategie_suivis_ui.creer_router(**callbacks_metier))
     app.include_router(direction_ui.creer_router(**callbacks_metier, verifier_formulaire=verifier_formulaire))
-    app.include_router(reglages_ui.creer_router(**callbacks_metier, verifier_formulaire=verifier_formulaire))
+    app.include_router(reglages_ui.creer_router(
+        **{**callbacks_metier, "objet_json": _objet_json_decimal},
+        verifier_formulaire=verifier_formulaire,
+    ))
     app.include_router(marketing_cmo_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_growth_ui.creer_router(**callbacks_metier))
     app.include_router(brand_ui.creer_router(**callbacks_metier))
