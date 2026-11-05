@@ -1,9 +1,13 @@
 """M9.4 — sessions de conseil : machine d'états, dépôts admis/refusés, critique, clôture gouvernée (fictif)."""
 
+import copy
+
 import pytest
 from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
+from m9_strategic_intelligence import conseil as cj
 from m9_strategic_intelligence import dossier_strategique as ds
+from m9_strategic_intelligence import outils_conseil as oc
 from m9_strategic_intelligence import rapport_decision_v2 as rd
 from m9_strategic_intelligence import sessions_conseil as sc
 
@@ -190,11 +194,11 @@ def test_injection_dans_la_sortie_demande_d_outil_ecartee_jamais_executee():
     assert "m5_payer_facture" not in str(depot["proposition"])
 
 
-def _tous_deposes(evenements, session_id):
+def _tous_deposes(evenements, session_id, sortie_pdg=SORTIE_PDG):
     for role, sortie in (
         ("liaison_finance", SORTIE_FINANCE),
         ("contraintes_inventaire", SORTIE_INVENTAIRE),
-        ("conseiller_pdg", SORTIE_PDG),
+        ("conseiller_pdg", sortie_pdg),
     ):
         evenements = _ajouter(
             evenements,
@@ -203,13 +207,24 @@ def _tous_deposes(evenements, session_id):
     return evenements
 
 
+def _rendre_cloture_legacy_proposable(cloture):
+    gouvernance = cloture["gouvernance"]
+    gouvernance["actions"][0]["verdict"] = "PROPOSABLE"
+    gouvernance.pop("actions_a_classement_non_verifie", None)
+    gouvernance.pop("verdict_id", None)
+    gouvernance["verdict_id"] = cj.empreinte_verdict(gouvernance)
+    cloture["hash_maillon"] = sc.empreinte({k: v for k, v in cloture.items() if k != "hash_maillon"})
+
+
 def test_cloture_recommandation_gouvernee_et_rapport_v2_valide_aucun_effet():
     evenements, session_id = _ouvrir()
     evenements = _tous_deposes(evenements, session_id)
     cloture = sc.cloturer(evenements, session_id, recu_a=T)
     assert cloture["issue"] == "RECOMMANDATION" and cloture["autorite_d_effet"] is False
     verdicts = {v["action"]: v["verdict"] for v in cloture["gouvernance"]["actions"]}
-    assert verdicts == {"a1": "PROPOSABLE", "a2": "VALIDATION_HUMAINE_REQUISE"}
+    assert verdicts == {"a1": "CLASSEMENT_NON_VERIFIE", "a2": "VALIDATION_HUMAINE_REQUISE"}
+    assert cloture["gouvernance"]["decision_majeure"] is True
+    assert cloture["gouvernance"]["actions_a_classement_non_verifie"] == 1
     assert all(v["effet_autorise"] is False for v in cloture["gouvernance"]["actions"])
     rapport = cloture["rapport"]
     assert (
@@ -226,6 +241,148 @@ def test_cloture_recommandation_gouvernee_et_rapport_v2_valide_aucun_effet():
         sc.deposer(
             evenements, session_id, "liaison_finance", SORTIE_FINANCE, reservation_id="res-9", tokens_reels=1, recu_a=T
         )
+
+
+def test_rejeu_public_normalise_legacy_proposable_sans_modifier_la_cloture(monkeypatch):
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+
+    # Simule une clôture antérieure au changement de vocabulaire, avec chaîne intacte.
+    _rendre_cloture_legacy_proposable(cloture)
+    verdict_id_source = cloture["gouvernance"]["verdict_id"]
+    cloture_legacy = copy.deepcopy(cloture)
+    assert sc.valider_chaine(evenements) == (True, "")
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = oc.construire_outils(budget_sortie=10000, captures_cible=[], sessions_cible=evenements)
+    outil = next(o for o in outils if o.nom == "m9_cloturer_conseil")
+    reponse = outil.fonction(session_id, T)
+
+    assert reponse["rejoue"] is True
+    assert reponse["gouvernance"]["actions"][0]["verdict"] == "CLASSEMENT_HISTORIQUE_NON_VERIFIE"
+    assert reponse["gouvernance"]["actions_a_classement_non_verifie"] == 1
+    assert reponse["gouvernance"]["projection_type"] == "opsys.m9.gouvernance_projection/v1"
+    assert reponse["gouvernance"]["verdict_id_source"] == verdict_id_source
+    assert reponse["gouvernance"]["verdict_id"] == cj.empreinte_verdict(reponse["gouvernance"])
+    assert reponse["gouvernance"]["verdict_id"] != reponse["gouvernance"]["verdict_id_source"]
+    assert cloture == cloture_legacy, "la projection publique ne réécrit pas l'événement historique"
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_rejeu_public_conserve_le_verdict_id_actuel(monkeypatch):
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+    cloture_avant = copy.deepcopy(cloture)
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = oc.construire_outils(budget_sortie=10000, captures_cible=[], sessions_cible=evenements)
+    outil = next(o for o in outils if o.nom == "m9_cloturer_conseil")
+    reponse = outil.fonction(session_id, T)
+
+    assert reponse["rejoue"] is True
+    assert reponse["gouvernance"] == cloture["gouvernance"]
+    assert "verdict_id_source" not in reponse["gouvernance"]
+    assert "projection_type" not in reponse["gouvernance"]
+    assert reponse["gouvernance"]["verdict_id"] == cj.empreinte_verdict(reponse["gouvernance"])
+    assert cloture == cloture_avant
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_lecture_publique_avertit_sur_le_classement_legacy_sans_recrire_le_rapport(monkeypatch):
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+
+    # Simule une clôture historique valide : gouvernance et section de validation portent l'ancien libellé.
+    _rendre_cloture_legacy_proposable(cloture)
+    sections = copy.deepcopy(cloture["rapport"]["sections"])
+    for action in sections["validation"].get("contenu", []):
+        action["texte"] = action["texte"].replace("CLASSEMENT_NON_VERIFIE", "PROPOSABLE")
+    cloture["rapport"] = rd.assembler(sections, version=cloture["rapport"]["version"])
+    cloture["rapport_id"] = cloture["rapport"]["rapport_id"]
+    cloture["hash_maillon"] = sc.empreinte({k: v for k, v in cloture.items() if k != "hash_maillon"})
+    rapport_historique = copy.deepcopy(cloture["rapport"])
+    assert rd.valider_rapport_decision_v2(rapport_historique) == (True, None)
+    assert sc.valider_chaine(evenements) == (True, "")
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = oc.construire_outils(budget_sortie=10000, captures_cible=[], sessions_cible=evenements)
+    outil = next(o for o in outils if o.nom == "m9_lire_rapport_conseil")
+    pages = []
+    depart = 0
+    while True:
+        page = outil.fonction(session_id, depart)
+        pages.append(page)
+        depart = page["prochain_depart"]
+        if depart is None:
+            break
+
+    contenu = "".join(page["contenu_json"] for page in pages)
+    assert contenu == cs.canonique(rapport_historique)
+    assert "PROPOSABLE" in contenu and "CLASSEMENT_HISTORIQUE_NON_VERIFIE" not in contenu
+    for page in pages:
+        assert page["actions_a_classement_non_verifie"] == 1
+        assert page["avertissements"] == [
+            {
+                "code": "CLASSEMENT_NON_VERIFIE",
+                "actions": 1,
+                "message": (
+                    "Le rapport historique comporte un ou plusieurs classements non vérifiés ; "
+                    "son contenu paginé et son empreinte sont restitués inchangés."
+                ),
+            }
+        ]
+        assert page["sha256"] == cs.empreinte(rapport_historique)
+        assert page["rapport_id"] == rapport_historique["rapport_id"]
+    assert cloture["rapport"] == rapport_historique, "le texte historique et son empreinte restent inchangés"
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_lecture_publique_sans_avertissement_sans_action_a_classement_incertain(monkeypatch):
+    evenements, session_id = _ouvrir()
+    sortie_pdg = {
+        **SORTIE_PDG,
+        "recommandation": {**SORTIE_PDG["recommandation"], "actions": []},
+    }
+    evenements = _tous_deposes(evenements, session_id, sortie_pdg=sortie_pdg)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = oc.construire_outils(budget_sortie=10000, captures_cible=[], sessions_cible=evenements)
+    outil = next(o for o in outils if o.nom == "m9_lire_rapport_conseil")
+    page = outil.fonction(session_id)
+
+    assert page["actions_a_classement_non_verifie"] == 0
+    assert page["avertissements"] == []
+
+
+def test_classement_incertain_ne_copie_pas_la_description_vers_rapport_meme_sur_4000_caracteres():
+    evenements, session_id = _ouvrir()
+    description = "X" * 4000
+    sortie_pdg = SORTIE_PDG | {
+        "recommandation": {
+            "decision": "Étudier une hausse du budget publicitaire",
+            "refs": ["A1"],
+            "actions": [{"id": "a_pub", "type": "information", "description": description}],
+        }
+    }
+    evenements = _tous_deposes(evenements, session_id, sortie_pdg=sortie_pdg)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    action = cloture["gouvernance"]["actions"][0]
+    assert action["verdict"] == "CLASSEMENT_NON_VERIFIE"
+    assert cloture["gouvernance"]["decision_majeure"] is False
+    assert type(cloture["gouvernance"]["decision_majeure"]) is bool
+    assert cloture["gouvernance"]["actions_a_classement_non_verifie"] == 1
+    assert "description" not in action
+    assert description not in str(cloture["gouvernance"])
+    assert description not in str(cloture["rapport"])
+    assert rd.valider_rapport_decision_v2(cloture["rapport"]) == (True, None)
 
 
 def test_abstention_quand_le_conseiller_du_pdg_est_absent_et_cloture_exige_tous_les_tours():

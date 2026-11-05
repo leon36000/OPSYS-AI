@@ -17,13 +17,12 @@ import json
 
 import pytest
 from m2_revenue_crm import outils as m2
-from sqlalchemy import select
-
 from opsys import admission_agents, agents, contexte, identite, stockage
 from opsys.capacites import Capacites
 from opsys.contexte import IdentiteAppelante
 from opsys.departements import charger_departements
 from opsys.stockage.schema import META
+from sqlalchemy import select
 
 FICTIF = True
 M9 = "m09-strategic-intelligence"
@@ -203,6 +202,7 @@ def test_apercu_du_dossier_cite_les_faits_reels_et_nomme_les_manques(monde):
 
 def test_session_complete_avec_runtime_natif_simule_recommandation_gouvernee_et_rapport_v2(monde):
     capacites, departements = monde
+    description_longue = "X" * 4000
     _preparer(capacites, departements)
     ouverture = _ouvrir(capacites)
     session_id = ouverture["session_id"]
@@ -229,7 +229,7 @@ def test_session_complete_avec_runtime_natif_simule_recommandation_gouvernee_et_
                 "decision": "Suivre les leads et attendre la mesure",
                 "refs": ["A1", "H1"],
                 "actions": [
-                    {"id": "a1", "type": "suivi_interne", "description": "suivi"},
+                    {"id": "a1", "type": "suivi_interne", "description": description_longue},
                     {"id": "a2", "type": "budget_marketing", "description": "hausse"},
                 ],
             }
@@ -250,17 +250,45 @@ def test_session_complete_avec_runtime_natif_simule_recommandation_gouvernee_et_
     cloture = _ok(_appel(capacites, "m9_cloturer_conseil", {"session_id": session_id, "horodatage": T}))
     assert cloture["cloture"]["issue"] == "RECOMMANDATION" and cloture["cloture"]["autorite_d_effet"] is False
     verdicts = {v["action"]: v["verdict"] for v in cloture["gouvernance"]["actions"]}
-    assert verdicts == {"a1": "PROPOSABLE", "a2": "VALIDATION_HUMAINE_REQUISE"}
+    assert verdicts == {"a1": "CLASSEMENT_NON_VERIFIE", "a2": "VALIDATION_HUMAINE_REQUISE"}
+    assert cloture["gouvernance"]["decision_majeure"] is True
+    assert type(cloture["gouvernance"]["decision_majeure"]) is bool
+    assert cloture["gouvernance"]["actions_a_classement_non_verifie"] == 1
+    assert description_longue not in json.dumps(cloture, ensure_ascii=False)
     morceaux, depart = [], 0
     while depart is not None:
         page = _ok(_appel(capacites, "m9_lire_rapport_conseil", {"session_id": session_id, "depart": depart}))
+        assert page["actions_a_classement_non_verifie"] == 1
+        assert page["avertissements"][0]["code"] == "CLASSEMENT_NON_VERIFIE"
+        assert page["avertissements"][0]["actions"] == 1
         morceaux.append(page["contenu_json"])
         depart = page["prochain_depart"]
     rapport = json.loads("".join(morceaux))
+    assert description_longue not in json.dumps(rapport, ensure_ascii=False)
     assert (
         rapport["rapport_id"] == cloture["cloture"]["rapport_id"]
         and rapport["statut_contrat"] == "RETENU_PAR_DELEGATION"
     )
+    salle = _ok(_appel(capacites, "m9_salle_de_guerre", {"reference": T}))
+    assert description_longue not in json.dumps(salle, ensure_ascii=False)
+    assert salle["recommandations_a_classement_non_verifie"] == [
+        {"session_id": session_id, "rapport_id": cloture["cloture"]["rapport_id"], "actions": 1}
+    ]
+    apercu = _ok(
+        _appel(
+            capacites,
+            "m9_apercu_revue",
+            {
+                "granularite": "hebdomadaire",
+                "ancre": "2026-10-21",
+                "fuseau": "America/Toronto",
+                "connaissance": "2026-10-27T00:00:00Z",
+            },
+        )
+    )
+    assert apercu["actions_a_classement_non_verifie"] == 1
+    assert apercu["actions_a_classement_non_verifie_complet"] is True
+    assert description_longue not in json.dumps(apercu, ensure_ascii=False)
     # Rejeu de la clôture : même résultat, aucun second événement.
     avant = _etat_sql()["registres_maillons"]
     assert _ok(_appel(capacites, "m9_cloturer_conseil", {"session_id": session_id, "horodatage": T}))["rejoue"] is True

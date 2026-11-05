@@ -31,7 +31,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import capture_strategique as cs
 from . import catalogue_producteurs as cat
-from . import rapport_direction
+from . import conseil, rapport_direction
 
 VERSION = "2026-10-28.1"
 GRANULARITES = ("hebdomadaire", "mensuelle", "trimestrielle")
@@ -139,6 +139,9 @@ def _resume_periode(
         "sessions_ouvertes": len(ouvertes),
         "sessions_closes": len(closes),
         "recommandations": sum(1 for e in closes if e["issue"] == "RECOMMANDATION"),
+        "actions_a_classement_non_verifie": sum(
+            conseil.compter_actions_classement_incertain(e.get("gouvernance")) for e in closes
+        ),
         "abstentions": sum(1 for e in closes if e["issue"] == "ABSTENTION"),
         "contradictions": len(couverture["contradictions"]),
         "lectures_non_presentes": len(couverture["lectures_non_presentes"]),
@@ -193,6 +196,7 @@ def composer(
             "refusees_ou_en_erreur",
             "sessions_ouvertes",
             "sessions_closes",
+            "actions_a_classement_non_verifie",
             "contradictions",
             "lectures_non_presentes",
         )
@@ -225,6 +229,7 @@ def composer(
             "actions_sensibles": sum(
                 1 for a in (e["gouvernance"] or {}).get("actions", []) if a["verdict"] == "VALIDATION_HUMAINE_REQUISE"
             ),
+            "actions_a_classement_non_verifie": conseil.compter_actions_classement_incertain(e.get("gouvernance")),
         }
         for e in sessions_connues
         if e["type"] == "CLOTURE" and _dans(e["recu_a"], periode)

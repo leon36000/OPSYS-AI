@@ -20,10 +20,16 @@ contournement. M9 classe, propose et constate ; la file native décide.
 - **Classes sensibles** (`conseil.ACTIONS_SENSIBLES`, neuf familles) : `depense_reelle`, `budget_marketing`,
   `embauche`, `achat_majeur`, `dette`, `prix_global`, `contrat`, `suppression_donnees` → mandataire « Nathan » ;
   `decision_fiscale_ou_legale` → « Nathan et professionnel ».
-- **`conseil.gouverner`** classe chaque action d'une recommandation : famille sensible → `VALIDATION_HUMAINE_REQUISE`
-  avec son mandataire ; `suivi_interne` ou `information` → `PROPOSABLE` ; tout autre type → `REFUSEE_TYPE_INCONNU`
-  (fail-closed). `effet_autorise` et `autorite_d_effet` valent toujours faux ; `decision_majeure` est vrai dès qu'une
-  action est sensible. Entrée invalide : `REJ-GOUVERNANCE-ENTREE`.
+- **`conseil.gouverner`** applique la règle conservatrice à une catégorie fournie par le modèle : famille sensible →
+  `VALIDATION_HUMAINE_REQUISE` avec son mandataire ; `suivi_interne` ou `information` → `CLASSEMENT_NON_VERIFIE` ;
+  tout autre type → `REFUSEE_TYPE_INCONNU` (fail-closed). `effet_autorise` et `autorite_d_effet` restent faux.
+  `decision_majeure` garde son type booléen historique ; `actions_a_classement_non_verifie` signale séparément les
+  catégories qui ne permettent pas de conclure que la décision est non majeure. Ce signal ne vérifie pas la catégorie
+  réelle et ne garantit pas une revue humaine.
+- **Verdicts historiques** : les maillons et rapports signés par leur empreinte ne sont pas réécrits. Les synthèses
+  actuelles requalifient leur ancien `PROPOSABLE` en `CLASSEMENT_HISTORIQUE_NON_VERIFIE` ou présentent un compteur
+  `actions_a_classement_non_verifie` à côté du rapport paginé inchangé. Pour les anciennes revues tronquées sans
+  compteur historique, `actions_a_classement_non_verifie_complet` indique si ce décompte couvre tous les résultats.
 - Les étapes sensibles des playbooks utilisent les mêmes familles (vérifié au chargement) ; le cadrage de décision
   (M9.10) reprend les classes sensibles applicables à chaque type de décision.
 - **Approbations natives** : une action passe par `opsys.actions_m9` (liste blanche d'outils T1 de niveau N3 au moins)
@@ -79,7 +85,8 @@ File `approbations` du socle (demande, niveau, statut, décideur, rôle, résult
 
 ## Workflows
 
-1. Le conseil recommande ; `gouverner` classe les actions ; la clôture porte le verdict.
+1. Le conseil recommande ; `gouverner` maintient les gardes des familles sensibles et marque les catégories faibles
+   comme non vérifiées ; la clôture porte le verdict sans autoriser d'effet.
 2. L'admin propose une action de la liste blanche ; la demande attend.
 3. Le propriétaire approuve ou refuse (console, ou appareil pour N3/N4) ; M9 réconcilie et constate.
 

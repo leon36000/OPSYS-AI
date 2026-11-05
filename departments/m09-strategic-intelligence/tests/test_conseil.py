@@ -120,11 +120,41 @@ def test_gouvernance_aucune_action_sensible_sans_validation_et_aucun_effet_autor
     })  # fmt: skip
     par_id = {v["action"]: v for v in verdict["actions"]}
     assert par_id["a1"]["verdict"] == par_id["a2"]["verdict"] == "VALIDATION_HUMAINE_REQUISE"
-    assert par_id["a3"]["verdict"] == "PROPOSABLE" and par_id["a4"]["verdict"] == "REFUSEE_TYPE_INCONNU"
+    assert par_id["a3"]["verdict"] == "CLASSEMENT_NON_VERIFIE"
+    assert par_id["a4"]["verdict"] == "REFUSEE_TYPE_INCONNU"
     assert all(v["effet_autorise"] is False for v in verdict["actions"]) and verdict["autorite_d_effet"] is False
     assert verdict["decision_majeure"] is True
+    assert verdict["actions_a_classement_non_verifie"] == 1
     with pytest.raises(ValueError, match="REJ-GOUVERNANCE-ENTREE"):
         conseil.gouverner({"decision": "x", "actions": [{"id": "a", "type": "suivi_interne"}] * 2})
+
+
+def test_decision_majeure_reste_booleen_et_le_classement_non_verifie_est_signale_separement():
+    verdict = conseil.gouverner({
+        "decision": "Étudier une hausse du budget publicitaire",
+        "actions": [{"id": "a1", "type": "information", "description": "augmenter la dépense publicitaire"}],
+    })
+    assert verdict["actions"][0]["verdict"] == "CLASSEMENT_NON_VERIFIE"
+    assert verdict["decision_majeure"] is False and type(verdict["decision_majeure"]) is bool
+    assert verdict["actions_a_classement_non_verifie"] == 1
+    assert "description" not in verdict["actions"][0]
+
+
+def test_l_ancien_verdict_proposable_est_compte_et_renomme_seulement_dans_une_synthese():
+    historique = {"actions": [{"verdict": "PROPOSABLE"}, {"verdict": "VALIDATION_HUMAINE_REQUISE"}]}
+    assert conseil.compter_actions_classement_incertain(historique) == 1
+    assert conseil.verdict_pour_synthese("PROPOSABLE") == "CLASSEMENT_HISTORIQUE_NON_VERIFIE"
+    assert historique["actions"][0]["verdict"] == "PROPOSABLE", "aucune mutation de l'événement historique"
+
+
+def test_verdict_id_est_l_empreinte_du_contenu_actuel():
+    verdict = conseil.gouverner(
+        {
+            "decision": "Consigner le suivi",
+            "actions": [{"id": "a1", "type": "suivi_interne", "description": "suivi"}],
+        }
+    )
+    assert verdict["verdict_id"] == conseil.empreinte_verdict(verdict)
 
 
 def test_profil_agent_est_une_declaration_manuelle_sans_grant():

@@ -3,6 +3,7 @@
 import json
 
 import pytest
+
 from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
 from m9_strategic_intelligence import rapport_direction as rd
@@ -136,6 +137,34 @@ def test_determinisme_et_aucun_flottant():
 def test_periode_sans_fin_lisible_refusee():
     with pytest.raises(ValueError, match="REJ-DIRECTION-PERIODE"):
         rd.sections(captures=[], sessions=[], periode={"fin": "demain", "fin_local": "2026-10-26"})
+
+
+def test_ancienne_recommandation_proposable_est_signalee_comme_non_verifiee_dans_les_syntheses():
+    cloture = {
+        "type": "CLOTURE",
+        "session_id": "s-historique",
+        "rapport_id": "r-historique",
+        "issue": "RECOMMANDATION",
+        "recu_a": DANS,
+        "gouvernance": {
+            "decision": "Recommandation historique",
+            "decision_majeure": False,
+            "actions": [
+                {"action": "a1", "type": "information", "verdict": "PROPOSABLE", "effet_autorise": False}
+            ],
+        },
+    }
+    s = rd.sections(captures=[], sessions=[cloture], periode=PERIODE)["sections"]
+    decisions = s["decisions_a_prendre"]
+    assert decisions["statut"] == "RENSEIGNEE"
+    assert decisions["contenu"]["recommandations_a_classement_non_verifie"] == [
+        {"session_id": "s-historique", "rapport_id": "r-historique", "actions": 1}
+    ]
+    reco = s["recommandations"]["contenu"]["recommandations"][0]
+    action = reco["actions"][0]
+    assert action["verdict"] == "CLASSEMENT_HISTORIQUE_NON_VERIFIE"
+    assert action["classement_incertain"] is True and "description" not in action
+    assert s["resume"]["contenu"]["recommandations_a_classement_non_verifie"] == 1
 
 
 def test_signaux_propres_a_m9_comptent_les_sorties_de_modele_refusees_par_le_code():

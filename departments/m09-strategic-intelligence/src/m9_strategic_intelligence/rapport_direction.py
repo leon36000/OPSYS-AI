@@ -23,6 +23,7 @@ from collections.abc import Mapping, Sequence
 from decimal import Decimal, InvalidOperation
 
 from . import capture_strategique as cs
+from . import conseil
 from . import experiences as ex
 from . import metriques_executives as me
 from . import occasions as oc
@@ -362,6 +363,15 @@ def sections(
         if e["issue"] == "RECOMMANDATION"
     ]
     a_valider = [e for e in a_valider if e["actions"]]
+    classements_incertaines = [
+        {
+            "session_id": e["session_id"],
+            "rapport_id": e["rapport_id"],
+            "actions": conseil.compter_actions_classement_incertain(e["gouvernance"]),
+        }
+        for e in cloturees
+        if e["issue"] == "RECOMMANDATION" and conseil.compter_actions_classement_incertain(e["gouvernance"])
+    ]
     en_attente = [
         {
             "action_id": a["action_id"],
@@ -374,12 +384,15 @@ def sections(
     ]
     resultats["decisions_a_prendre"] = _section(
         "decisions_a_prendre",
-        "RENSEIGNEE" if a_valider or en_attente else "NON_DISPONIBLE",
+        "RENSEIGNEE" if a_valider or en_attente or classements_incertaines else "NON_DISPONIBLE",
         {
             "recommandations_a_valider_par_un_humain": a_valider[:MAX_LIGNES],
+            "recommandations_a_classement_non_verifie": classements_incertaines[:MAX_LIGNES],
             "approbations_natives_en_attente": en_attente[:MAX_LIGNES],
         },
-        manque=[] if a_valider or en_attente else ["aucune décision en attente connue de M9"],
+        manque=[]
+        if a_valider or en_attente or classements_incertaines
+        else ["aucune décision en attente connue de M9"],
     )
 
     # 15 plan de la période suivante, 16 objectifs mesurables
@@ -477,7 +490,12 @@ def sections(
             "rapport_id": e["rapport_id"],
             "decision": (e["gouvernance"] or {}).get("decision"),
             "actions": [
-                {"action": a["action"], "type": a["type"], "verdict": a["verdict"]}
+                {
+                    "action": a["action"],
+                    "type": a.get("type"),
+                    "verdict": conseil.verdict_pour_synthese(a.get("verdict")),
+                    "classement_incertain": conseil.classement_incertain(a.get("verdict")),
+                }
                 for a in (e["gouvernance"] or {}).get("actions", [])
             ],
         }
@@ -512,6 +530,9 @@ def sections(
             "experiences": len(vue_exp),
             "recommandations_du_conseil": len(recommandations),
             "decisions_a_prendre": len(a_valider) + len(en_attente),
+            "recommandations_a_classement_non_verifie": sum(
+                entree["actions"] for entree in classements_incertaines
+            ),
             "lectures_attendues_non_presentes": [
                 e["lecture_id"] for e in couverture["lectures"] if e["statut"] != "PRESENTE"
             ],

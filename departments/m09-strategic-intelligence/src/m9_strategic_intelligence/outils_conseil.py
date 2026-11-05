@@ -55,6 +55,43 @@ def _tranche(objet: object, depart: int, longueur: int) -> dict:
     }
 
 
+def _gouvernance_pour_projection(gouvernance: object) -> object:
+    """Normalise les anciens verdicts pour le client sans réécrire la clôture historique."""
+    if not isinstance(gouvernance, Mapping):
+        return gouvernance
+
+    projection = dict(gouvernance)
+    actions = gouvernance.get("actions")
+    classement_legacy = False
+    if type(actions) is list:
+        actions_projetees = []
+        for action in actions:
+            if isinstance(action, Mapping):
+                copie = dict(action)
+                if action.get("verdict") == "PROPOSABLE":
+                    classement_legacy = True
+                if "verdict" in copie:
+                    copie["verdict"] = conseil.verdict_pour_synthese(copie["verdict"])
+                actions_projetees.append(copie)
+            else:
+                actions_projetees.append(action)
+        projection["actions"] = actions_projetees
+
+    actions_incertaines = conseil.compter_actions_classement_incertain({"actions": projection.get("actions")})
+    compteur_source = projection.get("actions_a_classement_non_verifie")
+    compteur_a_normaliser = (
+        type(compteur_source) is not int or compteur_source < 0 or compteur_source != actions_incertaines
+    )
+    projection["actions_a_classement_non_verifie"] = actions_incertaines
+    if not classement_legacy and not compteur_a_normaliser:
+        return gouvernance
+
+    projection["verdict_id_source"] = projection.pop("verdict_id", None)
+    projection["projection_type"] = "opsys.m9.gouvernance_projection/v1"
+    projection["verdict_id"] = conseil.empreinte_verdict(projection)
+    return projection
+
+
 def construire_outils(
     *, budget_sortie: int, captures_cible: Any = None, sessions_cible: Any = None
 ) -> tuple[Outil, ...]:
@@ -246,6 +283,9 @@ def construire_outils(
                 "rapport_id": projection["cloture"]["rapport_id"],
                 "raison_abstention": projection["cloture"]["raison_abstention"],
                 "autorite_d_effet": False,
+                "actions_a_classement_non_verifie": conseil.compter_actions_classement_incertain(
+                    projection["cloture"].get("gouvernance")
+                ),
             },
         }
 
@@ -339,7 +379,12 @@ def construire_outils(
         resume = _resume(sessions_conseil.etat(courant, session_id))
         cloture = next(e for e in reversed(courant) if e["type"] == "CLOTURE" and e["session_id"] == session_id)
         return borner(
-            {"accepte": True, "rejoue": evenement is None, **resume, "gouvernance": cloture["gouvernance"]},
+            {
+                "accepte": True,
+                "rejoue": evenement is None,
+                **resume,
+                "gouvernance": _gouvernance_pour_projection(cloture["gouvernance"]),
+            },
             budget_sortie,
         )
 
@@ -348,11 +393,28 @@ def construire_outils(
         cloture = sessions_conseil.etat(sessions(), session_id)["cloture"]
         if cloture is None:
             raise _refus("REJ-SESSION-EN-COURS", "la session n'est pas close : aucun rapport")
+        actions_incertaines = conseil.compter_actions_classement_incertain(cloture.get("gouvernance"))
+        avertissements = (
+            [
+                {
+                    "code": "CLASSEMENT_NON_VERIFIE",
+                    "actions": actions_incertaines,
+                    "message": (
+                        "Le rapport historique comporte un ou plusieurs classements non vérifiés ; "
+                        "son contenu paginé et son empreinte sont restitués inchangés."
+                    ),
+                }
+            ]
+            if actions_incertaines
+            else []
+        )
         return borner(
             {
                 "accepte": True,
                 "session_id": session_id,
                 "rapport_id": cloture["rapport_id"],
+                "actions_a_classement_non_verifie": actions_incertaines,
+                "avertissements": avertissements,
                 **_tranche(cloture["rapport"], depart, longueur),
             },
             budget_sortie,

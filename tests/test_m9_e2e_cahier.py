@@ -36,11 +36,11 @@ from pathlib import Path
 
 import m2_revenue_crm.outils as m2_outils
 import pytest
-from m9_strategic_intelligence import conseil, risques
-
 from opsys import admission_agents, agents, approbations, contexte, identite, stockage, taxonomie
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
+
+from m9_strategic_intelligence import conseil, risques
 
 _TESTS = Path(__file__).resolve().parent
 
@@ -385,7 +385,7 @@ def test_parcours_1_rapport_hebdomadaire_conseil_memoire_et_audit(tmp_path, monk
     session_id = ouverture["session_id"]
     assert cloture["cloture"]["issue"] == "RECOMMANDATION" and cloture["cloture"]["autorite_d_effet"] is False
     verdicts = {v["action"]: v for v in cloture["gouvernance"]["actions"]}
-    assert verdicts["a1"]["verdict"] == "PROPOSABLE"
+    assert verdicts["a1"]["verdict"] == "CLASSEMENT_NON_VERIFIE"
     assert (verdicts["a2"]["verdict"], verdicts["a2"]["mandataire"]) == ("VALIDATION_HUMAINE_REQUISE", "Nathan")
     rapport, _ = lire_tout(cap, "m9_lire_rapport_conseil", {"session_id": session_id})
     assert rapport["rapport_id"] == cloture["cloture"]["rapport_id"]
@@ -438,7 +438,7 @@ def test_parcours_1_rapport_hebdomadaire_conseil_memoire_et_audit(tmp_path, monk
     (recommandation,) = s["recommandations"]["contenu"]["recommandations"]
     assert recommandation["session_id"] == session_id
     assert {a["action"]: a["verdict"] for a in recommandation["actions"]} == {
-        "a1": "PROPOSABLE",
+        "a1": "CLASSEMENT_NON_VERIFIE",
         "a2": "VALIDATION_HUMAINE_REQUISE",
     }
     decisions = s["decisions_a_prendre"]

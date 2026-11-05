@@ -3,6 +3,7 @@
 import copy
 
 import pytest
+
 from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
 from m9_strategic_intelligence import revue_periodique as rp
@@ -136,11 +137,40 @@ def test_revue_hebdomadaire_rattache_par_reception_dans_le_fuseau_demande():
     assert (synthese["sessions_ouvertes"], synthese["sessions_closes"], synthese["recommandations"]) == (1, 1, 1)
     assert {c["index"] for c in revue["captures_de_la_periode"]} == {1, 2}
     assert revue["decisions"][0]["actions_sensibles"] == 1
+    assert revue["decisions"][0]["actions_a_classement_non_verifie"] == 0
     tendance = revue["tendances_de_la_connaissance"]["sessions_closes"]
     assert (tendance["precedente"], tendance["courante"], tendance["ecart"]) == (1, 1, 0)
     assert revue["tendances_de_la_connaissance"]["captures_recues"]["precedente"] == 1
     assert "tendance" in revue["limites"][0] or "CONNAISSANCE" in revue["limites"][0]
     assert rp.valider_chaine([]) == (True, "")
+
+
+def test_revue_signale_les_anciens_proposable_dans_ses_comptes_et_tendances():
+    historique = {
+        "type": "CLOTURE",
+        "session_id": "s-historique",
+        "recu_a": "2026-10-23T14:00:00Z",
+        "issue": "RECOMMANDATION",
+        "rapport_id": "r-historique",
+        "gouvernance": {
+            "decision_majeure": False,
+            "actions": [{"action": "a1", "type": "information", "verdict": "PROPOSABLE"}],
+        },
+    }
+    revue = rp.composer(
+        [],
+        [historique],
+        granularite="hebdomadaire",
+        ancre="2026-10-21",
+        fuseau=TOR,
+        connaissance="2026-10-27T00:00:00Z",
+    )
+    assert revue["synthese"]["actions_a_classement_non_verifie"] == 1
+    assert revue["decisions"][0]["actions_a_classement_non_verifie"] == 1
+    tendance = revue["tendances_de_la_connaissance"]["actions_a_classement_non_verifie"]
+    assert (tendance["precedente"], tendance["courante"], tendance["ecart"]) == (0, 1, 1)
+    reco = revue["sections_direction"]["sections"]["recommandations"]["contenu"]["recommandations"][0]
+    assert reco["actions"][0]["verdict"] == "CLASSEMENT_HISTORIQUE_NON_VERIFIE"
 
 
 def test_deterministe_reproductible_et_identifiant_lie_au_contenu():

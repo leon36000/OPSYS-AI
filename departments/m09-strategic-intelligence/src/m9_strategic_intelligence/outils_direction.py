@@ -23,8 +23,8 @@ from opsys.outils import Autonomie, Niveau, Outil
 
 from . import capture_strategique as cs
 from . import catalogue_producteurs as cat
+from . import conseil, orchestrateur, reglages_radar, revue_periodique, sessions_conseil
 from . import experiences as exp_module
-from . import orchestrateur, reglages_radar, revue_periodique, sessions_conseil
 from . import plans as plans_module
 from . import risques as rk
 from .outils_tissu import DEPARTEMENT, MAX_PAGE_OCTETS, borner, exiger_admin_strict
@@ -45,6 +45,52 @@ def _refus(code: str, detail: str) -> ValueError:
 
 def _empreinte(valeur: object) -> str:
     return hashlib.sha256(json.dumps(valeur, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+
+
+def _resume_actions_classement_incertain(revue: Mapping) -> tuple[int, bool]:
+    """Compte les statuts incertains d'une revue et indique si l'historique permet un total exact."""
+    synthese = revue.get("synthese")
+    synthese = synthese if isinstance(synthese, Mapping) else {}
+    total = synthese.get("actions_a_classement_non_verifie")
+    if type(total) is int and total >= 0:
+        return total, True
+
+    total_recommandations = synthese.get("recommandations_du_conseil")
+    decisions = revue.get("decisions")
+    decisions = decisions if type(decisions) is list else []
+    comptages_decisions = [
+        decision.get("actions_a_classement_non_verifie")
+        for decision in decisions
+        if isinstance(decision, Mapping)
+    ]
+    decisions_completes = bool(decisions) and len(comptages_decisions) == len(decisions) and all(
+        type(n) is int and n >= 0 for n in comptages_decisions
+    )
+    if decisions_completes:
+        return sum(comptages_decisions), True
+    if not decisions and total_recommandations == 0:
+        return 0, True
+
+    recommandations = (
+        revue.get("sections_direction", {})
+        .get("sections", {})
+        .get("recommandations", {})
+        .get("contenu", {})
+        .get("recommandations", [])
+    )
+    recommandations = recommandations if type(recommandations) is list else []
+    incertaines_visibles = sum(
+        1
+        for recommandation in recommandations
+        if isinstance(recommandation, Mapping)
+        for action in recommandation.get("actions", [])
+        if isinstance(action, Mapping) and conseil.classement_incertain(action.get("verdict"))
+    )
+    complet = type(total_recommandations) is int and total_recommandations == len(recommandations)
+    incertaines_decisions_connues = sum(
+        n for n in comptages_decisions if type(n) is int and n >= 0
+    )
+    return max(incertaines_visibles, incertaines_decisions_connues), complet
 
 
 def construire_outils(
@@ -106,6 +152,7 @@ def construire_outils(
         }
 
     def resume(revue: Mapping) -> dict:
+        incertaines, incertaines_completes = _resume_actions_classement_incertain(revue)
         return {
             "revue_id": revue["revue_id"],
             "periode": revue["periode"],
@@ -114,6 +161,10 @@ def construire_outils(
             "couverture_complete": revue["couverture"]["complete"],
             "contradictions": len(revue["contradictions"]),
             "decisions": len(revue["decisions"]),
+            # Les anciennes revues n'avaient pas toujours ce compteur. Le compte visible est signalé sans réécrire la
+            # publication immuable, et sa complétude est explicite si la liste historique était tronquée.
+            "actions_a_classement_non_verifie": incertaines,
+            "actions_a_classement_non_verifie_complet": incertaines_completes,
             "captures_de_la_periode": len(revue["captures_de_la_periode"]),
             "sections_direction": {
                 s: sum(1 for x in revue["sections_direction"]["sections"].values() if x["statut"] == s)
@@ -216,7 +267,15 @@ def construire_outils(
             raise _refus("REJ-TISSU-INDEX", "rang de publication inconnu")
         publication = liste[index]
         entete = {k: publication[k] for k in ("index", "version", "remplace_version", "publie_a", "hash_maillon")}
-        return borner({"accepte": True, **entete, **tranche(publication["revue"], depart, longueur)}, budget_sortie)
+        return borner(
+            {
+                "accepte": True,
+                **entete,
+                **resume(publication["revue"]),
+                **tranche(publication["revue"], depart, longueur),
+            },
+            budget_sortie,
+        )
 
     def salle_de_guerre(reference: str, vue_attendue: str | None = None) -> dict[str, Any]:
         exiger_admin_strict()
@@ -259,6 +318,18 @@ def construire_outils(
             if e["issue"] == "RECOMMANDATION"
         ]
         a_valider = [e for e in a_valider if e["actions"]][-MAX_ITEMS_SALLE:]
+        a_classement_incertain = [
+            {
+                "session_id": e["session_id"],
+                "rapport_id": e["rapport_id"],
+                "actions": conseil.compter_actions_classement_incertain(e["gouvernance"]),
+            }
+            for e in closes
+            if e["issue"] == "RECOMMANDATION" and conseil.compter_actions_classement_incertain(e["gouvernance"])
+        ]
+        total_actions_classement_incertain = sum(x["actions"] for x in a_classement_incertain)
+        recommandations_classement_incertain_reste = max(0, len(a_classement_incertain) - MAX_ITEMS_SALLE)
+        a_classement_incertain = a_classement_incertain[-MAX_ITEMS_SALLE:]
         fenetre = fenetre_alertes_jours()
         limite = cs.instant(reference)
         alertes_proches = [
@@ -340,6 +411,9 @@ def construire_outils(
             "conseils_en_cours": en_cours[:MAX_ITEMS_SALLE],
             "conseils_en_cours_total": len(en_cours),
             "recommandations_a_valider_par_un_humain": a_valider,
+            "recommandations_a_classement_non_verifie": a_classement_incertain,
+            "recommandations_a_classement_non_verifie_reste": recommandations_classement_incertain_reste,
+            "actions_a_classement_non_verifie_total": total_actions_classement_incertain,
             "manques": manques_compacts,
             "manques_causes": causes_communes,
             "responsabilites": "M9 propose ; toute décision sensible reste au propriétaire ; aucun effet ici",

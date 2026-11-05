@@ -412,14 +412,45 @@ ACTIONS_SENSIBLES = {
     "suppression_donnees": "Nathan",
 }
 
+STATUTS_CLASSEMENT_INCERTAIN = frozenset(
+    {"CLASSEMENT_NON_VERIFIE", "CLASSEMENT_HISTORIQUE_NON_VERIFIE", "PROPOSABLE"}
+)
+
+
+def classement_incertain(verdict: object) -> bool:
+    """Reconnaît le statut actuel et l'ancien statut PROPOSABLE, sans réécrire le registre historique."""
+    return type(verdict) is str and verdict in STATUTS_CLASSEMENT_INCERTAIN
+
+
+def compter_actions_classement_incertain(gouvernance: object) -> int:
+    """Compte les catégories déclarées par le modèle mais non garanties par la gouvernance."""
+    if not isinstance(gouvernance, Mapping) or type(gouvernance.get("actions")) is not list:
+        return 0
+    return sum(
+        1
+        for action in gouvernance["actions"]
+        if isinstance(action, Mapping) and classement_incertain(action.get("verdict"))
+    )
+
+
+def verdict_pour_synthese(verdict: object) -> object:
+    """Dans une synthèse actuelle, ne pas présenter l'ancien PROPOSABLE comme une classification fiable."""
+    return "CLASSEMENT_HISTORIQUE_NON_VERIFIE" if verdict == "PROPOSABLE" else verdict
+
+
+def empreinte_verdict(gouvernance: Mapping) -> str:
+    """Empreinte du contenu d'un verdict, hors son propre identifiant."""
+    contenu = {k: v for k, v in gouvernance.items() if k != "verdict_id"}
+    return hashlib.sha256(json.dumps(contenu, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
 
 def gouverner(recommandation: Mapping) -> dict:
     """Étape gouvernance (code) : classe chaque action proposée ; une action sensible n'est jamais autorisée ici.
 
     ``recommandation`` : ``{"decision": str, "actions": [{"id", "type", "description"}]}``. Un type inconnu ou
     ``sensible`` sans classe connue est refusé (fail-closed) ; une classe sensible exige l'approbation exacte du
-    mandataire
-    nommé ; seule une action interne non sensible (``suivi_interne``, ``information``) reste « proposable »."""
+    mandataire nommé ; une déclaration ``suivi_interne`` ou ``information`` est ``CLASSEMENT_NON_VERIFIE`` et ne
+    vaut pas approbation. ``decision_majeure`` reste booléen : la limite de classification est signalée séparément."""
     if not isinstance(recommandation, Mapping) or not _texte(recommandation.get("decision")):
         raise ValueError("REJ-GOUVERNANCE-ENTREE : décision textuelle requise")
     actions = recommandation.get("actions", [])
@@ -446,7 +477,7 @@ def gouverner(recommandation: Mapping) -> dict:
                 {
                     "action": action["id"],
                     "type": genre,
-                    "verdict": "PROPOSABLE",
+                    "verdict": "CLASSEMENT_NON_VERIFIE",
                     "mandataire": None,
                     "effet_autorise": False,
                 }
@@ -466,9 +497,8 @@ def gouverner(recommandation: Mapping) -> dict:
         "decision": recommandation["decision"],
         "actions": verdicts,
         "decision_majeure": any(v["verdict"] == "VALIDATION_HUMAINE_REQUISE" for v in verdicts),
+        "actions_a_classement_non_verifie": compter_actions_classement_incertain({"actions": verdicts}),
         "autorite_d_effet": False,
     }
-    resultat["verdict_id"] = hashlib.sha256(
-        json.dumps(resultat, sort_keys=True, ensure_ascii=False).encode()
-    ).hexdigest()
+    resultat["verdict_id"] = empreinte_verdict(resultat)
     return resultat
