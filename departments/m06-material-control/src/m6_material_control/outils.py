@@ -1653,6 +1653,65 @@ def consommer_materiaux(
                 ),
             },
         }
+    # Sous-ensemble prouvé uniquement : quand les mouvements du chantier sont des réceptions C5
+    # positives et que tous les transferts de l'article restent attribuables sans sortie ambiguë,
+    # une mise au rebut liée à ce chantier borne le maximum qui peut encore y être disponible.
+    # `None` signifie « historique indéterminable » : le contrat legacy existant continue alors.
+    demandes_par_materiau = {}
+    demandes_valides_pour_borne = isinstance(formulaire.get("lignes_consommees"), list)
+    try:
+        for ligne in formulaire.get("lignes_consommees", []):
+            if not isinstance(ligne, dict) or set(ligne) != {"materiau_id", "quantite"}:
+                demandes_valides_pour_borne = False
+                break
+            valeur = ligne["quantite"]
+            if isinstance(valeur, bool) or not isinstance(valeur, (int, float)):
+                demandes_valides_pour_borne = False
+                break
+            quantite = Decimal(str(valeur))
+            if not quantite.is_finite() or quantite <= 0 or not isinstance(ligne["materiau_id"], str):
+                demandes_valides_pour_borne = False
+                break
+            materiau_id = ligne["materiau_id"]
+            termes_demande = demandes_par_materiau.setdefault(materiau_id, [])
+            if len(termes_demande) >= reorder._BORNE_MAX_TERMS:
+                demandes_valides_pour_borne = False
+                break
+            termes_demande.append((quantite, 1))
+    except (KeyError, TypeError, ValueError, InvalidOperation):
+        demandes_valides_pour_borne = False
+    if demandes_valides_pour_borne:
+        demandes_par_materiau = {
+            materiau_id: reorder.somme_decimaux_exactement(termes)
+            for materiau_id, termes in demandes_par_materiau.items()
+        }
+        if any(quantite is None for quantite in demandes_par_materiau.values()):
+            demandes_valides_pour_borne = False
+    # L'idempotence globale par WCT garde la priorité : une réutilisation de ce WCT doit conserver son verdict dédié.
+    if demandes_valides_pour_borne and not any(mouvement.get("wct_id") == wct_id for mouvement in mouvements):
+        for materiau_id, quantite_demandee in demandes_par_materiau.items():
+            borne_locale = reorder.borne_superieure_en_main_locale(
+                formulaire["chantier_id"], materiau_id, mouvements, transferts
+            )
+            texte_borne = reorder.texte_decimal_exact(borne_locale) if borne_locale is not None else None
+            texte_demandee = reorder.texte_decimal_exact(quantite_demandee)
+            if (
+                borne_locale is not None
+                and texte_borne is not None
+                and texte_demandee is not None
+                and quantite_demandee > borne_locale
+            ):
+                return {
+                    "accepte": False,
+                    "verdict": {
+                        "code": "REJ-STOCK-INSUFFISANT",
+                        "detail": (
+                            f"borne supérieure prouvée du stock en main local {texte_borne} "
+                            f"inférieure à la quantité demandée {texte_demandee} "
+                            f"de {materiau_id!r}; aucun mouvement n'a été écrit."
+                        ),
+                    },
+                }
     resultat, code = materiel.consommer_materiaux(
         wct_canonique, formulaire, registre_cible, wct_id=wct_id, en_main_global=en_main_global
     )

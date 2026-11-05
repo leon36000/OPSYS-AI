@@ -2,13 +2,49 @@
 
 from __future__ import annotations
 
+import sys
+from decimal import Decimal
+
 import m6_material_control.outils as m6_outils
 import pytest
+from m6_material_control import emplacements, reorder
+from m6_material_control import registre as registre_module
 from sqlalchemy import func, select, update
 
 from opsys import evenements, stockage
 from opsys.outils import executer, executer_atomique
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
+
+
+def test_somme_borne_decimale_est_exacte_et_abstient_au_dela_des_ressources():
+    assert reorder.somme_decimaux_exactement([
+        (Decimal("1E+28"), 1), (Decimal(1), 1), (Decimal("1E+28"), -1),
+    ]) == Decimal(1)
+    assert reorder.somme_decimaux_exactement([
+        (Decimal("1E+27"), 1), (Decimal("0.1"), 1), (Decimal("1E+27"), -1),
+    ]) == Decimal("0.1")
+    assert reorder.somme_decimaux_exactement([
+        (Decimal("0.05"), 1), (Decimal("0.05"), 1),
+    ]) == Decimal("0.1")
+    assert reorder.somme_decimaux_exactement([(Decimal("1E+99999999"), 1)]) is None
+    assert reorder.somme_decimaux_exactement([(Decimal("9" * 5000), 1)]) is None
+    assert reorder.somme_decimaux_exactement((Decimal(1), 1) for _ in range(5000)) is None
+
+
+def test_somme_borne_s_abstient_si_le_plafond_entier_python_empeche_conversion():
+    if not hasattr(sys, "set_int_max_str_digits"):
+        pytest.skip("Python sans plafond configurable de conversion int/str")
+    plafond_initial = sys.get_int_max_str_digits()
+    coefficient_trop_long = Decimal("9" * 641)
+    premier = Decimal("9" * 640)
+    second = Decimal("9" * 640)
+    try:
+        sys.set_int_max_str_digits(640)
+        assert reorder.somme_decimaux_exactement([(coefficient_trop_long, 1)]) is None
+        assert reorder.somme_decimaux_exactement([(premier, 1), (second, 1)]) is None
+    finally:
+        sys.set_int_max_str_digits(plafond_initial)
+    assert sys.get_int_max_str_digits() == plafond_initial
 
 
 @pytest.fixture
@@ -26,9 +62,9 @@ def _outil(nom):
     return next(outil for outil in m6_outils.outils() if outil.nom == nom)
 
 
-def _recevoir_cinq(material, project, thresholds, statut="endommage"):
+def _recevoir_cinq(material, project, thresholds, statut="endommage", suffix=""):
     date = "2026-11-03T10:00:00-04:00"
-    po_id = f"PO-consomme-rebut-fictif-{project}"
+    po_id = f"PO-consomme-rebut-fictif-{project}{'-' + suffix if suffix else ''}"
     return executer_atomique(_outil("m6_receptionner_commande"), {
         "bon_demande": {
             "po_id": po_id,
@@ -42,11 +78,11 @@ def _recevoir_cinq(material, project, thresholds, statut="endommage"):
             "lignes_recues": [{"materiau_id": material, "quantite_recue": 5.0}],
             "horodatage": date,
         },
-        "details_reception": [{
+        **({"details_reception": [{
             "materiau_id": material,
             "statut_ligne": statut,
             **({"photos": ["fichier:sha256:" + "cd" * 32]} if statut == "endommage" else {}),
-        }],
+        }]} if statut is not None else {}),
         "lieu_livraison": {"type": "depot"},
         "seuils_reorder": thresholds,
         "catalogue_materiaux": {
@@ -55,6 +91,38 @@ def _recevoir_cinq(material, project, thresholds, statut="endommage"):
             "postes": {material: {"cout_unitaire": 5.0, "libelle": "Article fictif"}},
         },
     })
+
+
+def _recevoir_quantite(material, project, quantity, *, statut=None, suffix=""):
+    date = "2026-11-03T10:00:00-04:00"
+    po_id = f"PO-quantite-decimale-fictif-{project}-{suffix}"
+    arguments = {
+        "bon_demande": {
+            "po_id": po_id,
+            "chantier_id": project,
+            "lignes_demandees": [{"materiau_id": material, "quantite_demandee": quantity}],
+            "horodatage": date,
+        },
+        "reception_po": {
+            "po_id": po_id,
+            "chantier_id": project,
+            "lignes_recues": [{"materiau_id": material, "quantite_recue": quantity}],
+            "horodatage": date,
+        },
+        "catalogue_materiaux": {
+            "version": "v1",
+            "unite_monetaire": "CAD",
+            "postes": {material: {"cout_unitaire": 5.0, "libelle": "Article fictif"}},
+        },
+    }
+    if statut is not None:
+        arguments["details_reception"] = [{
+            "materiau_id": material,
+            "statut_ligne": statut,
+            **({"photos": ["fichier:sha256:" + "cd" * 32]} if statut == "endommage" else {}),
+        }]
+        arguments["lieu_livraison"] = {"type": "depot"}
+    return executer_atomique(_outil("m6_receptionner_commande"), arguments)
 
 
 def _wct(project, wct_id="w-consomme-rebut-legacy-fictif"):
@@ -90,6 +158,17 @@ def _consommer_legacy(wct, project, lignes):
             "lignes_consommees": lignes,
         },
     })
+
+
+def _consommer_legacy_direct(wct, project, lignes):
+    formulaire = {
+        "wct_id": wct["wct_id"],
+        "intervention_id": wct["intervention_id"],
+        "chantier_id": project,
+        "lignes_consommees": lignes,
+    }
+    with stockage.transaction():
+        return m6_outils.consommer_materiaux(wct, formulaire)
 
 
 def _etat_stock_durable(material):
@@ -192,8 +271,18 @@ def test_consommation_acceptee_depuis_un_rebut_fait_passer_en_main_sous_zero(bas
 def test_legacy_refuse_si_le_stock_en_main_global_est_prouve_insuffisant_sans_ecriture(base):
     material, project = "mat-consomme-rebut-fictif", "CH-consomme-rebut-fictif"
     thresholds = [{"chantier_id": project, "materiau_id": material, "seuil_quantite": 10.0}]
-    received = _recevoir_cinq(material, project, thresholds)
+    received = _recevoir_cinq(material, project, thresholds, statut=None)
     assert received["ok"] and received["resultat"]["accepte"] is True, received
+    transfer = executer_atomique(_outil("m6_transferer_stock"), {
+        "transfert_id": "T-global-insuffisant-fictif",
+        "materiau_id": material,
+        "quantite": 5.0,
+        "de": {"type": "depot"},
+        "vers": {"type": "rebut"},
+        "motif": "mise au rebut fictive sans liaison C5",
+        "horodatage": "2026-11-03T11:00:00-04:00",
+    })
+    assert transfer["ok"] and transfer["resultat"]["accepte"] is True, transfer
 
     wct = _wct(project)
     _publier_wct(wct)
@@ -259,7 +348,7 @@ def test_legacy_ne_refuse_pas_le_stock_en_main_de_b_si_a_est_au_rebut(base):
     ]
 
 
-def test_legacy_global_suffisant_ne_prouve_pas_le_stock_local_de_a(base):
+def test_legacy_refuse_si_une_reception_c5_exacte_est_entierement_au_rebut(base):
     material, project_a, project_b = (
         "mat-localisation-limite-fictif", "CH-rebut-local-limite-fictif", "CH-en-main-local-limite-fictif"
     )
@@ -274,11 +363,364 @@ def test_legacy_global_suffisant_ne_prouve_pas_le_stock_local_de_a(base):
     wct_a = _wct(project_a, "w-localisation-limite-a-fictif")
     _publier_wct(wct_a)
 
-    # Limite documentée : le garde agrégé ne prouve pas que la quantité du chantier A
-    # soit physiquement dans A; l'ancien contrat ne reconstruit pas cette attribution.
-    accepted = _consommer_legacy(wct_a, project_a, [{"materiau_id": material, "quantite": 5.0}])
+    before = _etat_stock_durable(material)
+    refused = _consommer_legacy(wct_a, project_a, [{"materiau_id": material, "quantite": 1.0}])
 
-    assert accepted["ok"] and accepted["resultat"]["accepte"] is True, accepted
+    assert refused["ok"] and refused["resultat"]["accepte"] is False, refused
+    assert refused["resultat"]["verdict"]["code"] == "REJ-STOCK-INSUFFISANT"
+    assert "borne supérieure prouvée du stock en main local 0" in refused["resultat"]["verdict"]["detail"]
+    assert "aucun mouvement n'a été écrit" in refused["resultat"]["verdict"]["detail"]
+    assert _etat_stock_durable(material) == before
+
+
+def test_borne_locale_exacte_ne_perd_pas_l_unite_apres_grande_mise_au_rebut(base):
+    material, project, project_b = (
+        "mat-borne-grand-rebut-fictif", "CH-borne-grand-rebut-fictif", "CH-borne-grand-rebut-global-fictif"
+    )
+    rebut = _recevoir_quantite(material, project, 10**28, statut="endommage", suffix="rebut")
+    legacy_reception = _recevoir_quantite(material, project, 1, suffix="legacy")
+    stock_global = _recevoir_quantite(material, project_b, 10, statut="conforme", suffix="global")
+    assert rebut["ok"] and rebut["resultat"]["accepte"] is True, rebut
+    assert legacy_reception["ok"] and legacy_reception["resultat"]["accepte"] is True, legacy_reception
+    assert stock_global["ok"] and stock_global["resultat"]["accepte"] is True, stock_global
+    wct = _wct(project, "w-borne-grand-rebut-fictif")
+    _publier_wct(wct)
+    before = _etat_stock_durable(material)
+
+    consumed = _consommer_legacy(wct, project, [{"materiau_id": material, "quantite": 1}])
+
+    assert consumed["ok"] and consumed["resultat"]["accepte"] is True, consumed
+    assert _etat_stock_durable(material) != before
+
+
+def test_borne_locale_exacte_somme_le_rebut_et_dixieme_restant(base):
+    material, project, project_b = (
+        "mat-borne-dixieme-fictif", "CH-borne-dixieme-fictif", "CH-borne-dixieme-global-fictif"
+    )
+    rebut = _recevoir_quantite(material, project, 10**27, statut="endommage", suffix="rebut")
+    legacy_reception = _recevoir_quantite(material, project, 0.1, suffix="legacy")
+    stock_global = _recevoir_quantite(material, project_b, 1, statut="conforme", suffix="global")
+    assert rebut["ok"] and rebut["resultat"]["accepte"] is True, rebut
+    assert legacy_reception["ok"] and legacy_reception["resultat"]["accepte"] is True, legacy_reception
+    assert stock_global["ok"] and stock_global["resultat"]["accepte"] is True, stock_global
+    wct = _wct(project, "w-borne-dixieme-fictif")
+    _publier_wct(wct)
+    before = _etat_stock_durable(material)
+
+    consumed = _consommer_legacy(wct, project, [
+        {"materiau_id": material, "quantite": 0.05},
+        {"materiau_id": material, "quantite": 0.05},
+    ])
+
+    assert consumed["ok"] and consumed["resultat"]["accepte"] is True, consumed
+    assert _etat_stock_durable(material) != before
+
+
+def test_reception_multiligne_borne_seulement_la_source_finale_exacte(base):
+    material_first = "mat-multiligne-premiere-ligne-fictif"
+    material_last = "mat-multiligne-derniere-ligne-fictif"
+    project = "CH-multiligne-borne-fictif"
+    project_other = "CH-multiligne-stock-global-fictif"
+    date = "2026-11-03T10:00:00-04:00"
+    po_id = "PO-multiligne-borne-fictif"
+    thresholds = [
+        {"chantier_id": project, "materiau_id": material_first, "seuil_quantite": 10.0},
+        {"chantier_id": project, "materiau_id": material_last, "seuil_quantite": 10.0},
+    ]
+    multi = executer_atomique(_outil("m6_receptionner_commande"), {
+        "bon_demande": {
+            "po_id": po_id,
+            "chantier_id": project,
+            "lignes_demandees": [
+                {"materiau_id": material_first, "quantite_demandee": 5.0},
+                {"materiau_id": material_last, "quantite_demandee": 5.0},
+            ],
+            "horodatage": date,
+        },
+        "reception_po": {
+            "po_id": po_id,
+            "chantier_id": project,
+            "lignes_recues": [
+                {"materiau_id": material_first, "quantite_recue": 5.0},
+                {"materiau_id": material_last, "quantite_recue": 5.0},
+            ],
+            "horodatage": date,
+        },
+        "details_reception": [
+            {
+                "materiau_id": material_first,
+                "statut_ligne": "endommage",
+                "photos": ["fichier:sha256:" + "cd" * 32],
+            },
+            {
+                "materiau_id": material_last,
+                "statut_ligne": "endommage",
+                "photos": ["fichier:sha256:" + "ef" * 32],
+            },
+        ],
+        "lieu_livraison": {"type": "depot"},
+        "seuils_reorder": thresholds,
+        "catalogue_materiaux": {
+            "version": "v1",
+            "unite_monetaire": "CAD",
+            "postes": {
+                material_first: {"cout_unitaire": 5.0, "libelle": "Article fictif A"},
+                material_last: {"cout_unitaire": 5.0, "libelle": "Article fictif B"},
+            },
+        },
+    })
+    assert multi["ok"] and multi["resultat"]["accepte"] is True, multi
+    accuse = multi["resultat"]["resultat"]["accuse_reception"]
+
+    # Stocks conformes hors de ce chantier neutralisent le refus global historique.
+    stock_first = _recevoir_quantite(material_first, project_other, 5.0, statut="conforme", suffix="global-a")
+    stock_last = _recevoir_quantite(material_last, project_other, 5.0, statut="conforme", suffix="global-b")
+    assert stock_first["ok"] and stock_first["resultat"]["accepte"] is True, stock_first
+    assert stock_last["ok"] and stock_last["resultat"]["accepte"] is True, stock_last
+
+    with stockage.transaction():
+        mouvements = list(stockage.maillons("m06-material-control", "principal"))
+        transferts = list(stockage.maillons("m06-material-control", "emplacements"))
+    assert registre_module.Registre(maillons=mouvements).valider_chaine()[0] is True
+    assert emplacements.valider_chaine(transferts)[0] is True
+    mouvements_cibles = {
+        materiau_id: next(
+            mouvement for mouvement in mouvements
+            if mouvement.get("chantier_id") == project and mouvement.get("materiau_id") == materiau_id
+            and mouvement.get("type_mouvement") == "RECEPTION"
+        )
+        for materiau_id in (material_first, material_last)
+    }
+    assert mouvements_cibles[material_last]["hash_maillon"] == accuse["hash_maillon"]
+    for materiau_id, mouvement in mouvements_cibles.items():
+        references = [
+            transfert["reference_source"] for transfert in transferts
+            if transfert.get("materiau_id") == materiau_id and "reference_source" in transfert
+            and transfert["reference_source"]["mouvement"]["index"] == mouvement["index"]
+        ]
+        assert references and all(reference["hash_reception"] == accuse["hash_maillon"] for reference in references)
+
+    # L'avant-dernière ligne ne peut pas prouver sa clôture exacte; la dernière la prouve et borne le rebut à zéro.
+    assert reorder.borne_superieure_en_main_locale(project, material_first, mouvements, transferts) is None
+    assert reorder.borne_superieure_en_main_locale(project, material_last, mouvements, transferts) == Decimal(0)
+
+    wct_first = _wct(project, "w-multiligne-premiere-ligne-fictif")
+    _publier_wct(wct_first)
+    consumed_first = _consommer_legacy(wct_first, project, [{"materiau_id": material_first, "quantite": 1.0}])
+    assert consumed_first["ok"] and consumed_first["resultat"]["accepte"] is True, consumed_first
+
+    wct_last = _wct(project, "w-multiligne-derniere-ligne-fictif")
+    _publier_wct(wct_last)
+    before_last = _etat_stock_durable(material_last)
+    consumed_last = _consommer_legacy(wct_last, project, [{"materiau_id": material_last, "quantite": 1.0}])
+    assert consumed_last["ok"] and consumed_last["resultat"]["accepte"] is False, consumed_last
+    assert consumed_last["resultat"]["verdict"]["code"] == "REJ-STOCK-INSUFFISANT"
+    assert "borne supérieure prouvée du stock en main local 0" in consumed_last["resultat"]["verdict"]["detail"]
+    assert _etat_stock_durable(material_last) == before_last
+
+
+def test_rejeu_wct_garde_le_refus_idempotent_avant_la_nouvelle_borne(base):
+    material, project_a, project_b = (
+        "mat-borne-idempotence-fictif", "CH-borne-idempotence-a-fictif", "CH-borne-idempotence-b-fictif"
+    )
+    seuils = [
+        {"chantier_id": project_a, "materiau_id": material, "seuil_quantite": 10.0},
+        {"chantier_id": project_b, "materiau_id": material, "seuil_quantite": 10.0},
+    ]
+    _recevoir_cinq(material, project_a, seuils, statut="endommage")
+    _recevoir_cinq(material, project_b, seuils, statut="conforme")
+    wct = _wct(project_b, "w-borne-idempotence-fictif")
+    _publier_wct(wct)
+    first = _consommer_legacy(wct, project_b, [{"materiau_id": material, "quantite": 1.0}])
+    assert first["ok"] and first["resultat"]["accepte"] is True, first
+
+    replay = _consommer_legacy(wct, project_a, [{"materiau_id": material, "quantite": 1.0}])
+
+    assert replay["ok"] and replay["resultat"]["accepte"] is False, replay
+    assert replay["resultat"]["verdict"]["code"] == "REJ-DECLARATION-DEJA-SOUMISE"
+
+
+@pytest.mark.parametrize("quantite,accepte", [(5.0, True), (5.01, False)])
+def test_legacy_borne_locale_exacte_c5_accepte_egalite_et_refuse_le_depassement(base, quantite, accepte):
+    material, project = "mat-borne-exacte-fictif", "CH-borne-exacte-fictif"
+    seuils = [{"chantier_id": project, "materiau_id": material, "seuil_quantite": 10.0}]
+    endommage = _recevoir_cinq(material, project, seuils, statut="endommage")
+    conforme = _recevoir_cinq(material, project, seuils, statut="conforme", suffix="conforme")
+    assert endommage["ok"] and endommage["resultat"]["accepte"] is True, endommage
+    assert conforme["ok"] and conforme["resultat"]["accepte"] is True, conforme
+    wct = _wct(project, f"w-borne-exacte-{quantite}-fictif")
+    _publier_wct(wct)
+    before = _etat_stock_durable(material)
+
+    resultat = _consommer_legacy(wct, project, [{"materiau_id": material, "quantite": quantite}])
+
+    assert resultat["ok"] and resultat["resultat"]["accepte"] is accepte, resultat
+    if accepte:
+        assert resultat["resultat"]["resultat"]["stock_restant"] == [
+            {"materiau_id": material, "quantite": 5.0}
+        ]
+    else:
+        assert resultat["resultat"]["verdict"]["code"] == "REJ-STOCK-INSUFFISANT"
+        assert "borne supérieure prouvée du stock en main local 5" in resultat["resultat"]["verdict"]["detail"]
+        assert _etat_stock_durable(material) == before
+
+
+@pytest.mark.parametrize("quantite", [float("nan"), float("inf"), float("-inf")], ids=["nan", "inf", "-inf"])
+def test_borne_locale_ne_preempte_pas_le_refus_des_quantites_non_finies(base, quantite):
+    material, project_a, project_b = (
+        "mat-borne-non-fini-fictif", "CH-borne-non-fini-a-fictif", "CH-borne-non-fini-b-fictif"
+    )
+    seuils = [
+        {"chantier_id": project_a, "materiau_id": material, "seuil_quantite": 10.0},
+        {"chantier_id": project_b, "materiau_id": material, "seuil_quantite": 10.0},
+    ]
+    _recevoir_cinq(material, project_a, seuils, statut="endommage")
+    _recevoir_cinq(material, project_b, seuils, statut="conforme")
+    wct = _wct(project_a, f"w-borne-non-fini-{quantite}-fictif")
+    _publier_wct(wct)
+    before = _etat_stock_durable(material)
+
+    refused = _consommer_legacy(wct, project_a, [{"materiau_id": material, "quantite": quantite}])
+
+    assert refused["ok"] is True, refused
+    assert refused["resultat"]["accepte"] is False, refused
+    assert refused["resultat"]["verdict"]["code"] == "REJ-FORMULAIRE-LIGNE-INVALIDE"
+    assert _etat_stock_durable(material) == before
+
+
+@pytest.mark.parametrize(
+    "quantite,code_attendu",
+    [
+        (True, "REJ-FORMULAIRE-LIGNE-INVALIDE"),
+        (10**400, "REJ-STOCK-INSUFFISANT"),
+        ("5", "REJ-FORMULAIRE-LIGNE-INVALIDE"),
+        ("NaN", "REJ-FORMULAIRE-LIGNE-INVALIDE"),
+        ("Infinity", "REJ-FORMULAIRE-LIGNE-INVALIDE"),
+    ],
+    ids=["bool", "grand-entier", "texte-decimal", "texte-nan", "texte-infini"],
+)
+def test_appel_direct_garde_le_verdict_pour_types_et_entiers_extremes(base, quantite, code_attendu):
+    material, project_a, project_b = (
+        "mat-borne-types-direct-fictif", "CH-borne-types-direct-a-fictif", "CH-borne-types-direct-b-fictif"
+    )
+    seuils = [
+        {"chantier_id": project_a, "materiau_id": material, "seuil_quantite": 10.0},
+        {"chantier_id": project_b, "materiau_id": material, "seuil_quantite": 10.0},
+    ]
+    _recevoir_cinq(material, project_a, seuils, statut="endommage")
+    _recevoir_cinq(material, project_b, seuils, statut="conforme")
+    wct = _wct(project_a, f"w-borne-types-{quantite!r}-fictif")
+    _publier_wct(wct)
+    before = _etat_stock_durable(material)
+
+    refused = _consommer_legacy_direct(wct, project_a, [{"materiau_id": material, "quantite": quantite}])
+
+    assert refused["accepte"] is False, refused
+    assert refused["verdict"]["code"] == code_attendu, refused
+    assert _etat_stock_durable(material) == before
+
+
+def test_borne_locale_reste_indeterminee_apres_un_transfert_sans_source(base):
+    material, project_a, project_b = (
+        "mat-borne-transfert-ambigu-fictif", "CH-borne-transfert-a-fictif", "CH-borne-transfert-b-fictif"
+    )
+    seuils = [
+        {"chantier_id": project_a, "materiau_id": material, "seuil_quantite": 10.0},
+        {"chantier_id": project_b, "materiau_id": material, "seuil_quantite": 10.0},
+    ]
+    _recevoir_cinq(material, project_a, seuils, statut="endommage")
+    _recevoir_cinq(material, project_b, seuils, statut="conforme")
+    transfert = executer_atomique(_outil("m6_transferer_stock"), {
+        "transfert_id": "T-reliberation-ambigue-fictif",
+        "materiau_id": material,
+        "quantite": 5.0,
+        "de": {"type": "rebut"},
+        "vers": {"type": "depot"},
+        "motif": "cas fictif à source non liée",
+        "horodatage": "2026-11-03T11:00:00-04:00",
+    })
+    assert transfert["ok"] and transfert["resultat"]["accepte"] is True, transfert
+    with stockage.transaction():
+        mouvements = list(stockage.maillons("m06-material-control", "principal"))
+        emplacements = list(stockage.maillons("m06-material-control", "emplacements"))
+    assert reorder.borne_superieure_en_main_locale(project_a, material, mouvements, emplacements) is None
+
+    # La garde ciblée ne reconstitue pas le lot et laisse le chemin historique inchangé.
+    wct = _wct(project_a, "w-borne-transfert-ambigu-fictif")
+    _publier_wct(wct)
+    legacy = _consommer_legacy(wct, project_a, [{"materiau_id": material, "quantite": 1.0}])
+    assert legacy["ok"] and legacy["resultat"]["accepte"] is True, legacy
+
+
+def test_borne_locale_reste_indeterminee_apres_une_sortie_deja_declaree(base):
+    material, project_a, project_b = (
+        "mat-borne-sortie-ambigue-fictif", "CH-borne-sortie-a-fictif", "CH-borne-sortie-b-fictif"
+    )
+    seuils = [
+        {"chantier_id": project_a, "materiau_id": material, "seuil_quantite": 10.0},
+        {"chantier_id": project_b, "materiau_id": material, "seuil_quantite": 10.0},
+    ]
+    _recevoir_cinq(material, project_a, seuils, statut="endommage")
+    _recevoir_cinq(material, project_b, seuils, statut="conforme")
+
+    wct_declaratif = _wct(project_a, "w-declaratif-sortie-ambigue-fictif")
+    _publier_wct(wct_declaratif)
+    declaration = executer_atomique(_outil("m6_declarer_materiaux_utilises"), {
+        "wct_id": wct_declaratif["wct_id"],
+        "formulaire": {
+            "wct_id": wct_declaratif["wct_id"],
+            "intervention_id": wct_declaratif["intervention_id"],
+            "chantier_id": project_a,
+            "lignes_materiaux": [{
+                "type_ligne": "prevu", "materiau_id": material, "quantite": 1.0,
+                "unite": "boite", "quantite_estimee": 1.0,
+            }],
+        },
+    })
+    assert declaration["ok"] and declaration["resultat"]["accepte"] is True, declaration
+    with stockage.transaction():
+        mouvements = list(stockage.maillons("m06-material-control", "principal"))
+        emplacements = list(stockage.maillons("m06-material-control", "emplacements"))
+    assert reorder.borne_superieure_en_main_locale(project_a, material, mouvements, emplacements) is None
+
+    # Une sortie historique existante rend la localisation non attribuable par ce garde; aucune source
+    # n'est réaffectée et le formulaire déclaratif C5/M6 reste inchangé.
+    wct_legacy = _wct(project_a, "w-legacy-sortie-ambigue-fictif")
+    _publier_wct(wct_legacy)
+    legacy = _consommer_legacy(wct_legacy, project_a, [{"materiau_id": material, "quantite": 1.0}])
+    assert legacy["ok"] and legacy["resultat"]["accepte"] is True, legacy
+
+
+def test_borne_locale_reste_indeterminee_apres_un_transfert_interchantier(base):
+    material, project_a, project_b = (
+        "mat-borne-interchantier-fictif", "CH-borne-interchantier-a-fictif", "CH-borne-interchantier-b-fictif"
+    )
+    seuils = [
+        {"chantier_id": project_a, "materiau_id": material, "seuil_quantite": 10.0},
+        {"chantier_id": project_b, "materiau_id": material, "seuil_quantite": 10.0},
+    ]
+    _recevoir_cinq(material, project_a, seuils, statut="endommage")
+    _recevoir_cinq(material, project_b, seuils, statut="conforme")
+    transfert = executer_atomique(_outil("m6_transferer_stock"), {
+        "transfert_id": "T-interchantier-ambigu-fictif",
+        "materiau_id": material,
+        "quantite": 5.0,
+        "de": {"type": "depot"},
+        "vers": {"type": "chantier", "reference": project_a},
+        "motif": "transfert entre chantiers fictif sans source",
+        "horodatage": "2026-11-03T11:00:00-04:00",
+    })
+    assert transfert["ok"] and transfert["resultat"]["accepte"] is True, transfert
+    with stockage.transaction():
+        mouvements = list(stockage.maillons("m06-material-control", "principal"))
+        emplacements = list(stockage.maillons("m06-material-control", "emplacements"))
+    assert reorder.borne_superieure_en_main_locale(project_a, material, mouvements, emplacements) is None
+
+    # Le mouvement physique vers A est ambigu quant à sa source : le garde n'invente ni le lot ni son attribution.
+    wct = _wct(project_a, "w-borne-interchantier-ambigu-fictif")
+    _publier_wct(wct)
+    legacy = _consommer_legacy(wct, project_a, [{"materiau_id": material, "quantite": 5.0}])
+    assert legacy["ok"] and legacy["resultat"]["accepte"] is True, legacy
 
 
 @pytest.mark.parametrize("registre", ["principal", "emplacements"])
