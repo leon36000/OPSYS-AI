@@ -133,6 +133,39 @@ AMBIGUES: Mapping[str, str] = {
     "not-set": "aucune source",
 }
 _CONTROLES = re.compile(r"[\x00-\x1f\x7f-\x9f  ​-‏‪-‮⁦-⁩]")
+_COURRIEL = re.compile(
+    r"[\w.!#$%&'*+/=?^`{|}~-]{1,64}@[\w-]+(?:\.[\w-]+)+",
+    re.UNICODE,
+)
+_TELEPHONE_NANP = re.compile(
+    r"(?<![0-9])(?:1-*)?[2-9]-*[0-9]-*[0-9][-]+[2-9]-*[0-9]-*[0-9][-]+[0-9]-*[0-9]-*[0-9]-*[0-9](?![0-9])"
+    r"|(?<![0-9])(?:1)?[2-9][0-9]{9}(?![0-9])"
+)
+
+
+def _contient_contact_deterministe(valeur: str) -> bool:
+    """Repère des courriels et numéros NANP formatés avant que le slug n'en conserve des fragments."""
+    canonique = unicodedata.normalize("NFKC", valeur)
+    caracteres_courriel: list[str] = []
+    caracteres_telephone: list[str] = []
+    for caractere in canonique:
+        categorie = unicodedata.category(caractere)
+        if categorie == "Cf":
+            # Retire les caractères de format invisibles pour ne pas laisser un séparateur caché contourner le test.
+            continue
+        caracteres_courriel.append(caractere)
+        if caractere.isdecimal():
+            caracteres_telephone.append(str(unicodedata.decimal(caractere)))
+        elif categorie[0] in "PSZ":
+            # Même les séparateurs que la translittération supprime deviennent un séparateur explicite ici.
+            caracteres_telephone.append("-")
+        else:
+            caracteres_telephone.append(caractere)
+    texte_courriel = re.sub(r"\s*([@.])\s*", r"\1", "".join(caracteres_courriel))
+    # Aligne la détection sur le slug final : les marques et lettres non translittérables supprimées par NFD/ASCII
+    # ne peuvent donc pas masquer une suite de chiffres qui ressortira ensuite dans la réponse.
+    texte_telephone = utm_engine.normaliser_slug("".join(caracteres_telephone))
+    return bool(_COURRIEL.search(texte_courriel) or _TELEPHONE_NANP.search(texte_telephone))
 
 
 def plier(valeur: str) -> str:
@@ -199,6 +232,8 @@ def normaliser_campagne(brut: Any) -> dict[str, Any]:
     valeur, raison = _valeur_propre(brut)
     if valeur is None:
         return _resultat(brut, None, NON_NORMALISABLE, raison)
+    if _contient_contact_deterministe(valeur):
+        return _resultat(brut, None, NON_NORMALISABLE, "coordonnée de contact refusée")
     contrat = utm_engine._charger_contrat()
     slug = utm_engine.normaliser_slug(valeur)
     gabarit = re.compile(contrat["format"]["campaign"]["regex"])
@@ -220,6 +255,8 @@ def normaliser_contenu(brut: Any) -> dict[str, Any]:
     valeur, raison = _valeur_propre(brut)
     if valeur is None:
         return _resultat(brut, None, NON_NORMALISABLE, raison)
+    if _contient_contact_deterministe(valeur):
+        return _resultat(brut, None, NON_NORMALISABLE, "coordonnée de contact refusée")
     contrat = utm_engine._charger_contrat()
     slug = utm_engine.normaliser_slug(valeur)
     if not slug or len(slug) > contrat["format"]["content"]["max_length"]:

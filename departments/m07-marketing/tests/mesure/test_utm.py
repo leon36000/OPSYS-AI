@@ -101,6 +101,86 @@ def test_contenu_facultatif_alphabet_du_contrat():
     assert utm.normaliser_contenu("a" * 90)["verdict"] == utm.NON_NORMALISABLE
 
 
+@pytest.mark.parametrize(
+    "valeur",
+    [
+        "fenetre-514-555-1234-2026",
+        "fenetre-+1 (514) 555-1234-2026",
+        "fenetre-514\u00ad555\u00ad1234-2026",
+        "fenetre-５１４‑５５５‑１２３４-2026",
+        "fenetre-514\u0301:555\u0301:1234-2026",
+        "fenetre-514中555中1234-2026",
+    ],
+)
+def test_campagne_refuse_telephone_nanp_avant_normalisation(valeur):
+    resultat = utm.normaliser_campagne(valeur)
+    assert resultat["verdict"] == utm.NON_NORMALISABLE
+    assert resultat["normalise"] is None
+    assert resultat["raison"] == "coordonnée de contact refusée"
+    assert valeur not in repr(resultat)
+
+
+@pytest.mark.parametrize(
+    "valeur",
+    [
+        "fenetre-alice@example.test-2026",
+        "fenetre-alice＠example．test-2026",
+        "fenetre-alice\u00ad@example.test-2026",
+    ],
+)
+def test_campagne_refuse_courriel_avant_normalisation(valeur):
+    resultat = utm.normaliser_campagne(valeur)
+    assert resultat["verdict"] == utm.NON_NORMALISABLE
+    assert resultat["normalise"] is None
+    assert resultat["raison"] == "coordonnée de contact refusée"
+    assert valeur not in repr(resultat)
+
+
+@pytest.mark.parametrize("valeur", ["514-555-1234", "alice@example.test", "alice＠example．test"])
+def test_contenu_refuse_courriel_ou_telephone_avant_normalisation(valeur):
+    resultat = utm.normaliser_contenu(valeur)
+    assert resultat["verdict"] == utm.NON_NORMALISABLE
+    assert resultat["normalise"] is None
+    assert resultat["raison"] == "coordonnée de contact refusée"
+    assert valeur not in repr(resultat)
+
+
+@pytest.mark.parametrize(
+    "parametre",
+    [
+        "utm_campaign=fenetre-514%E2%80%91555%E2%80%911234-2026",
+        "utm_campaign=fenetre-%EF%BC%95%EF%BC%91%EF%BC%94%E2%80%91%EF%BC%95%EF%BC%95%EF%BC%95%E2%80%91%EF%BC%91%EF%BC%92%EF%BC%93%EF%BC%94-2026",
+        "utm_campaign=fenetre-alice%EF%BC%A0example%EF%BC%8Etest-2026",
+        "utm_campaign=fenetre-test-2026&utm_content=alice%40example.test",
+    ],
+)
+def test_analyser_url_refuse_contacts_percent_encodes_ou_unicode(parametre):
+    url = f"{BASE}?utm_source=google&utm_medium=cpc&{parametre}"
+    resultat = utm.analyser_url(url)
+    assert resultat["verdict"] == utm.NON_NORMALISABLE
+    contacts = [
+        resultat["parametres"][nom]
+        for nom in ("utm_campaign", "utm_content")
+        if resultat["parametres"][nom]["raison"] == "coordonnée de contact refusée"
+    ]
+    assert contacts and all(item["normalise"] is None for item in contacts)
+    assert "514-555-1234" not in repr(resultat)
+    assert "alice@example.test" not in repr(resultat)
+    assert url not in repr(resultat)
+
+
+def test_slugs_marketing_legitimes_avec_nombres_restent_acceptes():
+    campagne = utm.normaliser_campagne("fenetre-lancement-ab12-2026")
+    contenu = utm.normaliser_contenu("cta-v2-2026-10-01")
+    sequence_non_nanp = utm.normaliser_campagne("fenetre-114-155-1234-2026")
+    assert campagne["normalise"] == "fenetre-lancement-ab12-2026"
+    assert campagne["verdict"] == utm.CONFORME
+    assert contenu["normalise"] == "cta-v2-2026-10-01"
+    assert contenu["verdict"] == utm.CONFORME
+    assert sequence_non_nanp["normalise"] == "fenetre-114-155-1234-2026"
+    assert sequence_non_nanp["verdict"] == utm.CONFORME
+
+
 def test_analyse_d_une_url_conforme_normalisable_et_non_normalisable():
     conforme = utm.analyser_url(f"{BASE}?utm_source=facebook&utm_medium=cpc&utm_campaign=fenetre-ete-2026")
     assert conforme["verdict"] == utm.CONFORME and conforme["identifiants_ecartes"] == []

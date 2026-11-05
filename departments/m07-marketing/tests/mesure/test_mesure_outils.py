@@ -11,7 +11,7 @@ from m7_marketing import depenses_marketing as dep
 from m7_marketing import mesure_outils as mo
 from m7_marketing import outils as outils_m7
 from m7_marketing.mesure import conversions as conv
-from m7_marketing.mesure import experiences
+from m7_marketing.mesure import experiences, utm
 
 from opsys import contexte, stockage
 from opsys.outils import Autonomie, Niveau
@@ -102,6 +102,57 @@ def test_normaliser_utm_exclusivite_des_entrees():
     assert "alice@example.test" not in repr(r)
     refus = mo.normaliser_utm(urls=["https://x.test/"] * 501)
     assert refus["accepte"] is False and refus["refus"][0]["code"] == "REJ-MESURE-UTM-ENTREE-INVALIDE"
+
+
+@pytest.mark.parametrize(
+    "champ,valeur,ancienne_fuite",
+    [
+        ("utm_campaign", "fenetre-514:555:1234-2026", "fenetre-514-555-1234-2026"),
+        ("utm_campaign", "fenetre-514%E2%88%92555%E2%88%921234-2026", "fenetre-5145551234-2026"),
+        ("utm_campaign", "fenetre-514%E2%80%A2555%E2%80%A21234-2026", "fenetre-5145551234-2026"),
+        ("utm_content", "514:555:1234", "514-555-1234"),
+        ("utm_campaign", "fenetre-514-555-1234-2026", "fenetre-514-555-1234-2026"),
+        ("utm_campaign", "fenetre-alice%40example.test-2026", "fenetre-alice-example-test-2026"),
+        (
+            "utm_campaign",
+            "fenetre-%EF%BC%95%EF%BC%91%EF%BC%94%E2%80%91%EF%BC%95%EF%BC%95%EF%BC%95%E2%80%91%EF%BC%91%EF%BC%92%EF%BC%93%EF%BC%94-2026",
+            "fenetre-514-555-1234-2026",
+        ),
+    ],
+)
+def test_route_outil_masquee_refuse_contact_dans_valeur_utm(champ, valeur, ancienne_fuite):
+    campagne = valeur if champ == "utm_campaign" else "fenetre-test-2026"
+    supplement = "" if champ == "utm_campaign" else f"&utm_content={valeur}"
+    url = f"https://x.test/?utm_source=google&utm_medium=cpc&utm_campaign={campagne}{supplement}"
+    resultat = mo.normaliser_utm(urls=[url])
+    ligne = resultat["urls"][0]
+    assert resultat["accepte"] is True
+    assert ligne["verdict"] == utm.NON_NORMALISABLE
+    assert ligne["parametres"][champ]["raison"] == "coordonnée de contact refusée"
+    assert ligne["parametres"][champ]["normalise"] is None
+    assert ancienne_fuite not in repr(resultat)
+    assert "514-555-1234" not in repr(resultat)
+    assert "alice@example.test" not in repr(resultat)
+    assert url not in repr(resultat)
+
+
+@pytest.mark.parametrize(
+    "champ,valeur",
+    [
+        ("utm_content", "cta-v2-2026-03-02-09-30"),
+        ("utm_campaign", "fenetre-evenement-2026-03-02-09-30-2026"),
+    ],
+)
+def test_route_outil_accepte_slug_legitime_date_heure(champ, valeur):
+    campagne = valeur if champ == "utm_campaign" else "fenetre-test-2026"
+    supplement = "" if champ == "utm_campaign" else f"&utm_content={valeur}"
+    url = f"https://x.test/?utm_source=google&utm_medium=cpc&utm_campaign={campagne}{supplement}"
+    resultat = mo.normaliser_utm(urls=[url])
+    ligne = resultat["urls"][0]
+    assert resultat["accepte"] is True
+    assert ligne["verdict"] == utm.CONFORME
+    assert ligne["parametres"][champ]["verdict"] == utm.CONFORME
+    assert ligne["parametres"][champ]["normalise"] == valeur
 
 
 def test_concevoir_rend_le_recu_et_refuse_un_moteur_d_analyse_ou_inconnu():
