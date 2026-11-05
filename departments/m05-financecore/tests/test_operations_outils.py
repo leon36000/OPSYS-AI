@@ -1097,6 +1097,153 @@ def test_rapprochement_bancaire_regles_expliquees_frais_declares_et_etat_equilib
     assert _maillons("operations_comptables") == avant
 
 
+def test_somme_de_lignes_depasse_borne_est_incomplete_et_garde_match_unitaire(dep, par_nom, declare, depot):
+    """Le dépassement de recherche est visible sans bloquer une correspondance unitaire prouvée."""
+    montants = ["10.00", "90.00", *(["1.00"] * 18), "20.00", "80.00"]
+    for i, montant in enumerate(montants, start=1):
+        date_effet = "2026-10-01" if i <= 20 else "2026-10-20"
+        _accepte(
+            _appeler(
+                par_nom,
+                "m5_proposer_ecriture_comptable",
+                {
+                    "date_effet": date_effet,
+                    "libelle": f"Entrée fictive de rapprochement R4-{i}",
+                    "piece_type": "manuelle",
+                    "piece_reference": f"r4-fictif-{i}",
+                    "horodatage": H,
+                    "lignes": [
+                        {"compte": "1010", "debit": montant, "credit": None},
+                        {"compte": "4100", "debit": None, "credit": montant},
+                    ],
+                },
+            )
+        )
+
+    # Cette opération a une référence exacte dans le relevé : R1 doit encore l'apparier normalement.
+    _accepte(
+        _appeler(
+            par_nom,
+            "m5_proposer_ecriture_comptable",
+            {
+                "date_effet": "2026-10-20",
+                "libelle": "Virement fictif REF-3-FICTIF",
+                "piece_type": "manuelle",
+                "piece_reference": "REF-3-FICTIF",
+                "horodatage": H,
+                "lignes": [
+                    {"compte": "1010", "debit": "3.00", "credit": None},
+                    {"compte": "4100", "debit": None, "credit": "3.00"},
+                ],
+            },
+        )
+    )
+    _tout_valider(dep)
+    depot(
+        "releves",
+        "ambigu-r4.csv",
+        "Date;Description;Débit;Crédit;Solde\n"
+        "2026-10-20;DEPOT FICTIF;;100,00;100,00\n"
+        "2026-10-20;AUTRE DEPOT FICTIF;;200,00;300,00\n"
+        "2026-10-20;AUTRE DEPOT FICTIF 2;;300,00;600,00\n"
+        "2026-10-20;AUTRE DEPOT FICTIF 3;;400,00;1000,00\n"
+        "2026-10-20;VIREMENT REF-3-FICTIF;;3,00;1003,00\n",
+    )
+
+    resultat = _accepte(
+        _appeler(
+            par_nom,
+            "m5_preparer_rapprochement_bancaire",
+            {
+                "fichier": "ambigu-r4.csv",
+                "fenetre_jours": 30,
+                "anciennete_max_jours": 90,
+                "horodatage": H,
+            },
+        )
+    )
+
+    etat = resultat["etat_de_rapprochement"]
+    assert len(resultat["appariements_apercu"]) == 1
+    assert resultat["appariements_apercu"][0]["ligne_banque"] == 6
+    assert resultat["appariements_apercu"][0]["regle"] == "montant_date_reference"
+    assert [a["ligne_banque"] for a in etat["ambigus"]] == [2, 3, 4]
+    assert etat["ambigus_total"] == 4 and etat["ambigus_non_montres"] == 1
+    assert etat["rapprochements_non_evalues"] == 4
+    assert all(
+        a["combinaisons"] == []
+        and a["explication"]
+        == (
+            "22 lignes du livre admissibles dépassent la limite technique de 20 ; combinaison non déterminée, "
+            "non appariée, à trancher par une personne"
+        )
+        for a in etat["ambigus"]
+    )
+    assert etat["depots_en_transit"]["total"] == "218.00"
+    assert etat["etat"] == "EQUILIBRE"
+    assert _maillons("principal") == 0
+    lecture = _accepte(
+        _appeler(
+            par_nom,
+            "m5_lire_rapprochement_bancaire",
+            {"rapprochement_id": resultat["rapprochement_id"]},
+        )
+    )
+    assert lecture["ambigus_total"] == 4
+    assert lecture["ambigus_non_montres"] == 4, "le résumé ne fournit aucune des entrées ambigües"
+    assert lecture["rapprochements_non_evalues"] == 4
+    rejeu = _accepte(
+        _appeler(
+            par_nom,
+            "m5_lire_rapprochement_bancaire",
+            {"rapprochement_id": resultat["rapprochement_id"], "rejouer": True},
+        )
+    )
+    assert rejeu["ambigus_total"] == 4
+    assert rejeu["ambigus_non_montres"] == 4, "le résumé supérieur ne contient toujours pas la liste"
+    assert rejeu["rejeu"]["detail"]["rapprochements_non_evalues"] == 4
+    assert rejeu["rejeu"]["detail"]["ambigus_non_montres"] == 1
+
+
+def test_somme_de_lignes_unique_reste_acceptee_a_la_limite_technique(dep, par_nom, declare, depot):
+    """À la borne de 20 candidats, l'unique somme de 2 à 4 lignes reste détectée."""
+    for i, montant in enumerate(["10.00", "90.00", *(["1.00"] * 18)], start=1):
+        _accepte(
+            _appeler(
+                par_nom,
+                "m5_proposer_ecriture_comptable",
+                {
+                    "date_effet": "2026-10-01",
+                    "libelle": f"Entrée fictive borne R4-{i}",
+                    "piece_type": "manuelle",
+                    "piece_reference": f"r4-borne-fictif-{i}",
+                    "horodatage": H,
+                    "lignes": [
+                        {"compte": "1010", "debit": montant, "credit": None},
+                        {"compte": "4100", "debit": None, "credit": montant},
+                    ],
+                },
+            )
+        )
+    _tout_valider(dep)
+    depot("releves", "borne-r4.csv", "Date;Description;Débit;Crédit;Solde\n2026-10-20;DEPOT FICTIF;;100,00;100,00\n")
+
+    resultat = _accepte(
+        _appeler(
+            par_nom,
+            "m5_preparer_rapprochement_bancaire",
+            {"fichier": "borne-r4.csv", "fenetre_jours": 30, "anciennete_max_jours": 90, "horodatage": H},
+        )
+    )
+
+    assert len(resultat["appariements_apercu"]) == 1
+    assert resultat["appariements_apercu"][0]["regle"] == "somme_de_lignes"
+    assert resultat["etat_de_rapprochement"]["ambigus"] == []
+    assert resultat["etat_de_rapprochement"]["ambigus_total"] == 0
+    assert resultat["etat_de_rapprochement"]["ambigus_non_montres"] == 0
+    assert resultat["etat_de_rapprochement"]["rapprochements_non_evalues"] == 0
+
+
 def test_les_frais_ne_sont_classes_que_si_le_proprietaire_a_declare_ses_motifs(dep, par_nom, declare, depot):
     _preparer_livre(dep, depot)
     declare({"categories_depense_sans_po": CATEGORIES})

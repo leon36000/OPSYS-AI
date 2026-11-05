@@ -16,7 +16,8 @@ Règles d'appariement, appliquées dans cet ordre, chacune EXPLIQUÉE dans le r�
 | R3 `montant_date_proche` | même montant, dates à moins de `fenetre_jours` ; candidat unique, ou candidats
   interchangeables appariés dans l'ordre (alors `ambigu`) | moyenne (a_confirmer si ambigu) |
 | R4 `somme_de_lignes` | le montant de la banque est la somme de 2 à 4 lignes du livre (même signe, dates à moins de
-  `fenetre_jours`) ; une seule combinaison possible | moyenne |
+  `fenetre_jours`) ; une seule combinaison possible parmi au plus `_CANDIDATS_SOMME_MAX` candidats, sinon non
+  déterminée et non appariée | moyenne |
 | R5 `element_anterieur_en_circulation` | même montant, ligne du livre antérieure ou égale, à moins de
   `anciennete_max_jours` : un chèque ou un dépôt en circulation d'une période précédente ; candidat unique |
   a_confirmer |
@@ -144,6 +145,7 @@ def rapprocher(
     libres = {ligne["cle"]: ligne for ligne in dispo}
     appariements: list[dict[str, Any]] = []
     ambigus: list[dict[str, Any]] = []
+    rapprochements_non_evalues = 0
     restantes = {ligne["ligne"]: ligne for ligne in banque}
 
     def apparier(
@@ -244,9 +246,19 @@ def rapprocher(
             c
             for c in libres.values()
             if (c["montant"] > 0) == signe and _jours(c["date"], ligne["date"]) <= fenetre_jours
-        ][:_CANDIDATS_SOMME_MAX]
+        ]
+        if len(proches) > _CANDIDATS_SOMME_MAX:
+            rapprochements_non_evalues += 1
+            ambigus.append(
+                {
+                    "ligne_banque": ligne["ligne"],
+                    "combinaisons": [],
+                    "explication": f"{len(proches)} lignes du livre admissibles dépassent la limite technique de "
+                    f"{_CANDIDATS_SOMME_MAX} ; combinaison non déterminée, non appariée, à trancher par une personne",
+                }
+            )
+            continue
         proches.sort(key=lambda c: (_jours(c["date"], ligne["date"]), c["date"], c["cle"]))
-        proches = proches[:_CANDIDATS_SOMME_MAX]
         trouves_somme: list[tuple[str, ...]] = []
         for taille in range(2, _TAILLE_SOMME_MAX + 1):
             for combinaison in itertools.combinations(proches, taille):
@@ -453,7 +465,13 @@ def rapprocher(
         resultat=resultat,
         avertissements=avertissements,
     )
-    return {"etat": etat, "appariements": appariements, "recu": recu}, None
+    return {
+        "etat": etat,
+        "appariements": appariements,
+        "recu": recu,
+        "ambigus_nombre": len(ambigus),
+        "rapprochements_non_evalues": rapprochements_non_evalues,
+    }, None
 
 
 def _vue_livre(ligne: Mapping[str, Any]) -> dict[str, Any]:

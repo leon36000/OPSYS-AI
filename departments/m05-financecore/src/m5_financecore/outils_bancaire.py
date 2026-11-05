@@ -146,7 +146,9 @@ def _lire_releve(octets: bytes, nom: str, lecture: Mapping[str, Any]) -> tuple[d
     )
 
 
-def _vue_etat(etat: Mapping[str, Any]) -> dict[str, Any]:
+def _vue_etat(
+    etat: Mapping[str, Any], *, ambigus_total: int, rapprochements_non_evalues: int
+) -> dict[str, Any]:
     """L'état de rapprochement tel qu'une réponse le montre : totaux complets, listes tronquées à quelques lignes."""
 
     def court(bloc: Mapping[str, Any]) -> dict[str, Any]:
@@ -157,6 +159,7 @@ def _vue_etat(etat: Mapping[str, Any]) -> dict[str, Any]:
             "lignes_non_montrees": max(0, len(lignes) - _LIGNES_VUE) + bloc.get("reste", 0),
         }
 
+    ambigus = etat["ambigus"][:3]
     return {
         "periode": etat["periode"],
         "compte": etat["compte_masque"],
@@ -177,7 +180,10 @@ def _vue_etat(etat: Mapping[str, Any]) -> dict[str, Any]:
         "livre_ajuste": etat["livre_ajuste"],
         "ecart": etat["ecart"],
         "appariements": etat["appariements"],
-        "ambigus": etat["ambigus"][:3],
+        "ambigus": ambigus,
+        "ambigus_total": ambigus_total,
+        "ambigus_non_montres": max(0, ambigus_total - len(ambigus)),
+        "rapprochements_non_evalues": rapprochements_non_evalues,
         "parametres": etat["parametres"],
     }
 
@@ -278,6 +284,8 @@ def preparer_rapprochement_bancaire(
         "parametres": etat["parametres"],
         "tetes": tetes,
         "brouillons_frais": brouillons_frais,
+        "ambigus_total": resultat["ambigus_nombre"],
+        "rapprochements_non_evalues": resultat["rapprochements_non_evalues"],
     }
     enregistre, refus = operations_registre.ajouter_operation(
         ctx["ops"],
@@ -286,7 +294,7 @@ def preparer_rapprochement_bancaire(
         f"rapprochement:{releve['sha256']}:{recu['empreinte_entrees']}",
         corps,
         horodatage,
-        hors_identite=("tetes", "brouillons_frais"),
+        hors_identite=("tetes", "brouillons_frais", "ambigus_total", "rapprochements_non_evalues"),
     )
     if refus is not None:
         return refuse(refus)
@@ -295,7 +303,11 @@ def preparer_rapprochement_bancaire(
         {
             "rapprochement_id": operation["rapprochement_id"],
             "statut": "deja_prepare" if enregistre["statut"] == "deja" else "prepare",
-            "etat_de_rapprochement": _vue_etat(etat),
+            "etat_de_rapprochement": _vue_etat(
+                etat,
+                ambigus_total=resultat["ambigus_nombre"],
+                rapprochements_non_evalues=resultat["rapprochements_non_evalues"],
+            ),
             "appariements_apercu": [
                 {k: a[k] for k in ("ligne_banque", "regle", "confiance", "montant", "explication")}
                 for a in resultat["appariements"][:_LIGNES_VUE]
@@ -368,6 +380,7 @@ def lire_rapprochement_bancaire(
 
     def resume(m: Mapping[str, Any]) -> dict[str, Any]:
         c = confirmes.get(m["rapprochement_id"])
+        ambigus_total = m.get("ambigus_total")
         return {
             "rapprochement_id": m["rapprochement_id"],
             "periode": [m["periode_debut"], m["periode_fin"]],
@@ -377,6 +390,10 @@ def lire_rapprochement_bancaire(
             "appariements": m["appariements"],
             "confirme_par": None if c is None else c["par"],
             "recu_empreinte": m["recu_empreinte"],
+            "ambigus_total": ambigus_total,
+            # `resume` n'expose aucune entrée `ambigus`; tous les détails restent donc omis dans cette vue.
+            "ambigus_non_montres": None if type(ambigus_total) is not int else ambigus_total,
+            "rapprochements_non_evalues": m.get("rapprochements_non_evalues"),
         }
 
     if rapprochement_id is None:
@@ -419,7 +436,11 @@ def lire_rapprochement_bancaire(
             "identique": True,
             "recu_verifie": recu_calcul.verifier(resultat["recu"])[0],
             "empreinte": resultat["recu"]["empreinte"],
-            "detail": _vue_etat(resultat["etat"]),
+            "detail": _vue_etat(
+                resultat["etat"],
+                ambigus_total=resultat["ambigus_nombre"],
+                rapprochements_non_evalues=resultat["rapprochements_non_evalues"],
+            ),
         }
     return accepte(sortie)
 
