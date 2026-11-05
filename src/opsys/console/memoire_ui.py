@@ -62,7 +62,9 @@ def contenu(
     if not paquet.get("contradictions"):
         contradictions += "<p>Aucune contradiction retrouvée dans ce contexte.</p>"
     for conflit in paquet.get("contradictions", []):
-        contradictions += f"<h3>{e(conflit['claim_key'])}</h3><ul>"
+        module = conflit.get("module")
+        scope = f"{e(module)} · " if module else ""
+        contradictions += f"<h3>{scope}{e(conflit['claim_key'])}</h3><ul>"
         contradictions += "".join(
             f"<li>{e(p['status'])} : {e(p['summary'])} ({e(p['event_id'])})</li>" for p in conflit["evidence"]
         )

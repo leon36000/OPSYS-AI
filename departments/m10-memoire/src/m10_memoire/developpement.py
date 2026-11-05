@@ -1462,11 +1462,12 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
             }
         )
     evidence.sort(key=lambda item: (item["freshness"] != "current", item["path"]))
-    by_claim: dict[str, list[dict[str, Any]]] = {}
+    by_claim: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for candidate in candidates:
         payload = candidate["payload"]
         if candidate["kind"] == "postflight" and payload.get("claim_key"):
-            by_claim.setdefault(payload["claim_key"], []).append(candidate)
+            claim_scope = (payload.get("module", "").upper(), payload["claim_key"])
+            by_claim.setdefault(claim_scope, []).append(candidate)
     unresolved_anchors = unresolved
     frontier_omitted = lineage_frontier
     expanded = lineage_visits
@@ -1485,7 +1486,7 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
     links_omitted = max(0, len(links_all) - len(links))
     all_contradictions = []
     contradiction_evidence_per_claim_omitted = 0
-    for claim, items in by_claim.items():
+    for (claim_module, claim), items in by_claim.items():
         statuses = {item["status"] for item in items}
         if len(statuses) > 1:
             first = items[0]
@@ -1497,6 +1498,7 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
             )
             all_contradictions.append(
                 {
+                    "module": claim_module,
                     "claim_key": claim,
                     "statuses": sorted(statuses),
                     "evidence_count": len(items),

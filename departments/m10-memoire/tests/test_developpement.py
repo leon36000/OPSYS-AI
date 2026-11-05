@@ -834,6 +834,7 @@ def test_preflight_signale_contradiction_dont_un_postflight_hors_fenetre(base_de
     assert not any(item["entity_id"] == "claim-done-new" for item in paquet["must_know"])
     assert paquet["counts"]["candidates_omitted"] == 1
     assert len(paquet["contradictions"]) == 1
+    assert paquet["contradictions"][0]["module"] == "M10"
     assert paquet["contradictions"][0]["claim_key"] == "cobaltplume"
     assert paquet["truncated"] is True
     assert len(paquet["must_know"]) <= paquet["limits"]["must_know"]
@@ -847,6 +848,38 @@ def test_preflight_signale_contradiction_dont_un_postflight_hors_fenetre(base_de
         "done",
         "partial",
     }
+
+
+def test_preflight_ne_confond_pas_les_claims_entre_module_et_projet(base_dev):
+    with contexte.appele_par_appareil(ADMIN):
+        memoire_dev.enregistrer_postflight(
+            "claim-m7-demo",
+            module="M7",
+            plan_id="plan-m7-demo",
+            statut="done",
+            resume="Configuration locale validée.",
+            changements=[],
+            tests=[],
+            rapport_refs=[],
+            claim_key="deploiement-site",
+            horodatage=HORODATAGE,
+        )
+        memoire_dev.enregistrer_postflight(
+            "claim-projet-demo",
+            module="PROJET",
+            plan_id="plan-projet-demo",
+            statut="partial",
+            resume="Règle transversale encore incomplète.",
+            changements=[],
+            tests=[],
+            rapport_refs=[],
+            claim_key="deploiement-site",
+            horodatage=HORODATAGE,
+        )
+        paquet = memoire_dev.preflight("M7", "deploiement-site", files=[])
+
+    assert paquet["status"] == "available"
+    assert paquet["contradictions"] == []
 
 
 def test_preflight_borne_contradictions_et_preuves_par_claim(base_dev):
