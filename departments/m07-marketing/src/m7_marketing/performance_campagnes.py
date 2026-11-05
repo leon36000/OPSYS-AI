@@ -14,13 +14,13 @@ from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, union_all
 
 from opsys import stockage
 from opsys.stockage import codec
 from opsys.stockage.concurrence import verrou_consultatif
 from opsys.stockage.portabilite import nb_octets
-from opsys.stockage.schema import REGISTRES
+from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, REGISTRES
 
 DEPARTEMENT = "m07-marketing"
 REGISTRE = (DEPARTEMENT, "performance_campagnes")
@@ -191,8 +191,112 @@ def lire_performance(debut: date, fin: date) -> dict[str, Any]:
         "fuseau_cree_le_sql": "UTC" if cnx.dialect.name == "sqlite" else "fourni_par_postgresql",
         "integrite": "historique_non_scelle", "empreinte_lecture_sha256": empreinte.hexdigest(),
         "definition_temps": "dates_metier_faits_disponibles_a_la_lecture",
+        "capacite_registre": {
+            "lignes": nombre,
+            "octets": total,
+            "limite_lignes": MAX_LIGNES,
+            "limite_octets": MAX_OCTETS_TOTAL,
+            "limite_atteinte": nombre >= MAX_LIGNES or total >= MAX_OCTETS_TOTAL,
+        },
+        "repartition_sources": diagnostic_repartition_sources(),
     }
     return resultat
+
+
+def diagnostic_repartition_sources() -> dict[str, Any]:
+    """Échantillon borné de reçus M7, sans charge, identifiant ni erreur libre.
+
+    Un reçu `traite` est commité atomiquement avec le consommateur; les autres statuts ou
+    l'absence de reçu indiquent seulement l'état de livraison, jamais une couverture complète
+    de la période métier demandée. L'échantillon prend au plus `MAX_LIGNES` publications les
+    plus récentes selon l'horodatage technique `cree_le`, avec un identifiant déterministe pour
+    départager les égalités. Cet ordre n'est pas un ordre métier.
+    """
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        with stockage.transaction():
+            return diagnostic_repartition_sources()
+    lignes = cnx.execute(_requete_diagnostic_repartition()).all()
+    tronque = len(lignes) > MAX_LIGNES
+    lignes = lignes[:MAX_LIGNES]
+    par_type = {
+        type_evenement: {
+            "publications": 0,
+            "traite": 0,
+            "echec": 0,
+            "quarantaine": 0,
+            "sans_recu": 0,
+            "refus_saturation_lignes": 0,
+            "refus_saturation_octets": 0,
+        }
+        for type_evenement in sorted(TYPES)
+    }
+    for type_evenement, statut, saturation_lignes, saturation_octets in lignes:
+        resume = par_type[type_evenement]
+        resume["publications"] += 1
+        resume["sans_recu" if statut is None else statut] += 1
+        resume["refus_saturation_lignes"] += saturation_lignes
+        resume["refus_saturation_octets"] += saturation_octets
+    return {
+        "perimetre": (
+            "publications sélectionnées par cree_le DESC puis evenement_id DESC; horodatage technique seulement"
+        ),
+        "limite_echantillon": MAX_LIGNES,
+        "publications_echantillonnees": len(lignes),
+        "echantillon_tronque": tronque,
+        "couverture": "NON_CERTIFIEE",
+        "consommateur": DEPARTEMENT,
+        "par_type_echantillonne": par_type,
+    }
+
+
+def _requete_diagnostic_repartition():
+    """SQL borné : au plus `MAX_LIGNES + 1` candidats par type et au total."""
+    branches = []
+    for index, type_evenement in enumerate(sorted(TYPES)):
+        candidats_type = (
+            select(
+                EVENEMENTS_SORTANTS.c.type_evenement.label("type_evenement"),
+                EVENEMENTS_SORTANTS.c.evenement_id.label("evenement_id"),
+                EVENEMENTS_SORTANTS.c.cree_le.label("cree_le"),
+            )
+            .where(EVENEMENTS_SORTANTS.c.type_evenement == type_evenement)
+            .order_by(EVENEMENTS_SORTANTS.c.cree_le.desc(), EVENEMENTS_SORTANTS.c.evenement_id.desc())
+            .limit(MAX_LIGNES + 1)
+            .subquery(f"candidats_m7_{index}")
+        )
+        branches.append(
+            select(
+                candidats_type.c.type_evenement,
+                candidats_type.c.evenement_id,
+                candidats_type.c.cree_le,
+            )
+        )
+    candidats = union_all(*branches).subquery("candidats_m7_performance")
+    echantillon = (
+        select(candidats.c.type_evenement, candidats.c.evenement_id, candidats.c.cree_le)
+        .order_by(candidats.c.cree_le.desc(), candidats.c.evenement_id.desc())
+        .limit(MAX_LIGNES + 1)
+        .subquery("echantillon_m7_performance")
+    )
+    jointure = echantillon.outerjoin(
+        EVENEMENTS_RECUS,
+        (EVENEMENTS_RECUS.c.evenement_id == echantillon.c.evenement_id)
+        & (EVENEMENTS_RECUS.c.consommateur == DEPARTEMENT),
+    )
+    erreur_lignes_exacte = EVENEMENTS_RECUS.c.derniere_erreur == "ValueError: PERFORMANCE_BORNE_LIGNES"
+    erreur_octets_exacte = EVENEMENTS_RECUS.c.derniere_erreur == "ValueError: PERFORMANCE_BORNE_OCTETS"
+    return (
+        select(
+            echantillon.c.type_evenement,
+            EVENEMENTS_RECUS.c.statut,
+            case((erreur_lignes_exacte, 1), else_=0),
+            case((erreur_octets_exacte, 1), else_=0),
+        )
+        .select_from(jointure)
+        .order_by(echantillon.c.cree_le.desc(), echantillon.c.evenement_id.desc())
+        .limit(MAX_LIGNES + 1)
+    )
 
 
 def _horodatage(charge: dict[str, Any], type_evenement: str) -> date:
