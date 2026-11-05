@@ -1359,6 +1359,12 @@ def receptionner_commande(
             if code_coherence is not None:
                 return {"accepte": False, "verdict": {"code": code_coherence}}
 
+    if (details_valides is not None or lieu_valide is not None) and stockage.connexion_courante() is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-M6-TRANSACTION-REQUISE",
+            detail="la réception C5 enrichie doit écrire son registre d'emplacements dans une transaction",
+        )}
+
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.enregistrer_reception(
         bon_demande, reception_po, catalogue_materiaux, registre_cible, seuils=seuils_reorder
