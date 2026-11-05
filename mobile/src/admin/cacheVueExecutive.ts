@@ -25,7 +25,12 @@ export function epurerVueExecutive(brut: unknown): unknown {
       seuils: { a_configurer: e.seuils.aConfigurer, invalides: e.seuils.invalides, ignores: e.seuils.ignores,
         configuration: e.seuils.configuration,
         evalues: liste(e.seuils.evalues, e.seuils.illisibles, v => ({ metric_id: v.metricId, statut: v.statut,
-          valeur: v.valeur, unite: v.unite, sens: v.sens, seuil: v.seuil })) },
+          valeur: v.valeur, unite: v.unite, sens: v.sens, seuil: v.seuil,
+          ...(v.baseTauxAcceptation === null ? {} : { base_taux_acceptation: {
+            n_acceptes_parmi_envoyes: v.baseTauxAcceptation.nAcceptesParmiEnvoyes,
+            n_envoyes: v.baseTauxAcceptation.nEnvoyes,
+          } }),
+          ...(v.comparaisonNonArrondie === null ? {} : { comparaison_non_arrondie: v.comparaisonNonArrondie }) })) },
     },
     marge_reelle: { source: m.source, n_chantiers: m.nChantiers, n_marge_connue: m.nMargeConnue,
       n_non_calculable: m.nNonCalculable, reste: m.reste,

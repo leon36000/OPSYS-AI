@@ -79,14 +79,14 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["metric_id", "wct_id", "valeur", "unite", "sens", "seuil", "version_definition"],
-          "description": "MESURE-SEUIL-FRANCHI (T1.5-d) : la mesure calculée d'un chantier et le seuil configuré qu'elle atteint. valeur et seuil sont des textes décimaux à deux décimales (jamais un nombre JSON), dans unite.",
+          "description": "MESURE-SEUIL-FRANCHI (T1.5-d) : la mesure calculée d'un chantier et le seuil configuré qu'elle atteint. valeur reste affichée à deux décimales ; seuil conserve la précision déclarée (au moins deux décimales), dans une représentation plafonnée à 1475 caractères pour que l'alerte indivisible tienne dans la sortie publique M9. Ce sont des textes décimaux, jamais des nombres JSON, dans unite.",
           "properties": {
             "metric_id": {"type": "string"},
             "wct_id": {"type": "string", "description": "Chantier mesuré (WCT de m4.travaux_termines)."},
             "valeur": {"type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2}$"},
             "unite": {"type": "string"},
             "sens": {"type": "string", "enum": ["au_dessus", "au_dessous"], "description": "au_dessus : la valeur atteint ou dépasse le seuil ; au_dessous : elle l'atteint ou passe sous."},
-            "seuil": {"type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2}$"},
+            "seuil": {"type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2,}$", "maxLength": 1475},
             "version_definition": {"type": "string", "description": "Empreinte de la définition gouvernée de la métrique (metrics/m8-metrics.v1.yaml) qui a produit la valeur."}
           }
         },
@@ -102,7 +102,7 @@
             "courant": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$"},
             "unite": {"type": "string"},
             "sens": {"type": ["string", "null"], "enum": ["au_dessus", "au_dessous", null]},
-            "seuil": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$"},
+            "seuil": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$", "maxLength": 1475},
             "departement": {"type": "string", "pattern": "^m[0-9]{2}-[a-z0-9-]{1,40}$"}
           }
         },

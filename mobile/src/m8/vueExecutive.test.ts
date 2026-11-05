@@ -265,13 +265,39 @@ describe("ce que ce lecteur refuse de lire (fail-closed)", () => {
   test("les seuils évalués sont lus tels quels (seuil franchi : un constat chiffré du serveur)", () => {
     const vue = modifiee((v) => {
       v.entonnoir.seuils.evalues = [
-        { metric_id: "m8_devis_sans_reponse", statut: "franchi", valeur: "3", unite: "devis", sens: "au_dessus", seuil: "2" },
+        { metric_id: "m8_taux_acceptation_pct", statut: "non_franchi", valeur: "66.67", unite: "pourcentage",
+          sens: "au_dessus", seuil: "66.674", base_taux_acceptation: { n_acceptes_parmi_envoyes: 2, n_envoyes: 3 } },
+        { metric_id: "m8_carnet_signe_cad", statut: "franchi", valeur: "1200.00", unite: "CAD", sens: "au_dessus",
+          seuil: "1200.005", comparaison_non_arrondie: true },
       ];
     });
     expect(vue?.entonnoir.seuils.evalues).toEqual([
-      { metricId: "m8_devis_sans_reponse", statut: "franchi", valeur: "3", unite: "devis", sens: "au_dessus", seuil: "2" },
+      { metricId: "m8_taux_acceptation_pct", statut: "non_franchi", valeur: "66.67", unite: "pourcentage", sens: "au_dessus",
+        seuil: "66.674", baseTauxAcceptation: { nAcceptesParmiEnvoyes: 2, nEnvoyes: 3 }, comparaisonNonArrondie: null },
+      { metricId: "m8_carnet_signe_cad", statut: "franchi", valeur: "1200.00", unite: "CAD", sens: "au_dessus",
+        seuil: "1200.005", baseTauxAcceptation: null, comparaisonNonArrondie: true },
     ]);
     expect(modifiee((v) => (v.entonnoir.seuils.evalues = [{ metric_id: "x" }]))?.entonnoir.seuils.illisibles).toBe(1);
+  });
+
+  test("une preuve de taux incohérente est comptée comme illisible", () => {
+    const vue = modifiee((v) => {
+      v.entonnoir.seuils.evalues = [{ metric_id: "m8_taux_acceptation_pct", statut: "franchi", valeur: "66.67",
+        unite: "pourcentage", sens: "au_dessus", seuil: "66.666", base_taux_acceptation: {
+          n_acceptes_parmi_envoyes: 4, n_envoyes: 3,
+        } }];
+    });
+    expect(vue?.entonnoir.seuils.evalues).toEqual([]);
+    expect(vue?.entonnoir.seuils.illisibles).toBe(1);
+  });
+
+  test("une indication d'arrondi sans comparaison évaluée ne devient pas une preuve", () => {
+    const vue = modifiee((v) => {
+      v.entonnoir.seuils.evalues = [{ metric_id: "m8_carnet_signe_cad", statut: "seuil_a_configurer", valeur: null,
+        unite: "CAD", sens: null, seuil: null, comparaison_non_arrondie: true }];
+    });
+    expect(vue?.entonnoir.seuils.evalues).toEqual([]);
+    expect(vue?.entonnoir.seuils.illisibles).toBe(1);
   });
 
   test("les statuts de mesure sont ceux du serveur", () => {

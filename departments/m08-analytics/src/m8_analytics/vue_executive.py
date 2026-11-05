@@ -87,16 +87,28 @@ def section_entonnoir(
             _ajouter_manques(manques, mesure["manque"])
     a_configurer = [e["metric_id"] for e in situation["seuils"] if e["statut"] == entonnoir.SEUIL_A_CONFIGURER]
     invalides = [e["metric_id"] for e in situation["seuils"] if e["statut"] == entonnoir.SEUIL_INVALIDE]
-    evalues = [
-        {cle: e[cle] for cle in ("metric_id", "statut", "valeur", "unite", "sens", "seuil")}
-        for e in situation["seuils"] if e["statut"] in (entonnoir.SEUIL_FRANCHI, entonnoir.SEUIL_NON_FRANCHI)
-    ]
+    evalues = []
+    for evaluation in situation["seuils"]:
+        if evaluation["statut"] not in (entonnoir.SEUIL_FRANCHI, entonnoir.SEUIL_NON_FRANCHI):
+            continue
+        evaluee = {
+            cle: evaluation[cle] for cle in ("metric_id", "statut", "valeur", "unite", "sens", "seuil")
+        }
+        for cle in ("base_taux_acceptation", "comparaison_non_arrondie"):
+            if cle in evaluation:
+                evaluee[cle] = evaluation[cle]
+        evalues.append(evaluee)
     ignores = list(situation["seuils_ignores"])
     seuils: dict[str, Any] = {
         "a_configurer": a_configurer, "invalides": invalides, "ignores": ignores, "evalues": evalues,
     }
     if a_configurer or invalides or ignores:
         seuils["configuration"] = _CONFIGURATION_SEUILS
+    if invalides:
+        seuils["raison_invalide"] = (
+            "Format invalide ou représentation décimale supérieure à "
+            f"{mesures_chantier.LONGUEUR_TEXTE_SEUIL_MAX} caractères ; aucune valeur n'est affichée."
+        )
     devis = situation["devis"]
     return {
         "mesures": [_ligne_mesure(mesure) for mesure in situation["mesures"]],
@@ -263,6 +275,21 @@ def _borner(vue: dict[str, Any], budget_caracteres: int | None) -> dict[str, Any
                 continue
             if cash_libre.reduire(vue["cash_libre"]):
                 continue
+            evalues = vue["entonnoir"]["seuils"].get("evalues", [])
+            if evalues:
+                ids = sorted(str(evaluation["metric_id"]) for evaluation in evalues)
+                vue_sans_seuils = dict(vue)
+                entonnoir_sans_seuils = dict(vue["entonnoir"])
+                seuils_sans_evaluations = dict(vue["entonnoir"]["seuils"])
+                seuils_sans_evaluations["evalues"] = []
+                entonnoir_sans_seuils["seuils"] = seuils_sans_evaluations
+                vue_sans_seuils["entonnoir"] = entonnoir_sans_seuils
+                if _taille(vue_sans_seuils) <= budget_caracteres:
+                    raise ValueError(
+                        "REJ-M8-SEUILS-BORNE-SORTIE : les évaluations exactes des métriques "
+                        f"{', '.join(ids)} dépassent ensemble la borne publique de {budget_caracteres} "
+                        "caractères ; réduire leur précision dans configuration.seuils_entonnoir."
+                    )
             raise ValueError(f"la vue exécutive dépasse à elle seule la borne de {budget_caracteres} caractères")
         conteneur, cle = max(candidates, key=lambda paire: len(paire[0][paire[1]]))
         conteneur[cle].pop()

@@ -216,6 +216,58 @@ def test_evaluer_qualite_metrique_sans_transaction_ne_publie_rien(base_durable):
     assert _evenements_publies("m8.alerte_proposee") == []  # mais rien n'est publié hors transaction
 
 
+def test_outil_public_prevalide_toutes_les_alertes_avant_la_premiere_publication(
+        base_durable, monkeypatch):
+    """Une mesure périmée et hors plage produit deux alertes. La seconde est artificiellement
+    rendue trop grande ; le premier événement ne doit même pas être tenté."""
+    par_nom = {o.nom: o for o in outils()}
+    definition = {
+        **_DEFINITION_M4,
+        "regles_qualite": {"plage_min": 0, "plage_max": 30},
+    }
+    executer_atomique(par_nom["m8_enregistrer_definition_metrique"], {"definition": definition})
+    executer_atomique(
+        par_nom["m8_rapport_metriques"],
+        {
+            "dictionnaire": {"m04-field-ops": {"m4_duree_reelle_minutes": {}}},
+            "snapshot": {
+                "module_source": "m04-field-ops",
+                "horodatage": "2026-01-01T00:00:00Z",
+                "valeurs": {"m4_duree_reelle_minutes": "42"},
+            },
+            "metric_ids": ["m4_duree_reelle_minutes"],
+            "horodatage_reference": "2026-01-01T00:00:00Z",
+            "n_minimal": 1,
+        },
+    )
+
+    proposer_action_original = m8_outils.alertes.proposer_action
+    publier_original = evenements.publier
+    tentatives = []
+
+    def proposer_action(evaluation, definition):
+        alerte = proposer_action_original(evaluation, definition)
+        if evaluation["verdict"] == "REJ-QUALITE-HORS-PLAGE":
+            alerte["quoi"] = "texte fictif\n" * 3000
+        return alerte
+
+    def publier(*args, **kwargs):
+        tentatives.append((args, kwargs))
+        return publier_original(*args, **kwargs)
+
+    monkeypatch.setattr(m8_outils.alertes, "proposer_action", proposer_action)
+    monkeypatch.setattr(evenements, "publier", publier)
+
+    reponse = executer_atomique(
+        par_nom["m8_evaluer_qualite_metrique"],
+        {"metric_id": "m4_duree_reelle_minutes", "horodatage_reference": "2026-01-11T00:00:00Z"},
+    )
+
+    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier"
+    assert tentatives == []
+    assert _evenements_publies("m8.alerte_proposee") == []
+
+
 def test_alerte_doublon_nest_jamais_publiee_sur_le_bus_catalogue_non_etendu(base_durable):
     """T3.1-suite : REJ-QUALITE-DOUBLON et REJ-QUALITE-INCOHERENCE ne figurent pas dans l'énuméré
     `type_alerte` du catalogue (src/opsys/evenements/catalogue/m8.alerte_proposee.json),

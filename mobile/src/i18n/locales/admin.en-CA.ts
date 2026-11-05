@@ -953,6 +953,8 @@ const adminEnCA: RessourcesAdmin = {
       },
       valeurEtiquette: "Value",
       seuilEtiquette: "Threshold",
+      comparaisonTauxArrondie: "Displayed rate is rounded; threshold comparison uses the unrounded rate. {{acceptes}} of {{envoyes}} quotes were accepted.",
+      comparaisonNonArrondie: "Displayed value is rounded; threshold comparison was made before rounding.",
       margeTitre: "Actual margin of jobs (M5)",
       margeResume: "Completed jobs: {{n}}; margin known: {{connue}}; not calculable: {{nonCalculable}}.",
       chantier: "Job {{chantier}} (quote {{devis}})",

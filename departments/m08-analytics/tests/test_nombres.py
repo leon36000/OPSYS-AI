@@ -42,6 +42,16 @@ def test_texte_decimal_ecrit_deux_decimales_au_demi_superieur(valeur, attendu):
     assert nombres.texte_decimal(valeur) == attendu
 
 
+@pytest.mark.parametrize(("valeur", "attendu"), [
+    (Decimal("20"), "20.00"),
+    (Decimal("20.1"), "20.10"),
+    (Decimal("66.666"), "66.666"),
+    (Decimal("1E-4"), "0.0001"),
+])
+def test_texte_seuil_preserve_la_precision_sans_notation_scientifique(valeur, attendu):
+    assert nombres.texte_seuil(valeur) == attendu
+
+
 def test_seuil_valide_lit_un_sens_connu_et_une_valeur_numerique():
     assert nombres.seuil_valide({"sens": "au_dessus", "valeur": 30}) == {"sens": "au_dessus", "valeur": Decimal("30")}
     assert nombres.seuil_valide({"sens": "au_dessous", "valeur": 12.5}) == {

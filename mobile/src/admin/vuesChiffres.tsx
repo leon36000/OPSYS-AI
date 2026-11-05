@@ -290,6 +290,7 @@ function SeuilsUI({ seuils }: { readonly seuils: VueSeuils }) {
             </>
           ) : null}
           {evalue.sens !== null ? <Ligne m={evalue.sens} style={styles.trace} /> : null}
+          {evalue.indicationComparaison !== null ? <Ligne m={evalue.indicationComparaison} style={styles.trace} /> : null}
         </Carte>
       ))}
       {seuils.illisibles !== null ? <Ligne m={seuils.illisibles} style={styles.avis} /> : null}

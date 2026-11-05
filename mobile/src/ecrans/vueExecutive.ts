@@ -49,6 +49,8 @@ export interface VueSeuilEvalue {
   readonly seuil: Message | null;
   /** De quel côté du seuil la mesure est en alerte ; `null` : le serveur ne le dit pas. */
   readonly sens: Message | null;
+  /** Explication d'arrondi et preuve de comparaison fournies par M8, sans recalcul mobile. */
+  readonly indicationComparaison: Message | null;
 }
 
 export interface VueSeuils {
@@ -199,6 +201,14 @@ function presenterEntonnoir(entonnoir: Entonnoir, langue: LangueMontant, decalag
         valeur: evalue.valeur === null ? null : mesureFormatee(evalue.valeur, evalue.unite, langue),
         seuil: evalue.seuil === null ? null : mesureFormatee(evalue.seuil, evalue.unite, langue),
         sens: evalue.sens === null ? null : libelleDeCatalogue("admin.chiffres.vue.sens", evalue.sens, SENS_DE_SEUIL),
+        indicationComparaison: evalue.baseTauxAcceptation !== null
+          ? message("admin.chiffres.vue.comparaisonTauxArrondie", {
+              acceptes: evalue.baseTauxAcceptation.nAcceptesParmiEnvoyes,
+              envoyes: evalue.baseTauxAcceptation.nEnvoyes,
+            })
+          : evalue.comparaisonNonArrondie === true
+            ? message("admin.chiffres.vue.comparaisonNonArrondie")
+            : null,
       })),
       illisibles: nombreIllisible("admin.chiffres.vue.seuilsIllisibles", seuils.illisibles),
     },

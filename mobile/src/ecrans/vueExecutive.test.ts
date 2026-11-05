@@ -120,17 +120,20 @@ describe("la vue d'ensemble : l'entonnoir", () => {
     seuils.invalides = ["m8_leads_recus"];
     seuils.ignores = ["m8_mesure_inconnue"];
     seuils.evalues = [
-      { metric_id: "m8_taux_acceptation_pct", statut: "franchi", valeur: "12.5", unite: "pourcentage", sens: "au_dessous", seuil: "20.0" },
-      { metric_id: "m8_carnet_signe_cad", statut: "non_franchi", valeur: "1200.00", unite: "CAD", sens: "au_dessous", seuil: "1000.00" },
+      { metric_id: "m8_taux_acceptation_pct", statut: "non_franchi", valeur: "66.67", unite: "pourcentage", sens: "au_dessus",
+        seuil: "66.674", base_taux_acceptation: { n_acceptes_parmi_envoyes: 2, n_envoyes: 3 } },
+      { metric_id: "m8_carnet_signe_cad", statut: "non_franchi", valeur: "1200.00", unite: "CAD", sens: "au_dessous",
+        seuil: "1000.00", comparaison_non_arrondie: true },
     ];
     const { seuils: vueSeuils } = presenterVueExecutive(vueDeBrut(brut), "fr-CA", DECALAGE).entonnoir;
     expect(vueSeuils.evalues).toEqual([
       {
         nom: "Taux d'acceptation des devis",
-        statut: { cle: "admin.chiffres.vue.seuilStatuts.franchi" },
-        valeur: { cle: "admin.unites.pourcentage", params: { valeur: "12,5" } },
-        seuil: { cle: "admin.unites.pourcentage", params: { valeur: "20,0" } },
-        sens: { cle: "admin.chiffres.vue.sens.au_dessous" },
+        statut: { cle: "admin.chiffres.vue.seuilStatuts.non_franchi" },
+        valeur: { cle: "admin.unites.pourcentage", params: { valeur: "66,67" } },
+        seuil: { cle: "admin.unites.pourcentage", params: { valeur: "66,674" } },
+        sens: { cle: "admin.chiffres.vue.sens.au_dessus" },
+        indicationComparaison: { cle: "admin.chiffres.vue.comparaisonTauxArrondie", params: { acceptes: 2, envoyes: 3 } },
       },
       {
         nom: "Carnet signé",
@@ -138,6 +141,7 @@ describe("la vue d'ensemble : l'entonnoir", () => {
         valeur: { cle: "admin.unites.CAD", params: { valeur: n("1 200,00 $") } },
         seuil: { cle: "admin.unites.CAD", params: { valeur: n("1 000,00 $") } },
         sens: { cle: "admin.chiffres.vue.sens.au_dessous" },
+        indicationComparaison: { cle: "admin.chiffres.vue.comparaisonNonArrondie" },
       },
     ]);
     expect(vueSeuils.aConfigurer?.params?.mesures).toBe("Devis sans réponse");

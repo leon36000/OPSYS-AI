@@ -66,6 +66,28 @@ test("cache minimal : aucun champ financier ou contact non projeté conservé", 
   h.horsLigne(); expect(await h.chargeur.chargerVueExecutive()).toMatchObject({ source: "cache" });
 });
 
+test("cache exécutif conserve la preuve non financière du taux et l'indicateur d'arrondi", async () => {
+  const h = harnais(), brut = reponse("vue_executive_vide");
+  brut.resultat.entonnoir.seuils.evalues = [
+    { metric_id: "m8_taux_acceptation_pct", statut: "non_franchi", valeur: "66.67", unite: "pourcentage",
+      sens: "au_dessus", seuil: "66.674", base_taux_acceptation: { n_acceptes_parmi_envoyes: 2, n_envoyes: 3 } },
+    { metric_id: "m8_carnet_signe_cad", statut: "franchi", valeur: "1200.00", unite: "CAD",
+      sens: "au_dessus", seuil: "1200.005", comparaison_non_arrondie: true },
+  ];
+  h.transport.mockResolvedValue({ ok: true, result: brut });
+  expect(await h.chargeur.chargerVueExecutive()).toMatchObject({ source: "serveur" });
+  const garde = await h.depot.lire(h.depot.cles()[0]);
+  expect(garde).toContain('"base_taux_acceptation":{"n_acceptes_parmi_envoyes":2,"n_envoyes":3}');
+  expect(garde).toContain('"comparaison_non_arrondie":true');
+  h.horsLigne();
+  expect(await h.chargeur.chargerVueExecutive()).toMatchObject({ source: "cache", valeur: {
+    entonnoir: { seuils: { evalues: [
+      { baseTauxAcceptation: { nAcceptesParmiEnvoyes: 2, nEnvoyes: 3 } },
+      { comparaisonNonArrondie: true },
+    ] } },
+  } });
+});
+
 test.each(Object.entries(fixture.capturesHttp.lectures))("cache : capture HTTP %s restituée sans perte de projection", (_nom, capture) => {
   expect(capture.fictif).toBe(true);
   const propre = epurerVueExecutive(capture.enveloppe) as { resultat: unknown };

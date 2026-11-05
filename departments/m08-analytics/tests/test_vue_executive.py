@@ -410,7 +410,8 @@ def test_un_seuil_configure_est_evalue_dans_la_vue_sans_alerte_ni_decision(m6_de
     assert seuils["invalides"] == ["m8_devis_sans_reponse"]
     assert seuils["evalues"] == [
         {"metric_id": "m8_taux_acceptation_pct", "statut": "franchi", "valeur": "50.00", "unite": "pourcentage",
-         "sens": "au_dessous", "seuil": "60.00"},
+         "sens": "au_dessous", "seuil": "60.00",
+         "base_taux_acceptation": {"n_acceptes_parmi_envoyes": 1, "n_envoyes": 2}},
         {"metric_id": "m8_carnet_signe_cad", "statut": "non_franchi", "valeur": "600.00", "unite": "CAD",
          "sens": "au_dessous", "seuil": "100.00"},
     ]

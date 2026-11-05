@@ -8,11 +8,12 @@ catalogue des événements. Identifiants, personnes et montants fictifs (`FICTIF
 from __future__ import annotations
 
 import json
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
 import yaml
-from m8_analytics import contrats, dictionnaire, entonnoir, registre_metriques
+from m8_analytics import contrats, dictionnaire, entonnoir, registre_metriques, vue_executive
 
 FICTIF = True  # aucun client réel : des identifiants de test, des montants de test
 
@@ -511,8 +512,14 @@ def test_une_source_sans_fait_est_dite_a_zero_et_un_instant_illisible_n_est_jama
 # Les seuils : GATE NATHAN, aucun seuil inventé
 # ---------------------------------------------------------------------------
 def _evaluations(seuils, faits=None):
-    mesures = entonnoir.mesurer(faits if faits is not None else _scenario(), [], entonnoir.charger_definitions())
-    return {e["metric_id"]: e for e in entonnoir.evaluer_seuils(mesures, seuils)}
+    valeurs_exactes = {}
+    mesures = entonnoir.mesurer(
+        faits if faits is not None else _scenario(), [], entonnoir.charger_definitions(),
+        valeurs_exactes=valeurs_exactes,
+    )
+    return {
+        e["metric_id"]: e for e in entonnoir.evaluer_seuils(mesures, seuils, valeurs_exactes=valeurs_exactes)
+    }
 
 
 def test_sans_seuil_configure_chaque_metrique_surveillee_dit_seuil_a_configurer_et_rien_n_est_franchi():
@@ -530,20 +537,189 @@ def test_sans_seuil_configure_chaque_metrique_surveillee_dit_seuil_a_configurer_
 
 def test_un_seuil_configure_est_franchi_quand_la_valeur_l_atteint_ou_le_depasse_dans_son_sens():
     evaluations = _evaluations({
-        "m8_taux_acceptation_pct": {"sens": "au_dessous", "valeur": 66.67},  # 66.67 : l'atteint, donc franchi
+        "m8_taux_acceptation_pct": {"sens": "au_dessous", "valeur": 66.67},  # 2/3 = 66,666… < 66,67 : franchi
         "m8_devis_sans_reponse": {"sens": "au_dessus", "valeur": 2},  # 1 sur 2 : non franchi
-        "m8_delai_lead_acceptation_jours": {"sens": "au_dessus", "valeur": 2.02},  # égal : franchi
+        "m8_delai_lead_acceptation_jours": {"sens": "au_dessus", "valeur": 2.02},  # médiane exacte 2.015625
         "m8_carnet_signe_cad": {"sens": "au_dessous", "valeur": 100},  # 600,00 : non franchi
     })
 
     assert {m: e["statut"] for m, e in evaluations.items()} == {
         "m8_taux_acceptation_pct": "franchi", "m8_devis_sans_reponse": "non_franchi",
-        "m8_delai_lead_acceptation_jours": "franchi", "m8_carnet_signe_cad": "non_franchi",
+        "m8_delai_lead_acceptation_jours": "non_franchi", "m8_carnet_signe_cad": "non_franchi",
     }
+    assert evaluations["m8_delai_lead_acceptation_jours"]["comparaison_non_arrondie"] is True
     taux = evaluations["m8_taux_acceptation_pct"]
     assert (taux["valeur"], taux["sens"], taux["seuil"]) == ("66.67", "au_dessous", "66.67")
+    assert taux["base_taux_acceptation"] == {"n_acceptes_parmi_envoyes": 2, "n_envoyes": 3}
     assert taux["unite"] == "pourcentage"
     assert evaluations["m8_carnet_signe_cad"]["seuil"] == "100.00"
+
+
+@pytest.mark.parametrize(
+    ("sens", "statut_attendu"),
+    [("au_dessus", "non_franchi"), ("au_dessous", "franchi")],
+)
+def test_le_taux_compare_la_fraction_exacte_et_garde_l_affichage_arrondi(sens, statut_attendu):
+    faits = [_envoye(f"D{i}") for i in range(3)] + [_accepte(f"D{i}") for i in range(2)]
+    rapport = entonnoir.situation(
+        faits,
+        [],
+        entonnoir.charger_definitions(),
+        {"m8_taux_acceptation_pct": {"sens": sens, "valeur": 66.67}},
+    )
+    mesure = next(m for m in rapport["mesures"] if m["metric_id"] == "m8_taux_acceptation_pct")
+    evaluation = next(e for e in rapport["seuils"] if e["metric_id"] == "m8_taux_acceptation_pct")
+
+    assert mesure["valeur"] == "66.67"
+    assert mesure["entrees"] == {
+        "n_envoyes": 3, "n_acceptes_parmi_envoyes": 2, "n_acceptes_sans_envoi_recu": 0,
+    }
+    assert "valeur_exacte" not in mesure
+    assert evaluation["valeur"] == "66.67"
+    assert evaluation["statut"] == statut_attendu
+    assert evaluation["base_taux_acceptation"] == {
+        "n_acceptes_parmi_envoyes": 2, "n_envoyes": 3,
+    }
+    vue = vue_executive.section_entonnoir(rapport, [])
+    seuil_vue = next(e for e in vue["seuils"]["evalues"] if e["metric_id"] == "m8_taux_acceptation_pct")
+    assert seuil_vue["base_taux_acceptation"] == evaluation["base_taux_acceptation"]
+
+
+def test_un_seuil_garde_la_precision_decimal_declaree():
+    faits = [_envoye(f"D{i}") for i in range(3)] + [_accepte(f"D{i}") for i in range(2)]
+    rapport = entonnoir.situation(
+        faits, [], entonnoir.charger_definitions(),
+        {"m8_taux_acceptation_pct": {"sens": "au_dessus", "valeur": 66.666}},
+    )
+    evaluation = next(e for e in rapport["seuils"] if e["metric_id"] == "m8_taux_acceptation_pct")
+
+    assert evaluation["valeur"] == "66.67"
+    assert evaluation["seuil"] == "66.666"
+    assert evaluation["statut"] == "franchi"
+
+
+@pytest.mark.parametrize("valeurs_exactes", [None, {}, {"m8_taux_acceptation_pct": "66.666"}])
+def test_un_comparateur_taux_sans_fraction_interne_valide_refuse(valeurs_exactes):
+    mesures = entonnoir.mesurer(_scenario(), [], entonnoir.charger_definitions())
+
+    with pytest.raises(ValueError, match="REJ-M8-SEUIL-PRECISION-INDISPONIBLE:m8_taux_acceptation_pct"):
+        entonnoir.evaluer_seuils(
+            mesures,
+            {"m8_taux_acceptation_pct": {"sens": "au_dessus", "valeur": 66.67}},
+            valeurs_exactes=valeurs_exactes,
+        )
+
+
+@pytest.mark.parametrize(
+    "entrees",
+    [
+        None,
+        {},
+        {"n_envoyes": 3, "n_acceptes_parmi_envoyes": 1},
+        {"n_envoyes": 3, "n_acceptes_parmi_envoyes": True},
+    ],
+)
+def test_un_taux_sans_base_de_comptage_coherente_refuse_plutot_que_de_renvoyer_un_statut(entrees):
+    mesures = entonnoir.mesurer(_scenario(), [], entonnoir.charger_definitions())
+    taux = next(m for m in mesures if m["metric_id"] == "m8_taux_acceptation_pct")
+    taux["entrees"] = entrees
+
+    with pytest.raises(ValueError, match="REJ-M8-SEUIL-BASE-TAUX-INDISPONIBLE:m8_taux_acceptation_pct"):
+        entonnoir.evaluer_seuils(
+            mesures,
+            {"m8_taux_acceptation_pct": {"sens": "au_dessus", "valeur": 66.67}},
+            valeurs_exactes={"m8_taux_acceptation_pct": Fraction(200, 3)},
+        )
+
+
+@pytest.mark.parametrize("sens", ["au_dessus", "au_dessous"])
+def test_un_taux_qui_atteint_exactement_le_seuil_est_franchi_dans_les_deux_sens(sens):
+    faits = [_envoye(f"D{i}") for i in range(2)] + [_accepte("D0")]
+    rapport = entonnoir.situation(
+        faits,
+        [],
+        entonnoir.charger_definitions(),
+        {"m8_taux_acceptation_pct": {"sens": sens, "valeur": 50}},
+    )
+    mesure = next(m for m in rapport["mesures"] if m["metric_id"] == "m8_taux_acceptation_pct")
+    evaluation = next(e for e in rapport["seuils"] if e["metric_id"] == "m8_taux_acceptation_pct")
+
+    assert mesure["valeur"] == "50.00"
+    assert evaluation["statut"] == "franchi"
+
+
+def test_le_carnet_compare_le_montant_decimal_exact_et_n_expose_que_le_signal_d_arrondi():
+    rapport = entonnoir.situation(
+        [_accepte("devis-carnet-fictif", "lead-carnet-fictif", prix="0.005")],
+        [], entonnoir.charger_definitions(),
+        {"m8_carnet_signe_cad": {"sens": "au_dessus", "valeur": 0.006}},
+    )
+    mesure = next(m for m in rapport["mesures"] if m["metric_id"] == "m8_carnet_signe_cad")
+    evaluation = next(e for e in rapport["seuils"] if e["metric_id"] == "m8_carnet_signe_cad")
+
+    assert mesure["valeur"] == "0.01"
+    assert "valeur_exacte" not in mesure
+    assert evaluation["valeur"] == "0.01"
+    assert evaluation["seuil"] == "0.006"
+    assert evaluation["statut"] == "non_franchi"
+    assert evaluation["comparaison_non_arrondie"] is True
+
+
+@pytest.mark.parametrize(
+    ("sens", "statut_attendu"),
+    [("au_dessus", "non_franchi"), ("au_dessous", "franchi")],
+)
+def test_la_mediane_des_delais_est_comparee_avant_arrondi(sens, statut_attendu):
+    faits = [
+        _lead("lead-delai-fictif", "2026-10-01T00:00:00Z"),
+        _accepte("devis-delai-fictif", "lead-delai-fictif", quand="2026-10-02T05:44:09.600000Z"),
+    ]
+    rapport = entonnoir.situation(
+        faits, [], entonnoir.charger_definitions(),
+        {"m8_delai_lead_acceptation_jours": {"sens": sens, "valeur": 1.24}},
+    )
+    mesure = next(m for m in rapport["mesures"] if m["metric_id"] == "m8_delai_lead_acceptation_jours")
+    evaluation = next(e for e in rapport["seuils"] if e["metric_id"] == "m8_delai_lead_acceptation_jours")
+
+    assert mesure["valeur"] == "1.24"  # durée exacte : 1.239 jour
+    assert evaluation["seuil"] == "1.24"
+    assert evaluation["statut"] == statut_attendu
+    assert evaluation["comparaison_non_arrondie"] is True
+
+
+def test_la_precision_declaree_du_seuil_de_mediane_est_conservee():
+    faits = [
+        _lead("lead-delai-fictif", "2026-10-01T00:00:00Z"),
+        _accepte("devis-delai-fictif", "lead-delai-fictif", quand="2026-10-02T05:44:09.600000Z"),
+    ]
+    rapport = entonnoir.situation(
+        faits, [], entonnoir.charger_definitions(),
+        {"m8_delai_lead_acceptation_jours": {"sens": "au_dessus", "valeur": 1.239}},
+    )
+
+    evaluation = next(e for e in rapport["seuils"] if e["metric_id"] == "m8_delai_lead_acceptation_jours")
+    assert evaluation["valeur"] == "1.24"
+    assert evaluation["seuil"] == "1.239"
+    assert evaluation["statut"] == "franchi"
+
+
+@pytest.mark.parametrize("sens", ["au_dessus", "au_dessous"])
+def test_une_mediane_exactement_egale_au_seuil_franchit_dans_les_deux_sens(sens):
+    faits = [
+        _lead("lead-delai-fictif", "2026-10-01T00:00:00Z"),
+        _accepte("devis-delai-fictif", "lead-delai-fictif", quand="2026-10-02T12:00:00Z"),
+    ]
+    rapport = entonnoir.situation(
+        faits, [], entonnoir.charger_definitions(),
+        {"m8_delai_lead_acceptation_jours": {"sens": sens, "valeur": 1.5}},
+    )
+    mesure = next(m for m in rapport["mesures"] if m["metric_id"] == "m8_delai_lead_acceptation_jours")
+    evaluation = next(e for e in rapport["seuils"] if e["metric_id"] == "m8_delai_lead_acceptation_jours")
+
+    assert mesure["valeur"] == "1.50"
+    assert evaluation["seuil"] == "1.50"
+    assert evaluation["statut"] == "franchi"
+    assert "comparaison_non_arrondie" not in evaluation
 
 
 def test_un_seuil_invalide_est_dit_invalide_jamais_devine():

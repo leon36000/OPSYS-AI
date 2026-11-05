@@ -85,6 +85,13 @@ export interface SeuilEvalue {
   readonly unite: string;
   readonly sens: string | null;
   readonly seuil: string | null;
+  /** Preuve de comparaison du taux, déjà présente dans les entrées de cette mesure. */
+  readonly baseTauxAcceptation: {
+    readonly nAcceptesParmiEnvoyes: number;
+    readonly nEnvoyes: number;
+  } | null;
+  /** Les autres mesures peuvent être comparées avant arrondi sans publier leur précision source. */
+  readonly comparaisonNonArrondie: boolean | null;
 }
 
 export interface SeuilsEntonnoir {
@@ -222,7 +229,25 @@ function lireSeuilEvalue(brut: unknown): SeuilEvalue | null {
   if (metricId === null || statut === null || unite === null || valeur === undefined || seuil === undefined || sens === undefined) {
     return null;
   }
-  return { metricId, statut, valeur, unite, sens, seuil };
+  let baseTauxAcceptation: SeuilEvalue["baseTauxAcceptation"] = null;
+  if (brut.base_taux_acceptation !== undefined) {
+    if (!estObjet(brut.base_taux_acceptation) || metricId !== "m8_taux_acceptation_pct") return null;
+    const nAcceptesParmiEnvoyes = brut.base_taux_acceptation.n_acceptes_parmi_envoyes;
+    const nEnvoyes = brut.base_taux_acceptation.n_envoyes;
+    if (
+      typeof nAcceptesParmiEnvoyes !== "number" || !Number.isSafeInteger(nAcceptesParmiEnvoyes) || nAcceptesParmiEnvoyes < 0 ||
+      typeof nEnvoyes !== "number" || !Number.isSafeInteger(nEnvoyes) || nEnvoyes < 1 || nAcceptesParmiEnvoyes > nEnvoyes
+    ) return null;
+    baseTauxAcceptation = { nAcceptesParmiEnvoyes, nEnvoyes };
+  }
+  const comparaisonNonArrondie = brut.comparaison_non_arrondie === undefined ? null : brut.comparaison_non_arrondie;
+  if (comparaisonNonArrondie !== null && typeof comparaisonNonArrondie !== "boolean") return null;
+  const preuveComparee = baseTauxAcceptation !== null || comparaisonNonArrondie === true;
+  if (
+    (baseTauxAcceptation !== null && comparaisonNonArrondie === false) ||
+    (preuveComparee && (valeur === null || seuil === null || sens === null || !STATUTS_SEUIL_EVALUE.includes(statut)))
+  ) return null;
+  return { metricId, statut, valeur, unite, sens, seuil, baseTauxAcceptation, comparaisonNonArrondie };
 }
 
 function lireSeuils(brut: unknown): SeuilsEntonnoir | null {

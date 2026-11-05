@@ -54,7 +54,10 @@ la limite du socle. Impressions et clics : aucune source, « non calculable » e
 
 from __future__ import annotations
 
+import json
 import math
+from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +72,7 @@ from opsys.reglages import lecture as reglages_lecture
 from . import (
     alertes,
     alertes_metier,
+    alertes_sortie,
     analytique_outils,
     cash_libre,
     contenus,
@@ -76,6 +80,7 @@ from . import (
     entrepot_stockage,
     fraicheur_lectures,
     mesures_chantier,
+    nombres,
     operations_recues,
     provenance_m5,
     qualite,
@@ -228,13 +233,85 @@ BUDGET_SORTIE = jetons.LIMITE_SORTIE_DEFAUT - 100
 _ROLE_ADMIN = identite.Role.ADMIN.value
 
 
+class _YAMLDecimalExactLoader(yaml.SafeLoader):
+    """Chargeur isolé : les scalaires YAML flottants décimaux deviennent des Decimal exacts."""
+
+
+def _decimal_fraction_exact(valeur: Fraction) -> Decimal:
+    """Convertit exactement une fraction décimale (dénominateur 2/5 uniquement) en Decimal."""
+    denominateur = valeur.denominator
+    puissances_2 = puissances_5 = 0
+    while denominateur % 2 == 0:
+        puissances_2 += 1
+        denominateur //= 2
+    while denominateur % 5 == 0:
+        puissances_5 += 1
+        denominateur //= 5
+    if denominateur != 1:  # pragma: no cover - les scalaires YAML décimaux ne créent pas d'autre facteur
+        raise ValueError("fraction non décimale")
+    echelle = max(puissances_2, puissances_5)
+    coefficient = valeur.numerator * 2 ** (echelle - puissances_2) * 5 ** (echelle - puissances_5)
+    chiffres = tuple(int(chiffre) for chiffre in str(abs(coefficient)))
+    return Decimal((1 if coefficient < 0 else 0, chiffres, -echelle))
+
+
+def _yaml_float_decimal(loader: _YAMLDecimalExactLoader, node: yaml.ScalarNode) -> Decimal | None:
+    brut = loader.construct_scalar(node)
+    # Les zéros lexicaux longs ne portent aucune précision utile. Reconnais-les sans créer de
+    # copie normalisée du scalaire (ni construire leur expansion décimale).
+    debut = 1 if brut.startswith(("+", "-")) else 0
+    fin_mantisse = len(brut)
+    for indice in range(debut, len(brut)):
+        if brut[indice] in "eE":
+            fin_mantisse = indice
+            break
+    mantisse_zero = fin_mantisse > debut and all(brut[indice] in "0._" for indice in range(debut, fin_mantisse))
+    if mantisse_zero:
+        return Decimal(0)
+    # Seuils M8 sont recopiés dans des réponses publiques. Ne construis pas un Decimal géant qui
+    # ne pourra jamais être affiché : `None` devient un seuil invalide, sans écho du scalaire.
+    # Les nombres hors `configuration.seuils_{alerte,entonnoir}` restent ceux du chargeur historique.
+    if len(brut) > nombres.LONGUEUR_TEXTE_SEUIL_MAX:
+        return None
+    valeur = brut.replace("_", "").lower()
+    signe = -1 if valeur.startswith("-") else 1
+    sans_signe = valeur[1:] if valeur.startswith(("+", "-")) else valeur
+    if ":" in sans_signe:
+        total = Fraction(0)
+        for partie in sans_signe.split(":"):
+            total = total * 60 + Fraction(Decimal(partie))
+        return _decimal_fraction_exact(total * signe)
+    if sans_signe == ".inf":
+        return Decimal("-Infinity" if valeur.startswith("-") else "Infinity")
+    if sans_signe == ".nan":
+        return Decimal("NaN")
+    try:
+        return Decimal(valeur)
+    except InvalidOperation as erreur:
+        raise yaml.constructor.ConstructorError(
+            None, None, "scalaire décimal YAML invalide", node.start_mark,
+        ) from erreur
+
+
+_YAMLDecimalExactLoader.add_constructor("tag:yaml.org,2002:float", _yaml_float_decimal)
+
+
 def _configuration() -> dict[str, Any]:
     """`department.yaml/configuration` (même source que M6 pour ses seuils : le manifeste, que
     l'admin peut éditer sans toucher au code), avec par-dessus les réglages ADOPTÉS par la direction (`opsys.reglages` :
     adopté > fichier > absence ; rien d'adopté = le fichier tel quel). Absente : dictionnaire vide, jamais un défaut."""
-    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    texte = _MANIFESTE.read_text(encoding="utf-8")
+    donnees = yaml.safe_load(texte) or {}
+    decimaux_exacts = yaml.load(texte, Loader=_YAMLDecimalExactLoader) or {}
     configuration = donnees.get("configuration")
     configuration = configuration if isinstance(configuration, dict) else {}
+    configuration_exacte = decimaux_exacts.get("configuration")
+    if isinstance(configuration, dict) and isinstance(configuration_exacte, dict):
+        # Seuls les seuils M8 sont des décimaux dont la précision écrite détermine une comparaison.
+        # Les autres nombres restent ceux du chargeur historique (int/float, dates, etc.).
+        for cle in ("seuils_alerte", "seuils_entonnoir"):
+            if cle in configuration_exacte:
+                configuration[cle] = configuration_exacte[cle]
     return reglages_lecture.superposer(donnees, ("configuration",), configuration)
 
 
@@ -381,8 +458,9 @@ def _situation_chantier(wct_id: str, faits_cible: Any) -> dict[str, Any] | None:
     if faits is None:
         return None
     definitions = mesures_chantier.charger_definitions()
-    mesures = mesures_chantier.mesurer_chantier(faits, definitions)
-    evaluations = mesures_chantier.evaluer_seuils(mesures, _seuils_alerte())
+    valeurs_exactes = {}
+    mesures = mesures_chantier.mesurer_chantier(faits, definitions, valeurs_exactes=valeurs_exactes)
+    evaluations = mesures_chantier.evaluer_seuils(mesures, _seuils_alerte(), valeurs_exactes=valeurs_exactes)
     charges = mesures_chantier.charges_alertes(
         wct_id, mesures, evaluations, definitions, faits["wct"]["horodatage_completion"]
     )
@@ -394,12 +472,20 @@ def _publier_charges_mesure(charges: list[dict[str, Any]]) -> list[dict[str, Any
     consommateur qui vient de les produire. L'identifiant est déterministe : republier la même
     alerte rejoue la première enveloppe publiée (`nouvelle` le dit). Un seuil ou un fait nouveau
     peut changer la remesure ; il ne réécrit pas la preuve de l'alerte déjà publiée."""
-    publiees = []
+    pretes = []
     for charge in charges:
         nouvelle = not evenements.deja_publie(charge["evenement_id"])
         premiere = evenements.charge_publiee("m8.alerte_proposee", charge["evenement_id"])
+        charge_a_publier = premiere if premiere is not None else charge
+        alertes_sortie.exiger_page_lisible(charge_a_publier, BUDGET_SORTIE)
+        pretes.append((charge, nouvelle, charge_a_publier))
+
+    # Prévalider la liste entière avant la première écriture : une charge trop grosse ne doit pas
+    # laisser une alerte antérieure de la même mesure durablement publiée.
+    publiees = []
+    for charge, nouvelle, charge_a_publier in pretes:
         evenements.publier(
-            "m8.alerte_proposee", _DEPARTEMENT, premiere if premiere is not None else charge,
+            "m8.alerte_proposee", _DEPARTEMENT, charge_a_publier,
             evenement_id=charge["evenement_id"],
         )
         publiees.append({
@@ -768,54 +854,56 @@ _TYPES_ALERTE_SUR_BUS = frozenset({
 })
 
 
-def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_reference: str) -> None:
-    """Publie l'AlerteProposee sur le bus, DANS LA MÊME TRANSACTION que l'évaluation qui vient de
-    la produire (`evenements.publier` ouvre un point de sauvegarde sur la transaction déjà ouverte
-    par `executer_atomique`, jamais une transaction indépendante — même patron que
-    `m4_field_ops.outils.completer_intervention` pour `m4.travaux_termines`).
-
-    `evenement_id` déterministe (metric_id + type_alerte + horodatage_reference) : une
-    réévaluation rejoue la première enveloppe publiée sous ce même id (ADR-0009 §3), même si
-    la preuve courante a changé. La date complète fait partie de l'identifiant ; seule l'alerte
-    de mesure « seuil à configurer » utilise une identité par jour.
-
-    Gardé par `stockage.connexion_courante() is not None` (même garde que
-    `m4_field_ops.outils.completer_intervention` et `m6_material_control.outils.
-    _registre_de_l_appel`) : seule la production (appel enveloppé par `executer_atomique`/
-    `Capacites.appeler`) publie ; les tests unitaires de ce fichier, qui appellent
-    `m8_evaluer_qualite_metrique` via `opsys.outils.executer` (sans transaction), ne touchent
-    jamais la base — publier quand même y ouvrirait une transaction hors de propos pour une
-    alerte qui n'existe que dans un dict Python local, jamais dans `evenements_sortants`. Ceci ne
-    change ni la réponse ni l'autonomie T0 de `m8_evaluer_qualite_metrique` (elle n'exécute
-    toujours rien et n'appelle toujours aucun autre département — elle publie un FAIT, comme le
-    fait déjà M6 pour `m6.variance_chantier` depuis un outil T1) ;
-    `test_paliers_t3_1_coherents_avec_departements_md` verrouille ce choix.
-
-    Gardé aussi par `_TYPES_ALERTE_SUR_BUS` (T3.1-suite) : un `type_alerte` absent de cette liste
-    (doublon, incohérence) n'est jamais envoyé au bus — voir le commentaire au-dessus de la
-    constante.
-    """
+def _charges_alertes_qualite_a_publier(
+    metric_id: str, alertes_proposees: list[dict[str, Any]], horodatage_reference: str,
+) -> list[tuple[str, dict[str, Any]]]:
+    """Construit et prévalide toutes les charges publiables, sans écriture."""
     if stockage.connexion_courante() is None:
-        return
-    if alerte["type_alerte"] not in _TYPES_ALERTE_SUR_BUS:
-        return
-    ident = f"m8-alerte-{metric_id}-{alerte['type_alerte']}-{horodatage_reference}"
-    charge = {
-        "evenement_id": ident,
-        "metric_id": metric_id,
-        "type_alerte": alerte["type_alerte"],
-        "quoi": alerte["quoi"],
-        "a_qui": alerte["a_qui"],
-        "pourquoi": alerte["pourquoi"],
-        "preuve": alerte["preuve"],
-        "source": alerte["source"],
-        "horodatage_reference": horodatage_reference,
-    }
-    premiere = evenements.charge_publiee("m8.alerte_proposee", ident)
-    evenements.publier(
-        "m8.alerte_proposee", _DEPARTEMENT, premiere if premiere is not None else charge,
-        evenement_id=ident,
-    )
+        return []
+
+    pretes = []
+    for alerte in alertes_proposees:
+        if alerte["type_alerte"] not in _TYPES_ALERTE_SUR_BUS:
+            continue
+        ident = f"m8-alerte-{metric_id}-{alerte['type_alerte']}-{horodatage_reference}"
+        charge = {
+            "evenement_id": ident,
+            "metric_id": metric_id,
+            "type_alerte": alerte["type_alerte"],
+            "quoi": alerte["quoi"],
+            "a_qui": alerte["a_qui"],
+            "pourquoi": alerte["pourquoi"],
+            "preuve": alerte["preuve"],
+            "source": alerte["source"],
+            "horodatage_reference": horodatage_reference,
+        }
+        premiere = evenements.charge_publiee("m8.alerte_proposee", ident)
+        charge_a_publier = premiere if premiere is not None else charge
+        alertes_sortie.exiger_page_lisible(charge_a_publier, BUDGET_SORTIE)
+        pretes.append((ident, charge_a_publier))
+    return pretes
+
+
+def _publier_alertes_proposees(
+    metric_id: str, alertes_proposees: list[dict[str, Any]], horodatage_reference: str,
+) -> None:
+    """Prévalide toutes les alertes puis les publie dans la transaction de l'évaluation.
+
+    `evenements.publier` ouvre un point de sauvegarde sur la transaction déjà ouverte par
+    `executer_atomique`, jamais une transaction indépendante — même patron que
+    `m4_field_ops.outils.completer_intervention` pour `m4.travaux_termines`.
+
+    Les deux verdicts T3.1-suite qui n'appartiennent pas encore au schéma restent seulement dans
+    la réponse de l'outil ; ils n'entrent pas dans la liste des charges à publier.
+    """
+    pretes = _charges_alertes_qualite_a_publier(metric_id, alertes_proposees, horodatage_reference)
+    for ident, charge in pretes:
+        evenements.publier("m8.alerte_proposee", _DEPARTEMENT, charge, evenement_id=ident)
+
+
+def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_reference: str) -> None:
+    """Compatibilité avec les appels unitaires : prévalide une charge avant publication."""
+    _publier_alertes_proposees(metric_id, [alerte], horodatage_reference)
 
 
 def attentes() -> list[dict[str, Any]]:
@@ -1125,8 +1213,7 @@ def outils(
                     if incoherence is not None:
                         alertes_proposees.append(alertes.proposer_action(incoherence, definition))
 
-        for alerte in alertes_proposees:
-            _publier_alerte_proposee(metric_id, alerte, horodatage_reference)
+        _publier_alertes_proposees(metric_id, alertes_proposees, horodatage_reference)
 
         return {
             "metric_id": metric_id,
@@ -1155,7 +1242,7 @@ def outils(
             return {"wct_id": wct_id, "trouve": False, "verdict": f"REJ-CHANTIER-INCONNU:{wct_id}"}
         wct = situation["faits"]["wct"]
         mesures, manques = mesures_chantier.compacter(situation["mesures"])
-        return {
+        resultat = {
             "wct_id": wct_id,
             "trouve": True,
             "devis_id": wct.get("devis_id"),
@@ -1169,6 +1256,25 @@ def outils(
             ],
             **_fraicheur_attendue(fraicheur_lectures.LECTURE_MESURES_CHANTIER),
         }
+        if len(json.dumps(resultat, ensure_ascii=False)) > BUDGET_SORTIE:
+            evaluations = resultat["seuils"]
+            ids = sorted(e["metric_id"] for e in evaluations if e.get("seuil") is not None)
+            sans_valeurs = dict(resultat)
+            sans_valeurs["seuils"] = [
+                {cle: valeur for cle, valeur in evaluation.items() if cle != "seuil"}
+                for evaluation in evaluations
+            ]
+            if ids and len(json.dumps(sans_valeurs, ensure_ascii=False)) <= BUDGET_SORTIE:
+                raise ValueError(
+                    "REJ-M8-SEUILS-BORNE-SORTIE : les seuils exacts des métriques "
+                    f"{', '.join(ids)} dépassent ensemble la borne publique de {BUDGET_SORTIE} caractères ; "
+                    "réduire leur précision dans configuration.seuils_alerte."
+                )
+            raise ValueError(
+                f"REJ-M8-MESURES-BORNE-SORTIE : la réponse complète dépasse la borne publique "
+                f"de {BUDGET_SORTIE} caractères."
+            )
+        return resultat
 
     def performance_equipe(depart: int = 0) -> dict[str, Any]:
         """Écart de temps par technicien (T1.5-d), la plus petite métrique honnête : anonyme pour

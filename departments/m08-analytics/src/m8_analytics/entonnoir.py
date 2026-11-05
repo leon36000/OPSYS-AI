@@ -33,6 +33,7 @@ import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +60,6 @@ STATUT_DEVIS_ENVOYE = "envoye"
 STATUT_DEVIS_BROUILLON = "brouillon"
 
 _CHEMIN_METRIQUES = Path(__file__).resolve().parents[2] / "metrics" / "m8-entonnoir.v1.yaml"
-_CENT = Decimal("100")
 _ZERO = Decimal("0")
 _SECONDES_PAR_JOUR = Decimal("86400")
 _MICROSECONDES_PAR_SECONDE = Decimal("1000000")
@@ -105,6 +105,9 @@ _SOURCES_REQUISES = {
 # font que croître), ni rien qui ne serait pas une métrique du registre.
 _METRIQUES_SURVEILLEES = frozenset({
     "m8_devis_sans_reponse", "m8_taux_acceptation_pct", "m8_delai_lead_acceptation_jours", "m8_carnet_signe_cad",
+})
+_METRIQUES_PRECISION_EXACTE = frozenset({
+    "m8_taux_acceptation_pct", "m8_delai_lead_acceptation_jours", "m8_carnet_signe_cad",
 })
 
 
@@ -308,8 +311,9 @@ def _secondes(ecart: Any) -> Decimal:
     )
 
 
-def _mediane(valeurs: list[Decimal]) -> Decimal:
-    ordonnees = sorted(valeurs)
+def _mediane_fraction(valeurs: list[Decimal]) -> Fraction:
+    """Médiane rationnelle sans division décimale arrondie par le contexte global."""
+    ordonnees = sorted(Fraction(valeur) for valeur in valeurs)
     milieu = len(ordonnees) // 2
     if len(ordonnees) % 2 == 1:
         return ordonnees[milieu]
@@ -374,13 +378,19 @@ def _manque_source(type_entree: str, raison: str) -> dict[str, str]:
 
 
 def _comptage(type_entree: str, cle: str) -> Callable[..., Resultat]:
-    def calcul(par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]]) -> Resultat:
+    def calcul(
+        par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]],
+        _valeurs_exactes: dict[str, Fraction] | None = None,
+    ) -> Resultat:
         return str(len(_identifiants(par_type[type_entree], cle))), {}, []
 
     return calcul
 
 
-def _devis_sans_reponse(par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]]) -> Resultat:
+def _devis_sans_reponse(
+    par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]],
+    _valeurs_exactes: dict[str, Fraction] | None = None,
+) -> Resultat:
     attente = _devis_en_attente(par_type)
     entrees = {
         "n_constats_recus": len(_identifiants(par_type[TYPE_DEVIS_SANS_REPONSE], "devis_id")),
@@ -389,7 +399,10 @@ def _devis_sans_reponse(par_type: dict[str, list[dict[str, Any]]], _wcts: list[d
     return str(len(attente["sans_reponse"])), entrees, []
 
 
-def _taux_acceptation_pct(par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]]) -> Resultat:
+def _taux_acceptation_pct(
+    par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]],
+    valeurs_exactes: dict[str, Fraction] | None = None,
+) -> Resultat:
     envoyes = _identifiants(par_type[TYPE_DEVIS_ENVOYE], "devis_id")
     acceptes = set(_identifiants(par_type[TYPE_DEVIS_ACCEPTE], "devis_id"))
     if not envoyes:
@@ -401,11 +414,16 @@ def _taux_acceptation_pct(par_type: dict[str, list[dict[str, Any]]], _wcts: list
         "n_acceptes_parmi_envoyes": len(acceptes_parmi_envoyes),
         "n_acceptes_sans_envoi_recu": len(acceptes - set(envoyes)),
     }
-    taux = Decimal(len(acceptes_parmi_envoyes)) * _CENT / Decimal(len(envoyes))
-    return nombres.texte_decimal(taux), entrees, []
+    taux_exact = Fraction(len(acceptes_parmi_envoyes) * 100, len(envoyes))
+    if valeurs_exactes is not None:
+        valeurs_exactes["m8_taux_acceptation_pct"] = taux_exact
+    return nombres.texte_decimal(nombres.decimal_arrondi_cent_fraction(taux_exact)), entrees, []
 
 
-def _delai_lead_acceptation_jours(par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]]) -> Resultat:
+def _delai_lead_acceptation_jours(
+    par_type: dict[str, list[dict[str, Any]]], _wcts: list[dict[str, Any]],
+    valeurs_exactes: dict[str, Fraction] | None = None,
+) -> Resultat:
     acceptes = _premier_par_cle(par_type[TYPE_DEVIS_ACCEPTE], "devis_id")
     if not acceptes:
         return None, {}, [_manque_source(TYPE_DEVIS_ACCEPTE, "aucun devis accepté reçu")]
@@ -431,7 +449,10 @@ def _delai_lead_acceptation_jours(par_type: dict[str, list[dict[str, Any]]], _wc
         "n_instants_illisibles": illisibles, "n_delais_negatifs": negatifs,
     }
     if delais:
-        return nombres.texte_decimal(_mediane(delais) / _SECONDES_PAR_JOUR), entrees, []
+        delai_exact = _mediane_fraction(delais) / 86400
+        if valeurs_exactes is not None:
+            valeurs_exactes["m8_delai_lead_acceptation_jours"] = delai_exact
+        return nombres.texte_decimal(nombres.decimal_arrondi_cent_fraction(delai_exact)), entrees, []
     manque = []
     if sans_arrivee:
         manque.append(_manque_source(
@@ -450,7 +471,10 @@ def _delai_lead_acceptation_jours(par_type: dict[str, list[dict[str, Any]]], _wc
     return None, entrees, manque
 
 
-def _carnet_signe_cad(par_type: dict[str, list[dict[str, Any]]], wcts: list[dict[str, Any]]) -> Resultat:
+def _carnet_signe_cad(
+    par_type: dict[str, list[dict[str, Any]]], wcts: list[dict[str, Any]],
+    valeurs_exactes: dict[str, Fraction] | None = None,
+) -> Resultat:
     acceptes = _premier_par_cle(par_type[TYPE_DEVIS_ACCEPTE], "devis_id")
     termines = {wct["devis_id"] for wct in wcts if isinstance(wct.get("devis_id"), str) and wct["devis_id"]}
     au_carnet = [fait for fait in acceptes if fait["devis_id"] not in termines]
@@ -458,19 +482,21 @@ def _carnet_signe_cad(par_type: dict[str, list[dict[str, Any]]], wcts: list[dict
         "n_devis_au_carnet": len(au_carnet), "n_devis_acceptes": len(acceptes),
         "chantiers_termines_sans_devis_relie": sum(1 for wct in wcts if not wct.get("devis_id")),
     }
-    somme = _ZERO
+    somme_exacte = Fraction(0)
     sans_prix: list[str] = []
     for fait in au_carnet:
         prix = nombres.decimal_lu(fait.get("prix_total"))
         if prix is None:
             sans_prix.append(fait["devis_id"])
         else:
-            somme += prix
+            somme_exacte += Fraction(prix)
     if sans_prix:
         return None, entrees, [_manque_source(
             TYPE_DEVIS_ACCEPTE, f"{len(sans_prix)} devis du carnet sans prix lisible (prix_total) : {_cites(sans_prix)}"
         )]
-    return nombres.texte_decimal(somme), entrees, []
+    if valeurs_exactes is not None:
+        valeurs_exactes["m8_carnet_signe_cad"] = somme_exacte
+    return nombres.texte_decimal(nombres.decimal_arrondi_cent_fraction(somme_exacte)), entrees, []
 
 
 _CALCULS = {
@@ -546,7 +572,8 @@ def construire_mesure(
 
 
 def mesurer(
-    entrees: list[dict[str, Any]], faits_chantier: list[dict[str, Any]], definitions: dict[str, dict[str, str]]
+    entrees: list[dict[str, Any]], faits_chantier: list[dict[str, Any]], definitions: dict[str, dict[str, str]],
+    *, valeurs_exactes: dict[str, Fraction] | None = None,
 ) -> list[dict[str, Any]]:
     """Les mesures de l'entonnoir, une par métrique du registre, dans l'ordre du registre (forme de
     ``construire_mesure``).
@@ -568,7 +595,7 @@ def mesurer(
             valeur, entrees_lues = None, {}
             manque = [{"champ": "calcul", "source": "M8", "raison": "aucun calcul enregistré pour cette métrique"}]
         else:
-            valeur, entrees_lues, manque = calcul(par_type, wcts)
+            valeur, entrees_lues, manque = calcul(par_type, wcts, valeurs_exactes)
         mesures.append(construire_mesure(metric_id, definition, valeur, entrees_lues, manque))
     return mesures
 
@@ -591,7 +618,9 @@ def sources(entrees: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Seuils : configurés ou pas d'alerte, et un signal qui dit quoi configurer
 # ---------------------------------------------------------------------------
-def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str, Any]]:
+def evaluer_seuils(
+    mesures: list[dict[str, Any]], seuils: Any, *, valeurs_exactes: dict[str, Fraction] | None = None,
+) -> list[dict[str, Any]]:
     """Situation de chaque mesure CALCULÉE et surveillée face à son seuil configuré. Une mesure non calculable n'est
     pas évaluée (elle dit déjà ce qui manque). Sans seuil, ou avec un seuil invalide, le statut est
     ``seuil_a_configurer`` ou ``seuil_invalide`` : jamais une valeur par défaut, jamais un franchissement. « Franchi » =
@@ -613,17 +642,49 @@ def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str,
             if seuil is None:
                 evaluation["statut"] = SEUIL_INVALIDE
             else:
-                valeur = Decimal(mesure["valeur"])
-                if seuil["sens"] == nombres.SENS_AU_DESSUS:
-                    atteint = valeur >= seuil["valeur"]
-                else:
-                    atteint = valeur <= seuil["valeur"]
+                atteint = _atteint_seuil(mesure, seuil, valeurs_exactes)
                 evaluation.update({
                     "statut": SEUIL_FRANCHI if atteint else SEUIL_NON_FRANCHI,
-                    "sens": seuil["sens"], "seuil": nombres.texte_decimal(seuil["valeur"]),
+                    "sens": seuil["sens"], "seuil": nombres.texte_seuil(seuil["valeur"]),
                 })
+                valeur_exacte = valeurs_exactes.get(metric_id) if valeurs_exactes is not None else None
+                if valeur_exacte is not None and metric_id == "m8_taux_acceptation_pct":
+                    entrees = mesure.get("entrees")
+                    n_envoyes = entrees.get("n_envoyes") if isinstance(entrees, dict) else None
+                    n_acceptes = entrees.get("n_acceptes_parmi_envoyes") if isinstance(entrees, dict) else None
+                    if not (
+                        isinstance(n_envoyes, int) and not isinstance(n_envoyes, bool)
+                        and isinstance(n_acceptes, int) and not isinstance(n_acceptes, bool)
+                        and n_envoyes > 0 and 0 <= n_acceptes <= n_envoyes
+                        and Fraction(n_acceptes * 100, n_envoyes) == valeur_exacte
+                    ):
+                        raise ValueError(f"REJ-M8-SEUIL-BASE-TAUX-INDISPONIBLE:{metric_id}")
+                    evaluation["base_taux_acceptation"] = {
+                        "n_acceptes_parmi_envoyes": n_acceptes, "n_envoyes": n_envoyes,
+                    }
+                elif valeur_exacte is not None and Fraction(Decimal(mesure["valeur"])) != valeur_exacte:
+                    evaluation["comparaison_non_arrondie"] = True
         evaluations.append(evaluation)
     return evaluations
+
+
+def _atteint_seuil(
+    mesure: dict[str, Any], seuil: dict[str, Any], valeurs_exactes: dict[str, Fraction] | None,
+) -> bool:
+    """Compare à la valeur interne exacte quand elle vient du même calcul; jamais sérialisée."""
+    metric_id = mesure["metric_id"]
+    if metric_id in _METRIQUES_PRECISION_EXACTE:
+        valeur_exacte = valeurs_exactes.get(metric_id) if valeurs_exactes is not None else None
+        if not isinstance(valeur_exacte, Fraction):
+            raise ValueError(f"REJ-M8-SEUIL-PRECISION-INDISPONIBLE:{metric_id}")
+        seuil_exact = Fraction(seuil["valeur"])
+        if seuil["sens"] == nombres.SENS_AU_DESSUS:
+            return valeur_exacte >= seuil_exact
+        return valeur_exacte <= seuil_exact
+    valeur = Decimal(mesure["valeur"])
+    if seuil["sens"] == nombres.SENS_AU_DESSUS:
+        return valeur >= seuil["valeur"]
+    return valeur <= seuil["valeur"]
 
 
 def seuils_ignores(seuils: Any) -> list[str]:
@@ -641,11 +702,12 @@ def situation(
 ) -> dict[str, Any]:
     """L'entonnoir tel que les faits reçus le permettent : mesures, sources, situation face aux seuils (et les clés
     de configuration qui ne surveillent rien) et devis qui attendent. Lecture pure : ne publie rien."""
-    mesures = mesurer(entrees, faits_chantier, definitions)
+    valeurs_exactes: dict[str, Fraction] = {}
+    mesures = mesurer(entrees, faits_chantier, definitions, valeurs_exactes=valeurs_exactes)
     return {
         "mesures": mesures,
         "sources": sources(entrees),
-        "seuils": evaluer_seuils(mesures, seuils),
+        "seuils": evaluer_seuils(mesures, seuils, valeurs_exactes=valeurs_exactes),
         "seuils_ignores": seuils_ignores(seuils),
         "devis": etat_des_devis(entrees),
     }

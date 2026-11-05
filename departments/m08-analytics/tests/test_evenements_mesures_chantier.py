@@ -157,6 +157,37 @@ def test_le_wct_seul_donne_des_mesures_non_calculables_qui_nomment_ce_qui_manque
     assert _alertes() == []  # rien de calculé, rien d'alerté
 
 
+def test_public_le_bus_refuse_avant_la_premiere_ecriture_si_une_charge_suivante_depasse_m9(
+        base_durable, departements, monkeypatch):
+    """Le scénario est adverse/synthétique : le second payload excède M9. La garde de la liste
+    entière doit s'exécuter avant la publication de la première charge et la transaction du bus
+    annule également le snapshot et le fait M8 préparés par le consommateur."""
+    mesures = m8_outils.mesures_chantier
+    definition = mesures.charger_definitions()["m8_ecart_duree_pct"]
+    premiere = mesures._charge_franchi(
+        "wct-m8-1",
+        {"metric_id": "m8_ecart_duree_pct", "valeur": "100.00", "unite": "pourcentage",
+         "sens": "au_dessus", "seuil": "50.00"},
+        {"nom": definition["nom"], "version_definition": "a" * 64},
+        definition,
+        "2026-09-28T14:00:00-04:00",
+    )
+    suivante = {
+        **premiere,
+        "evenement_id": "m8-alerte-synthetique-surdimensionnee",
+        "quoi": "texte fictif\n" * 3000,
+    }
+    monkeypatch.setattr(mesures, "charges_alertes", lambda *args: [premiere, suivante])
+
+    _publier("m4.travaux_termines", "m04-field-ops", _wct())
+    resultat = _livrer(departements)
+
+    assert resultat["echecs"] == 1
+    assert _faits() == []
+    assert list(stockage.maillons("m08-analytics", "snapshots")) == []
+    assert _alertes() == []
+
+
 def test_le_faits_du_wct_ne_portent_ni_cout_ni_marge_et_le_snapshot_existant_est_inchange(base_durable, departements):
     _publier("m4.travaux_termines", "m04-field-ops", _wct(type_travaux="gouttières"))
     _livrer(departements)
@@ -490,3 +521,43 @@ def test_la_lecture_des_mesures_tient_sous_la_limite_du_socle_meme_au_pire_cas(b
     assert reponse["ok"] is True and "tronque" not in reponse
     assert len(json.dumps(reponse, ensure_ascii=False)) < jetons.LIMITE_SORTIE_DEFAUT - 1500  # de la marge
     assert {m["statut"] for m in reponse["resultat"]["mesures"]} == {"non_calculable"}
+
+
+def test_seuil_yaml_depassant_le_budget_est_signale_sans_valeur_et_lisible_par_m9(
+    base_durable, departements, tmp_path, monkeypatch,
+):
+    """Le cas réel 5000 décimales est refusé avant publication d'une alerte indivisible trop grosse."""
+    chiffres = "9" * 5000
+    manifeste = tmp_path / "department.yaml"
+    manifeste.write_text("\n".join((
+        "configuration:", "  seuils_alerte:", "    m8_ecart_duree_pct:", "      sens: au_dessus",
+        f"      valeur: 19.{chiffres}", "",
+    )), encoding="utf-8",
+    )
+    monkeypatch.setattr(m8_outils, "_MANIFESTE", manifeste)
+
+    _publier("m4.travaux_termines", "m04-field-ops", _wct())
+    _publier("m3.devis_accepte", "m03-sales", _devis())
+    _livrer(departements)
+
+    alertes = _alertes()
+    alerte = next(a for a in alertes if a["metric_id"] == "m8_ecart_duree_pct")
+    assert alerte["type_alerte"] == "MESURE-SEUIL-A-CONFIGURER"
+    assert alerte["preuve"] == {"metric_id": "m8_ecart_duree_pct", "manque": "seuil_invalide"}
+    assert chiffres not in json.dumps(alerte, ensure_ascii=False)
+
+    tous = charger_departements(_RACINE_DEPARTEMENTS)
+    livraison_m9 = evenements.repartir(
+        {"m09-strategic-intelligence": tous["m09-strategic-intelligence"]}, limite=10,
+        maintenant="2026-09-28T18:00:00+00:00",
+    )
+    assert livraison_m9["traites"] >= len(alertes) and livraison_m9["echecs"] == 0
+    assert livraison_m9["quarantaines"] == 0
+    capacites_m9 = Capacites(
+        tous, stockage.transaction, filtre={"m09-strategic-intelligence"}, memoire=False,
+    )
+    page = capacites_m9.appeler("m9_lire_alertes_m8", {})
+    assert page["ok"] is True, page
+    assert alerte in page["resultat"]["alertes"]
+    assert page["resultat"]["affichees"] == len(alertes)
+    assert len(json.dumps(page, ensure_ascii=False)) <= jetons.LIMITE_SORTIE_DEFAUT

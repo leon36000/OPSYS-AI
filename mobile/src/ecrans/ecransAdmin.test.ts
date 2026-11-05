@@ -73,6 +73,7 @@ const OUTILS_DE_LECTURE = [
   OUTIL_LIRE_METEO_INTERVENTION,
   OUTIL_LIRE_RETARDS_INCIDENTS,
 ];
+const IDENTIFIANTS_METRIQUES = ["m8_taux_acceptation_pct"];
 
 describe("les outils que le profil admin appelle", () => {
   test("les dix sont exactement ceux de la mission, sous leur nom NU, et ce sont des lectures", () => {
@@ -101,6 +102,8 @@ describe("les outils que le profil admin appelle", () => {
     for (const fichier of [...CHARGEURS_ET_LECTEURS, ...MODELES_DE_VUE, ...RENDUS, ...ECRANS, "src/admin/service.ts"]) {
       const litteraux = [...code(fichier).matchAll(/["'`](m\d+_[a-z_]+)["'`]/g)].map((m) => m[1]);
       for (const outil of litteraux) {
+        // Le lecteur M8 nomme aussi une métrique ; cet identifiant n'est pas un outil appelé par l'app.
+        if (IDENTIFIANTS_METRIQUES.includes(outil)) continue;
         expect({ fichier, outil, autorise: OUTILS_DE_LECTURE.includes(outil) }).toEqual({ fichier, outil, autorise: true });
       }
     }
@@ -167,6 +170,12 @@ describe("l'écran des chantiers ne montre jamais le texte de M4 tel quel (PLAN 
     const source = code("src/admin/vuesChiffres.tsx");
     expect(source).toContain("echeance.couvertureTaxes !== null");
     expect(source).toContain("<Ligne m={echeance.couvertureTaxes}");
+  });
+
+  test("la carte des seuils M8 rend l'explication de comparaison fournie par le serveur", () => {
+    const source = code("src/admin/vuesChiffres.tsx");
+    expect(source).toContain("evalue.indicationComparaison !== null");
+    expect(source).toContain("<Ligne m={evalue.indicationComparaison} style={styles.trace} />");
   });
 
   test("le modèle de vue ne lit jamais `.manque` d'un volet pour le montrer : la phrase vient de `direLeManque`", () => {

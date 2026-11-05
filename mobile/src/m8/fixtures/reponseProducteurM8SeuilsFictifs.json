@@ -1,0 +1,69 @@
+{
+  "provenance": "Extrait des réponses produites par les vrais outils M8 via opsys.outils.executer, données QA fictives seulement; entrées limitées aux seuils sans montant CAD.",
+  "m8_lire_vue_executive": {
+    "ok": true,
+    "resultat": {
+      "entonnoir": {
+        "seuils": {
+          "evalues": [
+            {
+              "metric_id": "m8_taux_acceptation_pct",
+              "statut": "non_franchi",
+              "valeur": "66.67",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "66.67",
+              "base_taux_acceptation": {
+                "n_acceptes_parmi_envoyes": 2,
+                "n_envoyes": 3
+              }
+            },
+            {
+              "metric_id": "m8_delai_lead_acceptation_jours",
+              "statut": "non_franchi",
+              "valeur": "1.24",
+              "unite": "jours",
+              "sens": "au_dessus",
+              "seuil": "1.24",
+              "comparaison_non_arrondie": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "m8_lire_mesures_chantier": {
+    "ok": true,
+    "resultat": {
+      "seuils": [
+        {
+          "metric_id": "m8_ecart_duree_pct",
+          "valeur": "33.33",
+          "unite": "pourcentage",
+          "statut": "franchi",
+          "sens": "au_dessus",
+          "seuil": "33.33",
+          "comparaison_non_arrondie": true
+        },
+        {
+          "metric_id": "m8_ecart_marge_pct",
+          "valeur": "-33.34",
+          "unite": "pourcentage",
+          "statut": "non_franchi",
+          "sens": "au_dessous",
+          "seuil": "-33.34",
+          "comparaison_non_arrondie": true
+        },
+        {
+          "metric_id": "m8_ecart_materiaux_max_pct",
+          "valeur": "33.34",
+          "unite": "pourcentage",
+          "statut": "non_franchi",
+          "sens": "au_dessus",
+          "seuil": "33.34",
+          "comparaison_non_arrondie": true
+        }
+      ]
+    }
+  }
+}

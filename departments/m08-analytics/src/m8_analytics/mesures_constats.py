@@ -30,7 +30,8 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import date, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
+from fractions import Fraction
 from typing import Any
 
 from . import cash_libre, entonnoir, nombres, operations_recues, synthese
@@ -48,7 +49,6 @@ from .mesures_communes import (
     plus_recent,
 )
 
-_CENT = Decimal(100)
 _BASE_COMPTABILISEE = "HORS_TAXES"
 _STATUTS_FACTURE_RANG = {"ENVOYEE": 1, "PAYEE": 2, "ANNULEE": 2}
 _STATUT_ANNULEE = "ANNULEE"
@@ -622,8 +622,11 @@ def _charge_planifiee_pct(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
         return disponibles
     if planifiees[0] is None:
         return planifiees
-    base = Decimal(disponibles[0])
-    if base <= 0:
+    base_exacte = _decimal(constat.get("heures_disponibles"))
+    planifiees_exactes = _decimal(constat.get("heures_planifiees"))
+    if base_exacte is None or planifiees_exactes is None:
+        return disponibles if base_exacte is None else planifiees
+    if base_exacte <= 0:
         return non_calculable(
             [
                 manque(
@@ -635,7 +638,8 @@ def _charge_planifiee_pct(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
             disponibles[1],
             constat.get("constate_le"),
         )
-    pct = (Decimal(planifiees[0]) / base * _CENT).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    pct_exact = Fraction(planifiees_exactes) * 100 / Fraction(base_exacte)
+    pct = nombres.decimal_arrondi_cent_fraction(pct_exact)
     entrees = {**disponibles[1], "heures_disponibles": disponibles[0], "heures_planifiees": planifiees[0]}
     return nombres.texte_decimal(pct), entrees, [], constat.get("constate_le"), None, None
 

@@ -962,6 +962,8 @@ const adminFrCA = {
       },
       valeurEtiquette: "Valeur",
       seuilEtiquette: "Seuil",
+      comparaisonTauxArrondie: "Taux affiché arrondi ; comparaison au seuil avec le taux non arrondi. {{acceptes}} devis acceptés sur {{envoyes}} envoyés.",
+      comparaisonNonArrondie: "Valeur affichée arrondie ; comparaison au seuil effectuée avant arrondi.",
       margeTitre: "Marge réelle des chantiers (M5)",
       margeResume: "Chantiers terminés : {{n}} ; marge connue : {{connue}} ; non calculable : {{nonCalculable}}.",
       chantier: "Chantier {{chantier}} (devis {{devis}})",

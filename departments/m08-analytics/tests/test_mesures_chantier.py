@@ -399,8 +399,11 @@ def test_la_forme_compacte_est_bien_plus_petite_que_la_forme_riche_au_pire_cas()
 # ---------------------------------------------------------------------------
 def _evaluations(seuils, *entrees):
     faits = mc.assembler_faits("wct-fictif-1", list(entrees))
-    mesures = mc.mesurer_chantier(faits, _DEFINITIONS)
-    return mesures, {e["metric_id"]: e for e in mc.evaluer_seuils(mesures, seuils)}
+    valeurs_exactes = {}
+    mesures = mc.mesurer_chantier(faits, _DEFINITIONS, valeurs_exactes=valeurs_exactes)
+    return mesures, {
+        e["metric_id"]: e for e in mc.evaluer_seuils(mesures, seuils, valeurs_exactes=valeurs_exactes)
+    }
 
 
 def test_sans_aucun_seuil_chaque_mesure_surveillee_calculee_dit_seuil_a_configurer():
@@ -420,7 +423,9 @@ def test_seuil_au_dessus_est_franchi_quand_la_valeur_atteint_ou_depasse():
     seuils = {"m8_ecart_duree_pct": {"sens": "au_dessus", "valeur": 20}}
     _, egal = _evaluations(seuils, _wct(), _devis())  # 20.00 %
     assert egal["m8_ecart_duree_pct"]["statut"] == mc.SEUIL_FRANCHI
-    assert (egal["m8_ecart_duree_pct"]["sens"], egal["m8_ecart_duree_pct"]["seuil"]) == ("au_dessus", "20.00")
+    assert (egal["m8_ecart_duree_pct"]["sens"], egal["m8_ecart_duree_pct"]["seuil"]) == (
+        "au_dessus", "20.00",
+    )
     _, dessous = _evaluations({"m8_ecart_duree_pct": {"sens": "au_dessus", "valeur": 20.01}}, _wct(), _devis())
     assert dessous["m8_ecart_duree_pct"]["statut"] == mc.SEUIL_NON_FRANCHI
 
@@ -456,14 +461,148 @@ def test_seuils_absents_ou_mal_formes_sont_traites_comme_absents():
         assert evaluations["m8_ecart_duree_pct"]["statut"] == mc.SEUIL_A_CONFIGURER
 
 
+@pytest.mark.parametrize(
+    ("metric_id", "construire_entrees"),
+    [
+        pytest.param(
+            "m8_ecart_duree_pct",
+            lambda: (_wct(duree_reelle_minutes=250), _devis(duree_estimee_minutes="150")),
+            id="duree",
+        ),
+        pytest.param(
+            "m8_ecart_marge_pct",
+            lambda: (_wct(), _devis(prix_total="300.00", cout_total="150.00"),
+                     _rentabilite(marge_reelle_cad="250.00")),
+            id="marge",
+        ),
+        pytest.param(
+            "m8_ecart_materiaux_max_pct",
+            lambda: (_wct(), _variance(lignes=[{
+                "materiau": "materiau-fictif", "unite": "u", "quantite_prevue": "3", "quantite_reelle": "5",
+                "ecart_pourcentage": "0.6666666666666666", "critique": True,
+            }])),
+            id="variance-m6",
+        ),
+    ],
+)
+@pytest.mark.parametrize("sens,statut_attendu", [("au_dessus", "non_franchi"), ("au_dessous", "franchi")])
+def test_les_ratios_chantier_sont_comparés_avant_arrondi(metric_id, construire_entrees, sens, statut_attendu):
+    _, evaluations = _evaluations(
+        {metric_id: {"sens": sens, "valeur": 66.67}}, *construire_entrees()
+    )
+    evaluation = evaluations[metric_id]
+
+    assert evaluation["valeur"] == "66.67"
+    assert evaluation["seuil"] == "66.67"
+    assert evaluation["statut"] == statut_attendu
+    assert evaluation["comparaison_non_arrondie"] is True
+
+
+@pytest.mark.parametrize(
+    ("metric_id", "construire_entrees"),
+    [
+        pytest.param(
+            "m8_ecart_duree_pct",
+            lambda: (_wct(duree_reelle_minutes=250), _devis(duree_estimee_minutes="150")),
+            id="duree",
+        ),
+        pytest.param(
+            "m8_ecart_marge_pct",
+            lambda: (_wct(), _devis(prix_total="300.00", cout_total="150.00"),
+                     _rentabilite(marge_reelle_cad="250.00")),
+            id="marge",
+        ),
+        pytest.param(
+            "m8_ecart_materiaux_max_pct",
+            lambda: (_wct(), _variance(lignes=[{
+                "materiau": "materiau-fictif", "unite": "u", "quantite_prevue": "3", "quantite_reelle": "5",
+                "ecart_pourcentage": "0.6666666666666666", "critique": True,
+            }])),
+            id="variance-m6",
+        ),
+    ],
+)
+def test_les_trois_ratios_conservent_un_seuil_declare_sur_trois_decimales(
+    metric_id, construire_entrees,
+):
+    _, evaluations = _evaluations(
+        {metric_id: {"sens": "au_dessus", "valeur": 66.666}}, *construire_entrees()
+    )
+
+    assert evaluations[metric_id]["seuil"] == "66.666"
+
+
+@pytest.mark.parametrize(
+    ("metric_id", "construire_entrees"),
+    [
+        pytest.param(
+            "m8_ecart_duree_pct",
+            lambda: (_wct(duree_reelle_minutes=150), _devis(duree_estimee_minutes="100")),
+            id="duree",
+        ),
+        pytest.param(
+            "m8_ecart_marge_pct",
+            lambda: (_wct(), _devis(prix_total="200.00", cout_total="100.00"),
+                     _rentabilite(marge_reelle_cad="150.00")),
+            id="marge",
+        ),
+        pytest.param(
+            "m8_ecart_materiaux_max_pct",
+            lambda: (_wct(), _variance(lignes=[{
+                "materiau": "materiau-fictif", "unite": "u", "quantite_prevue": "2", "quantite_reelle": "3",
+                "ecart_pourcentage": "0.5", "critique": True,
+            }])),
+            id="variance-m6",
+        ),
+    ],
+)
+@pytest.mark.parametrize("sens", ["au_dessus", "au_dessous"])
+def test_les_ratios_chantier_qui_egalent_le_seuil_franchissent_dans_les_deux_sens(
+    metric_id, construire_entrees, sens,
+):
+    _, evaluations = _evaluations(
+        {metric_id: {"sens": sens, "valeur": 50}}, *construire_entrees()
+    )
+    evaluation = evaluations[metric_id]
+
+    assert evaluation["valeur"] == "50.00"
+    assert evaluation["seuil"] == "50.00"
+    assert evaluation["statut"] == "franchi"
+    assert "comparaison_non_arrondie" not in evaluation
+
+
+@pytest.mark.parametrize("valeurs_exactes", [None, {}, {"m8_ecart_duree_pct": "20.00"}])
+def test_un_comparateur_chantier_sans_fraction_interne_valide_refuse(valeurs_exactes):
+    faits = mc.assembler_faits("wct-fictif-1", [_wct(), _devis()])
+    mesures = mc.mesurer_chantier(faits, _DEFINITIONS)
+
+    with pytest.raises(ValueError, match="REJ-M8-SEUIL-PRECISION-INDISPONIBLE:m8_ecart_duree_pct"):
+        mc.evaluer_seuils(
+            mesures,
+            {"m8_ecart_duree_pct": {"sens": "au_dessus", "valeur": 20}},
+            valeurs_exactes=valeurs_exactes,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Charges d'alerte : conformes au catalogue, action proposée, sans cause ni responsable
 # ---------------------------------------------------------------------------
 def _charges(seuils, *entrees, wct_id="wct-fictif-1", horodatage=_HORODATAGE):
     faits = mc.assembler_faits(wct_id, list(entrees))
-    mesures = mc.mesurer_chantier(faits, _DEFINITIONS)
-    evaluations = mc.evaluer_seuils(mesures, seuils)
+    valeurs_exactes = {}
+    mesures = mc.mesurer_chantier(faits, _DEFINITIONS, valeurs_exactes=valeurs_exactes)
+    evaluations = mc.evaluer_seuils(mesures, seuils, valeurs_exactes=valeurs_exactes)
     return mc.charges_alertes(wct_id, mesures, evaluations, _DEFINITIONS, horodatage)
+
+
+def test_une_alerte_dit_que_le_seuil_a_ete_evalue_avant_arrondi_affiche():
+    charges = _charges(
+        {"m8_ecart_duree_pct": {"sens": "au_dessous", "valeur": 66.67}},
+        _wct(duree_reelle_minutes=250), _devis(duree_estimee_minutes="150"),
+    )
+
+    assert len(charges) == 1
+    assert "comparaison faite avant l'arrondi d'affichage" in charges[0]["pourquoi"]
 
 
 def test_un_seuil_franchi_propose_une_alerte_conforme_au_catalogue_avec_sa_preuve():

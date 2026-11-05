@@ -34,6 +34,7 @@ from opsys.outils import Autonomie, Niveau, Outil
 
 from . import (
     alertes_metier,
+    alertes_sortie,
     catalogue_mesures,
     collecte,
     copilote,
@@ -763,13 +764,19 @@ def construire(
         )
         publiees = 0
         if ecrire:
+            charges_pretes = []
             for entree in plan["ouvertures"]:
-                alertes_cible.append(entree)
                 charge = alertes_metier.charge_evenement(entree)
                 premiere = evenements.charge_publiee(alertes_metier.EVENEMENT, charge["evenement_id"])
+                charge_a_publier = premiere if premiere is not None else charge
+                alertes_sortie.exiger_page_lisible(charge_a_publier)
+                charges_pretes.append((entree, charge_a_publier))
+            # Toute la projection est vérifiée avant d'ajouter la première ouverture ou alerte.
+            for entree, charge_a_publier in charges_pretes:
+                alertes_cible.append(entree)
                 evenements.publier(
-                    alertes_metier.EVENEMENT, DEPARTEMENT, premiere if premiere is not None else charge,
-                    evenement_id=charge["evenement_id"],
+                    alertes_metier.EVENEMENT, DEPARTEMENT, charge_a_publier,
+                    evenement_id=charge_a_publier["evenement_id"],
                 )
                 publiees += 1
             for entree in plan["resolutions"]:

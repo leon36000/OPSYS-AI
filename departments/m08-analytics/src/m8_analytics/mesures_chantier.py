@@ -40,6 +40,7 @@ import json
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,7 @@ SEUIL_INVALIDE = "seuil_invalide"
 
 SENS_AU_DESSUS = nombres.SENS_AU_DESSUS
 SENS_AU_DESSOUS = nombres.SENS_AU_DESSOUS
+LONGUEUR_TEXTE_SEUIL_MAX = nombres.LONGUEUR_TEXTE_SEUIL_MAX
 
 _CHEMIN_METRIQUES = Path(__file__).resolve().parents[2] / "metrics" / "m8-metrics.v1.yaml"
 _CENT = Decimal("100")
@@ -320,28 +322,40 @@ def _manque_specifique(champ: str, raison: str) -> dict[str, str]:
 Resultat = tuple[Decimal | None, dict[str, Any], list[dict[str, str]]]
 
 
+def _decimal_arrondi_cent_fraction(valeur: Fraction) -> Decimal:
+    """Arrondit un ratio rationnel au centième par ROUND_HALF_UP, sans contexte Decimal."""
+    return nombres.decimal_arrondi_cent_fraction(valeur)
+
+
 def _ecart_duree_minutes(faits: dict[str, Any]) -> Resultat:
     v, manque = _lire_entrees(faits, ("duree_reelle_minutes", "duree_estimee_minutes"))
     if manque:
         return None, v, manque
-    return v["duree_reelle_minutes"] - v["duree_estimee_minutes"], v, []
+    exact = Fraction(v["duree_reelle_minutes"]) - Fraction(v["duree_estimee_minutes"])
+    return _decimal_arrondi_cent_fraction(exact), v, []
 
 
-def _ecart_duree_pct(faits: dict[str, Any]) -> Resultat:
+def _ecart_duree_pct(
+    faits: dict[str, Any], valeurs_exactes: dict[str, Fraction] | None = None,
+) -> Resultat:
     v, manque = _lire_entrees(faits, ("duree_reelle_minutes", "duree_estimee_minutes"))
     if manque:
         return None, v, manque
     estimee = v["duree_estimee_minutes"]
     if estimee <= 0:
         return None, v, [_manque_specifique("duree_estimee_minutes", "doit être strictement positive")]
-    return (v["duree_reelle_minutes"] - estimee) / estimee * _CENT, v, []
+    valeur_exacte = (Fraction(v["duree_reelle_minutes"]) - Fraction(estimee)) * 100 / Fraction(estimee)
+    if valeurs_exactes is not None:
+        valeurs_exactes["m8_ecart_duree_pct"] = valeur_exacte
+    return _decimal_arrondi_cent_fraction(valeur_exacte), v, []
 
 
 def _marge_prevue_cad(faits: dict[str, Any]) -> Resultat:
     v, manque = _lire_entrees(faits, ("prix_total", "cout_total"))
     if manque:
         return None, v, manque
-    return v["prix_total"] - v["cout_total"], v, []
+    exact = Fraction(v["prix_total"]) - Fraction(v["cout_total"])
+    return _decimal_arrondi_cent_fraction(exact), v, []
 
 
 def _marge_reelle_cad(faits: dict[str, Any]) -> Resultat:
@@ -355,20 +369,32 @@ def _ecart_marge_cad(faits: dict[str, Any]) -> Resultat:
     v, manque = _lire_entrees(faits, ("prix_total", "cout_total", "marge_reelle_cad"))
     if manque:
         return None, v, manque
-    return v["marge_reelle_cad"] - (v["prix_total"] - v["cout_total"]), v, []
+    exact = (
+        Fraction(v["marge_reelle_cad"])
+        - Fraction(v["prix_total"])
+        + Fraction(v["cout_total"])
+    )
+    return _decimal_arrondi_cent_fraction(exact), v, []
 
 
-def _ecart_marge_pct(faits: dict[str, Any]) -> Resultat:
+def _ecart_marge_pct(
+    faits: dict[str, Any], valeurs_exactes: dict[str, Fraction] | None = None,
+) -> Resultat:
     v, manque = _lire_entrees(faits, ("prix_total", "cout_total", "marge_reelle_cad"))
     if manque:
         return None, v, manque
-    prevue = v["prix_total"] - v["cout_total"]
-    if prevue == 0:
+    prevue_exacte = Fraction(v["prix_total"]) - Fraction(v["cout_total"])
+    if prevue_exacte == 0:
         return None, v, [_manque_specifique("prix_total", "marge prévue nulle : écart relatif indéfini")]
-    return (v["marge_reelle_cad"] - prevue) / prevue * _CENT, v, []
+    valeur_exacte = (Fraction(v["marge_reelle_cad"]) - prevue_exacte) * 100 / prevue_exacte
+    if valeurs_exactes is not None:
+        valeurs_exactes["m8_ecart_marge_pct"] = valeur_exacte
+    return _decimal_arrondi_cent_fraction(valeur_exacte), v, []
 
 
-def _ecart_materiaux_max_pct(faits: dict[str, Any]) -> Resultat:
+def _ecart_materiaux_max_pct(
+    faits: dict[str, Any], valeurs_exactes: dict[str, Fraction] | None = None,
+) -> Resultat:
     variance = faits.get("variance")
     if variance is None:
         return None, {}, [{
@@ -398,6 +424,8 @@ def _ecart_materiaux_max_pct(faits: dict[str, Any]) -> Resultat:
         "quantite_reelle": ligne["quantite_reelle"],
         "signal_critique_m6": variance["signal_critique"],
     }
+    if valeurs_exactes is not None:
+        valeurs_exactes["m8_ecart_materiaux_max_pct"] = Fraction(ecart_max) * 100
     return ecart_max * _CENT, entrees, []
 
 
@@ -410,6 +438,9 @@ _CALCULS = {
     "m8_ecart_marge_pct": _ecart_marge_pct,
     "m8_ecart_materiaux_max_pct": _ecart_materiaux_max_pct,
 }
+_METRIQUES_PRECISION_EXACTE = frozenset({
+    "m8_ecart_duree_pct", "m8_ecart_marge_pct", "m8_ecart_materiaux_max_pct",
+})
 
 
 def _detail_manque(manque: list[dict[str, str]]) -> str:
@@ -421,7 +452,10 @@ def _entrees_en_texte(entrees: dict[str, Any]) -> dict[str, Any]:
     return {cle: (nombres.texte_decimal(v) if isinstance(v, Decimal) else v) for cle, v in entrees.items()}
 
 
-def mesurer_chantier(faits: dict[str, Any], definitions: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
+def mesurer_chantier(
+    faits: dict[str, Any], definitions: dict[str, dict[str, str]], *,
+    valeurs_exactes: dict[str, Fraction] | None = None,
+) -> list[dict[str, Any]]:
     """Les mesures d'un chantier, une par métrique enregistrée (hors performance d'équipe, qui
     porte sur plusieurs chantiers), dans l'ordre du registre. Chaque mesure : ``statut`` (calculée ou
     non calculable), ``valeur`` en texte (``None`` si non calculable), ``manque`` et ``detail`` (ce
@@ -437,7 +471,10 @@ def mesurer_chantier(faits: dict[str, Any], definitions: dict[str, dict[str, str
             entrees: dict[str, Any] = {}
             manque = [{"champ": "calcul", "source": "M8", "raison": "aucun calcul enregistré pour cette métrique"}]
         else:
-            valeur, entrees, manque = calcul(faits)
+            if valeurs_exactes is not None and metric_id in _METRIQUES_PRECISION_EXACTE:
+                valeur, entrees, manque = calcul(faits, valeurs_exactes)
+            else:
+                valeur, entrees, manque = calcul(faits)
         calculee = valeur is not None
         mesures.append({
             "metric_id": metric_id,
@@ -484,7 +521,9 @@ def compacter(mesures: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list
 # ---------------------------------------------------------------------------
 # Seuils : configurés ou pas d'alerte, et un signal qui dit quoi configurer
 # ---------------------------------------------------------------------------
-def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str, Any]]:
+def evaluer_seuils(
+    mesures: list[dict[str, Any]], seuils: Any, *, valeurs_exactes: dict[str, Fraction] | None = None,
+) -> list[dict[str, Any]]:
     """Situation de chaque mesure CALCULÉE et surveillée face à son seuil configuré. Une mesure non
     calculable n'est pas évaluée (elle dit déjà ce qui manque). Sans seuil, ou avec un seuil
     invalide, le statut est ``seuil_a_configurer`` ou ``seuil_invalide`` : jamais une valeur par
@@ -506,11 +545,18 @@ def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str,
             if seuil is None:
                 evaluation["statut"] = SEUIL_INVALIDE
             else:
-                valeur = Decimal(mesure["valeur"])
-                atteint = valeur >= seuil["valeur"] if seuil["sens"] == SENS_AU_DESSUS else valeur <= seuil["valeur"]
+                valeur_exacte = valeurs_exactes.get(metric_id) if valeurs_exactes is not None else None
+                if not isinstance(valeur_exacte, Fraction):
+                    raise ValueError(f"REJ-M8-SEUIL-PRECISION-INDISPONIBLE:{metric_id}")
+                seuil_exact = Fraction(seuil["valeur"])
+                atteint = valeur_exacte >= seuil_exact if seuil["sens"] == SENS_AU_DESSUS else (
+                    valeur_exacte <= seuil_exact
+                )
+                if Fraction(Decimal(mesure["valeur"])) != valeur_exacte:
+                    evaluation["comparaison_non_arrondie"] = True
                 evaluation.update({
                     "statut": SEUIL_FRANCHI if atteint else SEUIL_NON_FRANCHI,
-                    "sens": seuil["sens"], "seuil": nombres.texte_decimal(seuil["valeur"]),
+                    "sens": seuil["sens"], "seuil": nombres.texte_seuil(seuil["valeur"]),
                 })
         evaluations.append(evaluation)
     return evaluations
@@ -531,6 +577,7 @@ def _charge_franchi(
     valeur = _afficher(evaluation["valeur"], unite)
     seuil = _afficher(evaluation["seuil"], unite)
     comparaison = "atteint ou dépasse" if evaluation["sens"] == SENS_AU_DESSUS else "atteint ou passe sous"
+    precision = " (comparaison faite avant l'arrondi d'affichage)" if evaluation.get("comparaison_non_arrondie") else ""
     ident = f"m8-alerte-{metric_id}-{TYPE_ALERTE_SEUIL_FRANCHI}-{encodage.empreinte(wct_id)[:16]}"
     return {
         "evenement_id": ident,
@@ -538,7 +585,7 @@ def _charge_franchi(
         "type_alerte": TYPE_ALERTE_SEUIL_FRANCHI,
         "quoi": f"{mesure['nom']} : {valeur} sur le chantier {wct_id}.",
         "a_qui": a_qui,
-        "pourquoi": f"valeur {valeur} {comparaison} le seuil configuré {seuil}.",
+        "pourquoi": f"valeur {valeur} {comparaison} le seuil configuré {seuil}{precision}.",
         "preuve": {
             "metric_id": metric_id, "wct_id": wct_id, "valeur": evaluation["valeur"], "unite": unite,
             "sens": evaluation["sens"], "seuil": evaluation["seuil"],
@@ -554,7 +601,10 @@ def _charge_a_configurer(evaluation: dict[str, Any], horodatage_reference: str) 
     metric_id = evaluation["metric_id"]
     manque = "seuil" if evaluation["statut"] == SEUIL_A_CONFIGURER else "seuil_invalide"
     chemin = f"configuration.seuils_alerte.{metric_id}"
-    etat = "absent" if manque == "seuil" else "invalide (sens au_dessus ou au_dessous et valeur numérique attendus)"
+    etat = "absent" if manque == "seuil" else (
+        "invalide (sens au_dessus ou au_dessous, valeur numérique, et représentation affichable "
+        f"en {nombres.LONGUEUR_TEXTE_SEUIL_MAX} caractères maximum attendus)"
+    )
     ident = f"m8-alerte-{metric_id}-{TYPE_ALERTE_SEUIL_A_CONFIGURER}-{_jour_de(horodatage_reference)}"
     return {
         "evenement_id": ident,
@@ -564,7 +614,10 @@ def _charge_a_configurer(evaluation: dict[str, Any], horodatage_reference: str) 
         "a_qui": _DESTINATAIRE_CONFIGURATION,
         "pourquoi": f"{chemin} est {etat} dans department.yaml.",
         "preuve": {"metric_id": metric_id, "manque": manque},
-        "action_proposee": f"Définir le sens et la valeur du seuil ({chemin}) dans department.yaml de m08-analytics.",
+        "action_proposee": (
+            f"Définir le sens et la valeur du seuil ({chemin}) dans department.yaml de m08-analytics ; "
+            f"sa représentation doit tenir en {nombres.LONGUEUR_TEXTE_SEUIL_MAX} caractères."
+        ),
         "source": _SOURCE_CONFIGURATION,
         "horodatage_reference": horodatage_reference,
     }
@@ -598,13 +651,16 @@ def charges_alertes(
 # ---------------------------------------------------------------------------
 # Performance d'équipe : la plus petite métrique honnête
 # ---------------------------------------------------------------------------
-def _ligne_equipe(n: int, sans_prevu: int, reel: Decimal, estime: Decimal, minimum: int | None) -> dict[str, Any]:
+def _ligne_equipe(n: int, sans_prevu: int, reel: Fraction, estime: Fraction, minimum: int | None) -> dict[str, Any]:
     return {
         "n_chantiers_mesures": n,
         "n_chantiers_sans_temps_prevu": sans_prevu,
-        "duree_reelle_totale_minutes": nombres.texte_decimal(reel),
-        "duree_estimee_totale_minutes": nombres.texte_decimal(estime),
-        "ecart_pct": nombres.texte_decimal((reel - estime) / estime * _CENT) if n > 0 and estime > 0 else None,
+        "duree_reelle_totale_minutes": nombres.texte_decimal(nombres.decimal_arrondi_cent_fraction(reel)),
+        "duree_estimee_totale_minutes": nombres.texte_decimal(nombres.decimal_arrondi_cent_fraction(estime)),
+        "ecart_pct": (
+            nombres.texte_decimal(nombres.decimal_arrondi_cent_fraction((reel - estime) * 100 / estime))
+            if n > 0 and estime > 0 else None
+        ),
         "suffisant": None if minimum is None else n >= minimum,
     }
 
@@ -639,7 +695,7 @@ def performance_equipe(entrees: list[dict[str, Any]], chantiers_minimum: Any) ->
     cumuls: dict[str, dict[str, Any]] = {}
     for wct in wct_par_id.values():
         cumul = cumuls.setdefault(
-            wct["technicien_id"], {"n": 0, "sans_prevu": 0, "reel": _ZERO, "estime": _ZERO}
+            wct["technicien_id"], {"n": 0, "sans_prevu": 0, "reel": Fraction(0), "estime": Fraction(0)}
         )
         devis = devis_par_id.get(wct.get("devis_id"))
         reel = nombres.decimal_lu(wct.get("duree_reelle_minutes"))
@@ -648,8 +704,8 @@ def performance_equipe(entrees: list[dict[str, Any]], chantiers_minimum: Any) ->
             cumul["sans_prevu"] += 1
             continue
         cumul["n"] += 1
-        cumul["reel"] += reel
-        cumul["estime"] += estime
+        cumul["reel"] += Fraction(reel)
+        cumul["estime"] += Fraction(estime)
 
     techniciens = [
         {"technicien_id": technicien, **_ligne_equipe(c["n"], c["sans_prevu"], c["reel"], c["estime"], minimum)}
@@ -658,8 +714,8 @@ def performance_equipe(entrees: list[dict[str, Any]], chantiers_minimum: Any) ->
     total = {
         "n": sum(c["n"] for c in cumuls.values()),
         "sans_prevu": sum(c["sans_prevu"] for c in cumuls.values()),
-        "reel": sum((c["reel"] for c in cumuls.values()), _ZERO),
-        "estime": sum((c["estime"] for c in cumuls.values()), _ZERO),
+        "reel": sum((c["reel"] for c in cumuls.values()), Fraction(0)),
+        "estime": sum((c["estime"] for c in cumuls.values()), Fraction(0)),
     }
     return {
         "metric_id": METRIQUE_EQUIPE,

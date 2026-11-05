@@ -106,6 +106,12 @@ describe.each(LANGUES)("textes du profil admin (%s)", (_langue, ressources) => {
     }
   });
 
+  test("la preuve du taux dit que le seuil est comparé au taux non arrondi", () => {
+    const explication = textes["chiffres.vue.comparaisonTauxArrondie"];
+    expect(explication).toMatch(_langue === "fr-CA" ? /taux non arrondi/i : /unrounded rate/i);
+    expect(marques(explication)).toEqual(["acceptes", "envoyes"]);
+  });
+
   test.each(CATALOGUES)("le catalogue %s a exactement les valeurs du serveur (rien en trop, rien en moins)", (chemin, valeurs) => {
     const catalogue = resoudre(ressources, chemin);
     expect(typeof catalogue).toBe("object");
