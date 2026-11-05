@@ -287,8 +287,8 @@ def test_stock_negatif_d_aujourd_hui_est_signale_sans_quantite():
 
     (attente,) = rea.attentes(_constats_bas("wct-b"), mouvements, ARTICLES)
 
-    assert "stock théorique négatif (-16.0 pi)" in attente["resume"]
-    assert "à vérifier avant de commander" in attente["resume"] and "besoin de commande :" not in attente["resume"]
+    assert "stock en main négatif" in attente["resume"].lower() and "-16.0 pi" in attente["resume"]
+    assert "avant toute décision de commande" in attente["resume"] and "besoin de commande :" not in attente["resume"]
 
 
 def test_articles_sans_parametres_forment_une_seule_attente_a_configurer():

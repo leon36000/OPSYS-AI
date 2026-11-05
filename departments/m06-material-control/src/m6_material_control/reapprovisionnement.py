@@ -239,8 +239,9 @@ def _attente_besoin(dernier: Mapping[str, Any], verdict: Mapping[str, Any]) -> d
         )
     elif verdict["stock_negatif"]:
         resume = (
-            f"Stock bas : {materiau_id} — stock théorique négatif ({stock_en_main}), à vérifier avant de "
-            f"commander ; seuil {seuil}"
+            f"Stock en main négatif : {materiau_id} — {stock_en_main}. Seuil configuré : {seuil}. "
+            "Vérifier les mouvements de stock et les transferts d'emplacement avant toute décision de commande ; "
+            "aucune quantité à commander n'est calculée tant que le stock en main est négatif."
         )
     else:
         a_commander = _avec_unite(verdict["quantite_a_commander"], unite)
@@ -256,7 +257,10 @@ def _attente_besoin(dernier: Mapping[str, Any], verdict: Mapping[str, Any]) -> d
         "niveau": NIVEAU_ATTENTE,
         "depuis": _depuis(dernier),
         "action_proposee": (
-            "Décider de commander : un bon de commande se demande en brouillon puis s'approuve, M6 n'en "
+            "Vérifier les déclarations de sortie, les réceptions et les transferts d'emplacement. M6 ne détermine "
+            "pas automatiquement la cause, ne calcule pas de quantité à commander et ne corrige pas le stock seul."
+            if verdict["stock_negatif"]
+            else "Décider de commander : un bon de commande se demande en brouillon puis s'approuve, M6 n'en "
             "crée jamais seul"
         ),
     }
@@ -269,15 +273,15 @@ def _attente_stock_negatif(dernier: Mapping[str, Any], en_main: Decimal) -> dict
         "type": TYPE_ATTENTE_STOCK_NEGATIF,
         "id": f"{TYPE_ATTENTE_STOCK_NEGATIF}:{materiau_id}",
         "resume": (
-            f"Stock négatif : {materiau_id} — {_avec_unite(_texte(en_main), unite)} en main. Une sortie a été déclarée "
-            "sans réception correspondante (achat sur place, article sorti du dépôt ou réception non saisie) : "
-            "vérifier avant de commander."
+            f"Stock en main négatif : {materiau_id} — {_avec_unite(_texte(en_main), unite)}. "
+            "Vérifier les mouvements de stock et les transferts d'emplacement avant toute décision de commande ; "
+            "la cause n'est pas déterminée automatiquement."
         ),
         "niveau": NIVEAU_ATTENTE,
         "depuis": _depuis(dernier),
         "action_proposee": (
-            "Saisir la réception manquante (m6_receptionner_commande) ou compter le stock (m6_soumettre_comptage) ; "
-            "M6 ne corrige jamais le stock seul"
+            "Vérifier les déclarations de sortie, les réceptions et les transferts d'emplacement. M6 ne détermine "
+            "pas automatiquement la cause, ne calcule pas de quantité à commander et ne corrige pas le stock seul."
         ),
     }
 

@@ -258,7 +258,7 @@ def test_stock_theorique_negatif_est_signale_sans_quantite_a_commander(base_dura
     (constat,) = _constats()
     assert constat["stock_negatif"] is True and constat["quantite_a_commander"] is None
     (attente,) = _attentes()
-    assert "stock théorique négatif (-16.0 pi)" in attente["resume"] and "besoin de commande :" not in attente["resume"]
+    assert "stock en main négatif" in attente["resume"].lower() and "-16.0 pi" in attente["resume"] and "besoin de commande :" not in attente["resume"]
 
 
 # -- seuil non configuré : visible, jamais deviné -------------------------------------------------------
