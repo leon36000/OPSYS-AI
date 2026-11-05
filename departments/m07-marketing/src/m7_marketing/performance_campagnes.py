@@ -48,6 +48,20 @@ def _longueur_octets(dialecte: str):
     raise ValueError("PERFORMANCE_DIALECTE_NON_PRIS_EN_CHARGE")
 
 
+def _requete_capacite_bornee(dialecte: str):
+    """Rangs et longueurs du préfixe plafonné, sans retourner les charges."""
+    octets = _longueur_octets(dialecte)
+    return (
+        select(REGISTRES.c.rang.label("rang"), octets.label("octets"))
+        .where(
+            (REGISTRES.c.departement == REGISTRE[0])
+            & (REGISTRES.c.registre == REGISTRE[1])
+        )
+        .order_by(REGISTRES.c.rang)
+        .limit(MAX_LIGNES + 1)
+    )
+
+
 def _texte_borne(valeur: Any, *, facultatif: bool = False, vide_permis: bool = False) -> bool:
     return facultatif and valeur is None or (
         isinstance(valeur, str) and (vide_permis or bool(valeur.strip())) and len(valeur.encode("utf-8")) <= 2048
@@ -141,15 +155,21 @@ def lire_performance(debut: date, fin: date) -> dict[str, Any]:
         with stockage.transaction():
             return lire_performance(debut, fin)
     filtre = (REGISTRES.c.departement == REGISTRE[0]) & (REGISTRES.c.registre == REGISTRE[1])
-    octets = _longueur_octets(cnx.dialect.name)
-    nombre, premier, dernier, total, maximum = cnx.execute(select(
-        func.count(), func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),
-        func.coalesce(func.sum(octets), 0), func.coalesce(func.max(octets), 0),
-    ).where(filtre)).one()
+    # Ne jamais agréger l'intégralité du registre avant de constater une saturation.
+    # Les charges ne sont lues qu'après validation des deux plafonds.
+    capacites = cnx.execute(_requete_capacite_bornee(cnx.dialect.name)).all()
+    nombre = len(capacites)
     if nombre > MAX_LIGNES:
         raise ValueError("PERFORMANCE_BORNE_LIGNES")
-    if total > MAX_OCTETS_TOTAL or maximum > MAX_OCTETS_LIGNE:
-        raise ValueError("PERFORMANCE_BORNE_OCTETS")
+    total = 0
+    for _rang, taille_ligne in capacites:
+        if taille_ligne > MAX_OCTETS_LIGNE:
+            raise ValueError("PERFORMANCE_BORNE_OCTETS")
+        total += taille_ligne
+        if total > MAX_OCTETS_TOTAL:
+            raise ValueError("PERFORMANCE_BORNE_OCTETS")
+    premier = capacites[0].rang if capacites else None
+    dernier = capacites[-1].rang if capacites else None
     if nombre and (premier != 0 or dernier != nombre - 1):
         raise ValueError("PERFORMANCE_PREFIXE_INVALIDE")
     lignes = [] if not nombre else cnx.execute(select(

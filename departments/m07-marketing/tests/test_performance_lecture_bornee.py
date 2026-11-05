@@ -45,10 +45,51 @@ def _lecture():
 
 
 def _brut(texte):
+    _brut_rang(0, texte)
+
+
+def _brut_rang(rang, texte):
     with stockage.transaction() as cnx:
         cnx.execute(REGISTRES.insert().values(
-            departement=performance.REGISTRE[0], registre=performance.REGISTRE[1], rang=0, maillon=texte,
+            departement=performance.REGISTRE[0], registre=performance.REGISTRE[1], rang=rang, maillon=texte,
         ))
+
+
+@pytest.mark.parametrize("dialecte", [sqlite.dialect(), postgresql.dialect()])
+def test_precontrole_capacite_sql_est_borne_et_ne_projette_pas_les_charges(base, monkeypatch, dialecte):
+    monkeypatch.setattr(performance, "MAX_LIGNES", 2)
+    requete = performance._requete_capacite_bornee(dialecte.name)
+    sql = str(requete.compile(dialect=dialecte, compile_kwargs={"literal_binds": True}))
+    projection = sql.split(" FROM ", 1)[0]
+    assert "LIMIT 3" in sql
+    assert "COUNT(" not in sql.upper() and "SUM(" not in sql.upper() and "MAX(" not in sql.upper()
+    assert " AS rang" in projection and " AS octets" in projection
+    assert list(requete.selected_columns.keys()) == ["rang", "octets"]
+
+
+def test_saturation_lignes_refuse_avant_decode_et_lit_seulement_la_borne_plus_un(base, monkeypatch):
+    monkeypatch.setattr(performance, "MAX_LIGNES", 2)
+    for rang in range(3):
+        _brut_rang(rang, "pas-du-json" * 20)
+    monkeypatch.setattr(
+        performance, "_decoder_fait",
+        lambda _texte: (_ for _ in ()).throw(AssertionError("charge décodée avant contrôle de capacité")),
+    )
+    with pytest.raises(ValueError, match="PERFORMANCE_BORNE_LIGNES"):
+        _lecture()
+
+
+def test_saturation_octets_refuse_avant_decode(base, monkeypatch):
+    monkeypatch.setattr(performance, "MAX_LIGNES", 3)
+    monkeypatch.setattr(performance, "MAX_OCTETS_TOTAL", 30)
+    _brut_rang(0, "x" * 20)
+    _brut_rang(1, "y" * 20)
+    monkeypatch.setattr(
+        performance, "_decoder_fait",
+        lambda _texte: (_ for _ in ()).throw(AssertionError("charge décodée avant contrôle de capacité")),
+    )
+    with pytest.raises(ValueError, match="PERFORMANCE_BORNE_OCTETS"):
+        _lecture()
 
 
 def test_historique_valide_non_scelle_et_lecture_sans_ecriture(base):
