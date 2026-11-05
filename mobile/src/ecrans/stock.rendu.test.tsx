@@ -2,7 +2,7 @@ import React from "react";
 import { act, create } from "react-test-renderer";
 import type { ReactTestRenderer } from "react-test-renderer";
 import { BoutonSecondaire } from "../admin/composants";
-import { disponibiliteFictive, digestFictif } from "../m6/fixturesStock";
+import { disponibiliteFictive, digestFictif, digestReapprovisionnementIndetermineProduitM6Fictif } from "../m6/fixturesStock";
 jest.mock("expo-router", () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require("react"); React.useEffect(callback, [callback]);
@@ -25,6 +25,7 @@ jest.mock("@/roles/contexte", () => ({ useSessionAppareil: () => "admin-fictif" 
 const service = require("@/admin/service") as Record<string, jest.Mock>;
 const Ecran = require("../../app/(admin)/stock").default;
 const serveur = <T,>(valeur: T) => ({ source: "serveur", valeur, misAJourLe: "2026-10-07T12:00:00Z" });
+const digestIndetermineFictif = digestReapprovisionnementIndetermineProduitM6Fictif;
 let arbre: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
@@ -43,7 +44,19 @@ test("limites et unités explicites, sans pagination inventée", async () => {
   expect(rendu).toContain("admin.stock.reservationsTronquees");
   expect(rendu).toContain("admin.stock.uniteInconnue");
   expect(rendu).toContain("admin.stock.seuilsNonFournis");
+  expect(rendu).toContain("admin.stock.reapprovisionnementsIndeterminesNonFournis");
   expect(arbre.root.findAllByType(BoutonSecondaire)).toHaveLength(1);
+});
+
+test("digest récent rend visibles les paires indéterminées par chantier", async () => {
+  service.chargerDigestM6.mockResolvedValue(serveur(digestIndetermineFictif));
+  await act(async () => { arbre = create(<Ecran />); });
+  const rendu = JSON.stringify(arbre.toJSON());
+  expect(rendu).toContain("admin.stock.reapprovisionnementsIndetermines");
+  expect(rendu).toContain("admin.stock.reapprovisionnementsIndeterminesTitre");
+  expect(rendu).toContain("MAT-MOBILE-FICTIF");
+  expect(rendu).toContain("CH-MOBILE-FICTIF");
+  expect(rendu).toContain("admin.stock.reapprovisionnementIndetermine");
 });
 
 test("rafraîchir écarte la lecture précédente encore en vol", async () => {

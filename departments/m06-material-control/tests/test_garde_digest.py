@@ -11,10 +11,9 @@ import json
 import pytest
 from m6_material_control import outils as outils_m6
 from m6_material_control.registre import Registre
-from sqlalchemy import text
-
 from opsys import contexte, identite, stockage
 from opsys.outils import executer, executer_atomique
+from sqlalchemy import text
 
 FICTIF = True
 ADMIN = contexte.IdentiteAppelante("admin.fictif", "admin")
@@ -118,9 +117,11 @@ def test_admin_confirme_lit_le_meme_digest_que_la_voie_interne_sans_mutation(dig
     resultat = admin["resultat"]
     assert {k: v for k, v in resultat.items() if k != "hash_digest"} == {
         "type": "DIGEST_MATERIEL", "nb_variances_stock": 1, "nb_reorders_suggeres": 1,
+        "nb_reapprovisionnements_indetermines": 0,
         "variances_significatives": [{"chantier_id": "CH-fictif", "materiau_id": "MAT-fictif",
                                      "verdict_variance": "STOCK_INFERIEUR_AU_THEORIQUE", "ecart": -2.0}],
         "reorders": [{"chantier_id": "CH-fictif", "materiau_id": "MAT-fictif", "quantite_suggeree": 3.0}],
+        "reapprovisionnements_indetermines": [],
     }
     assert len(resultat["hash_digest"]) == 64
     assert _etat() == avant
@@ -148,5 +149,11 @@ def test_apres_un_contexte_refuse_la_voie_interne_pure_reste_accessible(digest_d
     assert refuse["resultat"].get("accepte") is False, refuse
     assert contexte.identite_appelante() is None
     assert executer(digest_durable, args) == interne
-    assert interne["ok"] is True and interne["resultat"]["nb_reorders_suggeres"] == 1
+    assert interne["ok"] is True and interne["resultat"]["nb_reorders_suggeres"] == 0
+    assert interne["resultat"]["nb_reapprovisionnements_indetermines"] == 1
+    assert interne["resultat"]["reapprovisionnements_indetermines"] == [{
+        "chantier_id": "CH-fictif",
+        "materiau_id": "MAT-fictif",
+        "motif": "stock_localise_par_chantier_non_reconstructible",
+    }]
     assert _etat() == avant

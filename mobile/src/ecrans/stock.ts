@@ -18,6 +18,7 @@ export interface VueDisponibiliteStock {
 export interface VueDigestStock {
   readonly lignes: readonly Message[];
   readonly variances: readonly GroupeStock[];
+  readonly reapprovisionnementsIndetermines: readonly GroupeStock[];
 }
 const sur = (v: string | null) => v === null ? null : texteSansChemin(v);
 const quantite = (v: string, langue: LangueMontant) => formaterQuantite(v, langue) ?? v;
@@ -68,10 +69,23 @@ export function presenterDigest(v: DigestStock, langue: LangueMontant): VueDiges
   const lignes = [message("admin.stock.historique"), message("admin.stock.seuilsNonFournis"),
     message("admin.stock.constats", { nombre: v.nb_variances_stock })];
   if (v.variances_significatives.length === 0) lignes.push(message("admin.stock.constatsVides"));
+  const indetermines = v.reapprovisionnements_indetermines;
+  if (indetermines === undefined) {
+    lignes.push(message("admin.stock.reapprovisionnementsIndeterminesNonFournis"));
+  } else if (indetermines.length > 0) {
+    lignes.push(message("admin.stock.reapprovisionnementsIndetermines", {
+      nombre: v.nb_reapprovisionnements_indetermines ?? indetermines.length,
+    }));
+  }
   return { lignes, variances: v.variances_significatives.map(x => ({ titre: sur(x.materiau_id),
     lignes: [ref("chantier", x.chantier_id),
       message(`admin.stock.verdicts.${x.verdict_variance}`),
       message("admin.stock.ecart", { quantite: quantite(String(x.ecart), langue) }),
       message("admin.stock.uniteInconnue")], detail: [],
+  })),
+  reapprovisionnementsIndetermines: (indetermines ?? []).map(x => ({
+    titre: sur(x.materiau_id),
+    lignes: [ref("chantier", x.chantier_id), message("admin.stock.reapprovisionnementIndetermine")],
+    detail: [],
   })) };
 }

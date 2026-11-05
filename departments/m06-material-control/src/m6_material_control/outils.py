@@ -128,6 +128,7 @@ from . import (
     reapprovisionnement,
     reapprovisionnement_appareil,
     reception,
+    reorder,
     reservations,
     seuils_variance,
     stock,
@@ -1367,7 +1368,39 @@ def receptionner_commande(
     transferts_c5 = _enregistrer_emplacements_reception_c5(
         resultat, details_valides, lieu_valide, reception_po.get("horodatage")
     )
-    reponse = {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
+    mouvements_courants = registre_cible.lire()
+    transferts_courants = (
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+        if stockage.connexion_courante() is not None
+        else None
+    )
+    paires_reception = {
+        (resultat["accuse_reception"]["chantier_id"], ligne["materiau_id"])
+        for ligne in resultat["accuse_reception"].get("lignes", [])
+    }
+    reapprovisionnements_indetermines = [
+        paire
+        for paire in reorder.paires_indeterminees(
+            seuils_reorder or [], mouvements_courants, transferts_courants
+        )
+        if (paire["chantier_id"], paire["materiau_id"]) in paires_reception
+    ]
+    paires_indeterminees = {
+        (paire["chantier_id"], paire["materiau_id"])
+        for paire in reapprovisionnements_indetermines
+    }
+    if paires_indeterminees:
+        resultat["signaux_reorder"] = [
+            signal
+            for signal in resultat.get("signaux_reorder", [])
+            if (signal.get("chantier_id"), signal.get("materiau_id")) not in paires_indeterminees
+        ]
+    reponse = {
+        "accepte": True,
+        "resultat": resultat,
+        "reapprovisionnements_indetermines": reapprovisionnements_indetermines,
+        **_etat_registre(registre_cible),
+    }
     if details_valides is not None:
         reponse["details_lignes"] = details_valides
     if lieu_valide is not None:
@@ -2084,7 +2117,14 @@ def produire_digest(
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     registre_cible = _registre_de_l_appel(registre_historique)
-    return digest.produire_digest_quotidien(registre_cible, seuils_reorder or [])
+    transferts_emplacements = (
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+        if stockage.connexion_courante() is not None
+        else None
+    )
+    return digest.produire_digest_quotidien(
+        registre_cible, seuils_reorder or [], transferts_emplacements
+    )
 
 
 def resoudre_prix_materiau(

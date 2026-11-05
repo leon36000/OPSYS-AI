@@ -1,9 +1,19 @@
 import { lireDisponibilite, lireDigest, lireDigestSansSeuils, OUTIL_DISPONIBILITE, OUTIL_DIGEST } from "./stock";
-import { CAPTURES_STOCK, disponibiliteFictive, digestFictif, FICTIF, provenanceStock } from "./fixturesStock";
+import { CAPTURES_STOCK, disponibiliteFictive, digestFictif, digestReapprovisionnementIndetermineProduitM6Fictif,
+  FICTIF, provenanceStock } from "./fixturesStock";
 
 const article = disponibiliteFictive.articles[0];
 const variance = digestFictif.variances_significatives[0];
 const digestAvecSeuils = CAPTURES_STOCK.digest_seuil_fourni_fictif.corps.result.resultat;
+const digestIndetermineFictif = {
+  ...digestFictif,
+  nb_reapprovisionnements_indetermines: 1,
+  reapprovisionnements_indetermines: [{
+    chantier_id: "CHANTIER-FICTIF",
+    materiau_id: "mat-indetermine-fictif",
+    motif: "stock_localise_par_chantier_non_reconstructible",
+  }],
+};
 
 test("les fixtures portent la provenance HTTP MCP et les noms natifs des outils", () => {
   expect(FICTIF).toBe(true);
@@ -16,10 +26,33 @@ test("lit les quantités natives, sans unité ajoutée ni recalcul du stock", ()
   expect(lireDisponibilite(disponibiliteFictive)).toEqual(disponibiliteFictive);
   expect(lireDigest(digestFictif)).toEqual(digestFictif);
   expect(lireDigest(digestAvecSeuils)).toEqual(digestAvecSeuils);
+  expect(lireDigest(digestIndetermineFictif)).toEqual(digestIndetermineFictif);
+  expect(lireDigestSansSeuils(digestIndetermineFictif)).toEqual(digestIndetermineFictif);
   expect(lireDigestSansSeuils(digestFictif)).toEqual(digestFictif);
   expect(lireDigestSansSeuils(digestAvecSeuils)).toBeNull();
   const manque = CAPTURES_STOCK.reservation_manque_hors_selection_fictif.corps.result.resultat.resultat;
   expect(lireDisponibilite(manque)).toEqual(manque);
+});
+
+test("lit la sortie fictive réelle du producteur M6 avec les champs d'incertitude", () => {
+  expect(lireDigest(digestReapprovisionnementIndetermineProduitM6Fictif))
+    .toEqual(digestReapprovisionnementIndetermineProduitM6Fictif);
+  expect(lireDigestSansSeuils(digestReapprovisionnementIndetermineProduitM6Fictif))
+    .toEqual(digestReapprovisionnementIndetermineProduitM6Fictif);
+});
+
+test("l'absence des champs reorder reste inconnue, les champs nouveaux sont couplés et cohérents", () => {
+  const ancien = lireDigest(digestFictif);
+  expect(ancien).not.toBeNull();
+  expect(ancien?.nb_reapprovisionnements_indetermines).toBeUndefined();
+  expect(ancien?.reapprovisionnements_indetermines).toBeUndefined();
+
+  expect(lireDigest({ ...digestIndetermineFictif, reapprovisionnements_indetermines: undefined })).toBeNull();
+  expect(lireDigest({ ...digestIndetermineFictif, nb_reapprovisionnements_indetermines: undefined })).toBeNull();
+  expect(lireDigest({ ...digestIndetermineFictif, nb_reapprovisionnements_indetermines: 0 })).toBeNull();
+  expect(lireDigest({ ...digestIndetermineFictif, reapprovisionnements_indetermines: [{
+    ...digestIndetermineFictif.reapprovisionnements_indetermines[0], motif: "",
+  }] })).toBeNull();
 });
 
 test.each(["articles_15_fictif", "articles_16_fictif", "reservations_10_fictif", "reservations_11_fictif"] as const)(

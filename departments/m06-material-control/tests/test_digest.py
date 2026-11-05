@@ -37,7 +37,9 @@ def test_produire_digest_quotidien_retourne_la_forme_exacte_du_contrat_simple():
         "DIGEST_MATERIEL",
         1,
         0,
+        0,
         variances_significatives,
+        [],
         [],
     )
 
@@ -45,8 +47,10 @@ def test_produire_digest_quotidien_retourne_la_forme_exacte_du_contrat_simple():
         "type": "DIGEST_MATERIEL",
         "nb_variances_stock": 1,
         "nb_reorders_suggeres": 0,
+        "nb_reapprovisionnements_indetermines": 0,
         "variances_significatives": variances_significatives,
         "reorders": [],
+        "reapprovisionnements_indetermines": [],
         "hash_digest": hash_digest,
     }
 
@@ -126,7 +130,7 @@ def test_produire_digest_quotidien_recalcule_les_reorders_independamment_des_var
         }
     ]
 
-    resultat = digest.produire_digest_quotidien(registre, seuils)
+    resultat = digest.produire_digest_quotidien(registre, seuils, [])
 
     assert resultat["nb_variances_stock"] == 0
     assert resultat["nb_reorders_suggeres"] == 1
@@ -159,7 +163,7 @@ def test_produire_digest_quotidien_est_silencieux_si_stock_au_dessus_du_seuil():
         }
     ]
 
-    resultat = digest.produire_digest_quotidien(registre, seuils)
+    resultat = digest.produire_digest_quotidien(registre, seuils, [])
 
     assert resultat["reorders"] == []
     assert resultat["nb_reorders_suggeres"] == 0
@@ -205,7 +209,7 @@ def test_produire_digest_quotidien_utilise_deux_sources_independantes():
         }
     ]
 
-    resultat = digest.produire_digest_quotidien(registre, seuils)
+    resultat = digest.produire_digest_quotidien(registre, seuils, [])
 
     assert resultat["nb_variances_stock"] == 2
     assert resultat["nb_reorders_suggeres"] >= 1
@@ -258,8 +262,8 @@ def test_produire_digest_quotidien_est_deterministe_bit_a_bit():
         }
     ]
 
-    resultat_1 = digest.produire_digest_quotidien(registre, seuils_1)
-    resultat_2 = digest.produire_digest_quotidien(registre, seuils_2)
+    resultat_1 = digest.produire_digest_quotidien(registre, seuils_1, [])
+    resultat_2 = digest.produire_digest_quotidien(registre, seuils_2, [])
 
     assert resultat_1 == resultat_2
 
@@ -297,6 +301,7 @@ def test_produire_digest_quotidien_ne_modifie_jamais_le_registre():
                 "seuil_quantite": 8.0,
             }
         ],
+        [],
     )
 
     assert registre.lire() == avant

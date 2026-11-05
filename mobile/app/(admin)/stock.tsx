@@ -83,6 +83,9 @@ export default function EcranStock() {
         <EtatSection vue={ecarts} rendre={v => <>
           <Lignes items={v.lignes} style={styles.avis} />
           {v.variances.map((g, i) => <Groupe key={i} groupe={g} />)}
+          {v.reapprovisionnementsIndetermines.length > 0
+            ? <Text style={styles.sousTitre}>{t("admin.stock.reapprovisionnementsIndeterminesTitre")}</Text> : null}
+          {v.reapprovisionnementsIndetermines.map((g, i) => <Groupe key={`indetermine-${i}`} groupe={g} />)}
         </>} />
       </Carte>
     </>}

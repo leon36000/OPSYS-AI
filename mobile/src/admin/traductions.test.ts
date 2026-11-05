@@ -16,6 +16,7 @@ import { presenterAVoir, vueAccueil } from "../ecrans/admin";
 import { message, presenterSection } from "../ecrans/adminCommun";
 import { direLeManque, MANQUES_CONNUS } from "../ecrans/manquesM4";
 import { presenterGroupes, presenterDigest, presenterPreparation } from "../ecrans/chantiers";
+import { presenterDigest as presenterDigestStock } from "../ecrans/stock";
 import {
   decisionSuitePrevision,
   presenterEcheances,
@@ -35,6 +36,7 @@ import {
   vueExecutiveDe,
 } from "../ecrans/donneesDeVue";
 import { presenterVueExecutive } from "../ecrans/vueExecutive";
+import { digestFictif, digestReapprovisionnementIndetermineProduitM6Fictif } from "../m6/fixturesStock";
 import enCA from "../i18n/locales/en-CA";
 import frCA from "../i18n/locales/fr-CA";
 
@@ -232,6 +234,9 @@ function tousLesMessages(): MessageTrouve[] {
   const langues = ["fr-CA", "en-CA"] as const;
   const decalages = [-240, 0];
   for (const langue of langues) {
+    collecter(presenterDigestStock(digestFictif, langue), `stock:ancien-serveur:${langue}`, sortie);
+    collecter(presenterDigestStock(digestReapprovisionnementIndetermineProduitM6Fictif, langue),
+      `stock:producteur-v2:${langue}`, sortie);
     for (const decalage of decalages) {
       for (const nom of ["tresorerie", "tresorerie_sans_solde", "tresorerie_sans_paies"]) {
         collecter(presenterTresorerie(tresorerieDe(nom), langue, decalage), `tresorerie:${nom}:${langue}`, sortie);

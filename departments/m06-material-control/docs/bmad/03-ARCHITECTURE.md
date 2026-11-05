@@ -228,6 +228,11 @@ SignalPoAPayer:
   hash_maillon: str
 ```
 
+La réponse publique de réception peut aussi porter `reapprovisionnements_indetermines`, une liste de paires
+`{chantier_id, materiau_id, motif}` parmi les seuils fournis. Une paire qui y figure est retirée de
+`signaux_reorder` : le code ne substitue pas le stock global à la quantité par chantier et ne déduit aucune quantité
+à commander. Ce champ est un état de calcul incomplet, pas une suggestion d'achat.
+
 **Aucun de ces trois contrats ne porte** : `statut_paiement`, `virement`, `reference_bancaire`, `mode_paiement` — M6 émet un montant à payer, jamais un ordre ni un statut de règlement.
 
 ### 2.9 Sortie — `DigestMaterielQuotidien` (destination Nathan)
@@ -237,6 +242,7 @@ DigestMaterielQuotidien:
   type: str                     # toujours "DIGEST_MATERIEL"
   nb_variances_stock: int
   nb_reorders_suggeres: int
+  nb_reapprovisionnements_indetermines: int
   variances_significatives:
     - chantier_id: str
       materiau_id: str
@@ -246,8 +252,21 @@ DigestMaterielQuotidien:
     - chantier_id: str
       materiau_id: str
       quantite_suggeree: float
+  reapprovisionnements_indetermines:
+    - chantier_id: str
+      materiau_id: str
+      motif: str
   hash_digest: str               # sha256 déterministe du contenu du digest
 ```
+
+Les paires indéterminées proviennent uniquement des couples présents dans `seuils_reorder`; elles ne portent ni
+stock global ni seuil déduit. Le hash inclut les deux listes et leurs comptes.
+Pour une chaîne C5 intacte, le lien source identifie le mouvement RECEPTION par son index et son hash; un effet hors
+main n'est attribué qu'à la paire de chantier de ce mouvement. Les transferts historiques sans lien source ou les
+liens non résolus conservent l'indétermination de toutes les paires fournies pour le matériau. Si la chaîne
+d'emplacements n'est pas disponible à un appel direct, toutes les paires seuil fournies pour un matériau portant
+un mouvement qui contribue au stock théorique restent indéterminées; une archive absente n'est pas assimilée à une
+archive lue et vide.
 
 > Note d'architecte (sans modifier le contrat) : en v1, `variances_significatives` == **toutes** les variances de la fenêtre — aucun seuil de bruit n'existe (PRD §0.2). Le seuil de filtrage est un paramètre de roadmap, activable sans réécriture grâce au registre append-only.
 

@@ -15,6 +15,23 @@ export const provenanceStock = {
     "departments/m06-material-control/src/m6_material_control/emplacements.py": "e83e0a87ff8c121dcaaf2b1614e29c317b9d9e91308152ff52989ab5a34e2218"
   }
 } as const;
+
+/** Sortie capturée du producteur public M6 v2 sur SQLite temporaire et données entièrement fictives. */
+export const digestReapprovisionnementIndetermineProduitM6Fictif = {
+  type: "DIGEST_MATERIEL",
+  nb_variances_stock: 0,
+  nb_reorders_suggeres: 0,
+  nb_reapprovisionnements_indetermines: 1,
+  variances_significatives: [],
+  reorders: [],
+  reapprovisionnements_indetermines: [{
+    chantier_id: "CH-MOBILE-FICTIF",
+    materiau_id: "MAT-MOBILE-FICTIF",
+    motif: "stock_localise_par_chantier_non_reconstructible",
+  }],
+  hash_digest: "b69870682622eb16d3918e4a01e5139af6e8ec89ea58c8f61876371ccb60cf68",
+} as const;
+
 export const CAPTURES_STOCK = {
   "reservation_manque_hors_selection_fictif": {
     "nom": "reservation_manque_hors_selection_fictif",

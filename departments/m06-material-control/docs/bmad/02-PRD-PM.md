@@ -350,6 +350,16 @@ SignalPoAPayer:
   hash_maillon: str
 ```
 
+Quand la réponse de réception porte `reapprovisionnements_indetermines`, chaque entrée `{chantier_id, materiau_id,
+motif}` nomme une paire présente parmi les seuils fournis dont la comparaison locale est impossible avec les registres
+disponibles. Cette paire est absente de `signaux_reorder` ; aucun seuil, stock global ou besoin d'achat n'est déduit.
+Une référence C5 valide vers le mouvement RECEPTION exact attribue le transfert à son chantier. Un transfert ancien
+sans cette référence, ou une référence qui ne peut pas être résolue, laisse toutes les paires fournies de ce matériau
+indéterminées, faute de preuve pour les distinguer.
+Quand la chaîne des emplacements n'est pas fournie à un appel direct, toute paire seuil fournie pour un matériau
+ayant un mouvement qui contribue au stock théorique est également indéterminée; l'absence d'archive n'est pas
+interprétée comme une archive vide.
+
 **Aucun de ces trois contrats ne porte** : `statut_paiement`, `virement`, `reference_bancaire`,
 `mode_paiement` — M6 émet un montant à payer, jamais un ordre ni un statut de règlement.
 
@@ -360,6 +370,7 @@ DigestMaterielQuotidien:
   type: str                     # toujours "DIGEST_MATERIEL"
   nb_variances_stock: int
   nb_reorders_suggeres: int
+  nb_reapprovisionnements_indetermines: int
   variances_significatives:
     - chantier_id: str
       materiau_id: str
@@ -369,6 +380,10 @@ DigestMaterielQuotidien:
     - chantier_id: str
       materiau_id: str
       quantite_suggeree: float
+  reapprovisionnements_indetermines:
+    - chantier_id: str
+      materiau_id: str
+      motif: str
   hash_digest: str               # sha256 déterministe du contenu du digest
 ```
 

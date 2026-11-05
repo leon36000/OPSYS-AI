@@ -1,5 +1,7 @@
 import { presenterDisponibilite, presenterDigest } from "./stock";
-import { disponibiliteFictive, digestFictif } from "../m6/fixturesStock";
+import { disponibiliteFictive, digestFictif, digestReapprovisionnementIndetermineProduitM6Fictif } from "../m6/fixturesStock";
+
+const digestIndetermineFictif = digestReapprovisionnementIndetermineProduitM6Fictif;
 
 test("quantités natives sans unité inventée ni correction du négatif", () => {
   const brut = JSON.parse(JSON.stringify(disponibiliteFictive));
@@ -22,7 +24,24 @@ test("digest historique et calcul sans seuils ne promettent aucun besoin d'achat
   const v = presenterDigest(digestFictif, "fr-CA");
   expect(v.lignes.some(m => m.cle === "admin.stock.historique")).toBe(true);
   expect(v.lignes.some(m => m.cle === "admin.stock.seuilsNonFournis")).toBe(true);
+  expect(v.lignes.some(m => m.cle === "admin.stock.reapprovisionnementsIndeterminesNonFournis")).toBe(true);
   expect(v.variances[0].lignes.some(m => m.cle === "admin.stock.uniteInconnue")).toBe(true);
+  expect(v.reapprovisionnementsIndetermines).toEqual([]);
+});
+
+test("digest indique chaque paire indéterminée sans inventer un réapprovisionnement", () => {
+  const v = presenterDigest(digestIndetermineFictif, "en-CA");
+  expect(v.lignes).toContainEqual({ cle: "admin.stock.reapprovisionnementsIndetermines", params: { nombre: 1 } });
+  expect(v.reapprovisionnementsIndetermines).toHaveLength(1);
+  expect(v.reapprovisionnementsIndetermines[0].titre).toBe("MAT-MOBILE-FICTIF");
+  expect(v.reapprovisionnementsIndetermines[0].lignes).toContainEqual({
+    cle: "admin.stock.chantier", params: { valeur: "CH-MOBILE-FICTIF" },
+  });
+  expect(v.reapprovisionnementsIndetermines[0].lignes).toContainEqual({
+    cle: "admin.stock.reapprovisionnementIndetermine",
+  });
+  expect(v.reapprovisionnementsIndetermines[0].detail).toEqual([]);
+  expect(v.lignes.some(m => m.cle === "admin.stock.seuilsNonFournis")).toBe(true);
 });
 
 test("un constat sans écart reste présent ; il n'est pas filtré comme insignifiant", () => {

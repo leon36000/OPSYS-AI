@@ -45,6 +45,11 @@ export interface ReorderStock {
   readonly materiau_id: string;
   readonly quantite_suggeree: number;
 }
+export interface ReapprovisionnementIndetermineStock {
+  readonly chantier_id: string;
+  readonly materiau_id: string;
+  readonly motif: string;
+}
 export interface DigestStock {
   readonly type: "DIGEST_MATERIEL";
   readonly nb_variances_stock: number;
@@ -52,6 +57,10 @@ export interface DigestStock {
   readonly variances_significatives: readonly VarianceStock[];
   readonly reorders: readonly ReorderStock[];
   readonly hash_digest: string;
+  /** Absent sur les anciens serveurs : ne pas l'interpréter comme un compte nul. */
+  readonly nb_reapprovisionnements_indetermines?: number;
+  /** Absent sur les anciens serveurs; présent avec son compte sur les nouveaux. */
+  readonly reapprovisionnements_indetermines?: readonly ReapprovisionnementIndetermineStock[];
 }
 
 /** Données propres uniquement : JSON et objets normalisés à prototype nul. Aucun getter n'est exécuté. */
@@ -176,18 +185,41 @@ function lireReorder(valeur: unknown): ReorderStock | null {
   if (!chantier_id || !materiau_id || !nombreFini(v.quantite_suggeree) || v.quantite_suggeree <= 0) return null;
   return { chantier_id, materiau_id, quantite_suggeree: v.quantite_suggeree };
 }
+function lireReapprovisionnementIndetermine(valeur: unknown): ReapprovisionnementIndetermineStock | null {
+  const v = objet(valeur);
+  if (!v) return null;
+  const chantier_id = texteOuNull(v.chantier_id), materiau_id = texteOuNull(v.materiau_id), motif = texteOuNull(v.motif);
+  if (!chantier_id || !materiau_id || !motif) return null;
+  return { chantier_id, materiau_id, motif };
+}
 
 /** Digest natif général : nombres finis, comptes exacts des listes entières, aucune quantité convertie. */
 export function lireDigest(valeur: unknown): DigestStock | null {
   const v = objet(valeur);
   if (!v || v.type !== "DIGEST_MATERIEL" || !compteur(v.nb_variances_stock) || !compteur(v.nb_reorders_suggeres)
     || typeof v.hash_digest !== "string" || !/^[0-9a-f]{64}$/.test(v.hash_digest)) return null;
+  const aCompteIndetermines = Object.hasOwn(v, "nb_reapprovisionnements_indetermines");
+  const aListeIndetermines = Object.hasOwn(v, "reapprovisionnements_indetermines");
+  if (aCompteIndetermines !== aListeIndetermines) return null;
+  let nb_reapprovisionnements_indetermines: number | undefined;
+  let reapprovisionnements_indetermines: ReapprovisionnementIndetermineStock[] | undefined;
+  if (aCompteIndetermines) {
+    if (!compteur(v.nb_reapprovisionnements_indetermines)) return null;
+    const indetermines = liste(v.reapprovisionnements_indetermines, lireReapprovisionnementIndetermine);
+    if (!indetermines || v.nb_reapprovisionnements_indetermines !== indetermines.length) return null;
+    nb_reapprovisionnements_indetermines = v.nb_reapprovisionnements_indetermines;
+    reapprovisionnements_indetermines = indetermines;
+  }
   const variances_significatives = liste(v.variances_significatives, lireVariance);
   const reorders = liste(v.reorders, lireReorder);
   if (!variances_significatives || !reorders || v.nb_variances_stock !== variances_significatives.length
     || v.nb_reorders_suggeres !== reorders.length) return null;
   return { type: v.type, nb_variances_stock: v.nb_variances_stock, nb_reorders_suggeres: v.nb_reorders_suggeres,
-    variances_significatives, reorders, hash_digest: v.hash_digest };
+    variances_significatives, reorders, hash_digest: v.hash_digest,
+    ...(nb_reapprovisionnements_indetermines === undefined ? {} : {
+      nb_reapprovisionnements_indetermines,
+      reapprovisionnements_indetermines,
+    }) };
 }
 
 /** L'appel admin {} n'apporte aucun seuil : une suggestion serait contradictoire avec cette lecture. */

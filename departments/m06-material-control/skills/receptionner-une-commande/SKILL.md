@@ -24,7 +24,9 @@ description: Procédure pour enregistrer la réception physique d'un bon de comm
    n'est pas nul, il reste une information : c'est M5 qui tient les comptes à payer et qui
    décide, jamais toi. Aucune unité de prix n'est convertie : ne présente jamais un montant
    comme certain.
-5. Si `signaux_reorder` contient des entrées, présente-les comme des suggestions —
+5. Si `reapprovisionnements_indetermines` contient des entrées, indique que la comparaison du stock par chantier
+   n'est pas déterminable à partir des emplacements actuels ; une liste `signaux_reorder` vide ne signifie alors
+   pas qu'aucun besoin n'existe. Si `signaux_reorder` contient des entrées, présente-les comme des suggestions —
    jamais comme une commande déjà passée.
 6. Conserve `registre_historique` renvoyé pour le prochain appel sur ce même
    registre.

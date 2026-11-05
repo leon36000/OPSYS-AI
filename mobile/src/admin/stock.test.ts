@@ -1,6 +1,7 @@
 import { creerChargeurStock } from "./stock";
 import { config, fauxTransport, echecHttp, transportHorsLigne, enveloppeCouple, enveloppeDirecte } from "./donneesDeTest";
-import { reponseStock, disponibiliteFictive, digestFictif, CAPTURES_STOCK } from "../m6/fixturesStock";
+import { reponseStock, disponibiliteFictive, digestFictif, CAPTURES_STOCK,
+  digestReapprovisionnementIndetermineProduitM6Fictif } from "../m6/fixturesStock";
 import { OUTIL_DIGEST, OUTIL_DISPONIBILITE } from "../m6/stock";
 import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
 import { synchroniserCaches, ecrireProprietaireDesCaches } from "../identite/caches";
@@ -8,6 +9,7 @@ import type { ResultatAppelOutil } from "../protocole/client";
 import { depotSousGardeLecture } from "../stockage/lecturesEnVol";
 
 const horloge = { maintenant: new Date("2026-10-07T12:00:00Z"), decalageMinutesUTC: -240 };
+const digestIndetermineFictif = digestReapprovisionnementIndetermineProduitM6Fictif;
 const succes = () => fauxTransport({
   [OUTIL_DISPONIBILITE]: () => reponseStock("disponibilite_fictif"),
   [OUTIL_DIGEST]: () => reponseStock("digest_sans_seuil_fictif"),
@@ -111,6 +113,39 @@ test("cache minimal normalisé, relisible et personnel", async () => {
   const autre = creerChargeurStock(config(transportHorsLigne(), { depot, horloge, personne: "autre.fictive" }));
   expect((await autre.chargerDisponibilite()).source).toBe("aucune");
   expect((await autre.chargerDigest()).source).toBe("aucune");
+});
+
+test("un ancien digest garde l'absence d'état d'incertitude dans le cache", async () => {
+  const depot = new DepotCleValeurMemoire();
+  const appeler = fauxTransport({ [OUTIL_DIGEST]: () => enveloppeDirecte(digestFictif) });
+  const enLigne = await creerChargeurStock(config(appeler, { depot, horloge })).chargerDigest();
+  expect(enLigne.source).toBe("serveur");
+  if (enLigne.source !== "serveur") throw new Error("lecture fictive attendue");
+  expect(enLigne.valeur.nb_reapprovisionnements_indetermines).toBeUndefined();
+  expect(enLigne.valeur.reapprovisionnements_indetermines).toBeUndefined();
+
+  const horsLigne = await creerChargeurStock(config(transportHorsLigne(), { depot, horloge })).chargerDigest();
+  expect(horsLigne.source).toBe("cache");
+  if (horsLigne.source !== "cache") throw new Error("cache fictif attendu");
+  expect(horsLigne.valeur.nb_reapprovisionnements_indetermines).toBeUndefined();
+  expect(horsLigne.valeur.reapprovisionnements_indetermines).toBeUndefined();
+});
+
+test("le cache conserve les paires indéterminées du digest récent", async () => {
+  const depot = new DepotCleValeurMemoire();
+  const appeler = fauxTransport({ [OUTIL_DIGEST]: () => enveloppeDirecte(digestIndetermineFictif) });
+  const enLigne = await creerChargeurStock(config(appeler, { depot, horloge })).chargerDigest();
+  expect(enLigne.source).toBe("serveur");
+  if (enLigne.source !== "serveur") throw new Error("lecture fictive attendue");
+  expect(enLigne.valeur).toEqual(digestIndetermineFictif);
+  expect(await depot.lire(depot.cles().find(c => c.includes("stock_digest_m6"))!)).toContain(
+    "reapprovisionnements_indetermines",
+  );
+
+  const horsLigne = await creerChargeurStock(config(transportHorsLigne(), { depot, horloge })).chargerDigest();
+  expect(horsLigne.source).toBe("cache");
+  if (horsLigne.source !== "cache") throw new Error("cache fictif attendu");
+  expect(horsLigne.valeur).toEqual(digestIndetermineFictif);
 });
 
 test.each(noms)("refus métier %s ne remplace jamais le refus par un cache", async nom => {

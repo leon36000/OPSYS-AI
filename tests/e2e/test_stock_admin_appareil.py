@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from harnais_e2e import Reponse, iso
 from m6_material_control.registre import Registre
+from opsys import cli, evenements, stockage
 from tests.e2e.test_briefing_admin_appareil import empreinte_tables
 from tests.e2e.test_materiel_pret_appareil import (
     CHANTIER,
@@ -28,8 +29,6 @@ from tests.e2e.test_materiel_pret_appareil import (
     _reception,
     _transfert,
 )
-
-from opsys import cli, evenements, stockage
 
 FICTIF = True
 pytestmark = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
@@ -127,18 +126,24 @@ def test_admin_lit_disponibilite_couple_digest_direct_et_unites_de_la_source(mot
 
     seuils = {"seuils_reorder": [{"chantier_id": "CHANTIER-DEPOT", "materiau_id": GOUTTIERE,
                                 "seuil_quantite": 120.0}]}
-    for nom, arguments, reorders in (
-        ("digest_sans_seuil_fictif", {}, []),
-        ("digest_seuil_fourni_fictif", seuils,
-         [{"chantier_id": "CHANTIER-DEPOT", "materiau_id": GOUTTIERE, "quantite_suggeree": 20.0}]),
+    for nom, arguments, reorders, indetermines in (
+        ("digest_sans_seuil_fictif", {}, [], []),
+        # Le transfert historique inconnu → rebut n'a pas de lien source C5 : il
+        # ne permet pas de confirmer le stock disponible par chantier.
+        ("digest_seuil_fourni_fictif", seuils, [], [{
+            "chantier_id": "CHANTIER-DEPOT", "materiau_id": GOUTTIERE,
+            "motif": "stock_localise_par_chantier_non_reconstructible",
+        }]),
     ):
         lecture = admin.appeler(OUTILS[1], arguments)
         digest = lecture.metier
         assert {k: v for k, v in digest.items() if k != "hash_digest"} == {
             "type": "DIGEST_MATERIEL", "nb_variances_stock": 1, "nb_reorders_suggeres": len(reorders),
+            "nb_reapprovisionnements_indetermines": len(indetermines),
             "variances_significatives": [{"chantier_id": "CHANTIER-DEPOT", "materiau_id": GOUTTIERE,
                                           "verdict_variance": "STOCK_INFERIEUR_AU_THEORIQUE", "ecart": -2.0}],
             "reorders": reorders,
+            "reapprovisionnements_indetermines": indetermines,
         }
         assert re.fullmatch(r"[0-9a-f]{64}", digest["hash_digest"])
         assert type(digest["variances_significatives"][0]["ecart"]) is float
