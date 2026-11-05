@@ -11,6 +11,7 @@ from m9_strategic_intelligence import catalogue_producteurs as cat
 from m9_strategic_intelligence import conseil as cj
 from m9_strategic_intelligence import dossier_strategique as ds
 from m9_strategic_intelligence import outils_conseil as oc
+from m9_strategic_intelligence import outils_memoire as om
 from m9_strategic_intelligence import rapport_decision_v2 as rd
 from m9_strategic_intelligence import sessions_conseil as sc
 
@@ -1096,3 +1097,96 @@ def test_rapport_legacy_quinze_cles_sans_section_signale_hypotheses_sans_origine
     assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
     assert historique == historique_avant
     assert sc.valider_chaine(historique) == (True, "")
+
+
+def _historique(mode):
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = [*evenements, cloture]
+
+    if mode == "rapport_v2_invalide":
+        rapport = copy.deepcopy(cloture["rapport"])
+        rapport["sections"]["question"]["statut"] = "SCHEMA_CORROMPU"
+        rapport["rapport_id"] = rd.identifiant(rapport)
+        cloture["rapport"] = rapport
+        cloture["rapport_id"] = rapport["rapport_id"]
+    elif mode == "id_cloture_contradictoire":
+        cloture["rapport_id"] = "f" * 64
+    elif mode == "projection_legacy_15_cles":
+        cloture["rapport"] = rd.vers_contrat_historique(cloture["rapport"])
+    else:
+        raise AssertionError("mode de fixture inattendu")
+
+    return _rechaîner_historique(evenements), session_id
+
+
+def _outil_preparer(evenements, monkeypatch):
+    monkeypatch.setattr(om, "exiger_admin_strict", lambda: None)
+    outils = om.construire_outils(
+        budget_sortie=20_000, sessions_cible=evenements, captures_cible=[], actions_cible=[]
+    )
+    return next(o.fonction for o in outils if o.nom == "m9_preparer_memoire_decision")
+
+
+@pytest.mark.parametrize(
+    "mode",
+    ["rapport_v2_invalide", "id_cloture_contradictoire", "projection_legacy_15_cles"],
+)
+def test_preparation_memoire_refuse_rapport_non_verifiable_sans_bloquer_lecture_brute(mode, monkeypatch):
+    evenements, session_id = _historique(mode)
+    avant = copy.deepcopy(evenements)
+    cloture = evenements[-1]
+    valide, _ = rd.valider_rapport_decision_v2(cloture["rapport"])
+
+    if mode == "rapport_v2_invalide":
+        assert valide is False
+        assert cloture["rapport_id"] == cloture["rapport"]["rapport_id"]
+    elif mode == "id_cloture_contradictoire":
+        assert valide is True
+        assert cloture["rapport_id"] != cloture["rapport"]["rapport_id"]
+    else:
+        assert valide is False
+        assert len(cloture["rapport"]) == 15
+
+    with pytest.raises(
+        ValueError,
+        match=r"^REJ-MEMOIRE-RAPPORT-INVALIDE : rapport de clôture non vérifiable$",
+    ):
+        _outil_preparer(evenements, monkeypatch)(session_id, "proposee", T)
+
+    # Le garde ne réécrit ni ne cache l'historique; la lecture brute reste disponible séparément.
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils_lecture = oc.construire_outils(
+        budget_sortie=20_000, captures_cible=[], sessions_cible=evenements
+    )
+    lire = next(o.fonction for o in outils_lecture if o.nom == "m9_lire_rapport_conseil")
+    page = lire(session_id)
+    assert page["accepte"] is True
+    assert page["rapport_id"] == cloture["rapport_id"]
+    assert page["sha256"] == cs.empreinte(cloture["rapport"])
+    assert evenements == avant
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_preparation_memoire_valide_cite_exactement_le_rapport_v2(monkeypatch):
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = [*evenements, cloture]
+    avant = copy.deepcopy(evenements)
+
+    assert rd.valider_rapport_decision_v2(cloture["rapport"]) == (True, None)
+    preparer = _outil_preparer(evenements, monkeypatch)
+    resultat = preparer(session_id, "proposee", T, options_ecartees="aucune (fictif)")
+
+    assert resultat["accepte"] is True
+    assert resultat["ecrit"] is False
+    assert resultat["rapport_id"] == cloture["rapport_id"] == cloture["rapport"]["rapport_id"]
+    assert resultat["a_proposer"]["departement"] == "m10-memoire"
+    assert resultat["a_proposer"]["outil"] == "m10_journaliser_decision"
+    assert resultat["a_proposer"]["sources"] == [f"conseil:{cloture['rapport_id']}"]
+    decision = resultat["a_proposer"]["arguments"]["decision"]
+    assert decision["decision_id"] == f"m9:{session_id}"
+    assert f"rapport {cloture['rapport_id']}" in decision["raison"]
+    assert evenements == avant

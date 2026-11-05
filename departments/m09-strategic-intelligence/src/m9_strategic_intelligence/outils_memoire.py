@@ -15,7 +15,7 @@ from opsys import stockage
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import capture_strategique as cs
-from . import memoire_m10, orchestrateur, sessions_conseil
+from . import memoire_m10, orchestrateur, rapport_decision_v2, sessions_conseil
 from .outils_tissu import DEPARTEMENT, borner, exiger_admin_strict
 
 REGISTRE_SESSIONS = "sessions_conseil"
@@ -63,6 +63,12 @@ def construire_outils(
     ) -> dict[str, Any]:
         exiger_admin_strict()
         projection = sessions_conseil.etat(sessions(), session_id)
+        cloture = projection.get("cloture")
+        if cloture is not None:
+            rapport = cloture.get("rapport") if isinstance(cloture, dict) else None
+            valide, _ = rapport_decision_v2.valider_rapport_decision_v2(rapport)
+            if not valide or cloture.get("rapport_id") != rapport.get("rapport_id"):
+                raise ValueError("REJ-MEMOIRE-RAPPORT-INVALIDE : rapport de clôture non vérifiable")
         arguments = memoire_m10.preparer(
             projection,
             statut,

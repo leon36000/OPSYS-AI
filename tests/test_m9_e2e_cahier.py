@@ -36,11 +36,11 @@ from pathlib import Path
 
 import m2_revenue_crm.outils as m2_outils
 import pytest
+from m9_strategic_intelligence import conseil, risques
+
 from opsys import admission_agents, agents, approbations, contexte, identite, stockage, taxonomie
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
-
-from m9_strategic_intelligence import conseil, risques
 
 _TESTS = Path(__file__).resolve().parent
 
@@ -447,8 +447,20 @@ def test_parcours_1_rapport_hebdomadaire_conseil_memoire_et_audit(tmp_path, monk
         {"session_id": session_id, "rapport_id": cloture["cloture"]["rapport_id"], "actions": ["a2"]}
     ]
     assert [d["action_id"] for d in decisions["contenu"]["approbations_natives_en_attente"]] == [proposee["action_id"]]
-    # M7 n'a pas été capturé : la section marketing le NOMME, rien n'est rempli.
-    assert s["marketing_visibilite"]["statut"] == "NON_DISPONIBLE" and s["marketing_visibilite"]["manques"]
+    # La capture M7 existe, mais ses dépenses et son temps métier ne sont pas disponibles.
+    marketing = s["marketing_visibilite"]
+    assert marketing["statut"] == "PARTIELLE"
+    assert marketing["contenu"]["lectures"] == [
+        {"lecture_id": "m7.performance_campagnes", "statut": "TEMPS_METIER_NON_DECLARE"}
+    ]
+    assert "m7.performance_campagnes : TEMPS_METIER_NON_DECLARE" in marketing["manques"]
+    assert "cost_per_sale : aucune définition officielle chez le propriétaire (m07-marketing)" in marketing["manques"]
+    indicateurs = {i["id"]: i for i in marketing["contenu"]["indicateurs"]}
+    source = f"m7.performance_campagnes#{monde['index']['m7.performance_campagnes']}:p0.resultat.campagnes[0]"
+    assert indicateurs["marketing_roi"]["faits"] == [{"adresse": f"{source}.roi", "valeur": "null"}]
+    assert indicateurs["cost_per_lead"]["faits"] == [{"adresse": f"{source}.cout_par_lead_cad", "valeur": "null"}]
+    assert indicateurs["cost_per_sale"]["statut_definition"] == "A_DEFINIR_PAR_LE_PROPRIETAIRE"
+    assert indicateurs["cost_per_sale"]["faits"] == []
     assert "m7.performance_campagnes" in s["resume"]["contenu"]["lectures_attendues_non_presentes"]
     assert "float" not in json.dumps(revue)
 
