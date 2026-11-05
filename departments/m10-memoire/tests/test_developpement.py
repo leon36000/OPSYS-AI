@@ -1760,6 +1760,30 @@ def test_budget_preflight_compte_la_sentinelle_apres_croissance(tmp_path, monkey
     assert not any(item["path"] == "next.py" for item in result["errors"])
 
 
+def test_preflight_public_signale_l_ambiguite_d_une_racine_src_imbriquee(base_dev, tmp_path):
+    repo = _repo_budget_octets(
+        tmp_path / "repo-src-imbrique",
+        {
+            "outer/src/__init__.py": b"",
+            "outer/src/pkg/__init__.py": b"",
+            "outer/src/pkg/provider.py": b"def calculer(): return 1\n",
+            "outer/src/pkg/consumer.py": b"from outer.src.pkg import provider\n",
+        },
+    )
+
+    with contexte.appele_par_appareil(ADMIN):
+        paquet = memoire_dev.preflight(
+            "M10", "modifier le fournisseur fictif", files=["outer/src/pkg/provider.py"], repository=repo
+        )
+
+    impact = paquet["code_impact"]
+    # L'analyse choisit actuellement le raccourci `pkg.provider`; l'import écrit
+    # comme `outer.src.pkg` ne matche pas, et le paquet doit l'annoncer explicitement.
+    assert impact["counts"]["importers"] == 0
+    assert impact["counts"]["nested_src_roots"] == 1
+    assert any("mapping des modules Python est ambigu" in item for item in impact["limitations"])
+
+
 def test_budget_preflight_debite_les_octets_avant_erreur_io(tmp_path, monkeypatch):
     repo = _repo_budget_octets(tmp_path / "repo", {"target.py": b"x" * 100_000, "next.py": b"y = 1\n"})
     inode = (repo / "target.py").stat().st_ino
@@ -1967,3 +1991,31 @@ def test_scanner_ne_lit_pas_apres_epuisement_du_budget(tmp_path, base_dev, monke
     assert sum(reads) == 0
     assert result["bytes_examined"] == 0
     assert len(result["skipped"]) == 3
+
+
+def test_preflight_ne_mappe_pas_un_import_relatif_au_dela_de_la_racine(tmp_path, base_dev):
+    repo = tmp_path / "imports-relatifs"
+    (repo / "src/pkg/sub").mkdir(parents=True)
+    (repo / "src/foo.py").write_text("def racine(): return 1\n", encoding="utf-8")
+    (repo / "src/pkg/__init__.py").write_text("", encoding="utf-8")
+    (repo / "src/pkg/foo.py").write_text("def paquet(): return 2\n", encoding="utf-8")
+    (repo / "src/pkg/consumer.py").write_text("from ..foo import racine\n", encoding="utf-8")
+    (repo / "src/pkg/sub/__init__.py").write_text("", encoding="utf-8")
+    (repo / "src/pkg/sub/consumer.py").write_text("from ..foo import paquet\n", encoding="utf-8")
+    for args in (
+        ["init", "-q"],
+        ["config", "user.email", "fixture@example.test"],
+        ["config", "user.name", "Fixture"],
+        ["add", "."],
+        ["commit", "-qm", "imports fictifs"],
+    ):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+
+    with contexte.appele_par_appareil(ADMIN):
+        racine = memoire_dev.preflight("M10", "fichier foo racine", files=["src/foo.py"], repository=repo)
+        paquet = memoire_dev.preflight("M10", "fichier foo paquet", files=["src/pkg/foo.py"], repository=repo)
+
+    racine_importeurs = {item["path"] for item in racine["code_impact"]["importers"]}
+    paquet_importeurs = {item["path"] for item in paquet["code_impact"]["importers"]}
+    assert "src/pkg/consumer.py" not in racine_importeurs
+    assert "src/pkg/sub/consumer.py" in paquet_importeurs

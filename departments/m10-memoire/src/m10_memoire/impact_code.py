@@ -59,7 +59,10 @@ def _imports(arbre: ast.Module, module: str | None, *, package_file: bool = Fals
                     continue
                 morceaux = package.split(".") if package else []
                 retrait = node.level - 1
-                if retrait > len(morceaux):
+                # ``level`` compte aussi le paquet courant : ``from ..x`` est hors
+                # racine quand le paquet n'a qu'un composant. Ne pas le rabattre sur
+                # un import absolu de ``x`` dans le graphe statique.
+                if node.level > len(morceaux):
                     continue
                 base = morceaux[: len(morceaux) - retrait]
                 if node.module:
@@ -169,6 +172,16 @@ def analyser(
     omitted_files = max(0, len(candidates) - MAX_FICHIERS)
     candidates = candidates[:MAX_FICHIERS]
     files_selected = len(candidates)
+    # Une racine `src` imbriquée peut désigner soit le début du chemin de paquet
+    # (pkg.x), soit un sous-paquet importable (outer.src.pkg.x). Sans métadonnée
+    # de packaging, choisir l'un des deux serait une affirmation non prouvée.
+    nested_src_roots = {
+        "/".join(Path(raw).parts[:index + 1])
+        for raw in candidates
+        if Path(raw).suffix == ".py"
+        for index, part in enumerate(Path(raw).parts)
+        if part == "src" and index > 0
+    }
     files_examined = 0
     total = 0
     parsed: dict[str, ast.Module] = {}
@@ -411,6 +424,10 @@ def analyser(
     ]
     if dynamic:
         limitations.append("imports dynamiques détectés")
+    if nested_src_roots:
+        limitations.append(
+            "racines `src` imbriquées : le mapping des modules Python est ambigu sans métadonnée de packaging"
+        )
     target_symbols_omitted = sum(item.get("symbols_omitted", 0) for item in target_records)
     target_imports_omitted = sum(item.get("imports_omitted", 0) for item in target_records)
     if target_symbols_omitted or target_imports_omitted:
@@ -485,6 +502,7 @@ def analyser(
             "manifest_gaps": len(manifest_gaps),
             "manifest_gaps_omitted": max(0, len(manifest_gaps) - MAX_ITEMS),
             "unmapped_paths": unmapped_paths,
+            "nested_src_roots": len(nested_src_roots),
             "target_symbols_omitted": target_symbols_omitted,
             "target_imports_omitted": target_imports_omitted,
         },
