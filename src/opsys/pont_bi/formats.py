@@ -6,12 +6,10 @@ Principes (tous testés) :
   comme une formule par un tableur (début par ``=``, ``+``, ``-``, ``@``, tabulation ou retour chariot) est précédée
   d'une
   apostrophe, sauf si c'est un nombre décimal exact (une marge de ``-1500.00`` reste un nombre).
-* MINIMISATION PII. Une colonne dont la FORME est déclarée (identifiant, instant, décimal, code) n'est jamais masquée
-mais
-  est VÉRIFIÉE : une valeur qui ne respecte pas sa forme (un courriel dans un identifiant) est masquée par le masqueur
-  de
-  `opsys.observabilite`. Une colonne de texte libre est toujours masquée. Un masqueur absent ou en panne est un refus
-  (fail-closed), jamais un export sans masquage.
+* MINIMISATION PII. Une valeur conforme à la forme déclarée (identifiant, instant, décimal, code) n'est pas masquée.
+  Une valeur non conforme passe par le masqueur `opsys.observabilite`; si un identifiant demeure inchangé, l'export est
+  refusé. Une colonne de texte libre est toujours masquée. Un masqueur absent ou en panne est un refus (fail-closed),
+  jamais un export sans masquage.
 * OData v4 MINIMAL, dit honnêtement : document de service, `$metadata` (EDMX), collection avec `$top`, `$skip`,
 `$select`,
   `$count`. Toute autre option (`$filter`, `$orderby`, `$expand`, `$search`, `$apply`…) est refusée 501 dans le format
@@ -24,15 +22,19 @@ import csv
 import io
 import json
 import re
+import unicodedata
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 from xml.sax.saxutils import escape, quoteattr
 
 from ..observabilite.pii import MasqueurPII
-from .jeux import EDM_ENTIER_LONG, Colonne, Jeu
+from .jeux import EDM_ENTIER_LONG, IDENTIFIANT, Colonne, Jeu
 
 _FORMULE = re.compile(r"^[=+\-@\t\r]")
 _NOMBRE = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
+_LONGUEUR_IDENTIFIANT_MAX = 256
+_LONGUEUR_MASQUE_IDENTIFIANT_MAX = _LONGUEUR_IDENTIFIANT_MAX * 16
+_INVISIBLES_SPECIAUX = frozenset("\u115f\u1160\u2800\U00013441\U00013442")
 TOP_MAX = 5000
 OPTIONS_ODATA = frozenset({"$top", "$skip", "$select", "$count"})
 NS = "OPSYS.M8"
@@ -48,6 +50,88 @@ class ErreurFormat(ValueError):
         self.message = message
 
 
+def _masquer(texte: str, masqueur: MasqueurPII | None) -> str:
+    if masqueur is None:
+        raise ErreurFormat(500, "masqueur_indisponible", "le masquage des renseignements personnels est indisponible")
+    try:
+        resultat = masqueur.masquer(texte)
+    except Exception:
+        raise ErreurFormat(500, "masquage_indisponible", "le masquage des renseignements personnels a échoué") from None
+    if not isinstance(getattr(resultat, "texte", None), str):
+        raise ErreurFormat(500, "masquage_indisponible", "le masqueur n'a pas rendu un texte valide")
+    return resultat.texte
+
+
+def _verifier_identifiant_masque(valeur: str, resultat: str, masqueur: MasqueurPII | None) -> None:
+    if len(resultat) > _LONGUEUR_MASQUE_IDENTIFIANT_MAX:
+        raise ErreurFormat(
+            500,
+            "verification_pii_indisponible",
+            "la sortie du masqueur dépasse la taille vérifiable",
+        )
+    if valeur in resultat or _telephone_possible_dans_identifiant(resultat):
+        raise ErreurFormat(
+            422,
+            "identifiant_non_minimise",
+            "un identifiant non conforme conserve sa valeur source ou un numéro plausible; export refusé",
+        )
+    verifier = getattr(masqueur, "contient_pii", None)
+    if not callable(verifier):
+        raise ErreurFormat(
+            500,
+            "verification_pii_indisponible",
+            "la vérification des renseignements personnels est indisponible",
+        )
+    try:
+        contient_pii = verifier(resultat)
+    except Exception:
+        raise ErreurFormat(
+            500,
+            "verification_pii_indisponible",
+            "la vérification des renseignements personnels a échoué",
+        ) from None
+    if not isinstance(contient_pii, bool):
+        raise ErreurFormat(
+            500,
+            "verification_pii_indisponible",
+            "la vérification des renseignements personnels n'a pas rendu un résultat valide",
+        )
+    if contient_pii:
+        raise ErreurFormat(
+            422,
+            "identifiant_non_minimise",
+            "des renseignements personnels restent dans un identifiant; export refusé",
+        )
+
+
+def _telephone_possible_dans_identifiant(valeur: str) -> bool:
+    """Cherche toute fenêtre NANP dans les chiffres; les lettres et nombres non décimaux coupent la suite."""
+    normalisee = unicodedata.normalize("NFKC", valeur)
+    chiffres: list[str] = []
+    for char in normalisee:
+        if char.isdecimal():
+            chiffres.append(str(unicodedata.decimal(char)))
+            if len(chiffres) >= 10:
+                coeur = "".join(chiffres[-10:])
+                indicatif, echange = coeur[:3], coeur[3:6]
+                if (
+                    indicatif[0] in "23456789"
+                    and indicatif[1:] != "11"
+                    and echange[0] in "23456789"
+                    and echange[1:] != "11"
+                ):
+                    return True
+        elif _separateur_numerique(char):
+            continue
+        else:
+            chiffres.clear()
+    return False
+
+
+def _separateur_numerique(char: str) -> bool:
+    return not char.isalnum() or char in _INVISIBLES_SPECIAUX
+
+
 def neutraliser_cellule(valeur: str) -> str:
     """Précède d'une apostrophe une cellule de texte qu'un tableur lirait comme une formule (sauf un nombre exact)."""
     if _FORMULE.match(valeur) and not _NOMBRE.match(valeur):
@@ -61,8 +145,7 @@ def minimiser(
     lignes: Iterable[Mapping[str, Any]],
     masqueur: MasqueurPII | None,
 ) -> tuple[list[dict[str, Any]], int]:
-    """Les lignes avec leurs cellules de texte vérifiées ou masquées ; le nombre de cellules masquées. Un texte libre,
-    ou une valeur qui n'a pas la forme de sa colonne, passe par le masqueur ; sans masqueur, refus."""
+    """Les cellules de texte sont vérifiées ou masquées; un identifiant inchangé après masquage est refusé."""
     sortie: list[dict[str, Any]] = []
     masquees = 0
     for ligne in lignes:
@@ -70,13 +153,25 @@ def minimiser(
         for colonne in colonnes:
             valeur = ligne.get(colonne.nom)
             if isinstance(valeur, str):
-                conforme = colonne.forme is not None and colonne.forme.match(valeur) is not None
-                if not conforme:
-                    if masqueur is None:
+                conforme = colonne.forme is not None and colonne.forme.fullmatch(valeur) is not None
+                if colonne.forme is IDENTIFIANT:
+                    if len(valeur) > _LONGUEUR_IDENTIFIANT_MAX:
                         raise ErreurFormat(
-                            500, "masqueur_indisponible", "le masquage des renseignements personnels est indisponible"
+                            422,
+                            "identifiant_trop_long",
+                            "un identifiant dépasse la longueur maximale autorisée",
                         )
-                    masque = masqueur.masquer(valeur).texte
+                    if _telephone_possible_dans_identifiant(valeur):
+                        raise ErreurFormat(
+                            422,
+                            "identifiant_telephone_ambigu",
+                            "un identifiant a une forme téléphonique possible; "
+                            "export refusé pour éviter une jointure erronée",
+                        )
+                if not conforme:
+                    masque = _masquer(valeur, masqueur)
+                    if colonne.forme is IDENTIFIANT:
+                        _verifier_identifiant_masque(valeur, masque, masqueur)
                     masquees += masque != valeur
                     valeur = masque
             propre[colonne.nom] = valeur

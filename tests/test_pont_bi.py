@@ -104,6 +104,41 @@ def _en_tete(jeton):
     return {"Authorization": f"Bearer {jeton['jeton']}"}
 
 
+_TELEPHONE_COMME_ID = "4185550100"
+
+
+def _installer_lead_id_telephone(base, identifiant=_TELEPHONE_COMME_ID, identifiant_devis=None):
+    identifiant_devis = identifiant if identifiant_devis is None else identifiant_devis
+    with base() as cnx:
+        lead = (
+            cnx.execute(select(schema.M8_ENT_DIM_LEAD).order_by(schema.M8_ENT_DIM_LEAD.c.lead_id).limit(1))
+            .mappings()
+            .one()
+        )
+        ancien = lead["lead_id"]
+        cnx.execute(
+            update(schema.M8_ENT_DIM_LEAD)
+            .where(schema.M8_ENT_DIM_LEAD.c.lead_id == ancien)
+            .values(lead_id=identifiant)
+        )
+        devis_lies = cnx.execute(
+            select(schema.M8_ENT_FAIT_DEVIS.c.devis_id).where(schema.M8_ENT_FAIT_DEVIS.c.lead_id == ancien)
+        ).all()
+        cnx.execute(
+            update(schema.M8_ENT_FAIT_DEVIS)
+            .where(schema.M8_ENT_FAIT_DEVIS.c.lead_id == ancien)
+            .values(lead_id=identifiant_devis)
+        )
+        if not devis_lies:
+            cnx.execute(
+                schema.M8_ENT_FAIT_DEVIS.insert().values(
+                    devis_id="devis-pii-fictif",
+                    construction_id=lead["construction_id"],
+                    lead_id=identifiant_devis,
+                )
+            )
+
+
 # ---------------------------------------------------------------------------
 # Émission, révocation, secret
 # ---------------------------------------------------------------------------
@@ -382,13 +417,19 @@ def test_un_renseignement_personnel_glisse_dans_un_texte_libre_est_masque(base, 
     with base() as cnx:
         cnx.execute(
             update(schema.M8_ENT_MESURES_COURANTES)
-            .values(detail="écrire à jean.tremblay@example.test ou au 514-555-0199")
+            .values(
+                detail="écrire à jean.tremblay@example.test ou au 514-555-0199",
+                source="source_conservee",
+                unite="unite_conservee",
+            )
             .where(schema.M8_ENT_MESURES_COURANTES.c.metric_id == "m8_clics_par_contenu")
         )
     jeton = _emettre(base, cle, horloge, jeux=["mesures_courantes"])
     reponse = client.get("/pont-bi/v1/jeux/mesures_courantes.jsonl", headers=_en_tete(jeton))
     assert "jean.tremblay" not in reponse.text and "514-555-0199" not in reponse.text
-    assert "[[COURRIEL:" in reponse.text and int(reponse.headers["x-opsys-cellules-masquees"]) >= 1
+    assert "[[COURRIEL:" in reponse.text
+    assert "source_conservee" in reponse.text and "unite_conservee" in reponse.text
+    assert int(reponse.headers["x-opsys-cellules-masquees"]) == 1
 
 
 def test_un_renseignement_personnel_dans_un_identifiant_est_masque_pas_sorti(base, cle, horloge, client):
@@ -399,9 +440,372 @@ def test_un_renseignement_personnel_dans_un_identifiant_est_masque_pas_sorti(bas
             .where(schema.M8_ENT_DIM_CHANTIER.c.wct_id == "wct-fictif-001")
         )
     jeton = _emettre(base, cle, horloge, jeux=["chantiers"])
-    texte = client.get("/pont-bi/v1/jeux/chantiers.csv", headers=_en_tete(jeton)).text
+    reponse = client.get("/pont-bi/v1/jeux/chantiers.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 200
+    texte = reponse.text
     assert "marie.roy" not in texte and "[[COURRIEL:" in texte
     assert "wct-fictif-001" in texte  # les identifiants conformes ne sont pas altérés
+
+
+def test_un_masqueur_qui_prefixe_sans_retirer_le_courriel_est_refuse(base, cle, horloge, client, masqueur, monkeypatch):
+    identifiant = "marie.roy@example.test"
+    _installer_lead_id_telephone(base, identifiant)
+    monkeypatch.setattr(
+        masqueur,
+        "masquer",
+        lambda texte, **_kwargs: type("Resultat", (), {"texte": "prefixe " + texte})(),
+    )
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 422
+    assert reponse.json()["erreur"] == "identifiant_non_minimise"
+    assert identifiant not in reponse.text
+
+
+def test_un_masqueur_qui_signale_une_pii_residuelle_est_refuse(base, cle, horloge, client, masqueur, monkeypatch):
+    identifiant = "marie.roy@example.test"
+    _installer_lead_id_telephone(base, identifiant)
+    resultat = "prefixe [[COURRIEL:0123456789ab]] autre@example.test"
+    monkeypatch.setattr(masqueur, "masquer", lambda _texte, **_kwargs: type("Resultat", (), {"texte": resultat})())
+    monkeypatch.setattr(masqueur, "contient_pii", lambda texte: "autre@example.test" in texte)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 422
+    assert reponse.json()["erreur"] == "identifiant_non_minimise"
+    assert identifiant not in reponse.text and "autre@example.test" not in reponse.text
+
+
+@pytest.mark.parametrize("separateur", ["\ufdd0", "\ufffc"])
+def test_un_numero_residuel_est_refuse_meme_si_un_courriel_a_ete_masque(
+    base, cle, horloge, client, masqueur, monkeypatch, separateur
+):
+    identifiant = "marie.roy@example.test"
+    numero_residuel = f"418{separateur}555{separateur}0100"
+    sortie = f"[[COURRIEL:0123456789ab]] {numero_residuel}"
+    _installer_lead_id_telephone(base, identifiant)
+    monkeypatch.setattr(masqueur, "masquer", lambda _texte, **_kwargs: type("Resultat", (), {"texte": sortie})())
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 422
+    assert reponse.json()["erreur"] == "identifiant_non_minimise"
+    assert identifiant not in reponse.text and numero_residuel not in reponse.text
+
+
+@pytest.mark.parametrize("comportement", ["absent", "exception", "resultat_invalide"])
+def test_verification_pii_absente_ou_en_echec_refuse_un_identifiant_masque(
+    base, cle, horloge, client, masqueur, monkeypatch, comportement
+):
+    identifiant = "marie.roy@example.test"
+    resultat = "[[COURRIEL:0123456789ab]]"
+    _installer_lead_id_telephone(base, identifiant)
+    monkeypatch.setattr(masqueur, "masquer", lambda _texte, **_kwargs: type("Resultat", (), {"texte": resultat})())
+    if comportement == "absent":
+        monkeypatch.setattr(masqueur, "contient_pii", None)
+    elif comportement == "exception":
+        def echouer(_texte):
+            raise RuntimeError("erreur fictive")
+
+        monkeypatch.setattr(masqueur, "contient_pii", echouer)
+    else:
+        monkeypatch.setattr(masqueur, "contient_pii", lambda _texte: "faux")
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 500
+    assert reponse.json()["erreur"] == "verification_pii_indisponible"
+    assert identifiant not in reponse.text
+
+
+@pytest.mark.parametrize(
+    ("identifiant_lead", "identifiant_devis"),
+    [
+        (_TELEPHONE_COMME_ID, "418-555-0100"),
+        ("418-555-0100x123", "418-555-0100x456"),
+        ("lead-4185550100", "lead_418-555-0100"),
+        ("0014185550100", "0014185550100"),
+        ("418555010012", "418555010012"),
+        ("418--555--0100", "418__555__0100"),
+        ("418/555/0100", "418/555/0100"),
+        ("418\u303f555\u303f0100", "418\u303f555\u303f0100"),
+        ("418\U00013441555\U000134410100", "418\U00013441555\U000134410100"),
+        ("４１８５５５０１００", "٤١٨٥٥٥٠١٠٠"),
+        ("41855501005145550100", "41855501005145550100"),
+        ("41855501001234567", "41855501001234567"),
+        ("0004185550100", "0004185550100"),
+        ("418" + "-" * 17 + "555" + "-" * 17 + "0100", "418" + "-" * 17 + "555" + "-" * 17 + "0100"),
+        ("418\u200b555\u200b0100", "418\u200d555\u200d0100"),
+        ("0" * 240 + "4185550100", "4185550100" + "9" * 246),
+    ],
+)
+def test_les_formats_publics_refusent_les_ids_tel_qui_creeraient_une_fausse_jointure(
+    base, cle, horloge, client, identifiant_lead, identifiant_devis
+):
+    _installer_lead_id_telephone(base, identifiant_lead, identifiant_devis)
+    jeton = _emettre(base, cle, horloge, jeux=["leads", "devis"])
+    entete = _en_tete(jeton)
+
+    csv_leads = client.get("/pont-bi/v1/jeux/leads.csv", headers=entete)
+    jsonl_devis = client.get("/pont-bi/v1/jeux/devis.jsonl", headers=entete)
+    odata_leads = client.get("/pont-bi/odata/Leads", headers=entete)
+    odata_devis = client.get("/pont-bi/odata/Devis", headers=entete)
+
+    for reponse, odata in (
+        (csv_leads, False),
+        (jsonl_devis, False),
+        (odata_leads, True),
+        (odata_devis, True),
+    ):
+        assert reponse.status_code == 422
+        code = reponse.json()["error"]["code"] if odata else reponse.json()["erreur"]
+        assert code == "identifiant_telephone_ambigu"
+        assert identifiant_lead not in reponse.text
+        assert identifiant_devis not in reponse.text
+
+
+@pytest.mark.parametrize(
+    "identifiant",
+    [
+        "4185550100\n",
+        "4185550100 ",
+        "418 555 0100",
+        "(418) 555-0100",
+        "+1 418 555 0100",
+        "418-555-0100",
+        "418.555.0100",
+        "1-418-555-0100",
+        "14185550100",
+        "418-555-0100x123",
+        "418-555-0100x456",
+        "lead-4185550100",
+        "lead_418-555-0100",
+        "418_555_0100",
+        "0014185550100",
+        "418555010012",
+        "4185550100123",
+        "418--555--0100",
+        "418__555__0100",
+        "418/555/0100",
+        "４１８５５５０１００",
+        "٤١٨٥٥٥٠١٠٠",
+        "41855501005145550100",
+        "41855501001234567",
+        "0004185550100",
+        "2026010112",
+        "2026123112",
+        "418" + "-" * 17 + "555" + "-" * 17 + "0100",
+        "418\u200b555\u200b0100",
+        "418\u200d555\u200d0100",
+        "418\u2060555\u20600100",
+        "418\u00ad555\u00ad0100",
+        "418\u034f555\u034f0100",
+        "418\ufe0f555\ufe0f0100",
+        "418\u20e3555\u20e30100",
+        "418\u0903555\u09030100",
+        "418\u115f555\u115f0100",
+        "418\u1160555\u11600100",
+        "418\u3164555\u31640100",
+        "418\uffa0555\uffa00100",
+        "418\u2800555\u28000100",
+        "418\x00555\x000100",
+        "418\ufdd0555\ufdd00100",
+        "418\ue000555\ue0000100",
+        "418\ufdd0555\ufdd00100 jean.tremblay@example.test",
+        "418\ufffc555\ufffc0100",
+        "418\ufffc555\ufffc0100 jean.tremblay@example.test",
+        "418\u2605555\u26050100",
+        "418\U0001f600555\U0001f6000100",
+        "418\u303f555\u303f0100",
+        "418\U00013441555\U000134410100",
+        "418\U00013442555\U000134420100",
+        "418\U0001da7f555\U0001da7f0100",
+        "418\U0001da80555\U0001da800100",
+        "0" * 240 + "4185550100",
+        "4185550100" + "9" * 246,
+    ],
+)
+def test_variantes_telephone_dans_un_identifiant_sont_refusees(base, cle, horloge, client, identifiant):
+    _installer_lead_id_telephone(base, identifiant)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    for chemin, odata in (
+        ("/pont-bi/v1/jeux/leads.csv", False),
+        ("/pont-bi/v1/jeux/leads.jsonl", False),
+        ("/pont-bi/odata/Leads", True),
+    ):
+        reponse = client.get(chemin, headers=_en_tete(jeton))
+        code = reponse.json()["error"]["code"] if odata else reponse.json()["erreur"]
+        assert reponse.status_code == 422 and code == "identifiant_telephone_ambigu"
+        assert identifiant.strip() not in reponse.text
+
+
+def test_fullmatch_preserve_les_identifiants_metier_dates_decimaux_et_empreintes(masqueur):
+    valeurs = {
+        "identifiant": "wct-fictif-001",
+        "instant": "2026-10-30T20:00:00-04:00",
+        "montant": "-123.45",
+        "empreinte": "a" * 64,
+    }
+    colonnes = (
+        jeux.Colonne("identifiant", jeux.EDM_TEXTE, jeux.IDENTIFIANT),
+        jeux.Colonne("instant", jeux.EDM_TEXTE, jeux.INSTANT),
+        jeux.Colonne("montant", jeux.EDM_TEXTE, jeux.DECIMAL),
+        jeux.Colonne("empreinte", jeux.EDM_TEXTE, jeux.EMPREINTE),
+    )
+    propres, masquees = formats.minimiser(None, colonnes, [valeurs], masqueur)
+    assert propres == [valeurs] and masquees == 0
+    assert jeux.IDENTIFIANT.match("wct-fictif-001\n") is not None
+    assert jeux.IDENTIFIANT.fullmatch("wct-fictif-001\n") is None
+
+
+@pytest.mark.parametrize("identifiant", [_TELEPHONE_COMME_ID, "+1 418 555 0100"])
+def test_le_masqueur_absent_refuse_un_identifiant_telephone(base, cle, horloge, identifiant):
+    _installer_lead_id_telephone(base, identifiant)
+    app = FastAPI()
+    app.include_router(
+        http.creer_router(cnx_factory=stockage.transaction, masqueur=None, cle=lambda: cle, horloge=horloge)
+    )
+    reponse = TestClient(app).get(
+        "/pont-bi/v1/jeux/leads.csv",
+        headers=_en_tete(_emettre(base, cle, horloge, jeux=["leads"])),
+    )
+    assert reponse.status_code == 422 and reponse.json()["erreur"] == "identifiant_telephone_ambigu"
+    assert identifiant.strip() not in reponse.text
+
+
+@pytest.mark.parametrize("comportement", ["inchangé", "exception"])
+@pytest.mark.parametrize("identifiant", [_TELEPHONE_COMME_ID, "+1 418 555 0100", "418 555 0100"])
+def test_un_masqueur_inchange_ou_en_echec_refuse_l_identifiant_telephone(
+    base, cle, horloge, client, masqueur, monkeypatch, comportement, identifiant
+):
+    _installer_lead_id_telephone(base, identifiant)
+    if comportement == "inchangé":
+        monkeypatch.setattr(masqueur, "masquer", lambda texte, **_kwargs: type("Resultat", (), {"texte": texte})())
+    else:
+        def echouer(_texte, **_kwargs):
+            raise RuntimeError("erreur fictive")
+
+        monkeypatch.setattr(masqueur, "masquer", echouer)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 422
+    assert reponse.json()["erreur"] == "identifiant_telephone_ambigu"
+    assert identifiant.strip() not in reponse.text
+
+
+def test_identifiants_metier_normaux_restant_exportables_sans_masqueur(base, cle, horloge):
+    app = FastAPI()
+    app.include_router(
+        http.creer_router(cnx_factory=stockage.transaction, masqueur=None, cle=lambda: cle, horloge=horloge)
+    )
+    reponse = TestClient(app).get(
+        "/pont-bi/v1/jeux/leads.csv",
+        headers=_en_tete(_emettre(base, cle, horloge, jeux=["leads"])),
+    )
+    assert reponse.status_code == 200
+    assert "lead-fictif-001" in reponse.text
+
+
+@pytest.mark.parametrize(
+    "identifiant",
+    [
+        "0999999999",
+        "9115550100",
+        "2026110412",
+        "11111111111111111111",
+        "lead418abc555def0100",
+        "ticket-418-ref-555-line-0100",
+    ],
+)
+def test_identifiants_sans_fenetre_nanp_restent_exportables(base, cle, horloge, client, identifiant):
+    _installer_lead_id_telephone(base, identifiant)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 200
+    assert identifiant in reponse.text
+
+
+def test_identifiant_non_conforme_inchange_par_masqueur_est_refuse_sans_valeur(
+    base, cle, horloge, client, masqueur, monkeypatch
+):
+    identifiant = "lead fictif avec espace"
+    _installer_lead_id_telephone(base, identifiant)
+    monkeypatch.setattr(masqueur, "masquer", lambda texte, **_kwargs: type("Resultat", (), {"texte": texte})())
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 422
+    assert reponse.json()["erreur"] == "identifiant_non_minimise"
+    assert identifiant not in reponse.text
+
+
+@pytest.mark.parametrize(
+    ("longueur", "statut", "erreur"),
+    [
+        (formats._LONGUEUR_MASQUE_IDENTIFIANT_MAX, 200, None),
+        (formats._LONGUEUR_MASQUE_IDENTIFIANT_MAX + 1, 500, "verification_pii_indisponible"),
+    ],
+)
+def test_sortie_du_masqueur_est_bornee_a_la_longueur_maximale_pour_un_identifiant(
+    base, cle, horloge, client, masqueur, monkeypatch, longueur, statut, erreur
+):
+    identifiant = "marie.roy@example.test"
+    sortie = "x" * longueur
+    _installer_lead_id_telephone(base, identifiant)
+    monkeypatch.setattr(masqueur, "masquer", lambda _texte, **_kwargs: type("Resultat", (), {"texte": sortie})())
+    monkeypatch.setattr(masqueur, "contient_pii", lambda _texte: False)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+
+    assert reponse.status_code == statut
+    assert identifiant not in reponse.text
+    if erreur is None:
+        assert sortie in reponse.text
+    else:
+        assert reponse.json()["erreur"] == erreur
+        assert sortie not in reponse.text
+
+
+def test_un_masqueur_qui_leve_sur_un_identifiant_non_telephone_refuse_sans_fuite(
+    base, cle, horloge, client, masqueur, monkeypatch
+):
+    identifiant = "marie.roy@example.test"
+    _installer_lead_id_telephone(base, identifiant)
+
+    def echouer(texte, **_kwargs):
+        raise RuntimeError(f"échec fictif avec {texte}")
+
+    monkeypatch.setattr(masqueur, "masquer", echouer)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+
+    assert reponse.status_code == 500
+    assert reponse.json()["erreur"] == "masquage_indisponible"
+    assert identifiant not in reponse.text and "échec fictif" not in reponse.text
+
+
+@pytest.mark.parametrize(
+    "resultat",
+    [None, 42, "sans attribut texte", type("ResultatTexteInvalide", (), {"texte": 42})()],
+)
+def test_un_masqueur_sans_texte_valide_refuse_un_identifiant_non_telephone_sans_fuite(
+    base, cle, horloge, client, masqueur, monkeypatch, resultat
+):
+    identifiant = "marie.roy@example.test"
+    _installer_lead_id_telephone(base, identifiant)
+    monkeypatch.setattr(masqueur, "masquer", lambda _texte, **_kwargs: resultat)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+
+    assert reponse.status_code == 500
+    assert reponse.json()["erreur"] == "masquage_indisponible"
+    assert identifiant not in reponse.text
+
+
+def test_identifiant_trop_long_est_refuse_sans_fuite_meme_si_le_telephone_est_apres_256(base, cle, horloge, client):
+    identifiant = "id-fictif-" + "x" * 260 + "-4185550100"
+    _installer_lead_id_telephone(base, identifiant)
+    jeton = _emettre(base, cle, horloge, jeux=["leads"])
+    reponse = client.get("/pont-bi/v1/jeux/leads.csv", headers=_en_tete(jeton))
+    assert reponse.status_code == 422
+    assert reponse.json()["erreur"] == "identifiant_trop_long"
+    assert identifiant not in reponse.text and "4185550100" not in reponse.text
 
 
 def test_sans_masqueur_un_export_qui_en_a_besoin_est_refuse(base, cle, horloge):
