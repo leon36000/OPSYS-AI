@@ -60,6 +60,8 @@ def test_preflight_retourne_les_importeurs_du_package_initializer(base_dev):
 
     importeurs = {item["path"] for item in paquet["code_impact"]["importers"]}
     assert "pkg/consumer.py" in importeurs
+    assert paquet["code_impact"]["truncated"] is False
+    assert not any("racines d'import distinctes" in item for item in paquet["code_impact"]["limitations"])
 
     imports_cible = {item["path"] for item in paquet["code_impact"]["targets"][0]["imports"]}
     assert "pkg/service.py" in imports_cible
