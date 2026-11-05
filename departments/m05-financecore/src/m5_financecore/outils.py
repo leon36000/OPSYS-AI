@@ -2621,6 +2621,67 @@ def _verdict_chaine_financiere(nom: str, maillons: list[dict[str, Any]]) -> dict
     return None
 
 
+def _verifier_sources_rapprochement(nom: str, maillons: list[dict[str, Any]]) -> dict[str, str] | None:
+    """Refuse les doublons de facture et les champs de transition cliente hors contrat producteur."""
+    if nom != _NOM_REGISTRE_FACTURES:
+        return None
+    premiere_creation: dict[str, int] = {}
+    commun_transition = {
+        "type_entree", "facture_id", "statut", "horodatage", "ligne_id", "precedent_ligne_id"
+    }
+    extras_par_statut = {
+        "ENVOYEE": {"date_envoi", *facturation._CHAMPS_EMISSION},
+        "PAYEE": {"date_paiement", "approbateur"},
+        "ANNULEE": set(),
+    }
+    statuts_creation = {"BROUILLON", "ENVOYEE", "PAYEE", "ANNULEE"}
+
+    for rang, maillon in enumerate(maillons):
+        type_entree = maillon.get("type_entree")
+        # La projection des factures ignore aussi les autres familles; ne leur inventons pas ici
+        # un contrat de validation ni un changement de compatibilité.
+        if type_entree == "facture_creee":
+            identifiant = maillon.get("facture_id")
+            statut = maillon.get("statut")
+            if (
+                not isinstance(identifiant, str)
+                or not identifiant.strip()
+                or not isinstance(statut, str)
+                or statut not in statuts_creation
+            ):
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=f"registre factures, rang {rang}: identité ou statut de création invalide",
+                )
+            if identifiant in premiere_creation:
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=(f"registre factures, rang {rang}: facture {identifiant!r} créée une deuxième fois "
+                            f"(première création au rang {premiere_creation[identifiant]})"),
+                )
+            premiere_creation[identifiant] = rang
+        elif type_entree == "transition_facture":
+            identifiant = maillon.get("facture_id")
+            statut = maillon.get("statut")
+            if (not isinstance(identifiant, str) or not identifiant.strip()
+                    or not isinstance(statut, str)
+                    or statut not in extras_par_statut or identifiant not in premiere_creation):
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=f"registre factures, rang {rang}: transition sans facture connue ou statut invalide",
+                )
+            autorises = commun_transition | extras_par_statut[statut]
+            non_autorises = set(maillon).difference(autorises)
+            if non_autorises:
+                noms_champs = ", ".join(sorted(non_autorises))
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=(f"registre factures, rang {rang}: transition {statut} de facture {identifiant!r} "
+                            f"avec champs non autorisés ({noms_champs})"),
+                )
+    return None
+
+
 def _valider_chaines_cfo(
     maillons_mouvements: list[dict[str, Any]],
     maillons_factures: list[dict[str, Any]],
@@ -7392,6 +7453,11 @@ def rapprocher_grand_livre(debut: str, fin: str) -> dict[str, Any]:
         refus_chaine = _verdict_chaine_financiere(nom, instantane[nom])
         if refus_chaine is not None:
             return _refus(refus_chaine)
+    refus_source = _verifier_sources_rapprochement(
+        _NOM_REGISTRE_FACTURES, instantane[_NOM_REGISTRE_FACTURES]
+    )
+    if refus_source is not None:
+        return _refus(refus_source)
     etat_ops = operations_registre.etat_operations(instantane[_NOM_REGISTRE_OPERATIONS])
     refus_ops = operations_registre.refus_anomalies(etat_ops)
     if refus_ops is not None:
