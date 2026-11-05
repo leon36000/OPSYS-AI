@@ -10,21 +10,29 @@ n'ajoute un constat que s'il change.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from opsys import contexte, stockage
 from opsys.idempotence import empreinte_arguments
 from opsys.outils import Autonomie, Niveau, Outil
 
-from . import orchestrateur
+from . import orchestrateur, rapport_decision_v2, sessions_conseil
 from .outils_tissu import DEPARTEMENT, borner, exiger_admin_strict
 
 REGISTRE_ACTIONS = "actions"
+REGISTRE_SESSIONS = "sessions_conseil"
 _INSTANT = {"type": "string", "description": "Instant RFC 3339 à fuseau explicite (M9 n'a pas d'horloge)."}
 _ID = {"type": "string", "minLength": 1, "maxLength": 128}
+_RAPPORT_ID = re.compile(r"[0-9a-f]{64}")
+_REFUS_SOURCE_CONSEIL = (
+    "REJ-ACTION-CONSEIL-REFERENCE : fournir le rapport_id complet (64 hex) d'une clôture M9 v2 vérifiable"
+)
 
 
-def construire_outils(*, budget_sortie: int, proposeur: Any = None, actions_cible: Any = None) -> tuple[Outil, ...]:
+def construire_outils(
+    *, budget_sortie: int, proposeur: Any = None, actions_cible: Any = None, sessions_cible: Any = None
+) -> tuple[Outil, ...]:
     def registre() -> Any:
         return actions_cible if actions_cible is not None else stockage.maillons(DEPARTEMENT, REGISTRE_ACTIONS)
 
@@ -34,6 +42,76 @@ def construire_outils(*, budget_sortie: int, proposeur: Any = None, actions_cibl
         if not ok:
             raise ValueError(f"REJ-ACTION-CHAINE-INVALIDE : registre des actions invalide ({raison})")
         return liste
+
+    def verifier_source_conseil(departement: str, outil: str, sources: list[str]) -> None:
+        """Vérifie les références conseil explicitement citées pour M10, sans déduire la provenance des arguments.
+
+        Une source d'un autre type, une action d'un autre département ou une proposition M10 sans source `conseil:`
+        reste sous le contrat générique existant. Le contrôle ne lie pas le contenu libre de `decision_id`/`raison`
+        au rapport; M10 n'a pas de champ structuré de corrélation et `m9:` n'est pas un namespace réservé global.
+        """
+        if departement != "m10-memoire" or outil != "m10_journaliser_decision":
+            return
+        references = {source.removeprefix("conseil:") for source in sources if source.startswith("conseil:")}
+        if not references:
+            return
+        if any(_RAPPORT_ID.fullmatch(reference) is None for reference in references):
+            raise ValueError(_REFUS_SOURCE_CONSEIL)
+        try:
+            source = sessions_cible if sessions_cible is not None else stockage.maillons(DEPARTEMENT, REGISTRE_SESSIONS)
+            historique = list(source)
+            valide, _ = sessions_conseil.valider_chaine(historique)
+        except Exception:  # noqa: BLE001 - une indisponibilité locale doit produire un refus stable sans détails.
+            raise ValueError(_REFUS_SOURCE_CONSEIL) from None
+        if not valide:
+            raise ValueError(_REFUS_SOURCE_CONSEIL)
+
+        evenements_par_session: dict[str, list[dict]] = {}
+        for evenement in historique:
+            if isinstance(evenement, dict) and isinstance(evenement.get("session_id"), str):
+                evenements_par_session.setdefault(evenement["session_id"], []).append(evenement)
+        sessions_ouvertes = {
+            session_id
+            for session_id, evenements in evenements_par_session.items()
+            if evenements and evenements[0].get("type") == "OUVERTURE"
+        }
+        for reference in references:
+            candidates = 0
+            candidates_valides = 0
+            candidate_incoherente = False
+            for evenement in historique:
+                if not isinstance(evenement, dict) or evenement.get("type") != "CLOTURE":
+                    continue
+                rapport = evenement.get("rapport")
+                rapport_id = rapport.get("rapport_id") if isinstance(rapport, dict) else None
+                ids_evenement = (evenement.get("rapport_id"), rapport_id)
+                if not any(identifiant == reference for identifiant in ids_evenement):
+                    continue
+                candidates += 1
+                session_id = evenement.get("session_id")
+                if not isinstance(session_id, str) or session_id not in sessions_ouvertes:
+                    candidate_incoherente = True
+                    continue
+                try:
+                    projection = sessions_conseil.etat(evenements_par_session[session_id], session_id)
+                    cloture_projetee = projection.get("cloture")
+                    rapport_valide, _ = rapport_decision_v2.valider_rapport_decision_v2(rapport)
+                except Exception:  # noqa: BLE001 - projection locale illisible : ne pas appeler le port natif.
+                    candidate_incoherente = True
+                    continue
+                if (
+                    evenement.get("rapport_id") != rapport_id
+                    or not isinstance(rapport_id, str)
+                    or _RAPPORT_ID.fullmatch(rapport_id) is None
+                    or rapport_id != reference
+                    or cloture_projetee != evenement
+                    or not rapport_valide
+                ):
+                    candidate_incoherente = True
+                else:
+                    candidates_valides += 1
+            if candidates == 0 or candidates_valides == 0 or candidate_incoherente:
+                raise ValueError(_REFUS_SOURCE_CONSEIL)
 
     def personne() -> str:
         appelante = contexte.identite_appelante()
@@ -57,6 +135,9 @@ def construire_outils(*, budget_sortie: int, proposeur: Any = None, actions_cibl
         courante = orchestrateur.etat(liste).get(action_id)
         if courante is not None and courante["etat"] in orchestrateur.ETATS_BLOQUANTS:
             raise ValueError(f"REJ-ACTION-REJEU : action déjà {courante['etat']} (tentative {courante['tentative']})")
+        # Après la garde de rejeu : une proposition déjà présente reste lisible/refusée comme avant, même si sa source
+        # n'est plus disponible. Le contrôle porte uniquement sur une source conseil explicitement déclarée vers M10.
+        verifier_source_conseil(departement, outil, sources)
         reponse = port("proposer", departement=departement, outil=outil, arguments=arguments, motif=motif)
         if reponse.get("ok") is not True:
             raise ValueError(f"REJ-ACTION-REFUSEE : {reponse.get('erreur')} — {reponse.get('details')}")

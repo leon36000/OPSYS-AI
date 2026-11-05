@@ -30,6 +30,11 @@ contournerait sa chaîne append-only et la validation humaine. Une décision « 
 - **Consigner** : l'outil de préparation rend `ecrit: false` et un bloc `a_proposer` (département `m10-memoire`, outil,
   arguments, source `conseil:<rapport_id>`) ; l'écriture passe par `m9_proposer_action` puis l'approbation humaine dans
   la file native (demande N3), puis `m9_reconcilier_action`.
+  Pour une nouvelle proposition vers `m10_journaliser_decision`, chaque source explicitement nommée `conseil:` doit
+  porter l'empreinte complète de 64 caractères d'une clôture M9 dont le rapport v2 et les identifiants sont cohérents.
+  Un ancien préfixe court demeure lisible dans l'historique, mais une nouvelle proposition doit fournir l'ID complet.
+  Ce contrôle ne prouve ni l'authenticité ou la vérité du rapport, ni le lien entre ses contenus et les arguments
+  proposés. Il ne vérifie pas les propositions qui utilisent uniquement d'autres types de sources.
 - **Vérifier** (`verifier`) : lit la dernière capture de `m10.statut_decision` connue à l'instant et la compare à
   l'attendu et à l'état de l'action : `COHERENT`, `DIVERGENT`, `MEMOIRE_FANTOME` (action `EXECUTEE_CONFIRMEE`, M10 sans
   trace), `NON_ENREGISTREE` (rien consigné, M10 le confirme), `NON_ATTRIBUABLE` (M10 porte la décision sans action

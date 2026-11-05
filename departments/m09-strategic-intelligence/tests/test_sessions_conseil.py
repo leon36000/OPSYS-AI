@@ -10,11 +10,14 @@ from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
 from m9_strategic_intelligence import conseil as cj
 from m9_strategic_intelligence import dossier_strategique as ds
+from m9_strategic_intelligence import orchestrateur
+from m9_strategic_intelligence import outils_actions as oa
 from m9_strategic_intelligence import outils_conseil as oc
 from m9_strategic_intelligence import outils_memoire as om
 from m9_strategic_intelligence import rapport_decision_v2 as rd
 from m9_strategic_intelligence import sessions_conseil as sc
 
+from opsys.idempotence import empreinte_arguments
 from opsys.serveur_mcp import creer_serveur
 
 FICTIF = True
@@ -1435,3 +1438,332 @@ def test_borne_publique_mesure_les_caracteres_json_pas_les_octets_utf8(monkeypat
     assert len(json.dumps(pages[0], ensure_ascii=False, allow_nan=False).encode("utf-8")) > 5900
     assert "".join(page["contenu_json"] for page in pages) == cs.canonique(rapport)
     assert historique == historique_avant and sc.valider_chaine(historique) == (True, "")
+
+def _outils_proposition_action(monkeypatch, sessions, *, actions=None, budget_sortie=20_000):
+    class RegistreActions(list):
+        def append(self, maillon, *, rang_attendu):
+            assert rang_attendu == len(self)
+            super().append(maillon)
+
+    monkeypatch.setattr(oa, "exiger_admin_strict", lambda: None)
+    actions = RegistreActions() if actions is None else actions
+    appels = []
+
+    def port(operation, **valeurs):
+        assert operation == "proposer"
+        appels.append(valeurs)
+        return {
+            "ok": True,
+            "demande_id": f"{len(appels):012x}",
+            "niveau": "N3",
+            "arguments_sha256": empreinte_arguments(valeurs["arguments"]),
+        }
+
+    outils = oa.construire_outils(
+        budget_sortie=budget_sortie,
+        proposeur=port,
+        actions_cible=actions,
+        sessions_cible=sessions,
+    )
+    fonctions = {outil.nom: outil.fonction for outil in outils}
+    return fonctions, appels, actions
+
+
+def _proposition_m10(*, source, decision_id="DECISION-FICTIVE-01", raison="motif fictif sans lien implicite"):
+    return {
+        "departement": "m10-memoire",
+        "outil": "m10_journaliser_decision",
+        "arguments": {
+            "decision": {
+                "decision_id": decision_id,
+                "raison": raison,
+                "statut": "proposee",
+                "options_ecartees": "",
+            },
+            "horodatage": T,
+        },
+        "sources": [source],
+        "motif": "test fictif de provenance",
+        "horodatage": T,
+    }
+
+
+def _session_closee_fictive():
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    return [*evenements, cloture], cloture
+
+
+def test_m9_proposer_action_verifie_une_source_conseil_m10_avant_le_port(monkeypatch):
+    historique, cloture = _session_closee_fictive()
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, historique)
+    proposition = _proposition_m10(source=f"conseil:{cloture['rapport_id']}")
+
+    resultat = fonctions["m9_proposer_action"](**proposition)
+
+    assert resultat["accepte"] is True and resultat["execute"] is False
+    assert len(appels) == 1 and len(actions) == 1
+    assert sc.valider_chaine(historique) == (True, "")
+
+
+@pytest.mark.parametrize(
+    "mode",
+    ["inconnu", "rapport_v2_invalide", "ids_incoherents", "chaine_invalide", "id_raccourci", "sessions_indisponibles"],
+)
+def test_source_conseil_m10_non_verifiable_refuse_avant_port_ou_registre(mode, monkeypatch):
+    historique, cloture = _session_closee_fictive()
+    if mode == "rapport_v2_invalide":
+        rapport = copy.deepcopy(cloture["rapport"])
+        rapport["sections"]["question"]["statut"] = "SCHEMA_CORROMPU"
+        rapport["rapport_id"] = rd.identifiant(rapport)
+        cloture["rapport"] = rapport
+        cloture["rapport_id"] = rapport["rapport_id"]
+        historique = _rechaîner_historique(historique)
+        source_id = cloture["rapport_id"]
+        assert rd.valider_rapport_decision_v2(rapport)[0] is False
+    elif mode == "ids_incoherents":
+        source_id = cloture["rapport"]["rapport_id"]
+        cloture["rapport_id"] = "f" * 64
+        historique = _rechaîner_historique(historique)
+        assert sc.valider_chaine(historique) == (True, "")
+    elif mode == "chaine_invalide":
+        source_id = cloture["rapport_id"]
+        historique[-1]["hash_maillon"] = "f" * 64
+        assert sc.valider_chaine(historique)[0] is False
+    elif mode == "id_raccourci":
+        source_id = cloture["rapport_id"][:12]
+    elif mode == "sessions_indisponibles":
+        source_id = cloture["rapport_id"]
+    else:
+        source_id = "0" * 64
+
+    sessions = historique
+    if mode == "sessions_indisponibles":
+        class RegistreSessionsIndisponible:
+            def __iter__(self):
+                raise OSError("détail fictif masqué")
+
+        sessions = RegistreSessionsIndisponible()
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, sessions)
+    proposition = _proposition_m10(source=f"conseil:{source_id}")
+    attendu = (
+        r"^REJ-ACTION-CONSEIL-REFERENCE : fournir le rapport_id complet \(64 hex\) "
+        r"d'une clôture M9 v2 vérifiable$"
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=attendu,
+    ) as refus:
+        fonctions["m9_proposer_action"](**proposition)
+
+    assert "rapport_id complet (64 hex)" in str(refus.value)
+    assert appels == []
+    assert actions == []
+
+
+def test_source_conseil_valide_ne_masque_pas_une_autre_reference_invalide(monkeypatch):
+    historique, cloture = _session_closee_fictive()
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, historique)
+    proposition = _proposition_m10(source=f"conseil:{cloture['rapport_id']}")
+    proposition["sources"].append("conseil:" + "0" * 64)
+
+    with pytest.raises(ValueError, match="^REJ-ACTION-CONSEIL-REFERENCE"):
+        fonctions["m9_proposer_action"](**proposition)
+
+    assert appels == []
+    assert actions == []
+
+
+def test_source_conseil_valide_ne_prouve_pas_la_correlation_semantique_des_arguments(monkeypatch):
+    historique, cloture = _session_closee_fictive()
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, historique)
+    proposition = _proposition_m10(
+        source=f"conseil:{cloture['rapport_id']}",
+        decision_id="DECISION-ARBITRAIRE-FICTIVE",
+        raison="aucune référence au rapport dans ce texte fictif",
+    )
+
+    resultat = fonctions["m9_proposer_action"](**proposition)
+
+    assert resultat["accepte"] is True
+    assert len(appels) == 1 and len(actions) == 1
+
+
+def test_sources_generiques_et_propositions_existantes_ne_sont_pas_elargies(monkeypatch):
+    class RegistreIndisponible:
+        def __iter__(self):
+            raise AssertionError("aucune lecture conseil attendue")
+
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, RegistreIndisponible())
+    generique = _proposition_m10(
+        source="playbook:" + "a" * 64,
+        decision_id="m9:" + "b" * 32,
+        raison="rapport " + "c" * 64,
+    )
+    resultat = fonctions["m9_proposer_action"](**generique)
+    assert resultat["accepte"] is True and len(appels) == 1 and len(actions) == 1
+
+    proposition_m2 = _proposition_m10(source="conseil:" + "d" * 64)
+    proposition_m2["departement"] = "m02-revenue-crm"
+    proposition_m2["outil"] = "m2_reassigner_lead"
+    resultat_m2 = fonctions["m9_proposer_action"](**proposition_m2)
+    assert resultat_m2["accepte"] is True and len(appels) == 2 and len(actions) == 2
+
+    historique, cloture = _session_closee_fictive()
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, historique)
+    proposition = _proposition_m10(source=f"conseil:{cloture['rapport_id']}")
+    resultat = fonctions["m9_proposer_action"](**proposition)
+    action_id = resultat["action_id"]
+    historique.clear()  # la source devient indisponible après la première demande
+
+    with pytest.raises(ValueError, match="^REJ-ACTION-REJEU"):
+        fonctions["m9_proposer_action"](**proposition)
+    lecture = fonctions["m9_lire_actions"](action_id=action_id)
+
+    assert len(appels) == 1
+    assert len(actions) == 1
+    assert lecture["actions"][0]["action_id"] == action_id
+
+
+def test_action_historique_a_source_conseil_courte_reste_lisible_sans_registre_sessions(monkeypatch):
+    source = "conseil:" + "e" * 12
+    proposition = _proposition_m10(source=source)
+    arguments_sha256 = empreinte_arguments(proposition["arguments"])
+    historique_actions = [
+        orchestrateur.proposition(
+            [],
+            departement=proposition["departement"],
+            outil=proposition["outil"],
+            arguments_sha256=arguments_sha256,
+            demande_id="123456789abc",
+            niveau="N3",
+            sources=[source],
+            motif=proposition["motif"],
+            recu_a=T,
+            propose_par="admin.fictif",
+        )
+    ]
+
+    class RegistreIndisponible:
+        def __iter__(self):
+            raise AssertionError("lecture brute d'action ne doit pas relire les sessions")
+
+    fonctions, appels, actions = _outils_proposition_action(
+        monkeypatch, RegistreIndisponible(), actions=historique_actions
+    )
+    action_id = historique_actions[0]["action_id"]
+
+    with pytest.raises(ValueError, match="^REJ-ACTION-REJEU"):
+        fonctions["m9_proposer_action"](**proposition)
+    lecture = fonctions["m9_lire_actions"](action_id=action_id)
+
+    assert appels == []
+    assert lecture["actions"][0]["action_id"] == action_id
+    assert lecture["actions"][0]["sources"] == [source]
+    assert actions == historique_actions
+
+
+def _actions_fictives_proches_borne(suffixe_source: int, *, longueurs_motif=(300, 300)):
+    source = "m9.metrics#0:p0." + "a" * suffixe_source
+    sources = [source] * 12
+    actions = []
+    for index in range(2):
+        actions.append(
+            orchestrateur.proposition(
+                actions,
+                departement="m10-memoire",
+                outil="m10_journaliser_decision",
+                arguments_sha256=f"{index + 1:064x}",
+                demande_id=f"{index + 1:012x}",
+                niveau="N3",
+                sources=sources,
+                motif="m" * longueurs_motif[index],
+                recu_a=T,
+                propose_par="admin.fictif",
+            )
+        )
+    return actions
+
+
+def test_m9_lire_actions_signale_limites_et_borne_exacte_5900_5901(monkeypatch):
+    limites_anterieures = (
+        "M9 propose ; l'exécution appartient à la file d'approbation native et au département cible, sous leurs rôles.",
+        "Les arguments ne sont pas conservés ici (seule leur empreinte) ; un effet inconnu ne se rejoue jamais.",
+    )
+    taille_limites_anterieures = len(json.dumps(limites_anterieures, ensure_ascii=False, allow_nan=False))
+    taille_limites_courantes = len(json.dumps(orchestrateur._LIMITES, ensure_ascii=False, allow_nan=False))
+    assert taille_limites_anterieures == 219
+    assert taille_limites_courantes == 218
+    assert taille_limites_courantes < taille_limites_anterieures
+
+    actions_n148 = _actions_fictives_proches_borne(148)
+    avant_n148 = copy.deepcopy(actions_n148)
+    fonctions, _, actions = _outils_proposition_action(
+        monkeypatch, [], actions=actions_n148, budget_sortie=5900
+    )
+    page = fonctions["m9_lire_actions"]()
+    assert page["limites"] == list(orchestrateur._LIMITES)
+    assert "Sources déclarées :" in page["limites"][1]
+    assert "lien aux arguments, vérité et authenticité non prouvés" in page["limites"][1]
+    assert page["limites"][1].endswith("vérification partielle.")
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) < 5900
+    assert actions == avant_n148
+
+    actions_a_5900 = _actions_fictives_proches_borne(155, longueurs_motif=(299, 299))
+    avant_a_5900 = copy.deepcopy(actions_a_5900)
+    fonctions, _, actions = _outils_proposition_action(
+        monkeypatch, [], actions=actions_a_5900, budget_sortie=5900
+    )
+    page_a_5900 = fonctions["m9_lire_actions"]()
+    assert len(json.dumps(page_a_5900, ensure_ascii=False, allow_nan=False)) == 5900
+    assert actions == avant_a_5900
+
+    actions_a_5901 = _actions_fictives_proches_borne(155, longueurs_motif=(299, 300))
+    avant_a_5901 = copy.deepcopy(actions_a_5901)
+    fonctions_large, _, _ = _outils_proposition_action(
+        monkeypatch, [], actions=actions_a_5901, budget_sortie=20_000
+    )
+    page_a_5901 = fonctions_large["m9_lire_actions"]()
+    assert len(json.dumps(page_a_5901, ensure_ascii=False, allow_nan=False)) == 5901
+
+    fonctions, _, actions = _outils_proposition_action(
+        monkeypatch, [], actions=actions_a_5901, budget_sortie=5900
+    )
+    with pytest.raises(ValueError, match="^REJ-TISSU-BORNE"):
+        fonctions["m9_lire_actions"]()
+    assert actions == avant_a_5901
+
+
+def test_source_conseil_valide_ne_masque_pas_une_cloture_incoherente_de_meme_id(monkeypatch):
+    historique, cloture = _session_closee_fictive()
+    ouverture_incoherente = copy.deepcopy(historique[0])
+    ouverture_incoherente["session_id"] = "e" * 32
+    cloture_incoherente = copy.deepcopy(cloture)
+    cloture_incoherente["session_id"] = ouverture_incoherente["session_id"]
+    cloture_incoherente["rapport"]["sections"]["question"]["statut"] = "SCHEMA_CORROMPU"
+    historique = _rechaîner_historique([*historique, ouverture_incoherente, cloture_incoherente])
+    assert sc.valider_chaine(historique) == (True, "")
+    assert rd.valider_rapport_decision_v2(historique[-1]["rapport"])[0] is False
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, historique)
+    proposition = _proposition_m10(source=f"conseil:{cloture['rapport_id']}")
+    with pytest.raises(ValueError, match="^REJ-ACTION-CONSEIL-REFERENCE"):
+        fonctions["m9_proposer_action"](**proposition)
+    assert appels == [] and actions == []
+
+
+def test_source_conseil_courte_refuse_avant_consultation_des_sessions(monkeypatch):
+    class RegistreSessionsSonde:
+        lectures = 0
+
+        def __iter__(self):
+            self.lectures += 1
+            raise OSError("lecture fictive indisponible")
+
+    sessions = RegistreSessionsSonde()
+    fonctions, appels, actions = _outils_proposition_action(monkeypatch, sessions)
+    with pytest.raises(ValueError, match="^REJ-ACTION-CONSEIL-REFERENCE"):
+        fonctions["m9_proposer_action"](**_proposition_m10(source="conseil:" + "a" * 12))
+    assert sessions.lectures == 0
+    assert appels == [] and actions == []

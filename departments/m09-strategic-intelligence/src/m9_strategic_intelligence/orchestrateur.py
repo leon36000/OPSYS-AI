@@ -43,8 +43,11 @@ _SOURCE = re.compile(
 _DEMANDE = re.compile(r"[0-9a-f]{12}")
 MAX_SOURCES = 12
 _LIMITES = (
-    "M9 propose ; l'exécution appartient à la file d'approbation native et au département cible, sous leurs rôles.",
-    "Les arguments ne sont pas conservés ici (seule leur empreinte) ; un effet inconnu ne se rejoue jamais.",
+    "M9 propose; cible agit après approbation native (rôles cible).",
+    (
+        "Arguments : hash seul; effet inconnu non rejoué. Sources déclarées : lien aux arguments, "
+        "vérité et authenticité non prouvés; vérification partielle."
+    ),
 )
 
 
