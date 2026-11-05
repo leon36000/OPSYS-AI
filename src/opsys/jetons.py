@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from sqlalchemy import Connection, and_, select
@@ -158,39 +158,64 @@ def etat_budget(
 
 def tronquer(
     cnx: Connection, texte: str, source: str, limite: int = LIMITE_SORTIE_DEFAUT, *,
-    departement: str | None = None, origine: str | None = None,
+    departement: str | None = None, origine: str | None = None, mesurer: Callable[[str], int] = len,
 ) -> str:
-    """Garde début et fin d'une sortie trop longue ; le texte complet reste lisible par artefact.
+    """Garde début et fin d'une sortie trop longue ; le texte complet est proposé en artefact si l'origine est connue.
 
+    La reprise n'est durable que si la transaction appelante est validée ; un retour arrière peut annuler l'artefact.
     Le modèle ne paie que ce qu'il lit : il relit l'artefact par tranches s'il en a besoin.
     """
-    if len(texte) <= limite:
+    if type(limite) is not int or limite < 0:
+        raise ValueError("REJ-SORTIE-LIMITE-ISSUE-INCONNUE : limite invalide ; issue de l'opération inconnue")
+    if mesurer(texte) <= limite:
         return texte
     from . import contexte
 
     departement = departement or contexte.DEPARTEMENT_APPELANT.get()
     origine = origine or contexte.departement_origine_appelante()
-    tete = int(limite * _TETE)
-    queue = limite - tete
-    omis = len(texte) - tete - queue
-    if (
+    sauvegardable = not (
         not isinstance(departement, str) or not departement.strip()
         or not isinstance(origine, str) or not origine.strip()
-    ):
-        return (
-            f"{texte[:tete]}\n\n[… {omis} caractères omis — reprise non conservée : origine authentifiée absente]\n\n"
-            f"{texte[-queue:]}"
+    )
+    ident = None
+    if sauvegardable:
+        ident = hashlib.sha256(f"{departement}\0{origine}\0{source}\0{texte}".encode()).hexdigest()[:16]
+
+    def sauvegarder() -> None:
+        if ident is None:
+            return
+        insertion = inserer(cnx)(ARTEFACTS).values(
+            id=ident, cree_le=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+            source=source, departement=departement, origine=origine, taille=len(texte), contenu=texte,
         )
-    ident = hashlib.sha256(f"{departement}\0{origine}\0{source}\0{texte}".encode()).hexdigest()[:16]
-    insertion = inserer(cnx)(ARTEFACTS).values(
-        id=ident, cree_le=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
-        source=source, departement=departement, origine=origine, taille=len(texte), contenu=texte,
-    )
-    cnx.execute(insertion.on_conflict_do_nothing(index_elements=[ARTEFACTS.c.id]))
-    return (
-        f"{texte[:tete]}\n\n[… {omis} caractères omis — artefact {ident} ; "
-        f"lire la suite avec opsys_lire_artefact(id='{ident}', debut={tete})]\n\n{texte[-queue:]}"
-    )
+        cnx.execute(insertion.on_conflict_do_nothing(index_elements=[ARTEFACTS.c.id]))
+
+    def apercu(n: int) -> str:
+        tete = int(n * _TETE)
+        queue = n - tete
+        omis = len(texte) - n
+        indication = (
+            f"artefact {ident} ; lire la suite avec opsys_lire_artefact(id='{ident}', debut={tete})"
+            if ident is not None else "reprise non conservée : origine authentifiée absente"
+        )
+        return f"{texte[:tete]}\n\n[… {omis} caractères omis — {indication}]\n\n{texte[-queue:] if queue else ''}"
+
+    if mesurer(apercu(0)) > limite:
+        compact = f"artefact {ident} " if ident is not None else "reprise non conservée"
+        if mesurer(compact) <= limite:
+            sauvegarder()
+            return compact
+        raise ValueError("REJ-SORTIE-LIMITE-ISSUE-INCONNUE : limite trop petite ; issue de l'opération inconnue")
+    bas, haut = 0, min(len(texte) - 1, limite)
+    while bas < haut:
+        milieu = (bas + haut + 1) // 2
+        if mesurer(apercu(milieu)) <= limite:
+            bas = milieu
+        else:
+            haut = milieu - 1
+    resultat = apercu(bas)
+    sauvegarder()
+    return resultat
 
 
 def lire_artefact(cnx: Connection, ident: str, debut: int = 0, longueur: int = 4000) -> dict[str, Any]:

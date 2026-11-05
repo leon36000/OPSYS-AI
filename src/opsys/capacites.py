@@ -1993,16 +1993,27 @@ class Capacites:
             }
         departement_artifact = departement or contexte_appel.DEPARTEMENT_APPELANT.get()
         origine_artifact = origine or contexte_appel.departement_origine_appelante()
+        erreur_borne = None
         with self._cnx_factory() as cnx:
-            return {
-                "ok": reponse.get("ok", False),
-                "tronque": True,
-                "apercu": jetons.tronquer(
-                    cnx,
-                    texte,
-                    source,
-                    self._limite,
-                    departement=departement_artifact,
-                    origine=origine_artifact,
-                ),
-            }
+            def cadre(apercu: str) -> dict[str, Any]:
+                return {"ok": reponse.get("ok", False), "tronque": True, "apercu": apercu}
+
+            def mesurer(apercu: str) -> int:
+                return len(json.dumps(cadre(apercu), ensure_ascii=False))
+
+            try:
+                apercu = jetons.tronquer(
+                    cnx, texte, source, self._limite, departement=departement_artifact,
+                    origine=origine_artifact, mesurer=mesurer,
+                )
+            except ValueError as exc:
+                if not str(exc).startswith("REJ-SORTIE-LIMITE-ISSUE-INCONNUE"):
+                    raise
+                refus = {"ok": False, "issue": "inconnue"}
+                if len(json.dumps(refus, ensure_ascii=False)) <= self._limite:
+                    return refus
+                erreur_borne = exc
+            else:
+                return cadre(apercu)
+        # Une transaction englobante peut encore revenir en arrière : aucune reprise durable n'est promise ici.
+        raise erreur_borne
