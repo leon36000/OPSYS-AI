@@ -1,7 +1,12 @@
 """Lecture privée M7 : données fictives, bornes avant décodage et temporalité explicite."""
 
+import hashlib
+import importlib.util
 import json
+import sys
+import threading
 from datetime import date, datetime
+from pathlib import Path
 
 import pytest
 from m7_marketing import outils
@@ -297,3 +302,246 @@ def test_conflit_m5_valide_garde_son_code_historique(base):
     with pytest.raises(ValueError, match="CONFLIT_RENTABILITE_M5"):
         performance.enregistrer_fait("m5.rentabilite_chantier", conflit)
     assert len(list(stockage.maillons(*performance.REGISTRE))) == 1
+
+
+def _charge_m5_fictive(*, manque=None, sequence=1):
+    return {
+        "evenement_id": f"evt-borne-{sequence}-fictif", "devis_id": "devis-borne-fictif",
+        "chantier_id": None, "wct_id": "wct-borne-fictif", "sequence": sequence,
+        "version_entrees": "c" * 64, "horodatage_completion": "2026-09-12T12:00:00Z",
+        "verdict": "PARTIELLE", "devise": "CAD", "cout_reel_complet": False,
+        "cout_reel_cad": None, "cout_connu_cad": "0.00", "marge_reelle_cad": None,
+        "marge_prevue_cad": None, "ecart_marge_cad": None,
+        "manque": [] if manque is None else manque,
+    }
+
+
+def test_fait_m5_32_codes_valide_passe_ecriture_et_lecture_sans_troncature(base):
+    from opsys.evenements.schemas import erreurs_charge
+    from opsys.stockage import codec
+
+    charge = _charge_m5_fictive(manque=[f"REJ-{i:02d}" + "A" * 2042 for i in range(32)])
+    assert erreurs_charge("m5.rentabilite_chantier", charge) == []
+    fait = performance._normaliser("m5.rentabilite_chantier", charge)
+    taille_octets = len(codec.encoder(fait).encode("utf-8"))
+    assert taille_octets > 64 * 1024
+    assert taille_octets <= performance.MAX_OCTETS_TOTAL
+
+    assert performance.enregistrer_fait("m5.rentabilite_chantier", charge) == {
+        "accepte": True, "deja_present": False,
+    }
+    obtenu = _lecture()
+    assert obtenu["observation_source"]["lignes_lues"] == 1
+    assert list(stockage.maillons(*performance.REGISTRE))[0]["charge"]["manque"] == charge["manque"]
+
+
+def test_fait_m5_33_codes_depasse_le_contrat_et_ne_peut_pas_empoisonner_lecture(base):
+    from opsys.evenements.schemas import erreurs_charge
+
+    charge = _charge_m5_fictive(manque=[f"REJ-{i:02d}" for i in range(33)])
+    assert erreurs_charge("m5.rentabilite_chantier", charge)
+    charge["manque"][0] = "historique-sans-rej"
+    fait_historique = performance._normaliser("m5.rentabilite_chantier", charge)
+    _brut(json.dumps(fait_historique, ensure_ascii=False, separators=(",", ":")))
+    # M7 avait historiquement accepté jusqu'à 128 chaînes non vides sans exiger le motif REJ.
+    assert _lecture()["observation_source"]["lignes_lues"] == 1
+    assert list(stockage.maillons(*performance.REGISTRE))[0]["charge"]["manque"] == charge["manque"]
+
+
+def test_code_m5_valide_superieur_a_2048_octets_passe_ecriture_et_lecture(base):
+    from opsys.evenements.schemas import erreurs_charge
+    from opsys.stockage import codec
+
+    code = "REJ-" + "A" * 2045
+    charge = _charge_m5_fictive(manque=[code])
+    assert len(code.encode("utf-8")) > 2048
+    assert erreurs_charge("m5.rentabilite_chantier", charge) == []
+    fait = performance._normaliser("m5.rentabilite_chantier", charge)
+    taille = len(codec.encoder(fait).encode("utf-8"))
+    assert taille <= performance.MAX_OCTETS_TOTAL
+
+    assert performance.enregistrer_fait("m5.rentabilite_chantier", charge) == {
+        "accepte": True, "deja_present": False,
+    }
+    resultat = _lecture()
+    assert resultat["observation_source"]["lignes_lues"] == 1
+    assert list(stockage.maillons(*performance.REGISTRE))[0]["charge"]["manque"] == [code]
+
+
+def test_encodage_utf8_et_echappements_json_sont_dans_la_borne_reelle(base, monkeypatch):
+    from opsys.stockage import codec
+
+    charge = _charge_m5_fictive()
+    charge["evenement_id"] = '"\\é' * 512
+    fait = performance._normaliser("m5.rentabilite_chantier", charge)
+    taille = len(codec.encoder(fait).encode("utf-8"))
+    assert taille > len(charge["evenement_id"].encode("utf-8"))
+    assert taille <= performance.MAX_OCTETS_TOTAL
+
+    monkeypatch.setattr(performance, "MAX_OCTETS_TOTAL", taille - 1)
+    with pytest.raises(ValueError, match="PERFORMANCE_BORNE_OCTETS"):
+        performance.enregistrer_fait("m5.rentabilite_chantier", charge)
+    assert list(stockage.maillons(*performance.REGISTRE)) == []
+
+    monkeypatch.setattr(performance, "MAX_OCTETS_TOTAL", taille)
+    assert performance.enregistrer_fait("m5.rentabilite_chantier", charge) == {
+        "accepte": True, "deja_present": False,
+    }
+    assert _lecture()["observation_source"]["lignes_lues"] == 1
+
+
+def test_bornes_cumulees_et_idempotence_sont_verifiees_avant_append(base, monkeypatch):
+    charge = _charge_m5_fictive()
+    premier = performance.enregistrer_fait("m5.rentabilite_chantier", charge)
+    assert premier == {"accepte": True, "deja_present": False}
+    monkeypatch.setattr(performance, "MAX_LIGNES", 1)
+    assert performance.enregistrer_fait("m5.rentabilite_chantier", charge) == {
+        "accepte": True, "deja_present": True,
+    }
+    with pytest.raises(ValueError, match="PERFORMANCE_BORNE_LIGNES"):
+        performance.enregistrer_fait("m2.client_associe", {
+            "lead_id": "lead-borne-fictif", "client_id": "client-borne-fictif",
+            "horodatage_association": "2026-09-10T12:00:00Z",
+        })
+    assert len(list(stockage.maillons(*performance.REGISTRE))) == 1
+
+
+def test_borne_octets_cumules_refuse_une_nouvelle_ligne_sans_tronquer(base, monkeypatch):
+    from opsys.stockage import codec
+
+    existant = _fait()
+    performance.enregistrer_fait(existant["type"], existant["charge"])
+    autre = {"lead_id": "lead-autre-borne-fictif", "client_id": "client-autre-borne-fictif",
+             "horodatage_association": "2026-09-10T12:00:00Z"}
+    octets_existants = len(codec.encoder(list(stockage.maillons(*performance.REGISTRE))[0]).encode("utf-8"))
+    fait_a_ajouter = performance._normaliser("m2.client_associe", autre)
+    octets_nouveaux = len(codec.encoder(fait_a_ajouter).encode("utf-8"))
+    monkeypatch.setattr(performance, "MAX_OCTETS_TOTAL", octets_existants + octets_nouveaux - 1)
+    with pytest.raises(ValueError, match="PERFORMANCE_BORNE_OCTETS"):
+        performance.enregistrer_fait("m2.client_associe", autre)
+    assert len(list(stockage.maillons(*performance.REGISTRE))) == 1
+
+
+def test_rejeu_m5_meme_sequence_ignore_borne_ligne_apres_identite(base, monkeypatch):
+    from opsys.stockage import codec
+
+    charge = _charge_m5_fictive()
+    performance.enregistrer_fait("m5.rentabilite_chantier", charge)
+    rejeu = {**charge, "evenement_id": "evt-republication-" + "x" * 1500}
+    fait_rejeu = performance._normaliser("m5.rentabilite_chantier", rejeu)
+    taille = len(codec.encoder(fait_rejeu).encode("utf-8"))
+    monkeypatch.setattr(performance, "MAX_OCTETS_LIGNE", taille - 1)
+
+    assert performance.enregistrer_fait("m5.rentabilite_chantier", rejeu) == {
+        "accepte": True, "deja_present": True,
+    }
+    assert len(list(stockage.maillons(*performance.REGISTRE))) == 1
+
+    nouveau = _charge_m5_fictive(sequence=2)
+    nouveau["evenement_id"] = rejeu["evenement_id"]
+    with pytest.raises(ValueError, match="PERFORMANCE_BORNE_OCTETS"):
+        performance.enregistrer_fait("m5.rentabilite_chantier", nouveau)
+    assert len(list(stockage.maillons(*performance.REGISTRE))) == 1
+
+
+def test_append_concurrent_entre_prevol_et_ecriture_est_refuse_au_rang_attendu(base, monkeypatch):
+    performance.enregistrer_fait(_fait()["type"], _fait()["charge"])
+    original = type(stockage.maillons(*performance.REGISTRE)).append
+    concurrent = {"type": "m3.devis_accepte", "charge": {
+        "devis_id": "devis-concurrent-fictif", "lead_id": "lead-concurrent-fictif",
+        "chantier_id": None, "horodatage_acceptation": "2026-09-11T12:00:00Z",
+    }}
+    injected = False
+
+    def append_avec_commit_intercale(registre, fait, *, rang_attendu=None):
+        nonlocal injected
+        if not injected:
+            injected = True
+            original(registre, concurrent, rang_attendu=rang_attendu)
+        return original(registre, fait, rang_attendu=rang_attendu)
+
+    monkeypatch.setattr(type(stockage.maillons(*performance.REGISTRE)), "append", append_avec_commit_intercale)
+    with pytest.raises(stockage.EcritureConcurrente):
+        performance.enregistrer_fait("m3.devis_accepte", {
+            "devis_id": "devis-candidat-fictif", "lead_id": "lead-candidat-fictif",
+            "chantier_id": None, "horodatage_acceptation": "2026-09-11T12:00:00Z",
+        })
+    # L'append simulé fait partie de la même transaction et est annulé avec la course ; aucun demi-effet ne persiste.
+    faits = list(stockage.maillons(*performance.REGISTRE))
+    assert len(faits) == 1 and faits[0]["type"] == "m2.client_associe"
+
+
+def test_consommateur_postgresql_serialise_scan_identite_et_append(base, monkeypatch):
+    chemin_doubles = Path(stockage.__file__).resolve().parents[3] / "tests/fixtures/memoire/doubles.py"
+    nom_module = "_m7_postgres_doubles_" + hashlib.sha256(str(chemin_doubles).encode()).hexdigest()[:16]
+    module = sys.modules.get(nom_module)
+    if module is None:
+        spec = importlib.util.spec_from_file_location(nom_module, chemin_doubles)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[nom_module] = module
+        spec.loader.exec_module(module)
+    raison = module.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+
+    with module.postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        charge = _charge_m5_fictive()
+        recevoir = outils.consommateurs()["m5.rentabilite_chantier"]
+        premiere_verrouillee = threading.Event()
+        seconde_en_attente = threading.Event()
+        liberer_premiere = threading.Event()
+        terminee_b = threading.Event()
+        erreurs = []
+        resultats = {}
+        verrou_origine = performance.verrou_consultatif
+
+        def verrou_observe(cnx, nom, *, partage=False):
+            nom_thread = threading.current_thread().name
+            if nom_thread == "m7-fait-a":
+                verrou_origine(cnx, nom, partage=partage)
+                premiere_verrouillee.set()
+                if not liberer_premiere.wait(30):
+                    raise TimeoutError("le test n'a pas libéré le premier consommateur")
+                return
+            if nom_thread == "m7-fait-b":
+                seconde_en_attente.set()
+            verrou_origine(cnx, nom, partage=partage)
+
+        def livrer(cle):
+            try:
+                with stockage.transaction(url):
+                    resultats[cle] = recevoir(charge)
+            except BaseException as exc:  # transmettre toute erreur de thread au test principal
+                erreurs.append(exc)
+            finally:
+                if cle == "b":
+                    terminee_b.set()
+
+        monkeypatch.setattr(performance, "verrou_consultatif", verrou_observe)
+        a = threading.Thread(target=livrer, args=("a",), name="m7-fait-a", daemon=True)
+        b = threading.Thread(target=livrer, args=("b",), name="m7-fait-b", daemon=True)
+        a.start()
+        try:
+            assert premiere_verrouillee.wait(30), "le premier consommateur n'a pas pris le verrou"
+            b.start()
+            assert seconde_en_attente.wait(30), "le second consommateur n'a pas tenté le verrou"
+            assert not terminee_b.is_set(), "le second a scanné/écrit avant le déverrouillage"
+            with stockage.transaction(url):
+                assert list(stockage.maillons(*performance.REGISTRE)) == []
+        finally:
+            liberer_premiere.set()
+            a.join(30)
+            if b.ident is not None:
+                b.join(30)
+            stockage.liberer(url)
+        assert not a.is_alive() and not b.is_alive(), "threads bloqués"
+        assert not erreurs, erreurs
+        assert resultats == {
+            "a": {"accepte": True, "deja_present": False},
+            "b": {"accepte": True, "deja_present": True},
+        }
+        faits = list(stockage.maillons(*performance.REGISTRE))
+        assert len(faits) == 1 and faits[0]["type"] == "m5.rentabilite_chantier"

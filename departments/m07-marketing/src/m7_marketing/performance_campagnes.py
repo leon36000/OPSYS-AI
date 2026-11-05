@@ -17,6 +17,8 @@ from typing import Any
 from sqlalchemy import func, select
 
 from opsys import stockage
+from opsys.stockage import codec
+from opsys.stockage.concurrence import verrou_consultatif
 from opsys.stockage.portabilite import nb_octets
 from opsys.stockage.schema import REGISTRES
 
@@ -28,7 +30,9 @@ _CHAMPS_UTM = {"utm_source", "utm_campaign"}
 # Bornes du seul lecteur privé : aucune troncature des faits avant le calcul métier.
 MAX_LIGNES = 10_000
 MAX_OCTETS_TOTAL = 8 * 1024 * 1024
-MAX_OCTETS_LIGNE = 64 * 1024
+# M5 borne le nombre de codes `manque`, pas leur longueur. Aucun plafond de ligne
+# indépendant n'est dérivable; une ligne reste bornée par le budget total existant.
+MAX_OCTETS_LIGNE = MAX_OCTETS_TOTAL
 _MAX_PROFONDEUR = 16
 _MAX_NOEUDS = 2048
 _MONTANT = re.compile(r"^-?[0-9]{1,30}(?:\.[0-9]{1,8})?$")
@@ -112,7 +116,11 @@ def _decoder_fait(texte: str) -> dict[str, Any]:
                 if montant is not None and (not isinstance(montant, str) or not _MONTANT.fullmatch(montant)):
                     raise ValueError("montant invalide")
             manque = charge["manque"]
-            if not isinstance(manque, list) or len(manque) > 128 or not all(_texte_borne(v) for v in manque):
+            # Compatibilité historique M7 : jusqu'à 128 chaînes non vides, sans
+            # réappliquer le motif M5 ni borner leur longueur hors budget du fait.
+            if not isinstance(manque, list) or len(manque) > 128 or not all(
+                isinstance(v, str) and bool(v.strip()) for v in manque
+            ):
                 raise ValueError("manques invalides")
         return fait
     except (ValueError, TypeError, KeyError, AttributeError, ArithmeticError, RecursionError, UnicodeError) as exc:
@@ -235,7 +243,15 @@ def _normaliser(type_evenement: str, charge: dict[str, Any]) -> dict[str, Any]:
 
 
 def enregistrer_fait(type_evenement: str, charge: dict[str, Any]) -> dict[str, Any]:
-    """Inscrit un événement canonique M2/M3/M5 dans le registre analytique privé de M7."""
+    """Inscrit un fait M2/M3/M5 seulement s'il reste dans les mêmes bornes que le lecteur privé.
+
+    Le rang attendu empêche qu'un append concurrent franchisse silencieusement les plafonds cumulés. Une course qui
+    modifie la tête fait échouer l'append et peut être rejouée par le consommateur, qui retrouvera ensuite l'identité
+    idempotente.
+    """
+    if stockage.connexion_courante() is None:
+        with stockage.transaction():
+            return enregistrer_fait(type_evenement, charge)
     fait = _normaliser(type_evenement, charge)
     c = fait["charge"]
     cle = {
@@ -255,6 +271,15 @@ def enregistrer_fait(type_evenement: str, charge: dict[str, Any]) -> dict[str, A
         raise ValueError("PERFORMANCE_FAIT_INVALIDE") from exc
     fait = _decoder_fait(texte_fait)
     c = fait["charge"]
+    try:
+        taille_ligne = len(codec.encoder(fait).encode("utf-8"))
+    except (TypeError, ValueError, OverflowError, UnicodeError) as exc:
+        raise ValueError("PERFORMANCE_FAIT_INVALIDE") from exc
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        raise RuntimeError("PERFORMANCE_TRANSACTION_ABSENTE")
+    # Le verrou précède le scan d'identité: READ COMMITTED donne un instantané neuf après toute attente.
+    verrou_consultatif(cnx, "m07-performance-campagnes")
     faits = stockage.maillons(*REGISTRE)
     identity = tuple(c[k] for k in cle)
     comparable = json.dumps(fait, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -278,7 +303,21 @@ def enregistrer_fait(type_evenement: str, charge: dict[str, Any]) -> dict[str, A
         if precedent != comparable:
             raise ValueError(f"CONFLIT_FAIT_{type_evenement.upper().replace('.', '_')}")
         return {"accepte": True, "deja_present": True}
-    faits.append(fait)
+    if taille_ligne > MAX_OCTETS_LIGNE:
+        raise ValueError("PERFORMANCE_BORNE_OCTETS")
+    nombre_octets = _longueur_octets(cnx.dialect.name)
+    nombre, total_octets = cnx.execute(
+        select(func.count(), func.coalesce(func.sum(nombre_octets), 0)).where(
+            (REGISTRES.c.departement == REGISTRE[0]) & (REGISTRES.c.registre == REGISTRE[1])
+        )
+    ).one()
+    if nombre >= MAX_LIGNES:
+        raise ValueError("PERFORMANCE_BORNE_LIGNES")
+    if total_octets + taille_ligne > MAX_OCTETS_TOTAL:
+        raise ValueError("PERFORMANCE_BORNE_OCTETS")
+    # La précondition empêche deux producteurs concurrents de franchir silencieusement les bornes.
+    # Un append concurrent au même rang refuse et sera rejoué par le consommateur, qui verra alors son idempotence.
+    faits.append(fait, rang_attendu=nombre)
     return {"accepte": True, "deja_present": False}
 
 
