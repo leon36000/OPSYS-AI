@@ -138,6 +138,10 @@ class MaillonsDurables:
                 raise EcritureConcurrente(
                     f"rang {rang} déjà écrit dans {self.departement}/{self.registre}") from exc
 
+    def append_avec_rang_attendu(self, maillon: Any, *, rang_attendu: int) -> None:
+        """Protocole d'append préconditionnel utilisé par les chaînes pures sans les coupler au stockage."""
+        self.append(maillon, rang_attendu=rang_attendu)
+
     def extend(self, maillons: Iterable[Any]) -> None:
         with self._cnx():
             for maillon in maillons:

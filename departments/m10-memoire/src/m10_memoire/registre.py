@@ -88,14 +88,22 @@ class Registre:
         entree_copy.pop("ligne_id", None)
         entree_copy.pop("precedent_ligne_id", None)
 
-        precedent = self._chain[-1]["ligne_id"] if self._chain else None
+        # La tête et la précondition d'append viennent de la même lecture de longueur. Un
+        # registre durable refuse l'append si un autre écrivain a inséré entre-temps ; les
+        # listes en mémoire gardent leur append historique.
+        rang_attendu = len(self._chain)
+        precedent = self._chain[rang_attendu - 1]["ligne_id"] if rang_attendu else None
         ligne_id = encodage.empreinte(entree_copy, precedent)
 
         maillon = dict(entree_copy)
         maillon["ligne_id"] = ligne_id
         maillon["precedent_ligne_id"] = precedent
 
-        self._chain.append(maillon)
+        append_attendu = getattr(self._chain, "append_avec_rang_attendu", None)
+        if callable(append_attendu):
+            append_attendu(maillon, rang_attendu=rang_attendu)
+        else:
+            self._chain.append(maillon)
         return ligne_id
 
     def lire(self):
