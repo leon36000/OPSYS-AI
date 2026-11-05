@@ -20,6 +20,7 @@ recommandation sans ancrage et aucune autorité d'effet.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -54,6 +55,82 @@ def _avertissements_portee_si_applicable(gouvernance: object) -> list[dict[str, 
     if isinstance(gouvernance, Mapping) and type(gouvernance.get("decision_majeure")) is bool:
         return [_avertissement_portee_decision_majeure()]
     return []
+
+
+def _avertissement_hypotheses_non_verifiees(projection: Mapping, rapport: object) -> dict[str, str] | None:
+    """Signale les hypothèses sans attribuer une origine aux rapports historiques incomplets."""
+    textes_tours: list[str] = []
+    for tour in projection.get("tours", []):
+        proposition = tour.get("proposition") if isinstance(tour, Mapping) else None
+        affirmations = proposition.get("affirmations") if isinstance(proposition, Mapping) else None
+        if isinstance(affirmations, list):
+            textes_tours.extend(
+                affirmation["enonce"]
+                for affirmation in affirmations
+                if isinstance(affirmation, Mapping)
+                and affirmation.get("nature") == "hypothese"
+                and type(affirmation.get("enonce")) is str
+            )
+
+    sections = rapport.get("sections") if isinstance(rapport, Mapping) else None
+    section = sections.get("hypotheses") if isinstance(sections, Mapping) else None
+    contenu = section.get("contenu") if isinstance(section, Mapping) else None
+    hypotheses_rapport = (
+        isinstance(section, Mapping)
+        and section.get("statut") == "RENSEIGNEE"
+        and isinstance(contenu, list)
+        and bool(contenu)
+    )
+    rapport_legacy = not isinstance(sections, Mapping) and isinstance(rapport, Mapping)
+    hypotheses_legacy = rapport_legacy and isinstance(rapport.get("hypotheses"), list) and bool(rapport["hypotheses"])
+    if hypotheses_legacy:
+        contenu = rapport["hypotheses"]
+        hypotheses_rapport = True
+
+    if not hypotheses_rapport:
+        # Des hypothèses présentes seulement dans les tours ne sont pas attribuées à un rapport qui ne les renseigne
+        # pas; cela évite de contredire une section v2 NON_DISPONIBLE.
+        return None
+
+    # Le constructeur courant copie chaque énoncé admis dans cette section. Une chaîne historique peut toutefois ne
+    # plus avoir ses tours source; dans ce cas, ne pas présenter le statut/provenance du tour comme établi.
+    textes_rapport = [
+        element.get("texte")
+        for element in contenu
+        if isinstance(element, Mapping) and type(element.get("texte")) is str
+    ]
+    provenance_complete = not hypotheses_legacy and len(textes_rapport) == len(contenu)
+    restants = list(textes_tours)
+    if provenance_complete:
+        for texte in textes_rapport:
+            if texte not in restants:
+                provenance_complete = False
+                break
+            restants.remove(texte)
+    if not provenance_complete:
+        return {
+            "code": "HYPOTHESES_NON_VERIFIEES",
+            "statut": "NON_DETERMINE",
+            "provenance": "NON_ETABLIE",
+            "message": (
+                "Le rapport contient des éléments dans sa rubrique « Hypothèses », mais les tours disponibles ne "
+                "permettent pas d’établir leur origine ni leur statut de déclaration. Leur contenu n’est pas "
+                "vérifié par cette lecture ; cet avertissement ne confirme ni ne réfute leur contenu."
+            ),
+        }
+
+    if textes_tours:
+        return {
+            "code": "HYPOTHESES_NON_VERIFIEES",
+            "statut": "HYPOTHESE_DECLAREE",
+            "provenance": "tours_conseil",
+            "message": (
+                "Les hypothèses de ce rapport sont des déclarations des tours du conseil, au statut "
+                "HYPOTHESE_DECLAREE. Elles ne sont pas vérifiées par une source ; cet avertissement ne confirme "
+                "ni ne réfute leur contenu."
+            ),
+        }
+    return None
 
 
 def _tranche(objet: object, depart: int, longueur: int) -> dict:
@@ -411,7 +488,8 @@ def construire_outils(
 
     def lire_rapport_conseil(session_id: str, depart: int = 0, longueur: int = MAX_PAGE_OCTETS) -> dict[str, Any]:
         exiger_admin_strict()
-        cloture = sessions_conseil.etat(sessions(), session_id)["cloture"]
+        projection = sessions_conseil.etat(sessions(), session_id)
+        cloture = projection["cloture"]
         if cloture is None:
             raise _refus("REJ-SESSION-EN-COURS", "la session n'est pas close : aucun rapport")
         actions_incertaines = conseil.compter_actions_classement_incertain(cloture.get("gouvernance"))
@@ -428,17 +506,33 @@ def construire_outils(
                     ),
                 }
             )
-        return borner(
-            {
+        avertissement_hypotheses = _avertissement_hypotheses_non_verifiees(projection, cloture.get("rapport"))
+        if avertissement_hypotheses is not None:
+            avertissements.append(avertissement_hypotheses)
+
+        def construire_page(longueur_effective: int) -> dict[str, Any]:
+            return {
                 "accepte": True,
                 "session_id": session_id,
                 "rapport_id": cloture["rapport_id"],
                 "actions_a_classement_non_verifie": actions_incertaines,
                 "avertissements": avertissements,
-                **_tranche(cloture["rapport"], depart, longueur),
-            },
-            budget_sortie,
-        )
+                **_tranche(cloture["rapport"], depart, longueur_effective),
+            }
+
+        page = construire_page(longueur)
+        while page["contenu_json"]:
+            taille = len(json.dumps(page, ensure_ascii=False, allow_nan=False))
+            if taille <= budget_sortie:
+                break
+            if longueur <= 1:
+                break
+            # ``borner`` mesure le JSON externe sérialisé, où le JSON paginé est échappé une seconde fois.
+            # Réduire la fenêtre, jamais le rapport ni ses avertissements.
+            excedent = taille - budget_sortie
+            longueur = max(1, longueur - excedent - 8)
+            page = construire_page(longueur)
+        return borner(page, budget_sortie)
 
     objet = {"type": "object"}
     texte = {"type": "string", "minLength": 1, "maxLength": 2048}

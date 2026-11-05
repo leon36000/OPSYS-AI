@@ -68,6 +68,18 @@ def _ajouter(evenements, evenement):
     return evenements if evenement is None else [*evenements, evenement]
 
 
+def _rechaîner_historique(evenements):
+    precedent = sc.HASH_INITIAL
+    resultat = []
+    for index, evenement in enumerate(copy.deepcopy(evenements)):
+        evenement["index"] = index
+        evenement["hash_precedent"] = precedent
+        evenement["hash_maillon"] = sc.empreinte({k: v for k, v in evenement.items() if k != "hash_maillon"})
+        resultat.append(evenement)
+        precedent = evenement["hash_maillon"]
+    return resultat
+
+
 SORTIE_FINANCE = {
     "affirmations": [
         {"id": "A1", "nature": "observation_source", "reference": CASH, "valeur": "8400.00"},
@@ -93,6 +105,27 @@ SORTIE_PDG = {
             {"id": "a2", "type": "depense_reelle", "description": "commande express"},
         ],
     },
+}
+
+AVERTISSEMENT_HYPOTHESES = {
+    "code": "HYPOTHESES_NON_VERIFIEES",
+    "statut": "HYPOTHESE_DECLAREE",
+    "provenance": "tours_conseil",
+    "message": (
+        "Les hypothèses de ce rapport sont des déclarations des tours du conseil, au statut HYPOTHESE_DECLAREE. "
+        "Elles ne sont pas vérifiées par une source ; cet avertissement ne confirme ni ne réfute leur contenu."
+    ),
+}
+
+AVERTISSEMENT_HYPOTHESES_PROVENANCE_INDETERMINEE = {
+    "code": "HYPOTHESES_NON_VERIFIEES",
+    "statut": "NON_DETERMINE",
+    "provenance": "NON_ETABLIE",
+    "message": (
+        "Le rapport contient des éléments dans sa rubrique « Hypothèses », mais les tours disponibles ne permettent "
+        "pas d’établir leur origine ni leur statut de déclaration. Leur contenu n’est pas vérifié par cette lecture ; "
+        "cet avertissement ne confirme ni ne réfute leur contenu."
+    ),
 }
 
 
@@ -385,7 +418,7 @@ def test_public_abstention_sans_decision_majeure_n_emet_pas_son_avertissement(mo
     assert projection["cloture"]["avertissements"] == []
     page = outils["m9_lire_rapport_conseil"].fonction(session_id)
     assert page["actions_a_classement_non_verifie"] == 0
-    assert page["avertissements"] == []
+    assert page["avertissements"] == [AVERTISSEMENT_HYPOTHESES]
     assert page["sha256"] == cs.empreinte(cloture["rapport"])
     assert page["contenu_json"] == cs.canonique(cloture["rapport"])
     assert all(len(json.dumps(rep, ensure_ascii=False)) <= 5900 for rep in (reponse, projection, page))
@@ -456,7 +489,9 @@ def test_public_rapport_mixte_garde_un_avertissement_exact_quand_decision_majeur
     assert [item["code"] for item in page["avertissements"]] == [
         "PORTEE_DECISION_MAJEURE",
         "CLASSEMENT_NON_VERIFIE",
+        "HYPOTHESES_NON_VERIFIEES",
     ]
+    assert page["avertissements"][2] == AVERTISSEMENT_HYPOTHESES
     message = page["avertissements"][1]["message"]
     assert "une valeur false de decision_majeure ne garantit pas" in message
     assert "decision_majeure=false" not in message
@@ -538,7 +573,8 @@ def test_lecture_publique_avertit_sur_le_classement_legacy_sans_recrire_le_rappo
                     "ne garantit pas l'absence d'une action sensible. Le rapport historique, son contenu paginé "
                     "et son empreinte sont restitués inchangés."
                 ),
-            }
+            },
+            AVERTISSEMENT_HYPOTHESES,
         ]
         assert page["sha256"] == cs.empreinte(rapport_historique)
         assert page["rapport_id"] == rapport_historique["rapport_id"]
@@ -570,8 +606,122 @@ def test_lecture_publique_signale_portee_sans_action_a_classement_incertain(monk
                 "false ne garantit pas l'absence d'une action sensible. Ce booléen ne vaut ni validation humaine "
                 "ni autorisation d'effet."
             ),
-        }
+        },
+        AVERTISSEMENT_HYPOTHESES,
     ]
+
+
+def test_lecture_publique_signale_hypothese_declaree_sans_texte_ni_mutation(monkeypatch):
+    evenements, session_id = _ouvrir()
+    sortie_pdg = copy.deepcopy(SORTIE_PDG)
+    sortie_pdg["affirmations"][1]["enonce"] = "il y a 0 plainte cette semaine"
+    evenements = _tous_deposes(evenements, session_id, sortie_pdg=sortie_pdg)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+    chaine_avant = copy.deepcopy(evenements)
+    rapport_avant = copy.deepcopy(cloture["rapport"])
+    rapport_id_avant = cloture["rapport_id"]
+    assert rd.valider_rapport_decision_v2(rapport_avant) == (True, None)
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outil = next(
+        o
+        for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=evenements)
+        if o.nom == "m9_lire_rapport_conseil"
+    )
+    page = outil.fonction(session_id, longueur=4000)
+    avertissement = next(a for a in page["avertissements"] if a["code"] == "HYPOTHESES_NON_VERIFIEES")
+
+    assert avertissement["statut"] == "HYPOTHESE_DECLAREE"
+    assert avertissement["provenance"] == "tours_conseil"
+    assert "ne sont pas vérifiées par une source" in avertissement["message"]
+    assert "ne confirme ni ne réfute" in avertissement["message"]
+    assert "il y a 0 plainte cette semaine" not in str(avertissement)
+    assert "enonce" not in avertissement
+    assert page["sha256"] == cs.empreinte(rapport_avant)
+    assert page["rapport_id"] == rapport_id_avant
+    assert page["contenu_json"] == cs.canonique(rapport_avant)
+    assert len(json.dumps(page, ensure_ascii=False)) <= 5900
+    assert evenements == chaine_avant
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+@pytest.mark.parametrize("suffixe", ["", "é 🧪"])
+@pytest.mark.parametrize("longueur_demandee", [4000, 3900, 3800])
+def test_lecture_publique_ajuste_page_au_budget_serialise_sans_perdre_contenu_ni_avertissement(
+    monkeypatch, suffixe, longueur_demandee
+):
+    evenements, session_id = _ouvrir()
+    sortie_pdg = copy.deepcopy(SORTIE_PDG)
+    sortie_pdg["affirmations"][1]["enonce"] = "\\" * 400 + suffixe
+    sortie_pdg["recommandation"]["actions"] = []
+    evenements = _tous_deposes(evenements, session_id, sortie_pdg=sortie_pdg)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+    chaine_avant = copy.deepcopy(evenements)
+    contenu_attendu = cs.canonique(cloture["rapport"])
+    assert len(contenu_attendu) > 4000
+    assert rd.valider_rapport_decision_v2(cloture["rapport"]) == (True, None)
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outil = next(
+        o
+        for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=evenements)
+        if o.nom == "m9_lire_rapport_conseil"
+    )
+    pages = []
+    depart = 0
+    while True:
+        page = outil.fonction(session_id, depart, longueur_demandee)
+        pages.append(page)
+        assert page["depart"] == depart
+        assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+        assert AVERTISSEMENT_HYPOTHESES in page["avertissements"]
+        assert page["rapport_id"] == cloture["rapport_id"]
+        assert page["sha256"] == cs.empreinte(cloture["rapport"])
+        suivant = page["prochain_depart"]
+        if suivant is None:
+            assert depart + len(page["contenu_json"]) == len(contenu_attendu)
+            break
+        assert suivant == depart + len(page["contenu_json"])
+        assert suivant > depart
+        depart = suivant
+
+    assert len(pages) > 1
+    assert len(pages[0]["contenu_json"]) <= longueur_demandee
+    if longueur_demandee in {4000, 3900}:
+        assert len(pages[0]["contenu_json"]) < longueur_demandee
+    assert "".join(page["contenu_json"] for page in pages) == contenu_attendu
+    assert evenements == chaine_avant
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_lecture_publique_n_emet_pas_avertissement_hypothese_sans_hypothese(monkeypatch):
+    evenements, session_id = _ouvrir()
+    finance = {
+        "affirmations": [{"id": "A1", "nature": "observation_source", "reference": CASH, "valeur": "8400.00"}]
+    }
+    pdg = {"affirmations": [{"id": "A1", "nature": "observation_source", "reference": STOCK, "valeur": "12"}]}
+    for role, sortie in (
+        ("liaison_finance", finance),
+        ("contraintes_inventaire", SORTIE_INVENTAIRE),
+        ("conseiller_pdg", pdg),
+    ):
+        evenements = _ajouter(
+            evenements,
+            sc.deposer(evenements, session_id, role, sortie, reservation_id=f"no-h-{role}", tokens_reels=10, recu_a=T),
+        )
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outil = next(
+        o
+        for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=evenements)
+        if o.nom == "m9_lire_rapport_conseil"
+    )
+    page = outil.fonction(session_id)
+    assert "HYPOTHESES_NON_VERIFIEES" not in {a["code"] for a in page["avertissements"]}
 
 
 def test_classement_incertain_ne_copie_pas_la_description_vers_rapport_meme_sur_4000_caracteres():
@@ -740,3 +890,150 @@ def test_ronde_2_reelle_forme_conforme_admise_et_excedent_d_affirmations_refuse(
     inventaire = _sortie_reelle("ronde2-contraintes_inventaire.json")
     assert {a["nature"] for a in inventaire["affirmations"]} <= set(sc.conseil.NATURES)
     assert set(inventaire) == {"affirmations", "demandes"}
+
+
+@pytest.mark.parametrize("roles_conserves", [[], ["liaison_finance"]])
+def test_rapport_historique_signale_hypotheses_sans_inventer_provenance_des_tours(monkeypatch, roles_conserves):
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    rapport_historique = copy.deepcopy(cloture["rapport"])
+    assert rd.valider_rapport_decision_v2(rapport_historique) == (True, None)
+    assert len(rapport_historique["sections"]["hypotheses"]["contenu"]) == 2
+
+    ouverture = copy.deepcopy(evenements[0])
+    ouverture["tours"] = {role: ouverture["tours"][role] for role in roles_conserves}
+    tours = [
+        evenement
+        for evenement in evenements[1:]
+        if evenement["type"] == "TOUR" and evenement["role"] in roles_conserves and evenement["issue"] == "ADMIS"
+    ]
+    historique = _rechaîner_historique([ouverture, *tours, cloture])
+    projection = sc.etat(historique, session_id)
+    assert len(projection["tours"]) == len(roles_conserves)
+    assert projection["cloture"]["rapport"] == rapport_historique
+    assert sc.valider_chaine(historique) == (True, "")
+
+    historique_avant = copy.deepcopy(historique)
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outil = next(
+        o
+        for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=historique)
+        if o.nom == "m9_lire_rapport_conseil"
+    )
+    page = outil.fonction(session_id)
+    avertissements = [a for a in page["avertissements"] if a["code"] == "HYPOTHESES_NON_VERIFIEES"]
+
+    assert avertissements == [AVERTISSEMENT_HYPOTHESES_PROVENANCE_INDETERMINEE]
+    assert "tours_conseil" not in str(avertissements[0])
+    assert "HYPOTHESE_DECLAREE" not in str(avertissements[0])
+    assert all(
+        hypothese["texte"] not in str(avertissements[0])
+        for hypothese in rapport_historique["sections"]["hypotheses"]["contenu"]
+    )
+    assert page["contenu_json"] == cs.canonique(rapport_historique)
+    assert page["rapport_id"] == rapport_historique["rapport_id"]
+    assert page["sha256"] == cs.empreinte(rapport_historique)
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    assert historique == historique_avant
+    assert sc.valider_chaine(historique) == (True, "")
+
+
+def test_rapport_sans_hypotheses_ne_requalifie_pas_les_tours_hypothese(monkeypatch):
+    evenements_avec_hypotheses, session_id = _ouvrir()
+    evenements_avec_hypotheses = _tous_deposes(evenements_avec_hypotheses, session_id)
+    assert any(
+        affirmation["nature"] == "hypothese"
+        for tour in sc.etat(evenements_avec_hypotheses, session_id)["tours"]
+        if tour["proposition"] is not None
+        for affirmation in tour["proposition"]["affirmations"]
+    )
+
+    evenements_sans_hypotheses, session_id_sans_hypotheses = _ouvrir()
+    assert session_id_sans_hypotheses == session_id
+    finance = {
+        "affirmations": [{"id": "A1", "nature": "observation_source", "reference": CASH, "valeur": "8400.00"}]
+    }
+    pdg = {"affirmations": [{"id": "A1", "nature": "observation_source", "reference": STOCK, "valeur": "12"}]}
+    for role, sortie in (
+        ("liaison_finance", finance),
+        ("contraintes_inventaire", SORTIE_INVENTAIRE),
+        ("conseiller_pdg", pdg),
+    ):
+        evenements_sans_hypotheses = _ajouter(
+            evenements_sans_hypotheses,
+            sc.deposer(
+                evenements_sans_hypotheses,
+                session_id,
+                role,
+                sortie,
+                reservation_id=f"sans-h-{role}",
+                tokens_reels=10,
+                recu_a=T,
+            ),
+        )
+    cloture = sc.cloturer(evenements_sans_hypotheses, session_id, recu_a=T)
+    rapport_sans_hypotheses = cloture["rapport"]
+    assert rd.valider_rapport_decision_v2(rapport_sans_hypotheses) == (True, None)
+    assert rapport_sans_hypotheses["sections"]["hypotheses"]["statut"] == "NON_DISPONIBLE"
+
+    tours_avec_hypotheses = [e for e in evenements_avec_hypotheses if e["type"] == "TOUR"]
+    historique = _rechaîner_historique([evenements_avec_hypotheses[0], *tours_avec_hypotheses, cloture])
+    projection = sc.etat(historique, session_id)
+    assert any(
+        affirmation["nature"] == "hypothese"
+        for tour in projection["tours"]
+        if tour["proposition"] is not None
+        for affirmation in tour["proposition"]["affirmations"]
+    )
+    assert projection["cloture"]["rapport"]["sections"]["hypotheses"]["statut"] == "NON_DISPONIBLE"
+    assert sc.valider_chaine(historique) == (True, "")
+
+    historique_avant = copy.deepcopy(historique)
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outil = next(
+        o
+        for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=historique)
+        if o.nom == "m9_lire_rapport_conseil"
+    )
+    page = outil.fonction(session_id)
+    assert "HYPOTHESES_NON_VERIFIEES" not in {a["code"] for a in page["avertissements"]}
+    assert page["contenu_json"] == cs.canonique(rapport_sans_hypotheses)
+    assert page["rapport_id"] == rapport_sans_hypotheses["rapport_id"]
+    assert page["sha256"] == cs.empreinte(rapport_sans_hypotheses)
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    assert historique == historique_avant
+    assert sc.valider_chaine(historique) == (True, "")
+
+
+def test_rapport_legacy_quinze_cles_sans_section_signale_hypotheses_sans_origine(monkeypatch):
+    evenements, session_id = _ouvrir()
+    evenements = _tous_deposes(evenements, session_id)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    rapport_legacy = rd.vers_contrat_historique(cloture["rapport"])
+    assert set(rapport_legacy) == set(rd.contrats.CHAMPS_RAPPORT_STRATEGIQUE)
+    assert len(rapport_legacy["hypotheses"]) == 2
+    assert rd.rapport_strategique.valider_rapport_strategique(rapport_legacy) == (True, None)
+
+    ouverture = copy.deepcopy(evenements[0])
+    ouverture["tours"] = {}
+    cloture["rapport"] = rapport_legacy
+    historique = _rechaîner_historique([ouverture, cloture])
+    assert sc.valider_chaine(historique) == (True, "")
+
+    historique_avant = copy.deepcopy(historique)
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outil = next(
+        o
+        for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=historique)
+        if o.nom == "m9_lire_rapport_conseil"
+    )
+    page = outil.fonction(session_id)
+    assert [a for a in page["avertissements"] if a["code"] == "HYPOTHESES_NON_VERIFIEES"] == [
+        AVERTISSEMENT_HYPOTHESES_PROVENANCE_INDETERMINEE
+    ]
+    assert page["contenu_json"] == cs.canonique(rapport_legacy)
+    assert page["sha256"] == cs.empreinte(rapport_legacy)
+    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    assert historique == historique_avant
+    assert sc.valider_chaine(historique) == (True, "")
