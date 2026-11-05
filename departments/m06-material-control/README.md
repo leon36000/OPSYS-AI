@@ -260,6 +260,15 @@ paiement, aucun envoi.
 statut fermé (`conforme`, `manquant`, `substitue`, `endommage`) — `substitue` exige le matériau substitué nommé
 (`REJ-RECEPTION-SUBSTITUE-INCOMPLET`), `endommage` exige au moins une photo CAS `fichier:sha256:` (sinon preuve
 manquante, refus avant écriture), tout autre statut est refusé (`REJ-RECEPTION-STATUT-INCONNU`, injection comprise) ;
+`details_reception` reste optionnel pour les appels historiques, mais lorsqu'il est fourni, ses IDs doivent couvrir
+exactement une fois chaque ligne reçue et appartenir aux lignes demandées (détail inconnu, manquant ou ambigu : refus
+avant écriture : `REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES`, `REJ-RECEPTION-DETAILS-INCOMPLETS` ou
+`REJ-RECEPTION-DETAILS-DUPLIQUES`; des lignes source répétées sont refusées comme ambiguës). La localisation et la mise
+au rebut sont conservées dans le registre durable d'emplacements. Un transfert C5 porte une `reference_source` fermée
+et hashée qui lie le hash de clôture de la réception et le maillon RECEPTION précis ; lorsqu'un détail a été fourni,
+elle porte son statut et les références CAS validées de la ligne endommagée. Ce sont des références d'audit, pas une
+authentification : les octets des photos ne sont ni enregistrés ni vérifiés ici. Le champ `motif` reste la raison
+du transfert ; les références structurées ne sont pas concaténées dans ce texte.
 le lieu de livraison est un lieu fermé d'arrivée (`depot`, `chantier`, `camion`, `remorque`, `employe`, référence exigée
 sauf `depot`, délégué à `emplacements.normaliser`, sinon `REJ-RECEPTION-LIEU-INVALIDE`) ; le prix lu du bon de livraison
 (`prix_bl`, donnée saisie marquée `BON_LIVRAISON`) est comparé au prix prévu du PO en `Fraction` sur le texte décimal au

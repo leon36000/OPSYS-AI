@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from typing import Any
 
@@ -25,6 +25,8 @@ __all__ = [
     "STATUTS_LIGNE",
     "detecter_ecarts_prix_bl",
     "qualifier_livraison",
+    "valider_coherence_statuts_quantites",
+    "valider_couverture_details",
     "valider_details",
     "valider_lieu",
 ]
@@ -77,8 +79,92 @@ def valider_details(details: Any) -> tuple[list[dict[str, Any]] | None, str | No
                 or any(not isinstance(p, str) or _REFERENCE_CAS.fullmatch(p) is None for p in photos)
             ):
                 return None, "REJ-RECEPTION-PREUVE-MANQUANTE"
-        valides.append(dict(detail))
+        # Ne pas recopier de champs libres (octets photo, secrets, prompt, etc.) dans la réponse ou
+        # dans une référence durable ultérieure. Seuls les champs C5 effectivement validés sortent.
+        projection = {"materiau_id": materiau_id, "statut_ligne": statut}
+        if statut == "substitue":
+            projection["materiau_substitue"] = detail["materiau_substitue"]
+        if statut == "endommage":
+            projection["photos"] = list(detail["photos"])
+        valides.append(projection)
     return valides, None
+
+
+def valider_couverture_details(
+    details: list[dict[str, Any]],
+    lignes_demandees: Any,
+    lignes_recues: Any,
+) -> str | None:
+    """Vérifie l'association univoque des détails aux lignes de CETTE réception.
+
+    Le champ entier `details_reception` reste optionnel pour les appels historiques. Si l'appelant
+    choisit de le fournir, chaque matériau effectivement reçu doit avoir exactement un détail, et
+    ce matériau doit appartenir à la demande. Les lignes de réception répétées ne peuvent pas être
+    associées sans ambiguïté à un détail indexé seulement par `materiau_id`.
+
+    La fonction est pure ; elle ne complète jamais une ligne absente par « conforme ».
+    """
+    if not isinstance(lignes_demandees, list) or not isinstance(lignes_recues, list):
+        return "REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES"
+
+    details_ids = [detail.get("materiau_id") for detail in details]
+    demandes_ids = [ligne.get("materiau_id") for ligne in lignes_demandees]
+    recus_ids = [ligne.get("materiau_id") for ligne in lignes_recues]
+    if any(not isinstance(materiau_id, str) or not materiau_id for materiau_id in details_ids + demandes_ids + recus_ids):
+        return "REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES"
+    if len(details_ids) != len(set(details_ids)):
+        return "REJ-RECEPTION-DETAILS-DUPLIQUES"
+
+    if len(recus_ids) != len(set(recus_ids)):
+        return "REJ-RECEPTION-DETAILS-LIGNES-AMBIGUES"
+
+    if len(demandes_ids) != len(set(demandes_ids)):
+        return "REJ-RECEPTION-DETAILS-LIGNES-AMBIGUES"
+
+    ensemble_demandes = set(demandes_ids)
+    ensemble_recus = set(recus_ids)
+    ensemble_details = set(details_ids)
+    if not ensemble_recus <= ensemble_demandes:
+        return "REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES"
+    if ensemble_details - ensemble_recus:
+        return "REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES"
+    if ensemble_recus - ensemble_details:
+        return "REJ-RECEPTION-DETAILS-INCOMPLETS"
+    return None
+
+
+def valider_coherence_statuts_quantites(
+    details: list[dict[str, Any]],
+    lignes_recues: Any,
+) -> str | None:
+    """Refuse un statut C5 qui contredit la quantité effectivement reçue.
+
+    Une ligne `manquant` signifie zéro reçu (et doit être représentée par une ligne de quantité
+    zéro dans `lignes_recues`). Les trois autres statuts décrivent un matériau reçu et exigent
+    donc une quantité strictement positive. Les écarts positif/négatif à la quantité commandée
+    restent jugés séparément par `reception.py` ; ils ne changent pas le statut matériel.
+    """
+    if not isinstance(lignes_recues, list):
+        return "REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES"
+
+    par_materiau = {detail.get("materiau_id"): detail for detail in details}
+    for ligne in lignes_recues:
+        if not isinstance(ligne, Mapping):
+            return "REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES"
+        materiau_id = ligne.get("materiau_id")
+        detail = par_materiau.get(materiau_id)
+        if not isinstance(detail, Mapping):
+            return "REJ-RECEPTION-DETAILS-INCOHERENTES"
+        try:
+            quantite = Decimal(str(ligne.get("quantite_recue")))
+        except (InvalidOperation, TypeError, ValueError):
+            return "REJ-RECEPTION-QUANTITE-INVALIDE"
+        if not quantite.is_finite() or quantite < 0:
+            return "REJ-RECEPTION-QUANTITE-INVALIDE"
+        statut = detail.get("statut_ligne")
+        if (statut == "manquant") != (quantite == 0):
+            return "REJ-RECEPTION-STATUT-QUANTITE-INCOHERENT"
+    return None
 
 
 def valider_lieu(lieu: Any) -> tuple[dict[str, Any] | None, str | None]:

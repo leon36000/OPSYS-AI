@@ -30,7 +30,9 @@ flottant), comme `evenement_reception.py`.
 
 from __future__ import annotations
 
+import copy
 import math
+import re
 from collections.abc import Iterable, Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -66,6 +68,9 @@ INCONNU = "inconnu"
 TYPE_TRANSFERT = "transfert"
 _HASH_PRECEDENT_INITIAL = ""
 _LONGUEUR_TEXTE_MAX = 40
+_HASH_HEX = re.compile(r"[0-9a-f]{64}\Z")
+_REFERENCE_CAS = re.compile(r"fichier:sha256:[0-9a-f]{64}\Z")
+_STATUTS_C5 = frozenset({"conforme", "manquant", "substitue", "endommage"})
 
 
 _texte = stock.texte_canonique
@@ -177,12 +182,52 @@ def _quantite_positive(valeur: Any) -> Decimal | None:
 
 
 def _identite(maillon: Mapping[str, Any]) -> tuple[Any, ...]:
-    """Ce qui fait qu'un transfert est LE MÊME geste : article, quantité, origine, destination."""
-    return (maillon["materiau_id"], maillon["quantite"], cle(maillon["de"]), cle(maillon["vers"]))
+    """Ce qui fait qu'un transfert est LE MÊME geste, référence source comprise si elle existe."""
+    return (
+        maillon["materiau_id"], maillon["quantite"], cle(maillon["de"]), cle(maillon["vers"]),
+        maillon.get("reference_source"),
+    )
 
 
 def _texte_non_vide(valeur: Any) -> bool:
     return isinstance(valeur, str) and valeur.strip() != ""
+
+
+def _reference_source_valide(reference: Any) -> bool:
+    """Valide la référence structurée optionnelle portée par un transfert C5.
+
+    L'absence de ce champ garde exactement la forme et l'empreinte des anciens transferts. Les références
+    CAS sont des identifiants, jamais le contenu des photos ni une preuve d'authenticité.
+    """
+    cles = {"type", "hash_reception", "mouvement", "statut_ligne", "preuves_cas"}
+    if not isinstance(reference, Mapping) or set(reference) != cles:
+        return False
+    if reference.get("type") != "m6_reception_c5" or not isinstance(reference.get("hash_reception"), str):
+        return False
+    if _HASH_HEX.fullmatch(reference["hash_reception"]) is None:
+        return False
+    mouvement = reference.get("mouvement")
+    if (
+        not isinstance(mouvement, Mapping)
+        or set(mouvement) != {"registre", "index", "hash_maillon"}
+        or mouvement.get("registre") != "principal"
+        or type(mouvement.get("index")) is not int
+        or mouvement["index"] < 0
+        or not isinstance(mouvement.get("hash_maillon"), str)
+        or _HASH_HEX.fullmatch(mouvement["hash_maillon"]) is None
+    ):
+        return False
+    statut = reference.get("statut_ligne")
+    if statut is not None and (not isinstance(statut, str) or statut not in _STATUTS_C5):
+        return False
+    preuves = reference.get("preuves_cas")
+    if not isinstance(preuves, list) or any(
+        not isinstance(preuve, str) or _REFERENCE_CAS.fullmatch(preuve) is None for preuve in preuves
+    ):
+        return False
+    if (statut == "endommage") != bool(preuves):
+        return False
+    return True
 
 
 def construire_transfert(
@@ -196,6 +241,8 @@ def construire_transfert(
     horodatage: Any,
     stock_total: Decimal,
     maillons: Iterable[Mapping[str, Any]],
+    *,
+    reference_source: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """`({"maillon", "deja_enregistre"}, None)` : le maillon d'audit à ajouter au registre `emplacements` ; ou
     `(None, verdict)`. Sans écriture : l'appelant ajoute le maillon rendu (seul point où `opsys.stockage` est touché).
@@ -226,6 +273,10 @@ def construire_transfert(
     if not _texte_non_vide(motif):
         return None, verdicts.construire_verdict(
             "REJ-TRANSFERT-MOTIF-VIDE", detail="motif requis, non vide (chaque transfert garde sa raison)"
+        )
+    if reference_source is not None and not _reference_source_valide(reference_source):
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSFERT-SOURCE-INVALIDE", detail="reference_source C5 structurée invalide"
         )
     if not _texte_non_vide(horodatage) or not _texte_non_vide(acteur):
         return None, verdicts.construire_verdict(
@@ -298,16 +349,21 @@ def construire_transfert(
         "apres": {"de": _texte(apres[cle_origine]), "vers": _texte(apres[cle_destination])},
         "hash_precedent": hash_precedent,
     }
+    if reference_source is not None:
+        maillon["reference_source"] = copy.deepcopy(dict(reference_source))
     maillon["hash_maillon"] = _empreinte(maillon)
     return {"maillon": maillon, "deja_enregistre": False}, None
 
 
 def _empreinte(maillon: Mapping[str, Any]) -> str:
-    return encodage.empreinte(
+    valeurs = [
         maillon["index"], maillon["transfert_id"], maillon["materiau_id"], maillon["quantite"],
         cle(maillon["de"]), cle(maillon["vers"]), maillon["acteur"], maillon["motif"], maillon["horodatage"],
         maillon["hash_precedent"],
-    )
+    ]
+    if "reference_source" in maillon:
+        valeurs.append({"reference_source": maillon["reference_source"]})
+    return encodage.empreinte(*valeurs)
 
 
 def hash_tete(maillons: Iterable[Mapping[str, Any]]) -> str:
@@ -324,6 +380,8 @@ def valider_chaine(maillons: Iterable[Mapping[str, Any]]) -> tuple[bool, str]:
     for position, maillon in enumerate(_transferts(maillons)):
         if maillon["index"] != position or maillon["hash_precedent"] != precedent:
             return False, f"maillon invalide à l'index {position}"
+        if "reference_source" in maillon and not _reference_source_valide(maillon["reference_source"]):
+            return False, f"référence source invalide au maillon {position}"
         if maillon["hash_maillon"] != _empreinte(maillon):
             return False, f"maillon invalide à l'index {position}"
         precedent = maillon["hash_maillon"]

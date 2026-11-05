@@ -363,6 +363,79 @@ def test_la_chaine_est_deterministe():
     assert [m["hash_maillon"] for m in a] == [m["hash_maillon"] for m in b]
 
 
+def test_un_maillon_historique_sans_reference_source_garde_son_hash_et_se_rejoue():
+    maillons: list[dict] = []
+    resultat, verdict = _transferer(maillons, INCONNU, DEPOT, 1.0, stock_total=Decimal(1),
+                                   transfert_id="T-LEGACY-FICTIF")
+    assert verdict is None and resultat is not None
+    historique = maillons[0]
+    attendu = emplacements.encodage.empreinte(
+        historique["index"], historique["transfert_id"], historique["materiau_id"], historique["quantite"],
+        emplacements.cle(historique["de"]), emplacements.cle(historique["vers"]), historique["acteur"],
+        historique["motif"], historique["horodatage"], historique["hash_precedent"],
+    )
+    assert "reference_source" not in historique
+    assert historique["hash_maillon"] == attendu
+    assert emplacements.valider_chaine(maillons) == (True, "")
+
+    rejoue, erreur = emplacements.construire_transfert(
+        "T-LEGACY-FICTIF", MATERIAU, 1.0, INCONNU, DEPOT, "nathan", "rangement", H,
+        Decimal(1), maillons,
+    )
+    assert erreur is None and rejoue == {"maillon": historique, "deja_enregistre": True}
+
+
+def test_ajouter_ou_retirer_reference_source_d_un_maillon_invalide_la_chaine():
+    reference = {
+        "type": "m6_reception_c5",
+        "hash_reception": "ab" * 32,
+        "mouvement": {"registre": "principal", "index": 0, "hash_maillon": "cd" * 32},
+        "statut_ligne": "endommage",
+        "preuves_cas": ["fichier:sha256:" + "ef" * 32],
+    }
+    historiques: list[dict] = []
+    _transferer(historiques, INCONNU, DEPOT, 1.0, stock_total=Decimal(1),
+                transfert_id="T-LEGACY-AJOUT-FICTIF")
+    historique_avec_ajout = [dict(maillon) for maillon in historiques]
+    historique_avec_ajout[0]["reference_source"] = reference
+    assert emplacements.valider_chaine(historique_avec_ajout)[0] is False
+
+    nouveaux: list[dict] = []
+    resultat, erreur = emplacements.construire_transfert(
+        "T-NOUVEAU-RETIRE-FICTIF", MATERIAU, 1.0, INCONNU, DEPOT, "nathan", "rangement", H,
+        Decimal(1), nouveaux, reference_source=reference,
+    )
+    assert erreur is None and resultat is not None
+    nouveaux.append(resultat["maillon"])
+    assert emplacements.valider_chaine(nouveaux) == (True, "")
+    nouveaux[0].pop("reference_source")
+    assert emplacements.valider_chaine(nouveaux)[0] is False
+
+
+def test_rejeu_identique_compare_la_reference_source():
+    reference = {
+        "type": "m6_reception_c5",
+        "hash_reception": "ab" * 32,
+        "mouvement": {"registre": "principal", "index": 0, "hash_maillon": "cd" * 32},
+        "statut_ligne": "endommage",
+        "preuves_cas": ["fichier:sha256:" + "ef" * 32],
+    }
+    maillons: list[dict] = []
+    resultat, erreur = emplacements.construire_transfert(
+        "T-SOURCE-IDEMPOTENCE-FICTIF", MATERIAU, 1.0, INCONNU, DEPOT, "nathan", "rangement", H,
+        Decimal(1), maillons, reference_source=reference,
+    )
+    assert erreur is None and resultat is not None and not resultat["deja_enregistre"]
+    maillons.append(resultat["maillon"])
+
+    modifiee = {**reference, "hash_reception": "ff" * 32}
+    rejoue, verdict = emplacements.construire_transfert(
+        "T-SOURCE-IDEMPOTENCE-FICTIF", MATERIAU, 1.0, INCONNU, DEPOT, "nathan", "rangement", H,
+        Decimal(1), maillons, reference_source=modifiee,
+    )
+    assert rejoue is None and verdict["code"] == "REJ-TRANSFERT-ID-DEJA-UTILISE"
+
+
 def test_l_avant_et_l_apres_de_chaque_extremite_sont_gardes():
     maillons: list[dict] = []
     _transferer(maillons, INCONNU, DEPOT, 60.0)

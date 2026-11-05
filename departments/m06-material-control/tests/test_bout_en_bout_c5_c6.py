@@ -13,6 +13,8 @@ ne voit aucun coût d'autrui, aucun paiement ni envoi n'est exécuté.
 
 from __future__ import annotations
 
+import copy
+
 import m6_material_control.outils as m6_outils
 import pytest
 from sqlalchemy import select
@@ -72,6 +74,36 @@ def _publies():
         lignes = cnx.execute(select(EVENEMENTS_SORTANTS).where(
             EVENEMENTS_SORTANTS.c.type_evenement == "m6.reception_enregistree")).mappings().all()
     return [(ligne["evenement_id"], codec.decoder(ligne["charge"])) for ligne in lignes]
+
+
+def _reception_ephem(lignes, details, *, lieu=None):
+    """Charge entièrement fictive pour exercer l'entrée publique sans PO persisté."""
+    po_id = "PO-EPHEM-COUVERTURE"
+    demandees = [
+        {"materiau_id": ligne["materiau_id"], "quantite_demandee": ligne["quantite_recue"]}
+        for ligne in lignes
+    ]
+    arguments = {
+        "bon_demande": {
+            "po_id": po_id, "chantier_id": CHANTIER, "lignes_demandees": demandees,
+            "horodatage": "2026-10-06T14:00:00-04:00",
+        },
+        "reception_po": {
+            "po_id": po_id, "chantier_id": CHANTIER, "lignes_recues": lignes,
+            "horodatage": "2026-10-06T14:30:00-04:00",
+        },
+        "details_reception": details,
+    }
+    if lieu is not None:
+        arguments["lieu_livraison"] = lieu
+    return executer_atomique(_outil("m6_receptionner_commande"), arguments)
+
+
+def _assert_aucune_ecriture_reception():
+    with stockage.transaction():
+        assert len(stockage.maillons(_DEPARTEMENT, "principal")) == 0
+        assert len(stockage.maillons(_DEPARTEMENT, "emplacements")) == 0
+    assert _publies() == []
 
 
 def test_c5_puis_c6_bout_en_bout_registres_bus_reels(base_durable_m6):
@@ -154,3 +186,258 @@ def test_c5_puis_c6_bout_en_bout_registres_bus_reels(base_durable_m6):
     })
     assert abus["ok"] and abus["resultat"]["accepte"] is False
     assert abus["resultat"]["verdict"]["code"] == "REJ-RECEPTION-STATUT-INCONNU"
+
+
+def test_endommage_reste_hors_disponible_et_rejeu_po_refuse(base_durable_m6):
+    _po_envoye()
+    arguments = {
+        "bon_demande": {
+            "po_id": PO_ID, "chantier_id": CHANTIER,
+            "lignes_demandees": [{"materiau_id": "gouttiere-5po", "quantite_demandee": 10.0}],
+            "horodatage": "2026-09-01T08:00:00-04:00"},
+        "reception_po": {
+            "po_id": PO_ID, "chantier_id": CHANTIER,
+            "lignes_recues": [{"materiau_id": "gouttiere-5po", "quantite_recue": 8.0}],
+            "horodatage": HORODATAGE},
+        "details_reception": [{
+            "materiau_id": "gouttiere-5po", "statut_ligne": "endommage", "photos": [PHOTO_CAS]}],
+    }
+    reception = executer_atomique(_outil("m6_receptionner_commande"), arguments)
+    assert reception["ok"] and reception["resultat"]["accepte"] is True
+    assert len(reception["resultat"]["transferts_emplacements"]) == 1
+    transfert = reception["resultat"]["transferts_emplacements"][0]
+    assert transfert["de"] == {"type": "inconnu", "reference": None}
+    assert transfert["vers"] == {"type": "rebut", "reference": None}
+    hash_reception = reception["resultat"]["resultat"]["accuse_reception"]["hash_maillon"]
+    reference_publique = transfert["reference_source"]
+    assert reference_publique["hash_reception"] == hash_reception
+    assert reference_publique["mouvement"]["registre"] == "principal"
+    assert reference_publique["mouvement"]["hash_maillon"]
+    assert reference_publique["statut_ligne"] == "endommage"
+    assert "preuves_cas" not in reference_publique  # déjà visibles dans details_lignes; pas de doublon de sortie
+    with stockage.transaction():
+        principal = list(stockage.maillons(_DEPARTEMENT, "principal"))
+        transferts_durables = stockage.maillons(_DEPARTEMENT, "emplacements")
+    rebut_durable = next(t for t in transferts_durables if t["vers"]["type"] == "rebut")
+    assert rebut_durable["motif"] == transfert["motif"]
+    assert rebut_durable["reference_source"]["hash_reception"] == hash_reception
+    assert rebut_durable["reference_source"]["mouvement"]["hash_maillon"] == principal[-1]["hash_maillon"]
+    assert rebut_durable["reference_source"]["preuves_cas"] == [PHOTO_CAS]
+    assert m6_outils.emplacements.valider_chaine(transferts_durables) == (True, "")
+
+    rejeu = executer_atomique(_outil("m6_receptionner_commande"), arguments)
+    assert rejeu["ok"] and rejeu["resultat"]["accepte"] is False
+    assert rejeu["resultat"]["verdict"]["code"] == "REJ-RECEPTION-DEJA-ENREGISTREE"
+
+    lecture = executer_atomique(_outil("m6_lire_disponibilite"), {"materiau_ids": ["gouttiere-5po"]})
+    assert lecture["ok"] and lecture["resultat"]["accepte"] is True
+    article = lecture["resultat"]["resultat"]["articles"][0]
+    assert article["stock_theorique"] == "8"
+    assert article["en_main"] == "0"
+    assert article["disponible"] == "0"
+    assert article["par_emplacement"] == {"rebut": "8", "inconnu": "0"}
+
+
+def test_reception_mixte_localise_le_conforme_et_met_le_dommage_au_rebut(base_durable_m6):
+    args = {
+        "bon_demande": {
+            "po_id": "PO-EPHEM-MIXTE", "chantier_id": CHANTIER,
+            "lignes_demandees": [
+                {"materiau_id": "mat-endommage-fictif", "quantite_demandee": 5.0},
+                {"materiau_id": "mat-conforme-fictif", "quantite_demandee": 5.0}],
+            "horodatage": "2026-10-06T14:00:00-04:00"},
+        "reception_po": {
+            "po_id": "PO-EPHEM-MIXTE", "chantier_id": CHANTIER,
+            "lignes_recues": [
+                {"materiau_id": "mat-endommage-fictif", "quantite_recue": 5.0},
+                {"materiau_id": "mat-conforme-fictif", "quantite_recue": 5.0}],
+            "horodatage": "2026-10-06T14:30:00-04:00"},
+        "details_reception": [
+            {"materiau_id": "mat-endommage-fictif", "statut_ligne": "endommage", "photos": [PHOTO_CAS]},
+            {"materiau_id": "mat-conforme-fictif", "statut_ligne": "conforme"}],
+        "lieu_livraison": {"type": "depot"},
+    }
+    reception = executer_atomique(_outil("m6_receptionner_commande"), args)
+    assert reception["ok"] and reception["resultat"]["accepte"] is True
+    assert len(reception["resultat"]["transferts_emplacements"]) == 3
+
+    lecture = executer_atomique(_outil("m6_lire_disponibilite"), {
+        "materiau_ids": ["mat-endommage-fictif", "mat-conforme-fictif"]})
+    assert lecture["ok"] and lecture["resultat"]["accepte"] is True
+    articles = {a["materiau_id"]: a for a in lecture["resultat"]["resultat"]["articles"]}
+    assert articles["mat-endommage-fictif"]["stock_theorique"] == "5"
+    assert articles["mat-endommage-fictif"]["disponible"] == "0"
+    assert articles["mat-endommage-fictif"]["par_emplacement"] == {"rebut": "5", "inconnu": "0"}
+    assert articles["mat-conforme-fictif"]["stock_theorique"] == "5"
+    assert articles["mat-conforme-fictif"]["disponible"] == "5"
+    assert articles["mat-conforme-fictif"]["par_emplacement"] == {"depot": "5", "inconnu": "0"}
+
+
+def test_receptions_ephemeres_repetees_creent_un_transfert_distinct_par_fait(base_durable_m6):
+    args = {
+        "bon_demande": {
+            "po_id": "PO-EPHEM-REJEU", "chantier_id": CHANTIER,
+            "lignes_demandees": [{"materiau_id": "mat-endommage-rejoue", "quantite_demandee": 5.0}],
+            "horodatage": "2026-10-06T14:00:00-04:00"},
+        "reception_po": {
+            "po_id": "PO-EPHEM-REJEU", "chantier_id": CHANTIER,
+            "lignes_recues": [{"materiau_id": "mat-endommage-rejoue", "quantite_recue": 5.0}],
+            "horodatage": "2026-10-06T14:30:00-04:00"},
+        "details_reception": [{
+            "materiau_id": "mat-endommage-rejoue", "statut_ligne": "endommage", "photos": [PHOTO_CAS]}],
+    }
+    premieres_reponses = [executer_atomique(_outil("m6_receptionner_commande"), args) for _ in range(2)]
+    assert all(r["ok"] and r["resultat"]["accepte"] for r in premieres_reponses)
+    identifiants = [r["resultat"]["transferts_emplacements"][0]["transfert_id"] for r in premieres_reponses]
+    assert len(set(identifiants)) == 2
+
+    lecture = executer_atomique(_outil("m6_lire_disponibilite"), {
+        "materiau_ids": ["mat-endommage-rejoue"]})
+    article = lecture["resultat"]["resultat"]["articles"][0]
+    assert article["stock_theorique"] == "10"
+    assert article["en_main"] == "0" and article["disponible"] == "0"
+    assert article["par_emplacement"] == {"rebut": "10", "inconnu": "0"}
+
+
+def test_refus_localisation_annule_aussi_reception_po_et_evenement(base_durable_m6, monkeypatch):
+    _po_envoye()
+
+    def refuser_apres_ecriture_stock(*args, **kwargs):
+        # Le garde de transfert est atteint après l'ajout RECEPTION, mais dans la même transaction publique.
+        assert len(stockage.maillons(_DEPARTEMENT, "principal")) == 1
+        return None, {"code": "REJ-TRANSFERT-STOCK-LOCALISE-INCOHERENT"}
+
+    monkeypatch.setattr(m6_outils.emplacements, "construire_transfert", refuser_apres_ecriture_stock)
+    reponse = executer_atomique(_outil("m6_receptionner_commande"), {
+        "bon_demande": {
+            "po_id": PO_ID, "chantier_id": CHANTIER,
+            "lignes_demandees": [{"materiau_id": "gouttiere-5po", "quantite_demandee": 10.0}],
+            "horodatage": "2026-09-01T08:00:00-04:00"},
+        "reception_po": {
+            "po_id": PO_ID, "chantier_id": CHANTIER,
+            "lignes_recues": [{"materiau_id": "gouttiere-5po", "quantite_recue": 8.0}],
+            "horodatage": HORODATAGE},
+        "details_reception": [{
+            "materiau_id": "gouttiere-5po", "statut_ligne": "endommage", "photos": [PHOTO_CAS]}],
+    })
+    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier"
+    assert "REJ-TRANSFERT-STOCK-LOCALISE-INCOHERENT" in reponse["details"]
+
+    with stockage.transaction():
+        assert len(stockage.maillons(_DEPARTEMENT, "principal")) == 0
+        assert len(stockage.maillons(_DEPARTEMENT, "emplacements")) == 0
+        po = m6_outils.bons_commande.lire(stockage.maillons(_DEPARTEMENT, "bons_commande"), PO_ID)
+        assert po["statut"] == "sent_to_supplier"
+    assert _publies() == []
+
+
+@pytest.mark.parametrize("details", [
+    [
+        {"materiau_id": "mat-unique-fictif", "statut_ligne": "endommage", "photos": [PHOTO_CAS]},
+        {"materiau_id": "mat-unique-fictif", "statut_ligne": "conforme"},
+    ],
+    [
+        {"materiau_id": "mat-unique-fictif", "statut_ligne": "conforme"},
+        {"materiau_id": "mat-unique-fictif", "statut_ligne": "endommage", "photos": [PHOTO_CAS]},
+    ],
+], ids=["endommage-puis-conforme", "conforme-puis-endommage"])
+def test_details_dupliques_refuses_dans_les_deux_ordres_sans_ecriture(base_durable_m6, details):
+    reponse = _reception_ephem(
+        [{"materiau_id": "mat-unique-fictif", "quantite_recue": 8.0}], details
+    )
+    assert reponse["ok"] and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-RECEPTION-DETAILS-DUPLIQUES"
+    _assert_aucune_ecriture_reception()
+
+
+def test_detail_d_un_id_inconnu_refuse_sans_rendre_la_vraie_ligne_conforme(base_durable_m6):
+    reponse = _reception_ephem(
+        [{"materiau_id": "mat-recu-fictif", "quantite_recue": 4.0}],
+        [{"materiau_id": "mat-inconnu-fictif", "statut_ligne": "conforme"}],
+    )
+    assert reponse["ok"] and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES"
+    _assert_aucune_ecriture_reception()
+
+
+def test_detail_manquant_pour_une_ligne_recue_refuse_sans_ecriture(base_durable_m6):
+    reponse = _reception_ephem(
+        [
+            {"materiau_id": "mat-a-fictif", "quantite_recue": 4.0},
+            {"materiau_id": "mat-b-fictif", "quantite_recue": 3.0},
+        ],
+        [{"materiau_id": "mat-a-fictif", "statut_ligne": "conforme"}],
+    )
+    assert reponse["ok"] and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-RECEPTION-DETAILS-INCOMPLETS"
+    _assert_aucune_ecriture_reception()
+
+
+def test_lignes_recues_dupliquees_sont_refusees_comme_ambigues_si_details_fournis(base_durable_m6):
+    po_id = "PO-EPHEM-DETAILS-AMBIGUS"
+    reponse = executer_atomique(_outil("m6_receptionner_commande"), {
+        "bon_demande": {
+            "po_id": po_id, "chantier_id": CHANTIER,
+            "lignes_demandees": [{"materiau_id": "mat-ambigu-fictif", "quantite_demandee": 4.0}],
+            "horodatage": "2026-10-06T14:00:00-04:00",
+        },
+        "reception_po": {
+            "po_id": po_id, "chantier_id": CHANTIER,
+            "lignes_recues": [
+                {"materiau_id": "mat-ambigu-fictif", "quantite_recue": 2.0},
+                {"materiau_id": "mat-ambigu-fictif", "quantite_recue": 2.0},
+            ],
+            "horodatage": "2026-10-06T14:30:00-04:00",
+        },
+        "details_reception": [{"materiau_id": "mat-ambigu-fictif", "statut_ligne": "conforme"}],
+    })
+    assert reponse["ok"] and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-RECEPTION-DETAILS-LIGNES-AMBIGUES"
+    _assert_aucune_ecriture_reception()
+
+
+def test_details_reordonnees_restent_associees_par_id_et_le_lien_durable_est_visible(base_durable_m6):
+    reponse = _reception_ephem(
+        [
+            {"materiau_id": "mat-a-fictif", "quantite_recue": 4.0},
+            {"materiau_id": "mat-b-fictif", "quantite_recue": 3.0},
+        ],
+        [
+            {"materiau_id": "mat-b-fictif", "statut_ligne": "endommage", "photos": [PHOTO_CAS],
+             "contenu_photo": "FAUX-OCTETS-SECRET"},
+            {"materiau_id": "mat-a-fictif", "statut_ligne": "conforme"},
+        ],
+        lieu={"type": "depot"},
+    )
+    assert reponse["ok"] and reponse["resultat"]["accepte"] is True, reponse
+    resultat = reponse["resultat"]
+    assert "transferts_emplacements" in resultat, reponse
+    hash_reception = resultat["resultat"]["accuse_reception"]["hash_maillon"]
+    par_article = {t["materiau_id"]: t for t in resultat["transferts_emplacements"] if t["vers"]["type"] == "rebut"}
+    assert set(par_article) == {"mat-b-fictif"}
+    rebut = par_article["mat-b-fictif"]
+    assert rebut["reference_source"]["hash_reception"] == hash_reception
+    assert rebut["reference_source"]["mouvement"]["registre"] == "principal"
+    assert rebut["reference_source"]["statut_ligne"] == "endommage"
+    assert "preuves_cas" not in rebut["reference_source"]
+    assert "FAUX-OCTETS-SECRET" not in repr(reponse)
+    with stockage.transaction():
+        principal = list(stockage.maillons(_DEPARTEMENT, "principal"))
+        durable = stockage.maillons(_DEPARTEMENT, "emplacements")
+    mouvement_b = next(m for m in principal if m["materiau_id"] == "mat-b-fictif")
+    assert rebut["reference_source"]["mouvement"]["hash_maillon"] == mouvement_b["hash_maillon"]
+    rebut_durable = next(t for t in durable if t["vers"]["type"] == "rebut")
+    assert rebut_durable["reference_source"]["mouvement"]["index"] == mouvement_b["index"]
+    assert rebut_durable["reference_source"]["preuves_cas"] == [PHOTO_CAS]
+    assert "FAUX-OCTETS-SECRET" not in repr(durable)
+    assert m6_outils.emplacements.valider_chaine(durable) == (True, "")
+    touche = copy.deepcopy(list(durable))
+    next(t for t in touche if t["vers"]["type"] == "rebut")["reference_source"]["preuves_cas"][0] = (
+        "fichier:sha256:" + "ff" * 32
+    )
+    assert m6_outils.emplacements.valider_chaine(touche)[0] is False
+    lecture = executer_atomique(_outil("m6_lire_disponibilite"), {
+        "materiau_ids": ["mat-a-fictif", "mat-b-fictif"]})
+    articles = {a["materiau_id"]: a for a in lecture["resultat"]["resultat"]["articles"]}
+    assert articles["mat-a-fictif"]["disponible"] == "4"
+    assert articles["mat-b-fictif"]["disponible"] == "0"

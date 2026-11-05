@@ -79,7 +79,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -1111,6 +1111,141 @@ def enregistrer_besoins_prevus(
     return {"accepte": True, "resultat": enregistrement, "registre_historique": list(maillons)}
 
 
+def _enregistrer_emplacements_reception_c5(
+    resultat_reception: dict[str, Any],
+    details: list[dict[str, Any]] | None,
+    lieu: dict[str, Any] | None,
+    horodatage: Any,
+) -> list[dict[str, Any]]:
+    """Localise les quantités reçues au lieu déclaré et écarte du disponible celles déclarées endommagées.
+
+    Le registre RECEPTION reste la trace de la réception (et sa quantité demeure dans le stock théorique, donc
+    dans le fait financier). Le registre `emplacements` porte séparément la localisation et la mise au rebut,
+    comme le contrat C5 l'exige. Chaque transfert C5 lie, dans `reference_source` hashée, la tête de la réception
+    et la référence du mouvement RECEPTION exact pour son matériau ; les photos ne sont représentées que par leurs
+    références CAS déjà validées. Toute erreur lève avant le retour : `executer_atomique` annule alors l'ensemble
+    des écritures de la réception.
+    """
+    accuse = resultat_reception.get("accuse_reception")
+    lignes = accuse.get("lignes", []) if isinstance(accuse, dict) else []
+    if not lignes or (details is None and lieu is None):
+        return []
+
+    acteur, erreur_acteur = _acteur_admin_ou_agent()
+    if erreur_acteur is not None or acteur is None:
+        code = erreur_acteur.get("code") if isinstance(erreur_acteur, dict) else "REJ-IDENTITE-APPAREIL-INVALIDE"
+        raise ValueError(f"{code}: la localisation C5 exige l'acteur autorisé")
+
+    details_par_materiau = {
+        detail["materiau_id"]: detail
+        for detail in (details or [])
+        if isinstance(detail, dict) and isinstance(detail.get("materiau_id"), str)
+    }
+    registre_emplacements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+    hash_reception = accuse.get("hash_maillon")
+    if not isinstance(hash_reception, str) or not hash_reception:
+        raise ValueError("REJ-RECEPTION-EMPREINTE-MANQUANTE: impossible de rattacher les transferts C5")
+    mouvements_stock = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    mouvements_reception = mouvements_stock[-len(lignes):]
+    if len(mouvements_reception) != len(lignes) or not mouvements_reception:
+        raise ValueError("REJ-RECEPTION-TRACE-INDISPONIBLE: mouvements de réception introuvables")
+    if mouvements_reception[-1].get("hash_maillon") != hash_reception:
+        raise ValueError("REJ-RECEPTION-TRACE-INDISPONIBLE: hash de clôture incohérent")
+    for ligne, mouvement in zip(lignes, mouvements_reception, strict=True):
+        try:
+            quantites_egales = Decimal(str(ligne["quantite_recue"])) == Decimal(str(mouvement["quantite"]))
+        except (InvalidOperation, KeyError, TypeError, ValueError):
+            quantites_egales = False
+        if (
+            mouvement.get("type_mouvement") != "RECEPTION"
+            or mouvement.get("materiau_id") != ligne.get("materiau_id")
+            or not isinstance(mouvement.get("hash_maillon"), str)
+            or not quantites_egales
+        ):
+            raise ValueError("REJ-RECEPTION-TRACE-INDISPONIBLE: mouvement de ligne incohérent")
+
+    import hashlib
+
+    transferts_publics: list[dict[str, Any]] = []
+    for index, ligne in enumerate(lignes):
+        materiau_id = ligne["materiau_id"]
+        mouvement_source = mouvements_reception[index]
+        quantite = Decimal(str(ligne["quantite_recue"]))
+        if quantite <= 0:
+            continue
+        detail = details_par_materiau.get(materiau_id, {})
+        statut = detail.get("statut_ligne", "conforme")
+        preuves_cas = detail.get("photos", []) if statut == "endommage" else []
+        reference_source = {
+            "type": "m6_reception_c5",
+            "hash_reception": hash_reception,
+            "mouvement": {
+                "registre": _NOM_REGISTRE,
+                "index": mouvement_source["index"],
+                "hash_maillon": mouvement_source["hash_maillon"],
+            },
+            "statut_ligne": detail.get("statut_ligne"),
+            # Références déclarées uniquement. Les octets des photos ne sont ni copiés, ni conservés,
+            # ni authentifiés par cette réception.
+            "preuves_cas": list(preuves_cas),
+        }
+        operations: list[tuple[dict[str, Any], dict[str, Any], str]] = []
+        if lieu is not None:
+            operations.append((
+                {"type": "inconnu"}, lieu,
+                "Localisation de la réception C5 au lieu déclaré"
+            ))
+        if statut == "endommage":
+            origine = lieu if lieu is not None else {"type": "inconnu"}
+            operations.append((
+                origine, {"type": "rebut"},
+                "Réception C5 déclarée endommagée; mise au rebut"
+            ))
+
+        for etape, (origine, destination, motif) in enumerate(operations):
+            identite = f"{hash_reception}:{index}:{etape}:{materiau_id}:{origine}:{destination}"
+            transfert_id = "c5-" + hashlib.sha256(identite.encode("utf-8")).hexdigest()
+            stock_total = stock.deriver_stock_articles(
+                [materiau_id], stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+            )[materiau_id]
+            resultat, verdict = emplacements.construire_transfert(
+                transfert_id,
+                materiau_id,
+                quantite,
+                origine,
+                destination,
+                acteur,
+                motif,
+                horodatage,
+                stock_total,
+                registre_emplacements,
+                reference_source=reference_source,
+            )
+            if verdict is not None or resultat is None:
+                code = (
+                    verdict.get("code", "REJ-TRANSFERT-C5-INVALIDE")
+                    if isinstance(verdict, dict)
+                    else "REJ-TRANSFERT-C5-INVALIDE"
+                )
+                raise ValueError(f"{code}: transfert de réception C5 refusé")
+            maillon = resultat["maillon"]
+            if not resultat["deja_enregistre"]:
+                registre_emplacements.append(maillon)
+            transferts_publics.append({
+                **{
+                    cle: maillon[cle]
+                    for cle in ("transfert_id", "materiau_id", "quantite", "de", "vers", "hash_maillon")
+                },
+                "motif": maillon["motif"],
+                "reference_source": {
+                    cle: valeur
+                    for cle, valeur in maillon["reference_source"].items()
+                    if cle != "preuves_cas"
+                },
+            })
+    return transferts_publics
+
+
 def receptionner_commande(
     bon_demande: dict[str, Any],
     reception_po: dict[str, Any],
@@ -1150,7 +1285,11 @@ def receptionner_commande(
 
     C5 (réception enrichie, additif) : `details_reception` (statuts par ligne), `lieu_livraison`
     (lieu fermé d'arrivée) et `prix_bl` (prix lus du bon de livraison, marqués `BON_LIVRAISON`)
-    sont optionnels. Quand ils sont fournis, ils sont validés — `REJ-RECEPTION-SUBSTITUE-INCOMPLET`,
+    sont optionnels. Quand les détails sont fournis, ils doivent couvrir exactement et une seule fois
+    chaque matériau reçu, sans ligne ambiguë ou inconnue ; l'absence totale du champ conserve la
+    compatibilité historique (`REJ-RECEPTION-DETAILS-DUPLIQUES`, `REJ-RECEPTION-DETAILS-INCOMPLETS`,
+    `REJ-RECEPTION-DETAILS-LIGNES-AMBIGUES`, `REJ-RECEPTION-DETAILS-LIGNES-INCOHERENTES`). Ils sont validés —
+    `REJ-RECEPTION-SUBSTITUE-INCOMPLET`,
     `REJ-RECEPTION-PREUVE-MANQUANTE`, `REJ-RECEPTION-STATUT-INCONNU`, `REJ-RECEPTION-LIEU-INVALIDE` —
     AVANT toute écriture au stock, puis recopiés dans la réponse (`details_lignes`, `lieu`,
     `signaux_prix_bl`). Quand ils sont absents, le comportement est inchangé (contrats gelés)."""
@@ -1197,17 +1336,44 @@ def receptionner_commande(
         if verdict_quantites is not None:
             return {"accepte": False, "verdict": verdict_quantites}
 
+    # Le détail est un additif facultatif historique. S'il est fourni, sa clé matériau doit
+    # couvrir les lignes réellement reçues une fois chacune, avant toute entrée au stock.
+    # Si les structures de demande/réception sont elles-mêmes invalides, on laisse leurs validateurs
+    # habituels produire le code préexistant dans `materiel.enregistrer_reception`.
+    if details_valides is not None:
+        demande_valide, _ = validation.valider_bon_demande(bon_demande)
+        reception_valide, _ = validation.valider_reception_po(reception_po)
+        if demande_valide and reception_valide:
+            code_couverture = details_reception_module.valider_couverture_details(
+                details_valides,
+                bon_demande["lignes_demandees"],
+                reception_po["lignes_recues"],
+            )
+            if code_couverture is not None:
+                return {"accepte": False, "verdict": {"code": code_couverture}}
+            code_coherence = details_reception_module.valider_coherence_statuts_quantites(
+                details_valides,
+                reception_po["lignes_recues"],
+            )
+            if code_coherence is not None:
+                return {"accepte": False, "verdict": {"code": code_coherence}}
+
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.enregistrer_reception(
         bon_demande, reception_po, catalogue_materiaux, registre_cible, seuils=seuils_reorder
     )
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
+    transferts_c5 = _enregistrer_emplacements_reception_c5(
+        resultat, details_valides, lieu_valide, reception_po.get("horodatage")
+    )
     reponse = {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
     if details_valides is not None:
         reponse["details_lignes"] = details_valides
     if lieu_valide is not None:
         reponse["lieu_livraison"] = lieu_valide
+    if transferts_c5:
+        reponse["transferts_emplacements"] = transferts_c5
     if prix_bl is not None and po_existant is not None:
         signaux_bl = details_reception_module.detecter_ecarts_prix_bl(
             po_existant.get("lignes", []), prix_bl, _seuil_ecart_prix_reception())
