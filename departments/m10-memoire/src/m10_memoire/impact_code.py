@@ -47,6 +47,16 @@ def _module_pour_chemin(path: str) -> str | None:
     return ".".join(parts) or None
 
 
+def _racine_du_module(path: str) -> str:
+    """Retourne la racine physique du mapping d'import retenu pour `path`."""
+    parts = Path(path).parts
+    try:
+        index = parts.index("src")
+    except ValueError:
+        return "."
+    return Path(*parts[: index + 1]).as_posix()
+
+
 def _imports(arbre: ast.Module, module: str | None, *, package_file: bool = False) -> set[str]:
     result: set[str] = set()
     package = module if package_file else (module or "").rpartition(".")[0]
@@ -251,8 +261,18 @@ def analyser(
     for path, module in modules.items():
         paths_by_module.setdefault(module, []).append(path)
 
+    package_initializers = {
+        module: paths
+        for module, paths in paths_by_module.items()
+        if any(Path(path).name == "__init__.py" for path in paths)
+    }
+    package_prefix_lengths = {len(module) for module in package_initializers}
+    module_prefix_lengths = {len(module) for module in paths_by_module}
+    source_root_by_path = {path: _racine_du_module(path) for path in parsed}
+
     edges: dict[str, set[str]] = {path: set() for path in parsed}
     ambiguous_imports: set[tuple[str, str]] = set()
+    package_roots_ambiguous = False
     for path, arbre in parsed.items():
         referenced = _imports(
             arbre,
@@ -261,10 +281,40 @@ def analyser(
         )
         for module_ref in referenced:
             matches = paths_by_module.get(module_ref, [])
+            resolved_paths = matches
+            if not resolved_paths:
+                start = 0
+                while (separator := module_ref.find(".", start)) >= 0:
+                    if separator in module_prefix_lengths:
+                        prefix_paths = paths_by_module.get(module_ref[:separator], [])
+                        if prefix_paths:
+                            resolved_paths = prefix_paths
+                    start = separator + 1
             if len(matches) == 1:
-                edges[path].add(matches[0])
+                if matches[0] != path:
+                    edges[path].add(matches[0])
             elif len(matches) > 1:
                 ambiguous_imports.add((path, module_ref))
+            # `import pkg.module` exécute aussi `pkg/__init__.py`. Ajouter les
+            # initialiseurs locaux connus parmi les préfixes, sans fabriquer tous
+            # les préfixes d'une référence potentiellement très longue.
+            start = 0
+            while (separator := module_ref.find(".", start)) >= 0:
+                if separator in package_prefix_lengths:
+                    parent = module_ref[:separator]
+                    parent_paths = package_initializers.get(parent, [])
+                    if len(parent_paths) == 1:
+                        parent_path = parent_paths[0]
+                        resolved_roots = {source_root_by_path[item] for item in resolved_paths}
+                        parent_root = source_root_by_path[parent_path]
+                        if resolved_roots and resolved_roots != {parent_root}:
+                            ambiguous_imports.add((path, parent))
+                            package_roots_ambiguous = True
+                        elif parent_path != path:
+                            edges[path].add(parent_path)
+                    elif len(parent_paths) > 1:
+                        ambiguous_imports.add((path, parent))
+                start = separator + 1
 
     target_records = []
     known_targets = set()
@@ -428,6 +478,10 @@ def analyser(
         limitations.append(
             "racines `src` imbriquées : le mapping des modules Python est ambigu sans métadonnée de packaging"
         )
+    if package_roots_ambiguous:
+        limitations.append(
+            "racines d'import distinctes : les initialiseurs parents incompatibles ont été déclarés ambigus"
+        )
     target_symbols_omitted = sum(item.get("symbols_omitted", 0) for item in target_records)
     target_imports_omitted = sum(item.get("imports_omitted", 0) for item in target_records)
     if target_symbols_omitted or target_imports_omitted:
@@ -446,6 +500,7 @@ def analyser(
         or traversal_truncated
         or route_truncated
         or manifest_gaps
+        or package_roots_ambiguous
     )
     return {
         "status": "partial",
