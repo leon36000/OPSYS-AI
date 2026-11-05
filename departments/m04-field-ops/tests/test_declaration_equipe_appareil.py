@@ -353,3 +353,30 @@ def test_visite_null_designe_la_visite_active_et_le_rejeu_survit_a_sa_fermeture(
                                  _demande(cas, 'arrivee', 'mut-null', visite_id=None)))
         assert rejeu['rejoue'] is True and rejeu['resultat']['preuve_id'] == recu['resultat']['preuve_id']
         assert _principal().taille() == taille
+
+
+@pytest.mark.parametrize('microsecond', [500000, 999999])
+def test_arrivee_equipe_acceptee_dans_la_derniere_fraction_de_seconde_du_jour(chantier_equipe, microsecond):
+    """L'heure serveur fractionnaire avant minuit reste dans le jour civil de la visite."""
+    cas = chantier_equipe
+    reception = datetime(2030, 6, 4, 3, 59, 59, microsecond, tzinfo=UTC)  # dernier instant du jour à -04:00
+    with stockage.transaction(cas['url']):
+        reponse = _appeler('m4_declarer_pointage_equipe_appareil', _appareil(MEMBRE, 'employee', reception),
+                           _demande(cas, 'arrivee', 'mut-dernier-instant'))
+        resultat = _metier(reponse)
+        assert resultat['accepte'] is True, resultat
+        assert resultat['resultat']['horodatage'] == reception.isoformat()
+
+
+def test_arrivee_equipe_refusee_a_minuit_le_jour_suivant(chantier_equipe):
+    """La correction de la borne de fin n'étend pas la fenêtre au jour suivant."""
+    cas = chantier_equipe
+    reception = datetime(2030, 6, 4, 4, 0, 0, tzinfo=UTC)  # minuit à -04:00
+    with stockage.transaction(cas['url']):
+        taille_avant = _principal().taille()
+        reponse = _appeler('m4_declarer_pointage_equipe_appareil', _appareil(MEMBRE, 'employee', reception),
+                           _demande(cas, 'arrivee', 'mut-minuit-suivant'))
+        resultat = _metier(reponse)
+        assert resultat['accepte'] is False, resultat
+        assert resultat['verdict']['code'] == 'REJ-EQUIPE-POINTAGE-REFUSE'
+        assert _principal().taille() == taille_avant

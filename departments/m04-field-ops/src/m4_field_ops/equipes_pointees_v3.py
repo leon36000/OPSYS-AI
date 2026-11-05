@@ -178,7 +178,9 @@ def _fenetre_du_jour(ouverture):
     if instant.utcoffset() is None:
         raise Refus('VISITE-INACTIVE')
     debut = instant.replace(hour=0, minute=0, second=0, microsecond=0)
-    fin = instant.replace(hour=23, minute=59, second=59, microsecond=0)
+    # Les réceptions serveur ont une précision à la microseconde. Inclure la dernière fraction
+    # de seconde du jour civil, sinon un pointage reçu à 23:59:59.5 est rejeté comme hors fenêtre.
+    fin = instant.replace(hour=23, minute=59, second=59, microsecond=999999)
     return {'debut': debut.isoformat(), 'fin': fin.isoformat()}
 
 
