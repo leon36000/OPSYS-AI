@@ -149,6 +149,13 @@ def rechercher(requete: str, portees: list[str] | None = None, k: int = K_DEFAUT
         raise ValueError("requête vide : rien à chercher")
     if isinstance(k, bool) or not 1 <= k <= K_OUTIL_MAX:
         raise ValueError(f"k doit être un entier de 1 à {K_OUTIL_MAX}")
+    # La validation centrale vérifie actuellement le type du tableau `portees` mais pas ses
+    # éléments. Revalider à la frontière de cet outil avant `set(demandees)` évite qu'un objet
+    # JSON imbriqué ne devienne un TypeError et ne soit présenté comme une panne métier interne.
+    if portees is not None and (
+        not isinstance(portees, (list, tuple)) or any(not isinstance(portee, str) for portee in portees)
+    ):
+        raise ValueError("portees doit être une liste de chaînes")
     departement = departement_appelant()
     autorisees = list(departement.memoire_lecture)
     if not autorisees:
