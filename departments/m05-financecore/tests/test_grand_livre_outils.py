@@ -15,6 +15,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import m5_financecore.outils as m5_outils
+import m5_financecore.outils_operations as outils_operations
 import pytest
 import yaml
 from m5_financecore import analyse, facturation, grand_livre, grand_livre_beancount, operations_registre, taux_fiscaux
@@ -640,6 +641,277 @@ def test_rapprochement_public_refuse_transition_payee_qui_remplace_le_montant(pa
     assert "montant_avant_taxes" in refus["resultat"]["verdict"]["detail"]
 
 
+def test_rapprochement_refuse_reenvoi_qui_deplace_date_envoi(par_nom):
+    facture_id = "FICTIF-RENVOI-IMPOSSIBLE"
+    _facturer(facture_id, payer=True)
+    avant = _accepte(_appeler(
+        par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"}
+    ))
+    assert avant["taxes"]["tps_a_percevoir"]["attendu_taxes_py"] == "30.00"
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ENVOYEE",
+            "date_envoi": "2026-11-15T09:00:00-04:00", "horodatage": H,
+        })
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert "impossible depuis le statut courant" in refus["resultat"]["verdict"]["detail"]
+
+
+def test_rapprochement_refuse_annulation_apres_emission(par_nom):
+    facture_id = "FICTIF-ANNULATION-EMISE"
+    _facturer(facture_id, payer=False)
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ANNULEE",
+            "horodatage": H,
+        })
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    detail = refus["resultat"]["verdict"]["detail"]
+    assert "ne vérifie pas le traitement fiscal de la contrepartie d'annulation" in detail
+
+
+def test_rapprochement_refuse_creation_annulee_historique_avec_date_envoi(par_nom):
+    facture_id = "FICTIF-ANNULEE-HISTORIQUE-EMISE"
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": facture_id, "statut": "ANNULEE",
+            "date_envoi": "2026-10-10T09:00:00-04:00", "horodatage": H,
+        })
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    detail = refus["resultat"]["verdict"]["detail"]
+    assert "porte une date_envoi" in detail
+    assert "ne vérifie pas le traitement fiscal de la contrepartie d'annulation" in detail
+
+
+def test_rapprochement_refuse_annulation_brouillon_historique_portant_date_envoi(par_nom):
+    facture_id = "FICTIF-BROUILLON-DATE-ANNULE"
+    with stockage.transaction():
+        registre_cible = m5_outils._registre_factures(None)
+        registre_cible.ajouter({
+            "type_entree": "facture_creee", "facture_id": facture_id, "statut": "BROUILLON",
+            "date_envoi": "2026-10-10T09:00:00-04:00", "horodatage": H,
+        })
+        registre_cible.ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ANNULEE",
+            "horodatage": H,
+        })
+        assert registre_cible.valider_chaine() == (True, "")
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    detail = refus["resultat"]["verdict"]["detail"]
+    assert "annulation" in detail
+    assert "date_envoi" in detail
+    assert "ne vérifie pas le traitement fiscal de la contrepartie d'annulation" in detail
+
+
+def test_rapprochement_preserve_creation_annulee_historique_sans_date_envoi(par_nom):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": "FICTIF-ANNULEE-SANS-ENVOI", "statut": "ANNULEE",
+            "horodatage": H,
+        })
+
+    resultat = _accepte(_appeler(
+        par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"}
+    ))
+    assert resultat["taxes"]["tps_a_percevoir"]["attendu_taxes_py"] == "0.00"
+
+
+def test_rapprochement_refuse_facture_emise_partielle(par_nom, dep):
+    facture_id = "FICTIF-FACTURE-PARTIELLE"
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": facture_id, "statut": "ENVOYEE",
+            "date_envoi": "2026-10-10T09:00:00-04:00", "montant_avant_taxes": D("1000.00"),
+            "horodatage": H,
+        })
+
+    saisie = _appeler(par_nom, "m5_proposer_ecriture_comptable", {
+        "date_effet": "2026-10-10", "libelle": "Taxe fictive de facture partielle",
+        "piece_type": "facture_client", "piece_reference": facture_id, "horodatage": H,
+        "lignes": [
+            {"compte": "1100", "debit": "1149.75", "credit": None},
+            {"compte": "4100", "debit": None, "credit": "1000.00"},
+            {"compte": "2300", "debit": None, "credit": "50.00"},
+            {"compte": "2310", "debit": None, "credit": "99.75"},
+        ],
+    })
+    ecriture = _accepte(saisie)["ecriture"]
+    _valider_par_la_file(dep, ecriture["ecriture_id"])
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert "montants ou taxes" in refus["resultat"]["verdict"]["detail"]
+
+
+def test_rapprochement_refuse_facture_emise_avec_montants_sous_cent(par_nom):
+    with stockage.transaction():
+        registre = m5_outils._registre_factures(None)
+        registre.ajouter({
+            "type_entree": "facture_creee", "facture_id": "FICTIF-MONTANTS-SOUS-CENT",
+            "statut": "ENVOYEE", "date_envoi": "2026-10-10T09:00:00-04:00",
+            "montant_avant_taxes": D("100.005"), "total_taxes": D("14.975"),
+            "montant_apres_taxes": D("114.980"),
+            "taxes": [
+                {"id": "tps_federale", "montant": D("5.000")},
+                {"id": "tvq_quebec", "montant": D("9.975")},
+            ],
+            "horodatage": H,
+        })
+        assert registre.valider_chaine() == (True, "")
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert "montants ou taxes" in refus["resultat"]["verdict"]["detail"]
+
+
+def test_lecture_montants_facture_preserve_taxes_nulles_au_cent():
+    piece = {
+        "montant_avant_taxes": D("100.00"),
+        "total_taxes": D("0.00"),
+        "montant_apres_taxes": D("100.00"),
+        "taxes": [
+            {"id": "tps_federale", "montant": D("0.00")},
+            {"id": "tvq_quebec", "montant": D("0.00")},
+        ],
+    }
+    resultat = grand_livre.lire_montants_facture(piece, "client")
+    assert resultat == (D("100.00"), D("100.00"), {
+        "tps_a_percevoir": D("0.00"), "tvq_a_percevoir": D("0.00"),
+    })
+
+
+def test_lecture_montants_facture_refuse_taxes_sous_cent_meme_si_total_au_cent():
+    piece = {
+        "montant_avant_taxes": D("100.00"),
+        "total_taxes": D("0.01"),
+        "montant_apres_taxes": D("100.01"),
+        "taxes": [
+            {"id": "tps_federale", "montant": D("0.005")},
+            {"id": "tvq_quebec", "montant": D("0.005")},
+        ],
+    }
+    assert grand_livre.lire_montants_facture(piece, "client") is None
+
+
+def test_lecture_montants_facture_refuse_sous_total_sous_cent_sans_taxes():
+    piece = {
+        "montant_avant_taxes": D("100.005"),
+        "total_taxes": D("0.00"),
+        "montant_apres_taxes": D("100.005"),
+        "taxes": [],
+    }
+    assert grand_livre.lire_montants_facture(piece, "client") is None
+
+
+def test_rapprochement_refuse_date_envoi_illisible(par_nom):
+    facture_id = "FICTIF-ENVOI-INVALIDE"
+    with stockage.transaction():
+        registre_cible = m5_outils._registre_factures(None)
+        _, verdict = facturation.creer_facture_brouillon(
+            facture_id, f"CH-{facture_id}", f"D-{facture_id}", "client-fictif",
+            _lignes_facture(), "2026-10-01T09:00:00-04:00", _taux(), registre_cible,
+        )
+        assert verdict is None
+        registre_cible.ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ENVOYEE",
+            "date_envoi": "2026-99-99", "horodatage": H,
+        })
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert "date_envoi illisible" in refus["resultat"]["verdict"]["detail"]
+
+
+@pytest.mark.parametrize("date_envoi", ["2026-10-10T09:00:00-04:00", None])
+def test_rapprochement_verifie_date_creation_historique_emise(par_nom, date_envoi):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": "FICTIF-CREATION-EMISE-DATE",
+            "statut": "ENVOYEE", "date_envoi": date_envoi, "horodatage": H,
+            "montant_avant_taxes": D("100.00"), "total_taxes": D("0.00"),
+            "montant_apres_taxes": D("100.00"), "taxes": [],
+        })
+    reponse = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    if date_envoi is None:
+        assert _code(reponse) == "REJ-GL-SOURCE-ILLISIBLE"
+        assert "sans date_envoi lisible" in reponse["resultat"]["verdict"]["detail"]
+    else:
+        _accepte(reponse)
+
+
+def test_rapprochement_refuse_brouillon_partiel_lors_transition_envoyee(par_nom):
+    facture_id = "FICTIF-BROUILLON-PARTIEL"
+    with stockage.transaction():
+        registre_cible = m5_outils._registre_factures(None)
+        registre_cible.ajouter({
+            "type_entree": "facture_creee", "facture_id": facture_id, "statut": "BROUILLON", "horodatage": H,
+        })
+        registre_cible.ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ENVOYEE",
+            "date_envoi": "2026-10-10T09:00:00-04:00", "horodatage": H,
+        })
+
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert "sans montants ou taxes cohérents" in refus["resultat"]["verdict"]["detail"]
+
+
+def test_controle_taxes_sans_capture_epingle_projection_apres_validation(monkeypatch):
+    ctx, refus = outils_operations.contexte_operations()
+    assert refus is None and "registre_factures_cloture" not in ctx
+    registre_live = m5_outils._registre_factures(None)
+    verifier = m5_outils._verifier_sources_rapprochement
+    projetes = {}
+
+    def verifier_puis_intercaler(nom, maillons):
+        resultat = verifier(nom, maillons)
+        if nom == m5_outils._NOM_REGISTRE_FACTURES:
+            registre_live.ajouter({
+                "type_entree": "facture_creee", "facture_id": "FICTIF-INTERCALE", "statut": "ENVOYEE",
+                "date_envoi": "2026-10-10T09:00:00-04:00", "montant_avant_taxes": D("1000.00"),
+                "horodatage": H,
+            })
+        return resultat
+
+    def rapprocher_capture(etat, plan, factures, taux, **kwargs):
+        projetes["factures"] = list(factures)
+        return {"verdict": "CONCORDANT"}, None
+
+    monkeypatch.setattr(m5_outils, "_verifier_sources_rapprochement", verifier_puis_intercaler)
+    monkeypatch.setattr(grand_livre, "rapprocher", rapprocher_capture)
+    resultat, refus = outils_operations.controle_taxes_bornes(ctx, "2026-10-01", "2026-10-31")
+
+    assert refus is None and resultat == {"verdict": "CONCORDANT"}
+    assert projetes["factures"] == []
+
+
+def test_rapprochement_preserve_annulation_historique_depuis_brouillon(par_nom):
+    facture_id = "FICTIF-ANNULATION-BROUILLON"
+    with stockage.transaction():
+        registre_cible = m5_outils._registre_factures(None)
+        _, verdict = facturation.creer_facture_brouillon(
+            facture_id, f"CH-{facture_id}", f"D-{facture_id}", "client-fictif",
+            _lignes_facture(), "2026-10-01T09:00:00-04:00", _taux(), registre_cible,
+        )
+        assert verdict is None
+        registre_cible.ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ANNULEE", "horodatage": H,
+        })
+
+    resultat = _accepte(_appeler(
+        par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"}
+    ))
+    assert resultat["taxes"]["tps_a_percevoir"]["attendu_taxes_py"] == "0.00"
+
+
 @pytest.mark.parametrize("statut", [[], {"statut": "PAYEE"}])
 @pytest.mark.parametrize("type_entree", ["facture_creee", "transition_facture"])
 def test_rapprochement_refuse_statut_non_textuel_sans_exception(par_nom, statut, type_entree):
@@ -656,6 +928,27 @@ def test_rapprochement_refuse_statut_non_textuel_sans_exception(par_nom, statut,
     refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
     assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
     assert "statut" in refus["resultat"]["verdict"]["detail"]
+
+
+@pytest.mark.parametrize("identifiant", [None, 7, []])
+def test_rapprochement_refuse_identifiant_transition_non_textuel(par_nom, identifiant):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "transition_facture", "facture_id": identifiant,
+            "statut": "ENVOYEE", "horodatage": H,
+        })
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+
+
+def test_rapprochement_refuse_transition_sans_facture_preexistante(par_nom):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "transition_facture", "facture_id": "FICTIF-INCONNU",
+            "statut": "ENVOYEE", "horodatage": H,
+        })
+    refus = _appeler(par_nom, "m5_rapprocher_grand_livre", {"debut": "2026-10-01", "fin": "2026-10-31"})
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
 
 
 def test_rapprochement_accepte_transition_envoyee_avec_tous_champs_emission_historiques(par_nom):

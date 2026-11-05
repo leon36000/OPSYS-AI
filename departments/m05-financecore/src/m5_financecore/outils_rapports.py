@@ -656,8 +656,8 @@ def _ecarts_taxes(resultat: Mapping[str, Any]) -> list[dict[str, Any]]:
 def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Le dossier NORMALISÉ (types JSON) que `controleur_preaudit.controler` consomme : ce que les registres de M5
     portent
-    aujourd'hui. Lecture seule. Une chaîne altérée n'arrête pas le contrôle : elle devient un constat et rend non
-    évaluées les règles qui en dépendent."""
+    aujourd'hui. Lecture seule. Une chaîne altérée ou une source incohérente devient un constat et rend non évaluées
+    les règles qui en dépendent."""
     refus = _appareil_refuse()
     if refus is not None:
         return None, refus
@@ -692,6 +692,29 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
     gl_utilisable = gl_chaine and not etat_gl["anomalies"]
     registre_factures = registre_capture(_o._NOM_REGISTRE_FACTURES)
     factures_chaine = chaine("factures", registre_factures)
+    source_factures_non_verifiable = False
+    if factures_chaine:
+        refus_source = _o._verifier_sources_rapprochement(
+            _o._NOM_REGISTRE_FACTURES, instantane[_o._NOM_REGISTRE_FACTURES]
+        )
+        if refus_source is not None:
+            source_factures_non_verifiable = True
+            detail_source = refus_source.get("detail", "")
+            if "date_envoi illisible" in detail_source:
+                raison_source = "date_envoi illisible"
+            elif "contrepartie d'annulation" in detail_source:
+                raison_source = "annulation post-envoi non vérifiable par ce contrôle"
+            elif "montants ou taxes" in detail_source:
+                raison_source = "montants ou taxes de facture émise illisibles"
+            else:
+                raison_source = "cohérence des sources facture non vérifiable"
+            chaines[-1] = {
+                "registre": "factures",
+                "ok": False,
+                "nature": "source_non_verifiable",
+                "detail": f"source facture non vérifiable ({refus_source['code']}) : {raison_source}",
+            }
+            factures_chaine = False
     registre_ap = registre_capture(_o._NOM_REGISTRE_COMPTES_A_PAYER)
     ap_chaine = chaine("comptes_a_payer", registre_ap)
     registre_ops = registre_capture(_o._NOM_REGISTRE_OPERATIONS)
@@ -708,8 +731,8 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
             "numero": f.get("numero_facture"),
             "date_envoi": str(f["date_envoi"])[:10] if f.get("date_envoi") else None,
             "echeance": f.get("echeance"),
-            "montant_avant_taxes": _txt(f["montant_avant_taxes"]),
-            "montant_apres_taxes": _txt(f["montant_apres_taxes"]),
+            "montant_avant_taxes": _txt(f["montant_avant_taxes"]) if f.get("montant_avant_taxes") is not None else None,
+            "montant_apres_taxes": _txt(f["montant_apres_taxes"]) if f.get("montant_apres_taxes") is not None else None,
         }
         for f in clients_bruts
     ]
@@ -780,6 +803,8 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
         taxes["raison"] = "registre des opérations illisible"
     elif refus_pieces_taxees_ops is not None:
         taxes["raison"] = f"pièces Ops illisibles ({refus_pieces_taxees_ops['code']})"
+    elif not factures_chaine:
+        taxes["raison"] = "registre des factures incohérent (REJ-GL-SOURCE-ILLISIBLE)"
     elif gl_utilisable:
         dictionnaire, refus_taux = _o._dictionnaire_taux()
         if refus_taux is not None:
@@ -832,7 +857,12 @@ def construire_dossier_preaudit(aujourd_hui: date) -> tuple[dict[str, Any] | Non
             "defauts": [_une_ligne(d) for d in defauts[:100]],
             "manque": []
             if factures_chaine
-            else ["vérification croisée des numéros avec les factures indisponible (chaîne factures altérée)"],
+            else [
+                "vérification croisée des numéros avec les factures indisponible "
+                "(source facture non vérifiable)"
+                if source_factures_non_verifiable
+                else "vérification croisée des numéros avec les factures indisponible (chaîne factures altérée)"
+            ],
         }
     dossier = {
         "aujourd_hui": aujourd_hui.isoformat(),

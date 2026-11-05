@@ -692,12 +692,14 @@ def _montants_lus(
     if not (all(isinstance(v, Decimal) and v.is_finite() for v in (avant, apres, total))
             and isinstance(detail_taxes, (list, tuple))):
         return None
+    if any(v.as_tuple().exponent < -2 for v in (avant, apres, total)):
+        return None
     montants: dict[str, Decimal] = {}
     for taxe in detail_taxes:
         role = table.get(taxe.get("id")) if isinstance(taxe, Mapping) else None
         montant = taxe.get("montant") if role is not None else None
         if (role is None or not isinstance(montant, Decimal) or not montant.is_finite() or montant < 0
-                or role in montants):
+                or montant.as_tuple().exponent < -2 or role in montants):
             return None
         montants[role] = montant
     if avant + total != apres or sum(montants.values(), _ZERO) != total or apres <= 0 or avant <= 0:

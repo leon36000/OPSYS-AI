@@ -96,7 +96,13 @@ _REGLES_DU_GRAND_LIVRE = frozenset(
 )
 _REGLES_PAR_REGISTRE = {
     "factures": frozenset(
-        {"FACTURE_SANS_PAIEMENT", "PAIEMENT_SANS_FACTURE", "TAXE_INCOHERENTE", "DOCUMENT_MANQUANT"}
+        {
+            "FACTURE_SANS_PAIEMENT",
+            "PAIEMENT_SANS_FACTURE",
+            "TAXE_INCOHERENTE",
+            "FACTURE_MODIFIEE",
+            "DOCUMENT_MANQUANT",
+        }
     ),
     "comptes_a_payer": frozenset(
         {
@@ -642,13 +648,24 @@ def _piste_incomplete(d: Mapping[str, Any]) -> Resultat:
     }
     for chaine in d["chaines"]:
         if not chaine["ok"]:
+            origine = (
+                f"La source du registre {chaine['registre']} n'est pas vérifiable pour ce contrôle"
+                if chaine.get("nature") == "source_non_verifiable"
+                else f"La chaîne cryptographique du registre {chaine['registre']} ne se rejoue pas"
+            )
             constats.append(
                 _constat(
                     "PISTE_AUDIT_INCOMPLETE",
-                    f"La chaîne du registre {chaine['registre']} ne se rejoue pas : {chaine['detail']}.",
+                    f"{origine} : {chaine['detail']}.",
                     [{"registre": chaine["registre"], "reference": "chaine"}],
-                    "Ne rien écrire dans ce registre ; restaurer depuis la sauvegarde ou faire examiner la chaîne "
-                    "par un humain.",
+                    (
+                        "Faire examiner les sources avant ce rapprochement."
+                        if chaine.get("nature") == "source_non_verifiable"
+                        else (
+                            "Ne rien écrire dans ce registre ; restaurer depuis la sauvegarde ou faire examiner "
+                            "la chaîne par un humain."
+                        )
+                    ),
                 )
             )
     for anomalie in d["anomalies_gl"]:
@@ -781,6 +798,13 @@ def controler(dossier: Mapping[str, Any]) -> dict[str, Any]:
         for chaine in dossier.get("chaines", [])
         if chaine.get("ok") is False and isinstance(chaine.get("registre"), str)
     }
+    chaines_non_verifiables = {
+        chaine["registre"]
+        for chaine in dossier.get("chaines", [])
+        if chaine.get("ok") is False
+        and chaine.get("nature") == "source_non_verifiable"
+        and isinstance(chaine.get("registre"), str)
+    }
     for nom in REGLES:
         if _gl_altere(dossier) and nom in _REGLES_DU_GRAND_LIVRE:
             regles.append(
@@ -798,19 +822,22 @@ def controler(dossier: Mapping[str, Any]) -> dict[str, Any]:
             if nom in regles_registre and registre in chaines_invalides
         ]
         if registres_requis_invalides:
-            sources = ", ".join(sorted(registres_requis_invalides))
-            detail_ops = (
-                "registre des opérations illisible ; " if "operations_comptables" in registres_requis_invalides else ""
-            )
+            sources_crypto = sorted(set(registres_requis_invalides) - chaines_non_verifiables)
+            sources_non_verifiables = sorted(set(registres_requis_invalides) & chaines_non_verifiables)
+            details_sources = []
+            if "operations_comptables" in sources_crypto:
+                details_sources.append("registre des opérations illisible")
+                sources_crypto.remove("operations_comptables")
+            if sources_crypto:
+                details_sources.append(f"chaîne invalide : {', '.join(sources_crypto)}")
+            if sources_non_verifiables:
+                details_sources.append(f"source non vérifiable : {', '.join(sources_non_verifiables)}")
             regles.append(
                 {
                     "regle": nom,
                     "etat": "NON_EVALUEE",
                     "constats": None,
-                    "manque": [
-                        f"{detail_ops}registre(s) {sources} altéré(s) (voir PISTE_AUDIT_INCOMPLETE) : "
-                        "les données dépendantes ne sont pas fiables"
-                    ],
+                    "manque": [f"{'; '.join(details_sources)} (PISTE_AUDIT_INCOMPLETE)"],
                 }
             )
             continue

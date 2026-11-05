@@ -687,25 +687,35 @@ def controle_taxes_bornes(
         return None, None
     registre_factures = ctx.get("registre_factures_cloture")
     if registre_factures is None:
-        factures_clients = _o._factures_emises()
+        registre_vivant = _o._registre_factures(None)
+        maillons_factures = registre_vivant.lire()
+        registre_factures = _o._registre_capture(maillons_factures)
     else:
-        refus_chaine = _o._verdict_chaine_financiere(
-            _o._NOM_REGISTRE_FACTURES, ctx["maillons_cloture"][_o._NOM_REGISTRE_FACTURES]
+        maillons_factures = ctx["maillons_cloture"][_o._NOM_REGISTRE_FACTURES]
+    refus_chaine = _o._verdict_chaine_financiere(_o._NOM_REGISTRE_FACTURES, maillons_factures)
+    if refus_chaine is not None:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-SOURCE-ILLISIBLE", detail="registre factures incohérent; source illisible"
         )
-        if refus_chaine is not None:
-            return None, verdicts_grand_livre.construire_verdict(
-                "REJ-GL-SOURCE-ILLISIBLE", detail="registre factures incohérent; source illisible"
-            )
-        factures_clients = _o._factures_emises(registre_factures)
+
+    registre_ap = ctx.get("registre_ap_cloture")
+    if registre_ap is None:
+        registre_ap_vivant = _o._registre_comptes_a_payer()
+        maillons_ap = registre_ap_vivant.lire()
+        registre_ap = _o._registre_capture(maillons_ap)
+    else:
+        maillons_ap = ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER]
+    refus_chaine = _o._verdict_chaine_financiere(_o._NOM_REGISTRE_COMPTES_A_PAYER, maillons_ap)
+    if refus_chaine is not None:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+        )
+
+    refus_source = _o._verifier_sources_rapprochement(_o._NOM_REGISTRE_FACTURES, maillons_factures)
+    if refus_source is not None:
+        return None, refus_source
+    factures_clients = _o._factures_emises(registre_factures)
     try:
-        registre_ap = ctx.get("registre_ap_cloture")
-        if registre_ap is not None:
-            refus_chaine = _o._verdict_chaine_financiere(
-                _o._NOM_REGISTRE_COMPTES_A_PAYER,
-                ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
-            )
-            if refus_chaine is not None:
-                raise comptes_a_payer.RegistreComptesIncoherent("chaîne AP invalide")
         factures_fournisseurs_vivantes = _o._factures_fournisseurs_vivantes(registre_ap)
     except comptes_a_payer.RegistreComptesIncoherent:
         return None, verdicts_grand_livre.construire_verdict(
@@ -750,14 +760,21 @@ def _precloture_impl(ctx: Mapping[str, Any], periode: Any, horodatage: Any) -> t
         return None, verdicts_grand_livre.construire_verdict(
             "REJ-GL-SOURCE-ILLISIBLE", detail="registre factures incohérent; source illisible"
         )
+    refus_chaine_ap = _o._verdict_chaine_financiere(
+        _o._NOM_REGISTRE_COMPTES_A_PAYER,
+        ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
+    )
+    if refus_chaine_ap is not None:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+        )
+    refus_source = _o._verifier_sources_rapprochement(
+        _o._NOM_REGISTRE_FACTURES, ctx["maillons_cloture"][_o._NOM_REGISTRE_FACTURES]
+    )
+    if refus_source is not None:
+        return None, refus_source
     factures_clients = list(_factures_clients_par_id(ctx["registre_factures_cloture"]).values())
     try:
-        refus_chaine = _o._verdict_chaine_financiere(
-            _o._NOM_REGISTRE_COMPTES_A_PAYER,
-            ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
-        )
-        if refus_chaine is not None:
-            raise comptes_a_payer.RegistreComptesIncoherent("chaîne AP invalide")
         factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(ctx["registre_ap_cloture"])
     except comptes_a_payer.RegistreComptesIncoherent:
         return None, verdicts_grand_livre.construire_verdict(

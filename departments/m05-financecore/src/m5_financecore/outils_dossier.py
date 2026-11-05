@@ -133,14 +133,23 @@ def preparer_dossier_cpa(debut: str, fin: str, date_reference: str, horodatage: 
                 "REJ-GL-SOURCE-ILLISIBLE", detail="registre factures incohérent; source illisible"
             )
         )
+    refus_chaine_ap = _o._verdict_chaine_financiere(
+        _o._NOM_REGISTRE_COMPTES_A_PAYER,
+        ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
+    )
+    if refus_chaine_ap is not None:
+        return refuse(
+            verdicts_grand_livre.construire_verdict(
+                "REJ-GL-SOURCE-ILLISIBLE", detail="registre comptes_a_payer incohérent; source illisible"
+            )
+        )
+    refus_source = _o._verifier_sources_rapprochement(
+        _o._NOM_REGISTRE_FACTURES, ctx["maillons_cloture"][_o._NOM_REGISTRE_FACTURES]
+    )
+    if refus_source is not None:
+        return refuse(refus_source)
     factures_clients = list(_factures_clients_par_id(ctx["registre_factures_cloture"]).values())
     try:
-        refus_chaine = _o._verdict_chaine_financiere(
-            _o._NOM_REGISTRE_COMPTES_A_PAYER,
-            ctx["maillons_cloture"][_o._NOM_REGISTRE_COMPTES_A_PAYER],
-        )
-        if refus_chaine is not None:
-            raise comptes_a_payer.RegistreComptesIncoherent("chaîne AP invalide")
         factures_fournisseurs = comptes_a_payer.etats_toutes_les_factures(ctx["registre_ap_cloture"])
     except comptes_a_payer.RegistreComptesIncoherent:
         return refuse(

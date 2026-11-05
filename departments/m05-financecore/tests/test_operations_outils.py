@@ -18,6 +18,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import m5_financecore.outils as m5_outils
+import m5_financecore.outils_rapports as outils_rapports
 import pytest
 import yaml
 from m5_financecore import (
@@ -2102,3 +2103,178 @@ def test_controle_taxes_preserve_ordre_clients_ap_ops_du_rapprochement_public(
         "rapprochement",
         "precloture",
     ]
+
+
+def test_interoutils_refusent_source_facture_incoherente(base_durable, par_nom, declare, tmp_path):
+    facture_id = "FICTIF-C5-INTEROUTILS"
+    _facturer(facture_id, payer=False)
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": facture_id, "statut": "ANNULEE", "horodatage": H,
+        })
+    ouverture = _appeler(par_nom, "m5_ouvrir_periode_comptable", {"periode": "2026-10", "horodatage": H})
+    _accepte(ouverture)
+    compte_ops = _maillons("operations_comptables")
+
+    precloture = _appeler(
+        par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H}
+    )
+    assert _code(precloture) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert _maillons("operations_comptables") == compte_ops
+
+    dossier = _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
+    assert _code(dossier) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert not list((tmp_path / "home" / "exports" / "dossier-cpa").glob("**/*"))
+
+    preaudit = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert preaudit["ok"] is True and preaudit["resultat"]["accepte"] is True, preaudit
+    rapport = preaudit["resultat"]["resultat"]
+    assert any(r["regle"] == "TAXE_INCOHERENTE" for r in rapport["regles_non_evaluees"])
+    assert any(r["regle"] == "FACTURE_MODIFIEE" for r in rapport["regles_non_evaluees"])
+    assert any(r["regle"] == "DOCUMENT_MANQUANT" for r in rapport["regles_non_evaluees"])
+    taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
+    assert "source non vérifiable" in " ".join(taxe["manque"])
+    assert "altéré(s)" not in " ".join(taxe["manque"])
+    facture_modifiee = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "FACTURE_MODIFIEE")
+    assert "source non vérifiable" in " ".join(facture_modifiee["manque"])
+    assert "altéré(s)" not in " ".join(facture_modifiee["manque"])
+    piste = next(c for c in rapport["constats"] if c["regle"] == "PISTE_AUDIT_INCOMPLETE")
+    assert "source du registre factures n'est pas vérifiable" in piste["raison"]
+    assert "chaîne cryptographique" not in piste["raison"]
+
+
+def test_precloture_priorise_chaine_ap_sur_facture_emise_incomplete(base_durable, par_nom, declare):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": "FICTIF-EMISE-INCOMPLETE-AP-PRIORITAIRE",
+            "statut": "ENVOYEE", "date_envoi": "2026-10-10T09:00:00-04:00",
+            "montant_avant_taxes": D("1000.00"), "horodatage": H,
+        })
+    _injecter_ap_orpheline(base_durable)
+    _corrompre_chaine_registre(base_durable, "comptes_a_payer")
+
+    refus = _appeler(
+        par_nom, "m5_precloturer_periode_comptable", {"periode": "2026-10", "horodatage": H}
+    )
+    assert _code(refus) == "REJ-GL-SOURCE-ILLISIBLE"
+    assert "comptes_a_payer" in refus["resultat"]["verdict"]["detail"]
+
+
+def test_preaudit_date_envoi_illisible_marquee_non_verifiable(par_nom):
+    facture_id = "FICTIF-PREAUDIT-ENVOI-INVALIDE"
+    with stockage.transaction():
+        registre_cible = m5_outils._registre_factures(None)
+        _, verdict = facturation.creer_facture_brouillon(
+            facture_id, f"CH-{facture_id}", f"D-{facture_id}", "client-fictif",
+            [{
+                "description": "Travaux fictifs", "quantite": "1", "unite": "forfait",
+                "prix_unitaire": "600.00", "reference_ligne_devis": "L1",
+            }],
+            "2026-10-01T09:00:00-04:00", _taux(), registre_cible,
+        )
+        assert verdict is None
+        registre_cible.ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ENVOYEE",
+            "date_envoi": "2026-99-99", "horodatage": H,
+        })
+
+    reponse = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    rapport = reponse["resultat"]["resultat"]
+    taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
+    assert "source non vérifiable : factures" in " ".join(taxe["manque"])
+    assert "altéré(s)" not in " ".join(taxe["manque"])
+    facture_modifiee = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "FACTURE_MODIFIEE")
+    assert "source non vérifiable : factures" in " ".join(facture_modifiee["manque"])
+    dossier, refus_dossier = outils_rapports.construire_dossier_preaudit(date(2026, 10, 31))
+    assert refus_dossier is None
+    assert "source facture non vérifiable" in " ".join(dossier["numerotation"]["manque"])
+    piste = next(c for c in rapport["constats"] if c["regle"] == "PISTE_AUDIT_INCOMPLETE")
+    assert "date_envoi illisible" in piste["raison"]
+    assert "chaîne cryptographique" not in piste["raison"]
+
+
+def test_preaudit_ne_rapproche_pas_creation_annulee_historique_avec_date_envoi(par_nom):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": "FICTIF-ANNULEE-ENVOYEE-PREAUDIT",
+            "statut": "ANNULEE", "date_envoi": "2026-10-10T09:00:00-04:00", "horodatage": H,
+        })
+
+    reponse = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    rapport = reponse["resultat"]["resultat"]
+    assert any(r["regle"] == "TAXE_INCOHERENTE" for r in rapport["regles_non_evaluees"])
+    taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
+    assert "source non vérifiable : factures" in " ".join(taxe["manque"])
+    piste = next(c for c in rapport["constats"] if c["regle"] == "PISTE_AUDIT_INCOMPLETE")
+    assert "annulation post-envoi non vérifiable" in piste["raison"]
+    assert "chaîne cryptographique" not in piste["raison"]
+
+
+def test_preaudit_ne_rapproche_pas_brouillon_annule_avec_date_envoi_historique(par_nom):
+    facture_id = "FICTIF-BROUILLON-ANNULE-DATE-PREAUDIT"
+    with stockage.transaction():
+        registre = m5_outils._registre_factures(None)
+        registre.ajouter({
+            "type_entree": "facture_creee", "facture_id": facture_id, "statut": "BROUILLON",
+            "date_envoi": "2026-10-10T09:00:00-04:00", "horodatage": H,
+        })
+        registre.ajouter({
+            "type_entree": "transition_facture", "facture_id": facture_id, "statut": "ANNULEE",
+            "horodatage": H,
+        })
+        assert registre.valider_chaine() == (True, "")
+
+    reponse = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    rapport = reponse["resultat"]["resultat"]
+    taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
+    assert "source non vérifiable : factures" in " ".join(taxe["manque"])
+    piste = next(c for c in rapport["constats"] if c["regle"] == "PISTE_AUDIT_INCOMPLETE")
+    assert "annulation post-envoi non vérifiable" in piste["raison"]
+    assert "chaîne cryptographique" not in piste["raison"]
+
+
+def test_preaudit_marque_facture_emise_sous_cent_non_verifiable(par_nom):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": "FICTIF-SOUS-CENT-PREAUDIT",
+            "statut": "ENVOYEE", "date_envoi": "2026-10-10T09:00:00-04:00",
+            "montant_avant_taxes": D("100.005"), "total_taxes": D("14.975"),
+            "montant_apres_taxes": D("114.980"),
+            "taxes": [
+                {"id": "tps_federale", "montant": D("5.000")},
+                {"id": "tvq_quebec", "montant": D("9.975")},
+            ],
+            "horodatage": H,
+        })
+
+    reponse = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    rapport = reponse["resultat"]["resultat"]
+    taxe = next(r for r in rapport["regles_non_evaluees"] if r["regle"] == "TAXE_INCOHERENTE")
+    assert "source non vérifiable : factures" in " ".join(taxe["manque"])
+    piste = next(c for c in rapport["constats"] if c["regle"] == "PISTE_AUDIT_INCOMPLETE")
+    assert "montants ou taxes de facture émise illisibles" in piste["raison"]
+    assert "chaîne cryptographique" not in piste["raison"]
+
+
+def test_preaudit_ne_plante_pas_sur_brouillon_historique_partiel(par_nom):
+    with stockage.transaction():
+        m5_outils._registre_factures(None).ajouter({
+            "type_entree": "facture_creee", "facture_id": "FICTIF-BROUILLON-PREAUDIT-PARTIEL",
+            "statut": "BROUILLON", "horodatage": H,
+        })
+
+    reponse = _appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-10-31"})
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    rapport = reponse["resultat"]["resultat"]
+    dossier, refus = outils_rapports.construire_dossier_preaudit(date(2026, 10, 31))
+    assert refus is None
+    facture = dossier["factures_clients"][0]
+    assert facture["montant_avant_taxes"] is None and facture["montant_apres_taxes"] is None
+    assert not any(
+        c["regle"] == "PISTE_AUDIT_INCOMPLETE" and "source du registre factures" in c["raison"]
+        for c in rapport["constats"]
+    )

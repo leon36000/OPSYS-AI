@@ -2626,6 +2626,9 @@ def _verifier_sources_rapprochement(nom: str, maillons: list[dict[str, Any]]) ->
     if nom != _NOM_REGISTRE_FACTURES:
         return None
     premiere_creation: dict[str, int] = {}
+    maillon_creation: dict[str, dict[str, Any]] = {}
+    statut_courant: dict[str, str] = {}
+    date_envoi_courante: dict[str, Any] = {}
     commun_transition = {
         "type_entree", "facture_id", "statut", "horodatage", "ligne_id", "precedent_ligne_id"
     }
@@ -2660,6 +2663,32 @@ def _verifier_sources_rapprochement(nom: str, maillons: list[dict[str, Any]]) ->
                             f"(première création au rang {premiere_creation[identifiant]})"),
                 )
             premiere_creation[identifiant] = rang
+            maillon_creation[identifiant] = maillon
+            statut_courant[identifiant] = statut
+            date_envoi_courante[identifiant] = maillon.get("date_envoi")
+            if (date_envoi_courante[identifiant] not in (None, "")
+                    and grand_livre._jour_iso(date_envoi_courante[identifiant]) is None):
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=f"registre factures, rang {rang}: date_envoi illisible pour facture {identifiant!r}",
+                )
+            if statut == "ANNULEE" and date_envoi_courante[identifiant] not in (None, ""):
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=(f"registre factures, rang {rang}: facture annulée {identifiant!r} porte une date_envoi; "
+                            "ce contrôle ne vérifie pas le traitement fiscal de la contrepartie d'annulation"),
+                )
+            if statut in {"ENVOYEE", "PAYEE"} and grand_livre.lire_montants_facture(maillon, "client") is None:
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=(f"registre factures, rang {rang}: montants ou taxes de facture émise "
+                            "illisibles ou incohérents"),
+                )
+            if statut in {"ENVOYEE", "PAYEE"} and grand_livre._jour_iso(date_envoi_courante[identifiant]) is None:
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=f"registre factures, rang {rang}: facture émise {identifiant!r} sans date_envoi lisible",
+                )
         elif type_entree == "transition_facture":
             identifiant = maillon.get("facture_id")
             statut = maillon.get("statut")
@@ -2679,6 +2708,50 @@ def _verifier_sources_rapprochement(nom: str, maillons: list[dict[str, Any]]) ->
                     detail=(f"registre factures, rang {rang}: transition {statut} de facture {identifiant!r} "
                             f"avec champs non autorisés ({noms_champs})"),
                 )
+            courant = statut_courant[identifiant]
+            if statut == "ANNULEE" and (
+                courant in {"ENVOYEE", "PAYEE"}
+                or date_envoi_courante[identifiant] not in (None, "")
+            ):
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=(f"registre factures, rang {rang}: annulation d'une facture {identifiant!r} "
+                            "portant une date_envoi; "
+                            "ce contrôle ne vérifie pas le traitement fiscal de la contrepartie d'annulation"),
+                )
+            if statut in {"ENVOYEE", "PAYEE"} and grand_livre.lire_montants_facture(
+                maillon_creation[identifiant], "client"
+            ) is None:
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=(f"registre factures, rang {rang}: facture émise {identifiant!r} "
+                            "sans montants ou taxes cohérents dans sa création"),
+                )
+            if "date_envoi" in maillon:
+                date_envoi_courante[identifiant] = maillon["date_envoi"]
+                if (date_envoi_courante[identifiant] not in (None, "")
+                        and grand_livre._jour_iso(date_envoi_courante[identifiant]) is None):
+                    return verdicts_grand_livre.construire_verdict(
+                        "REJ-GL-SOURCE-ILLISIBLE",
+                        detail=f"registre factures, rang {rang}: date_envoi illisible pour facture {identifiant!r}",
+                    )
+            statut_precedent_requis = {
+                "ENVOYEE": "BROUILLON",
+                "PAYEE": "ENVOYEE",
+                "ANNULEE": "BROUILLON",
+            }[statut]
+            if courant != statut_precedent_requis:
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=(f"registre factures, rang {rang}: transition {statut} de facture {identifiant!r} "
+                            f"impossible depuis le statut courant {courant!r}"),
+                )
+            if statut in {"ENVOYEE", "PAYEE"} and grand_livre._jour_iso(date_envoi_courante[identifiant]) is None:
+                return verdicts_grand_livre.construire_verdict(
+                    "REJ-GL-SOURCE-ILLISIBLE",
+                    detail=f"registre factures, rang {rang}: facture émise {identifiant!r} sans date_envoi lisible",
+                )
+            statut_courant[identifiant] = statut
     return None
 
 
