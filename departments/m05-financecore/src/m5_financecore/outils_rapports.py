@@ -572,15 +572,78 @@ def rentabilite_par_axe(
 
 
 # ==================================================================================================== pré-audit
+_SEUIL_MANIFESTE_AMBIGU = object()
+_CHEMIN_SEUIL_PREAUDIT = ("configuration", "preaudit", "seuil_transaction_hors_norme_cad")
+
+
+def _noeuds_yaml_au_chemin(racine: Any, chemin: tuple[str, ...]) -> tuple[list[Any], bool]:
+    """Retrouve les nœuds directs d'un chemin YAML et signale les clés dupliquées sur ce chemin.
+
+    `safe_load` reste l'autorité pour toutes les autres valeurs. Cette lecture de nœuds ne sert qu'à préserver le
+    lexème décimal du seuil M5 avant qu'un float Python puisse l'arrondir.
+    """
+    noeuds = [racine]
+    ambigu = False
+    for segment in chemin:
+        suivants = []
+        for noeud in noeuds:
+            if not isinstance(noeud, yaml.MappingNode):
+                continue
+            valeurs = [
+                valeur
+                for cle, valeur in noeud.value
+                if (
+                    isinstance(cle, yaml.ScalarNode)
+                    and cle.tag == "tag:yaml.org,2002:str"
+                    and cle.value == segment
+                )
+            ]
+            if len(valeurs) > 1:
+                ambigu = True
+            suivants.extend(valeurs)
+        noeuds = suivants
+        if not noeuds:
+            break
+    if len(noeuds) > 1:
+        ambigu = True
+    return noeuds, ambigu
+
+
 def _preaudit_declare() -> Mapping[str, Any]:
     """`configuration.preaudit` de `department.yaml`, relu à chaque appel, avec par-dessus les réglages ADOPTÉS par la
     direction (couche unique `opsys.reglages`). Absent : `{}` ; aucun seuil n'est jamais supposé."""
     try:
-        donnees = yaml.safe_load(_o._MANIFESTE.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
+        texte = _o._MANIFESTE.read_text(encoding="utf-8")
+    except OSError:
         return {}
+    try:
+        donnees = yaml.safe_load(texte)
+        noeud_yaml = yaml.compose(texte, Loader=yaml.SafeLoader)
+    except yaml.YAMLError:
+        # Un manifeste qui ne peut pas être lu comme YAML ne doit pas rendre un seuil partiel opérant.
+        return {_CHEMIN_SEUIL_PREAUDIT[-1]: _SEUIL_MANIFESTE_AMBIGU}
     configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
     du_fichier = configuration.get("preaudit") if isinstance(configuration, dict) else None
+    noeuds, ambigu = _noeuds_yaml_au_chemin(noeud_yaml, _CHEMIN_SEUIL_PREAUDIT)
+    cle_seuil = _CHEMIN_SEUIL_PREAUDIT[-1]
+    if (ambigu and noeuds) or (
+        not noeuds and isinstance(du_fichier, Mapping) and du_fichier.get(cle_seuil) is not None
+    ):
+        # Clé répétée, chemin dupliqué ou valeur héritée par un merge YAML : ne pas reprendre le dernier float construit
+        # par safe_load. Le marqueur est consommé par `seuils_depuis` qui produit son refus générique et nommé. Une
+        # adoption N3 valide sera ensuite superposée par la couche de réglages et remplacera ce marqueur.
+        du_fichier = dict(du_fichier) if isinstance(du_fichier, Mapping) else {}
+        du_fichier[cle_seuil] = _SEUIL_MANIFESTE_AMBIGU
+    elif (
+        len(noeuds) == 1
+        and isinstance(noeuds[0], yaml.ScalarNode)
+        and noeuds[0].tag == "tag:yaml.org,2002:float"
+    ):
+        # `ScalarNode.value` est le texte décimal de la source (y compris via un alias) ; `safe_load` l'aurait converti
+        # en float et pourrait perdre des chiffres ou sous-déborder. Seul le seuil est remplacé; les autres champs
+        # gardent les valeurs `safe_load` qu'ils avaient avant.
+        du_fichier = dict(du_fichier) if isinstance(du_fichier, Mapping) else {}
+        du_fichier[cle_seuil] = noeuds[0].value
     lu = reglages_lecture.superposer(donnees, ("configuration", "preaudit"), du_fichier)
     return lu if isinstance(lu, Mapping) else {}
 

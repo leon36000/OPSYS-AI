@@ -264,7 +264,8 @@ constats_planifies:
 #    adoption N3 par le propriétaire) ; ils peuvent aussi s'écrire ici, sous configuration.preaudit :
 #      preaudit:
 #        seuil_transaction_hors_norme_cad: "5000.00"   # EXEMPLE de forme fictif : à partir de quel montant une transaction est « hors norme »
-#        # Garder ce seuil entre guillemets : un nombre YAML non cité peut perdre des décimales à la lecture.
+#        # Les chaînes et décimaux YAML usuels conservent leur précision. Doublons sur ce chemin ou seuil hérité par fusion
+#        # YAML sont signalés comme ambigus; la notation sexagésimale n'est pas reconnue comme décimal.
 #        jours_fenetre_doublon: 3                       # EXEMPLE : jours d'écart sous lesquels deux factures identiques sont un doublon probable
 #        historique_changement_compte: 3                # EXEMPLE : factures de suite sur le même compte avant qu'un changement soit « inhabituel »
 #  * Les comptes de charges rangés dans les COÛTS DIRECTS (marge brute de l'état des résultats ; le plan comptable ne le dit pas) :

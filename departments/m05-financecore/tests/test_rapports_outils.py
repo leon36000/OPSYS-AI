@@ -1379,3 +1379,52 @@ def test_seuils_preaudit_gardent_decimal_exact_compact_et_refusent_toujours_les_
         seuils, problemes = controleur_preaudit.seuils_depuis({"seuil_transaction_hors_norme_cad": valeur})
         assert seuils["transaction_hors_norme_cad"] is None
         assert problemes
+
+
+def test_preaudit_public_preserve_le_lexeme_yaml_sous_cent_fictif(par_nom, dep, tmp_path, monkeypatch):
+    manifeste = tmp_path / "department.yaml"
+    manifeste.write_text(
+        "configuration:\n  preaudit:\n    seuil_transaction_hors_norme_cad: 100.0100000000000005\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-YAML-LEXEME-FICTIF",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "100.01", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "100.01"},
+        ],
+    )
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+
+    assert resultat["par_regle"]["TRANSACTION_HORS_NORME"] == 0
+
+
+def test_preaudit_public_refuse_un_seuil_yaml_duplique_sans_choisir_le_dernier(par_nom, dep, tmp_path, monkeypatch):
+    manifeste = tmp_path / "department.yaml"
+    manifeste.write_text(
+        "configuration:\n  preaudit:\n"
+        "    seuil_transaction_hors_norme_cad: 100.01\n"
+        "    seuil_transaction_hors_norme_cad: 100.0100000000000005\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    ecriture(
+        par_nom,
+        dep,
+        "SEUIL-YAML-DUPLICATE-FICTIF",
+        "2026-03-01",
+        [
+            {"compte": "5600", "debit": "100.01", "credit": None},
+            {"compte": "1010", "debit": None, "credit": "100.01"},
+        ],
+    )
+
+    resultat = utile(appeler(par_nom, "m5_controler_preaudit", {"aujourd_hui": "2026-03-31"}))
+
+    assert resultat["par_regle"]["TRANSACTION_HORS_NORME"] is None
+    assert any("seuil_transaction_hors_norme_cad" in detail for detail in resultat["seuils_problemes"])
