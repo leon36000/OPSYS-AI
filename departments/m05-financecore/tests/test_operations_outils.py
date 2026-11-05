@@ -1417,6 +1417,84 @@ def test_dossier_cpa_postgresql_fige_tetes_et_projections_au_meme_snapshot(
         assert "FACT-CONCURRENT-FICTIVE" in outils_operations._factures_clients_par_id()
 
 
+def test_dossier_cpa_concurrent_identique_est_consigne_une_seule_fois(
+    base_durable, par_nom, declare, monkeypatch, m5_postgres_doubles
+):
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+    from m5_financecore import outils_dossier
+
+    with m5_postgres_doubles.postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        m5_outils.utiliser_stockage_durable()
+        declare(CONFIG)
+
+        snapshot_barriere = threading.Barrier(2)
+        gagnant: list[str] = []
+        choix_verrou = threading.Lock()
+        gagnant_termine = threading.Event()
+        original_snapshot = outils_operations._instantane_cloture
+        original_ecrire = outils_dossier._ecrire_dossier
+
+        def synchroniser_avant_snapshot(ctx):
+            snapshot_barriere.wait(30)
+            return original_snapshot(ctx)
+
+        def ecrire_apres_le_gagnant(dossier_id, fichiers):
+            nom = threading.current_thread().name
+            with choix_verrou:
+                if not gagnant:
+                    gagnant.append(nom)
+                est_gagnant = gagnant[0] == nom
+            if not est_gagnant:
+                assert gagnant_termine.wait(60), "l'appel CPA gagnant n'a pas terminé"
+            return original_ecrire(dossier_id, fichiers)
+
+        monkeypatch.setattr(outils_operations, "_instantane_cloture", synchroniser_avant_snapshot)
+        monkeypatch.setattr(outils_dossier, "_instantane_cloture", synchroniser_avant_snapshot)
+        monkeypatch.setattr(outils_dossier, "_ecrire_dossier", ecrire_apres_le_gagnant)
+
+        reponses = {}
+        erreurs = {}
+
+        def appeler(nom):
+            try:
+                reponses[nom] = _appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args())
+            except BaseException as exc:  # transmettre les erreurs des threads au test principal
+                erreurs[nom] = exc
+            finally:
+                if gagnant and gagnant[0] == nom:
+                    gagnant_termine.set()
+
+        premier = threading.Thread(target=appeler, args=("CPA-A",), name="CPA-A", daemon=True)
+        second = threading.Thread(target=appeler, args=("CPA-B",), name="CPA-B", daemon=True)
+        premier.start()
+        second.start()
+        premier.join(90)
+        second.join(90)
+        assert not premier.is_alive() and not second.is_alive(), "thread timeout"
+        assert not erreurs, erreurs
+        corps = {nom: _accepte(reponse) for nom, reponse in reponses.items()}
+        assert {c["statut"] for c in corps.values()} == {"scelle", "deja_scelle"}, corps
+
+        with stockage.transaction(url):
+            maillons = list(stockage.maillons(DEPARTEMENT, "operations_comptables"))
+        dossiers = [m for m in maillons if m.get("type_entree") == "op_dossier_cpa_scelle"]
+        assert len(dossiers) == 1, dossiers
+        assert not operations_registre.etat_operations(maillons)["doublons"]
+
+        monkeypatch.setattr(outils_operations, "_instantane_cloture", original_snapshot)
+        monkeypatch.setattr(outils_dossier, "_instantane_cloture", original_snapshot)
+        rejeu = _accepte(_appeler(par_nom, "m5_preparer_dossier_cpa", _dossier_args()))
+        assert rejeu["statut"] == "deja_scelle"
+        with stockage.transaction(url):
+            maillons_apres_rejeu = list(stockage.maillons(DEPARTEMENT, "operations_comptables"))
+        assert len([m for m in maillons_apres_rejeu if m.get("type_entree") == "op_dossier_cpa_scelle"]) == 1
+        stockage.liberer(url)
+
+
 def test_precloture_postgresql_utilise_un_snapshot_commun_aux_factures_et_taxes(
     base_durable, par_nom, declare, monkeypatch, m5_postgres_doubles
 ):
@@ -1480,6 +1558,59 @@ def test_precloture_postgresql_utilise_un_snapshot_commun_aux_factures_et_taxes(
         assert controles["taxes_rapprochees"]["statut"] == "OK", controles
         assert controles["factures_clients_sans_ecriture"]["nombre"] == 0, controles
         assert "FACT-PRECLOTURE-CONCURRENT-FICTIVE" in outils_operations._factures_clients_par_id()
+
+
+def test_preclotures_concurrentes_distinctes_preservent_les_deux_operations(
+    base_durable, par_nom, declare, monkeypatch, m5_postgres_doubles
+):
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+
+    with m5_postgres_doubles.postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        m5_outils.utiliser_stockage_durable()
+        declare(CONFIG)
+
+        snapshot_barriere = threading.Barrier(2)
+        original_snapshot = outils_operations._instantane_cloture
+
+        def synchroniser_avant_snapshot(ctx):
+            snapshot_barriere.wait(30)
+            return original_snapshot(ctx)
+
+        monkeypatch.setattr(outils_operations, "_instantane_cloture", synchroniser_avant_snapshot)
+        reponses = {}
+        erreurs = {}
+
+        def appeler(nom, periode):
+            try:
+                reponses[nom] = _appeler(
+                    par_nom, "m5_precloturer_periode_comptable", {"periode": periode, "horodatage": H}
+                )
+            except BaseException as exc:  # transmettre les erreurs des threads au test principal
+                erreurs[nom] = exc
+
+        premier = threading.Thread(target=appeler, args=("octobre", "2026-10"), daemon=True)
+        second = threading.Thread(target=appeler, args=("novembre", "2026-11"), daemon=True)
+        premier.start()
+        second.start()
+        premier.join(90)
+        second.join(90)
+        assert not premier.is_alive() and not second.is_alive(), "thread timeout"
+        assert not erreurs, erreurs
+        corps = {nom: _accepte(reponse) for nom, reponse in reponses.items()}
+        assert corps["octobre"]["periode"] == "2026-10"
+        assert corps["novembre"]["periode"] == "2026-11"
+
+        with stockage.transaction(url):
+            maillons = list(stockage.maillons(DEPARTEMENT, "operations_comptables"))
+        operations = [m for m in maillons if m.get("type_entree") == "op_precloture_constatee"]
+        assert len(operations) == 2, operations
+        assert len({operation["cle"] for operation in operations}) == 2
+        assert not operations_registre.etat_operations(maillons)["doublons"]
+        stockage.liberer(url)
 
 
 def test_dossier_cpa_projection_clients_precede_ap_et_runtime_error_reste_visible(

@@ -205,9 +205,11 @@ def _instantane_cloture(ctx: Mapping[str, Any]) -> tuple[dict[str, Any] | None, 
     """Capture les registres qui alimentent préclôture/CPA par un seul SELECT.
 
     Les fichiers de configuration et taux restent lus selon leurs contrats propres; seule la cohérence des lignes
-    SQL de ces quatre registres est couverte.
+    SQL de ces quatre registres est couverte. Le verrou transactionnel sérialise les deux producteurs de constats
+    idempotents concernés avant leur snapshot, pour que le second relise l'opération déjà consignée.
     """
     from . import registre as registre_module
+    from opsys.stockage.concurrence import verrou_consultatif
 
     noms = (
         _o._NOM_REGISTRE_GRAND_LIVRE,
@@ -215,6 +217,9 @@ def _instantane_cloture(ctx: Mapping[str, Any]) -> tuple[dict[str, Any] | None, 
         _o._NOM_REGISTRE_COMPTES_A_PAYER,
         _o._NOM_REGISTRE_OPERATIONS,
     )
+    cnx = stockage.connexion_courante()
+    if cnx is not None:
+        verrou_consultatif(cnx, "m05-financecore:precloture-dossier-cpa")
     maillons = stockage.lire_instantane_maillons(_o._DEPARTEMENT, noms)
     registres = {nom: registre_module.Registre(maillons=maillons[nom]) for nom in noms}
 
