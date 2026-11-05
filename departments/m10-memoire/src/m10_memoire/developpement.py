@@ -1517,6 +1517,11 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
     evidence_returned = sum(len(item["evidence"]) for item in contradictions)
     evidence_omitted = evidence_total - evidence_returned
     lineage_traversal_truncated = budget_exhausted or bool(frontier_omitted)
+    code_impact_incomplete = bool(
+        code_impact is not None
+        and python_targets
+        and (code_impact.get("status") == "unavailable" or code_impact.get("truncated"))
+    )
     truncated = bool(
         candidates_omitted
         or lineage_traversal_truncated
@@ -1526,6 +1531,7 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
         or contradictions_omitted
         or contradiction_evidence_per_claim_omitted
         or evidence_omitted
+        or code_impact_incomplete
     )
     limits = {
         "must_know": MAX_PREFLIGHT_MUST_KNOW,
@@ -1556,6 +1562,15 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
     }
     available = bool(must_know or evidence)
     limitations = []
+    code_impact_limitations = []
+    if code_impact_incomplete:
+        if code_impact.get("status") == "unavailable":
+            reason = code_impact.get("reason") or "raison non fournie"
+            code_impact_limitations.append(f"analyse d'impact statique indisponible : {reason}")
+        else:
+            code_impact_limitations.append(
+                "analyse d'impact statique incomplète; vérifier code_impact.counts et code_impact.limitations"
+            )
     if any(isinstance(item["payload"].get("diagnostic"), dict) for item in must_know):
         limitations.append("causes et résultats de test sont des déclarations d'auteur, non attestées automatiquement")
     if not evidence:
@@ -1572,6 +1587,7 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
         limitations.append("lignée de remplacement non résolue dans le périmètre éligible")
     if links_omitted:
         limitations.append("liens de mémoire bornés; consulter les compteurs d’omission")
+    limitations.extend(code_impact_limitations)
     if not available:
         result = {
             "status": "unavailable",
@@ -1585,7 +1601,10 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
             "limits": limits,
             "counts": counts,
             "truncated": truncated,
-            "limitations": ["contexte indisponible; ne pas supposer que le travail est fait"],
+            "limitations": [
+                "contexte indisponible; ne pas supposer que le travail est fait",
+                *code_impact_limitations,
+            ],
         }
         if code_impact is not None:
             result["code_impact"] = code_impact
