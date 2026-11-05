@@ -14,6 +14,12 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from . import catalogue, contrats_sortie
+from .decimal_exact import (
+    AccumulateurDecimalExact,
+    DecimalIndeterminable,
+    float_projection_exacte_ou_refus,
+    soustraire_exactement,
+)
 
 
 def _verdict_depuis_ecarts(ecarts) -> str:
@@ -65,7 +71,10 @@ def traiter_reception(bon_demande, reception_po, catalogue_fourni, registre):
         quantite_demandee = ligne_demandee["quantite_demandee"]
         quantite_recue = recues_par_materiau[materiau_id]
         # Décimal exact (comme `evaluer_cumul`) : 3,3 − 3,0 est 0,3, pas 0,2999999999999998.
-        ecart = float(Decimal(str(quantite_recue)) - Decimal(str(quantite_demandee)))
+        ecart_exact = soustraire_exactement(
+            Decimal(str(quantite_recue)), Decimal(str(quantite_demandee))
+        )
+        ecart = float_projection_exacte_ou_refus(ecart_exact)
         resolution_prix = catalogue.resoudre_prix(
             materiau_id, catalogue_fourni, registre
         )
@@ -148,7 +157,7 @@ def evaluer_cumul(lignes_commandees, livraisons) -> dict[str, Any] | None:
             return None
         commandees.append((ligne["materiau_id"], quantite))
     identifiants = {materiau_id for materiau_id, _ in commandees}
-    recues: dict[Any, Decimal] = {materiau_id: Decimal(0) for materiau_id in identifiants}
+    accumulateurs = {materiau_id: AccumulateurDecimalExact() for materiau_id in identifiants}
     for livraison in livraisons:
         for ligne in livraison:
             if ligne["materiau_id"] not in identifiants:
@@ -156,15 +165,26 @@ def evaluer_cumul(lignes_commandees, livraisons) -> dict[str, Any] | None:
             quantite = _decimal(ligne["quantite_recue"])
             if quantite is None:
                 return None
-            recues[ligne["materiau_id"]] += quantite
+            if not accumulateurs[ligne["materiau_id"]].ajouter(quantite, 1):
+                raise DecimalIndeterminable
+    recues = {}
+    for materiau_id, accumulateur in accumulateurs.items():
+        total = accumulateur.resultat()
+        if total is None:
+            raise DecimalIndeterminable
+        recues[materiau_id] = total
+    ecarts = {
+        materiau_id: soustraire_exactement(recues[materiau_id], quantite)
+        for materiau_id, quantite in commandees
+    }
     lignes = [
         {
             "materiau_id": materiau_id,
             "quantite_demandee": _texte(quantite),
             "quantite_recue_cumulee": _texte(recues[materiau_id]),
-            "ecart_cumule": _texte(recues[materiau_id] - quantite),
+            "ecart_cumule": _texte(ecarts[materiau_id]),
         }
         for materiau_id, quantite in commandees
     ]
-    verdict = _verdict_depuis_ecarts([recues[materiau_id] - quantite for materiau_id, quantite in commandees])
+    verdict = _verdict_depuis_ecarts([ecarts[materiau_id] for materiau_id, _ in commandees])
     return {"verdict_reception": verdict, "lignes": lignes}

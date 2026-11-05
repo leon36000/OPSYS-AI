@@ -84,6 +84,13 @@ from . import (
     stock,
     verdicts,
 )
+from .decimal_exact import (
+    DecimalIndeterminable,
+    ajouter_exactement,
+    float_projection_exacte_ou_refus,
+    multiplier_exactement,
+    soustraire_exactement,
+)
 
 __all__ = [
     "calculer_lignes_a_commander",
@@ -154,12 +161,11 @@ def calculer_lignes_a_commander(
     for besoin in besoins_estimes:
         materiau_id = besoin["materiau_id"]
         quantite_estimee = besoin["quantite_estimee"]
-        disponible = stock.deriver_stock_theorique(chantier_id, materiau_id, registre_mouvements)
-        # Écart en décimal EXACT (comme `stock.py`) : 10,3 − 3,1 est 7,2, pas 7,200000000000001 — une quantité bruitée
-        # au bon de commande fait de la réception de 7,2 une réception « inférieure », donc un PO jamais complet.
-        ecart = Decimal(str(quantite_estimee)) - Decimal(str(disponible))
+        disponible = stock._deriver_stock_theorique_decimal(chantier_id, materiau_id, registre_mouvements)
+        ecart = soustraire_exactement(Decimal(str(quantite_estimee)), disponible)
         if ecart > 0:
-            lignes.append({"materiau_id": materiau_id, "quantite_nette": float(ecart), "unite": besoin.get("unite")})
+            quantite_nette = float_projection_exacte_ou_refus(ecart)
+            lignes.append({"materiau_id": materiau_id, "quantite_nette": quantite_nette, "unite": besoin.get("unite")})
     return lignes
 
 
@@ -438,7 +444,38 @@ def creer_brouillon(
         net = Decimal(str(ligne["quantite_nette"]))
         facteur = ligne.get("facteur_perte")
         # Une seule application de la perte, ici : nette x (1 + perte déclarée). Sans perte déclarée : la nette.
-        quantite_demandee = float(net * (1 + Decimal(facteur))) if facteur is not None else float(net)
+        try:
+            quantite_demandee_exacte = (
+                multiplier_exactement(net, ajouter_exactement(Decimal(1), Decimal(facteur)))
+                if facteur is not None
+                else net
+            )
+        except DecimalIndeterminable:
+            return None, verdicts.construire_verdict(
+                "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE",
+                detail=f"{materiau_id!r} : la quantité exacte ne tient pas dans le contrat numérique legacy",
+            )
+        # Préserver le refus métier historique pour une quantité hors domaine float. Une quantité
+        # finie mais arrondie reste, elle, un refus technique explicite : aucun PO ne doit figer
+        # silencieusement une perte dont la quantité exacte n'est pas représentable.
+        try:
+            quantite_demandee_probe = float(quantite_demandee_exacte)
+        except (OverflowError, ValueError):
+            return None, verdicts.construire_verdict(
+                "REJ-PO-LIGNE-INVALIDE", detail=f"{materiau_id!r} : quantité hors domaine"
+            )
+        if not math.isfinite(quantite_demandee_probe) or quantite_demandee_probe <= 0:
+            return None, verdicts.construire_verdict(
+                "REJ-PO-LIGNE-INVALIDE", detail=f"{materiau_id!r} : quantité hors domaine"
+            )
+        try:
+            quantite_nette_float = float_projection_exacte_ou_refus(net)
+            quantite_demandee = float_projection_exacte_ou_refus(quantite_demandee_exacte)
+        except DecimalIndeterminable:
+            return None, verdicts.construire_verdict(
+                "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE",
+                detail=f"{materiau_id!r} : la quantité exacte ne tient pas dans le contrat numérique legacy",
+            )
         if not math.isfinite(quantite_demandee) or quantite_demandee <= 0:
             return None, verdicts.construire_verdict("REJ-PO-LIGNE-INVALIDE",
                                                      detail=f"{materiau_id!r} : quantité hors domaine")
@@ -471,7 +508,7 @@ def creer_brouillon(
                 "designation": ligne.get("designation"),
                 "unite": unite,
                 "unite_source": "fiche_catalogue" if unite_fiche is not None else ligne.get("unite_source", "declaree"),
-                "quantite_nette": float(net),
+                "quantite_nette": quantite_nette_float,
                 "facteur_perte": facteur,
                 "quantite_demandee": quantite_demandee,
                 "verdict_prix": resolution["verdict_prix"],

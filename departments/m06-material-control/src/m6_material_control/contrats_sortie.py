@@ -29,6 +29,13 @@ def construire_confirmation_consommation_terrain(
     lignes_consommees,
     stock_restant,
 ) -> dict:
+    """Build the no-cost field confirmation.
+
+    Ordinary results keep the legacy ``{materiau_id, quantite: float}`` stock shape. If
+    the exact remaining stock cannot be represented by that float, the caller supplies
+    ``quantite: None`` together with ``quantite_exacte`` text and ``motif_projection``;
+    this describes the completed movement without presenting a rounded stock figure.
+    """
     confirmation = {
         "intervention_id": intervention_id,
         "chantier_id": chantier_id,

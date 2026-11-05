@@ -1,3 +1,13 @@
+import math
+from decimal import Decimal
+
+from .decimal_exact import (
+    DecimalIndeterminable,
+    somme_decimaux_exactement,
+    soustraire_exactement,
+)
+
+
 def evaluer_variance(chantier_id, materiau_id, quantite_comptee, registre) -> dict:
     mouvement_existant = any(
         mouvement.get("type_mouvement") in {"RECEPTION", "CONSOMMATION"}
@@ -19,19 +29,31 @@ def evaluer_variance(chantier_id, materiau_id, quantite_comptee, registre) -> di
 
     from . import stock
 
-    quantite_theorique = stock.deriver_stock_theorique(
+    quantite_theorique_exacte = stock._deriver_stock_theorique_decimal(
         chantier_id,
         materiau_id,
         registre,
     )
-    ecart = quantite_comptee - quantite_theorique
+    ecart_exact = soustraire_exactement(Decimal(str(quantite_comptee)), quantite_theorique_exacte)
 
-    if ecart == 0:
+    if ecart_exact == 0:
         verdict_variance = "AUCUN_ECART"
-    elif ecart < 0:
+    elif ecart_exact < 0:
         verdict_variance = "STOCK_INFERIEUR_AU_THEORIQUE"
     else:
         verdict_variance = "STOCK_SUPERIEUR_AU_THEORIQUE"
+
+    quantite_theorique = float(quantite_theorique_exacte)
+    ecart = float(ecart_exact)
+    if not math.isfinite(quantite_theorique) or not math.isfinite(ecart):
+        raise DecimalIndeterminable
+    theorie_float_exacte = Decimal(str(quantite_theorique))
+    ecart_float_exact = Decimal(str(ecart))
+    if theorie_float_exacte != quantite_theorique_exacte:
+        raise DecimalIndeterminable
+    somme_projection = somme_decimaux_exactement(((theorie_float_exacte, 1), (ecart_float_exact, 1)))
+    if somme_projection is None or somme_projection != Decimal(str(quantite_comptee)):
+        raise DecimalIndeterminable
 
     return {
         "chantier_id": chantier_id,

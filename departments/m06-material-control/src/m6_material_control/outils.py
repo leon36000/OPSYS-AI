@@ -141,6 +141,11 @@ from . import attentes_c5_c6 as attentes_supplementaires
 from . import catalogue as catalogue_module
 from . import details_reception as details_reception_module
 from . import registre as registre_module
+from .decimal_exact import (
+    AccumulateurDecimalExact,
+    DecimalIndeterminable,
+    float_projection_exacte_ou_refus,
+)
 
 _DEPARTEMENT = "m06-material-control"
 _NOM_REGISTRE = "principal"
@@ -1642,6 +1647,16 @@ def consommer_materiaux(
             {},
         )
         en_main_global = {materiau: chiffres["en_main"] for materiau, chiffres in disponibilites.items()}
+    except DecimalIndeterminable:
+        return {
+            "accepte": False,
+            "verdict": {
+                "code": "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE",
+                "detail": (
+                    "la borne physique globale dépasse les limites de calcul exact; aucun mouvement n'a été écrit."
+                ),
+            },
+        }
     except (KeyError, TypeError, ValueError, InvalidOperation, AttributeError, OverflowError):
         return {
             "accepte": False,
@@ -1673,17 +1688,16 @@ def consommer_materiaux(
                 demandes_valides_pour_borne = False
                 break
             materiau_id = ligne["materiau_id"]
-            termes_demande = demandes_par_materiau.setdefault(materiau_id, [])
-            if len(termes_demande) >= reorder._BORNE_MAX_TERMS:
+            accumulateur = demandes_par_materiau.setdefault(materiau_id, AccumulateurDecimalExact())
+            if not accumulateur.ajouter(quantite, 1):
                 demandes_valides_pour_borne = False
                 break
-            termes_demande.append((quantite, 1))
     except (KeyError, TypeError, ValueError, InvalidOperation):
         demandes_valides_pour_borne = False
     if demandes_valides_pour_borne:
         demandes_par_materiau = {
-            materiau_id: reorder.somme_decimaux_exactement(termes)
-            for materiau_id, termes in demandes_par_materiau.items()
+            materiau_id: accumulateur.resultat()
+            for materiau_id, accumulateur in demandes_par_materiau.items()
         }
         if any(quantite is None for quantite in demandes_par_materiau.values()):
             demandes_valides_pour_borne = False
@@ -1718,7 +1732,7 @@ def consommer_materiaux(
     if code is not None:
         verdict = {"code": code}
         if code == "REJ-STOCK-INSUFFISANT" and en_main_global is not None:
-            quantites = {}
+            accumulateurs_par_materiau = {}
             for ligne in formulaire.get("lignes_consommees", []):
                 if not isinstance(ligne, dict) or not isinstance(ligne.get("materiau_id"), str):
                     continue
@@ -1727,7 +1741,19 @@ def consommer_materiaux(
                     quantite = Decimal(str(ligne["quantite"]))
                 except (KeyError, TypeError, ValueError, InvalidOperation):
                     continue
-                quantites[materiau_id] = quantites.get(materiau_id, Decimal(0)) + quantite
+                accumulateur = accumulateurs_par_materiau.setdefault(
+                    materiau_id, AccumulateurDecimalExact()
+                )
+                if not accumulateur.ajouter(quantite, 1):
+                    accumulateurs_par_materiau = {}
+                    break
+            quantites = {}
+            for materiau_id, accumulateur in accumulateurs_par_materiau.items():
+                quantite = accumulateur.resultat()
+                if quantite is None:
+                    quantites = {}
+                    break
+                quantites[materiau_id] = quantite
             insuffisants = sorted(
                 materiau_id for materiau_id, quantite in quantites.items()
                 if materiau_id in en_main_global and quantite > en_main_global[materiau_id]
@@ -2607,14 +2633,23 @@ def _lignes_du_besoin(
     )
     depuis_reservation = reservation is not None and reservation["actif"]
     unites_besoin = {ligne["materiau_id"]: ligne["unite"] for ligne in besoin["lignes"]}
-    if depuis_reservation:
-        lignes = [
-            {"materiau_id": ligne["materiau_id"], "quantite_nette": float(Decimal(ligne["quantite_manquante"])),
-             "unite": ligne.get("unite") or unites_besoin.get(ligne["materiau_id"])}
-            for ligne in reservations.lignes_manquantes(reservation["lignes"])
-        ]
-    else:
-        lignes = bons_commande.calculer_lignes_a_commander(besoin["lignes"], chantier_id, mouvements_registre)
+    try:
+        if depuis_reservation:
+            lignes = [
+                {"materiau_id": ligne["materiau_id"],
+                 "quantite_nette": float_projection_exacte_ou_refus(Decimal(ligne["quantite_manquante"])),
+                 "unite": ligne.get("unite") or unites_besoin.get(ligne["materiau_id"])}
+                for ligne in reservations.lignes_manquantes(reservation["lignes"])
+            ]
+        else:
+            lignes = bons_commande.calculer_lignes_a_commander(
+                besoin["lignes"], chantier_id, mouvements_registre
+            )
+    except DecimalIndeterminable:
+        return None, {
+            "accepte": False,
+            "verdict": {"code": "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"},
+        }
     pertes = besoins_prevus.facteurs_perte_declares(devis_id, besoins_registre)
     noms_m3 = besoins_prevus.designations_declarees(devis_id, besoins_registre)
     unites_fiche, noms_fiche = _unites_et_designations_fiche([ligne["materiau_id"] for ligne in lignes])
@@ -4037,7 +4072,9 @@ def outils() -> tuple[Outil, ...]:
                 "l'événement canonique. Exige une transaction durable, refuse un WCT inconnu ou une "
                 "intervention divergente sans écriture, et refuse un second débit du même WCT même "
                 "si la clé de transport change. Décrémente le stock du chantier. La confirmation ne "
-                "porte jamais de coût. Pour le formulaire de fin de chantier enrichi, utiliser "
+                "porte jamais de coût. Si le stock restant exact ne tient pas dans le float historique, "
+                "quantite vaut null et quantite_exacte porte le texte exact avec motif_projection. "
+                "Pour le formulaire de fin de chantier enrichi, utiliser "
                 "m6_declarer_materiaux_utilises."
             ),
             parametres={

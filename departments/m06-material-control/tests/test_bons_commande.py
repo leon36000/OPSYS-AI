@@ -848,9 +848,23 @@ def test_facteur_de_perte_valide_applique_une_seule_fois():
 def test_facteur_de_perte_longueur_limite(facteur):
     po, verdict = _creer_avec([{**_LIGNE_MIN, "facteur_perte": facteur}])
     if len(facteur) == 20:
-        assert verdict is None
+        # Le facteur 1e-18 est syntaxiquement valide, mais avec la nette 5.0 la demande
+        # exacte 5.000000000000000005 ne tient pas dans le float historique. Refuser
+        # explicitement évite de persister une quantité arrondie à 5.0.
+        assert po is None
+        assert verdict["code"] == "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
     else:
         assert po is None and verdict["code"] == "REJ-PO-FACTEUR-PERTE-INVALIDE"
+
+
+def test_facteur_precision_elevee_reste_accepte_si_la_quantite_est_representable():
+    po, verdict = _creer_avec([{
+        **_LIGNE_MIN,
+        "quantite_nette": 1.0,
+        "facteur_perte": "0." + "0" * 15 + "2",
+    }])
+    assert verdict is None
+    assert po["lignes"][0]["quantite_demandee"] == 1.0000000000000002
 
 
 def test_quantite_qui_deborde_du_domaine_float_refusee():

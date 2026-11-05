@@ -1,105 +1,22 @@
 from decimal import Decimal, InvalidOperation
 
+from .decimal_exact import (
+    AccumulateurDecimalExact,
+    DecimalIndeterminable,
+    float_projection_exacte_ou_refus,
+    somme_decimaux_exactement,
+    soustraire_exactement,
+)
+from .decimal_exact import (
+    texte_decimal_exact as _texte_decimal_exact,
+)
+
 MOTIF_REORDER_INDETERMINE = "stock_localise_par_chantier_non_reconstructible"
-_BORNE_MAX_TERMS = 4096
-_BORNE_MAX_DIGITS = 4096
-_BORNE_MAX_EXPONENT = 4096
-
-
-def somme_decimaux_exactement(termes):
-    """Somme exacte bornée de termes décimaux ``(valeur, signe)`` ; `None` si la preuve dépasserait les limites.
-
-    Les entiers coefficient/exposant évitent le contexte d'arrondi de `Decimal` (par défaut 28 chiffres). Pour
-    garder le coût borné, la somme refuse plus de 4096 termes, 4096 chiffres développés, ou des exposants hors
-    de [-4096, 4096]. Ces limites sont techniques, pas métier : au-delà, l'appelant s'abstient.
-    """
-    try:
-        iterator = iter(termes)
-    except TypeError:
-        return None
-
-    parties = []
-    exposant_min = 0
-    exposant_max = 0
-    for nombre_termes, terme in enumerate(iterator, start=1):
-        if nombre_termes > _BORNE_MAX_TERMS:
-            return None
-        try:
-            valeur, signe = terme
-        except (TypeError, ValueError):
-            return None
-        if type(signe) is not int or signe not in {-1, 1}:
-            return None
-        try:
-            decimal = valeur if isinstance(valeur, Decimal) else Decimal(str(valeur))
-        except (InvalidOperation, TypeError, ValueError):
-            return None
-        if not decimal.is_finite():
-            return None
-        signe_decimal, chiffres, exposant = decimal.as_tuple()
-        if abs(exposant) > _BORNE_MAX_EXPONENT or len(chiffres) > _BORNE_MAX_DIGITS:
-            return None
-        try:
-            coefficient = int("".join(str(chiffre) for chiffre in chiffres)) if chiffres else 0
-        except ValueError:
-            # Python peut imposer un plafond plus strict que notre limite technique. Dans ce cas, on ne prouve
-            # pas la borne : le garde appelant s'abstient et laisse la validation historique décider.
-            return None
-        if signe_decimal:
-            coefficient = -coefficient
-        coefficient *= signe
-        parties.append((coefficient, exposant, len(chiffres)))
-        exposant_min = min(exposant_min, exposant)
-        exposant_max = max(exposant_max, exposant)
-
-    if exposant_max - exposant_min > _BORNE_MAX_DIGITS:
-        return None
-    total = 0
-    for coefficient, exposant, nombre_chiffres in parties:
-        decalage = exposant - exposant_min
-        if nombre_chiffres + decalage > _BORNE_MAX_DIGITS:
-            return None
-        total += coefficient * 10**decalage
-        if total:
-            try:
-                nombre_chiffres_total = len(str(abs(total)))
-            except ValueError:
-                return None
-            if nombre_chiffres_total > _BORNE_MAX_DIGITS:
-                return None
-    if total == 0:
-        return Decimal(0)
-    try:
-        texte_total = str(abs(total))
-    except ValueError:
-        return None
-    chiffres_total = tuple(ord(chiffre) - ord("0") for chiffre in texte_total)
-    return Decimal((int(total < 0), chiffres_total, exposant_min))
 
 
 def texte_decimal_exact(valeur):
-    """Texte décimal canonique sans `normalize()` contextuel ; `None` si l'affichage dépasserait la borne technique."""
-    try:
-        decimal = valeur if isinstance(valeur, Decimal) else Decimal(str(valeur))
-    except (InvalidOperation, TypeError, ValueError):
-        return None
-    if not decimal.is_finite():
-        return None
-    if decimal.is_zero():
-        return "0"
-    signe, chiffres, exposant = decimal.as_tuple()
-    texte = "".join(str(chiffre) for chiffre in chiffres)
-    if abs(exposant) > _BORNE_MAX_EXPONENT or len(texte) + max(0, exposant) > _BORNE_MAX_DIGITS:
-        return None
-    if exposant >= 0:
-        rendu = texte + "0" * exposant
-    else:
-        point = len(texte) + exposant
-        rendu = "0." + "0" * -point + texte if point <= 0 else texte[:point] + "." + texte[point:]
-        rendu = rendu.rstrip("0").rstrip(".")
-    if len(rendu) > _BORNE_MAX_DIGITS:
-        return None
-    return f"-{rendu}" if signe else rendu
+    """Réexport rétrocompatible du formateur décimal exact partagé."""
+    return _texte_decimal_exact(valeur)
 
 
 def paires_indeterminees(seuils, mouvements, transferts_emplacements):
@@ -211,7 +128,7 @@ def paires_indeterminees(seuils, mouvements, transferts_emplacements):
             incertains_materiaux.add(materiau_id)
             continue
 
-        hors_main_par_source = {}
+        termes_hors_main_par_source = {}
         quantites_source = {}
         for transfert in transferts:
             reference = transfert.get("reference_source")
@@ -266,10 +183,11 @@ def paires_indeterminees(seuils, mouvements, transferts_emplacements):
             destination = emplacements.cle(destination).split(":", 1)[0]
             source_cle = (source_index, source_hash)
             quantites_source[source_cle] = (source, quantite_source)
-            hors_main_par_source[source_cle] = hors_main_par_source.get(source_cle, Decimal(0)) + (
-                (quantite if destination in emplacements.EMPLACEMENTS_HORS_MAIN else Decimal(0))
-                - (quantite if origine in emplacements.EMPLACEMENTS_HORS_MAIN else Decimal(0))
-            )
+            termes_source = termes_hors_main_par_source.setdefault(source_cle, [])
+            if destination in emplacements.EMPLACEMENTS_HORS_MAIN:
+                termes_source.append((quantite, 1))
+            if origine in emplacements.EMPLACEMENTS_HORS_MAIN:
+                termes_source.append((quantite, -1))
 
         if materiau_id in incertains_materiaux:
             continue
@@ -281,7 +199,19 @@ def paires_indeterminees(seuils, mouvements, transferts_emplacements):
         except (KeyError, TypeError, ValueError, InvalidOperation):
             incertains_materiaux.add(materiau_id)
             continue
-        total_attribue = sum(hors_main_par_source.values(), Decimal(0))
+        hors_main_par_source = {
+            source_cle: somme_decimaux_exactement(termes)
+            for source_cle, termes in termes_hors_main_par_source.items()
+        }
+        if any(quantite is None for quantite in hors_main_par_source.values()):
+            incertains_materiaux.add(materiau_id)
+            continue
+        total_attribue = somme_decimaux_exactement(
+            (quantite, 1) for quantite in hors_main_par_source.values()
+        )
+        if total_attribue is None:
+            incertains_materiaux.add(materiau_id)
+            continue
         if total_hors_main != total_attribue or any(
             quantite < 0 or quantite > quantites_source[source_cle][1]
             for source_cle, quantite in hors_main_par_source.items()
@@ -370,17 +300,16 @@ def borne_superieure_en_main_locale(chantier_id, materiau_id, mouvements, transf
     if not mouvements_locaux or any(mouvement.get("type_mouvement") != "RECEPTION" for mouvement in mouvements_locaux):
         return None
 
-    termes_borne = []
+    accumulateur_borne = AccumulateurDecimalExact()
     for mouvement in mouvements_locaux:
-        if len(termes_borne) >= _BORNE_MAX_TERMS:
-            return None
         try:
             quantite = Decimal(str(mouvement["quantite"]))
         except (KeyError, TypeError, ValueError, InvalidOperation):
             return None
         if not quantite.is_finite() or quantite <= 0:
             return None
-        termes_borne.append((quantite, 1))
+        if not accumulateur_borne.ajouter(quantite, 1):
+            return None
 
     groupes = {}
     for transfert in transferts_emplacements:
@@ -466,13 +395,12 @@ def borne_superieure_en_main_locale(chantier_id, materiau_id, mouvements, transf
             and destination_finale["type"] in emplacements.EMPLACEMENTS_HORS_MAIN
         ):
             hors_main_local_prouve = True
-            if len(termes_borne) >= _BORNE_MAX_TERMS:
+            if not accumulateur_borne.ajouter(source["quantite"], -1):
                 return None
-            termes_borne.append((source["quantite"], -1))
 
     if not hors_main_local_prouve:
         return None
-    borne = somme_decimaux_exactement(termes_borne)
+    borne = accumulateur_borne.resultat()
     if borne is None or borne < 0:
         return None
     return borne
@@ -502,21 +430,30 @@ def evaluer_reorder(chantier_id, materiau_id, seuils, registre):
 
     from . import stock
 
-    stock_actuel = stock.deriver_stock_theorique(
+    stock_exact = stock._deriver_stock_theorique_decimal(
         chantier_id,
         materiau_id,
         registre,
     )
     seuil_quantite = seuil_trouve["seuil_quantite"]
+    seuil_exact = Decimal(str(seuil_quantite))
 
-    if stock_actuel < seuil_quantite:
+    if stock_exact < seuil_exact:
+        quantite_suggeree = soustraire_exactement(seuil_exact, stock_exact)
+        stock_actuel = float_projection_exacte_ou_refus(stock_exact)
+        quantite_suggeree_float = float_projection_exacte_ou_refus(quantite_suggeree)
+        somme_affichee = somme_decimaux_exactement(
+            ((Decimal(str(stock_actuel)), 1), (Decimal(str(quantite_suggeree_float)), 1))
+        )
+        if somme_affichee != seuil_exact:
+            raise DecimalIndeterminable
         return {
             "chantier_id": chantier_id,
             "materiau_id": materiau_id,
             "stock_actuel": stock_actuel,
             "seuil_quantite": seuil_quantite,
-            # Écart en décimal exact (10,3 − 3,1 = 7,2, pas 7,200000000000001), comme `stock.py`.
-            "quantite_suggeree": float(Decimal(str(seuil_quantite)) - Decimal(str(stock_actuel))),
+            # Les trois projections sont fidèles et gardent la même équation que le calcul exact.
+            "quantite_suggeree": quantite_suggeree_float,
         }
 
     return None

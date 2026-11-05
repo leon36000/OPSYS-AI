@@ -1,6 +1,16 @@
 import math
+from itertools import chain
 
-from . import contrats_sortie, cout_sortie, reception, reorder, stock, validation, variance
+from . import (
+    contrats_sortie,
+    cout_sortie,
+    reception,
+    reorder,
+    stock,
+    validation,
+    variance,
+)
+from .decimal_exact import DecimalIndeterminable, float_projection_exacte_ou_refus
 
 
 def _dernier_cout_unitaire_connu(chantier_id, materiau_id, registre):
@@ -79,10 +89,14 @@ def consommer_materiaux(
 
     # 2. Résolution du cout_unitaire pour chaque ligne selon convention dernier RECEPTION connu
     mouvements_a_persister = []
+    dernier_cout_par_materiau = {}
     for ligne in formulaire["lignes_consommees"]:
-        cout = _dernier_cout_unitaire_connu(
-            formulaire["chantier_id"], ligne["materiau_id"], registre
-        )
+        materiau_id = ligne["materiau_id"]
+        if materiau_id not in dernier_cout_par_materiau:
+            dernier_cout_par_materiau[materiau_id] = _dernier_cout_unitaire_connu(
+                formulaire["chantier_id"], materiau_id, registre
+            )
+        cout = dernier_cout_par_materiau[materiau_id]
         if cout is None:
             return None, "REJ-COUT-UNITAIRE-INTROUVABLE"
         # Quantité stockée négative : deriver_stock_theorique somme RECEPTION+CONSOMMATION,
@@ -92,12 +106,45 @@ def consommer_materiaux(
             {
                 "type_mouvement": "CONSOMMATION",
                 "chantier_id": formulaire["chantier_id"],
-                "materiau_id": ligne["materiau_id"],
+                "materiau_id": materiau_id,
                 "quantite": -ligne["quantite"],
                 "cout_unitaire": cout,
                 **({"wct_id": wct_id} if wct_id is not None else {}),
             }
         )
+
+    # Le WCT est un fait de fin d'intervention déjà accompli : il ne faut pas l'effacer
+    # uniquement parce que le contrat historique en float ne peut pas exprimer exactement le
+    # stock restant. Préparer l'état exact avant écriture; si seul le float est inexact, la
+    # confirmation portera quantite=null et le stock exact en texte.
+    class _RegistreProjete:
+        def lire(self):
+            return chain(registre.lire(), mouvements_a_persister)
+
+    stock_restant_exact_par_materiau = {}
+    try:
+        for materiau_id in sorted({ligne["materiau_id"] for ligne in formulaire["lignes_consommees"]}):
+            reste_exact = stock._deriver_stock_theorique_decimal(
+                formulaire["chantier_id"], materiau_id, _RegistreProjete()
+            )
+            stock_restant_exact_par_materiau[materiau_id] = reste_exact
+    except DecimalIndeterminable:
+        return None, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
+    stock_restant_par_materiau = {}
+    for materiau_id, reste_exact in stock_restant_exact_par_materiau.items():
+        try:
+            stock_restant_par_materiau[materiau_id] = {
+                "quantite": float_projection_exacte_ou_refus(reste_exact),
+            }
+        except DecimalIndeterminable:
+            reste_texte = stock.texte_canonique(reste_exact)
+            if reste_texte is None:
+                return None, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
+            stock_restant_par_materiau[materiau_id] = {
+                "quantite": None,
+                "quantite_exacte": reste_texte,
+                "motif_projection": "precision_float_insuffisante",
+            }
 
     # 3. Persistance append-only AVANT confirmation ; propager l'échec si écriture échoue
     if mouvements_a_persister:
@@ -105,18 +152,13 @@ def consommer_materiaux(
         if erreur is not None:
             return None, erreur
 
-    # 4. Construction du stock_restant après persistance (reflète la vérité du registre)
+    # 4. Construction de stock_restant depuis l'état projeté, avec projection exacte si possible.
     stock_restant = []
     for ligne in formulaire["lignes_consommees"]:
-        theorique_apres = stock.deriver_stock_theorique(
-            formulaire["chantier_id"],
-            ligne["materiau_id"],
-            registre,
-        )
         stock_restant.append(
             {
                 "materiau_id": ligne["materiau_id"],
-                "quantite": theorique_apres,
+                **stock_restant_par_materiau[ligne["materiau_id"]],
             }
         )
 
@@ -245,7 +287,10 @@ def enregistrer_reception(bon_demande, reception_po, catalogue, registre, seuils
     if not ok:
         return None, code
 
-    accuse = reception.traiter_reception(bon_demande, reception_po, catalogue, registre)
+    try:
+        accuse = reception.traiter_reception(bon_demande, reception_po, catalogue, registre)
+    except DecimalIndeterminable:
+        return None, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
 
     if not accuse["lignes"]:
         # DA-M6-12 : PO introuvable ou lignes non appariables -> zéro écriture.
@@ -265,6 +310,23 @@ def enregistrer_reception(bon_demande, reception_po, catalogue, registre, seuils
         }
         for ligne in accuse["lignes"]
     ]
+
+    # La réponse C5 expose ensuite des quantités de réapprovisionnement en float. Vérifier
+    # cette projection sur l'état qui suivrait le lot AVANT l'écriture : une projection qui
+    # perd une unité ou déborde doit refuser la réception sans mouvement partiel.
+    if seuils:
+        class _RegistreProjete:
+            def lire(self):
+                return [*registre.lire(), *mouvements]
+
+        registre_projete = _RegistreProjete()
+        try:
+            for materiau_id in sorted({ligne["materiau_id"] for ligne in accuse["lignes"]}):
+                reorder.evaluer_reorder(
+                    accuse["chantier_id"], materiau_id, seuils, registre_projete
+                )
+        except DecimalIndeterminable:
+            return None, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
 
     maillons, erreur = registre.ajouter_lot(mouvements)
     if erreur is not None:
@@ -310,12 +372,15 @@ def soumettre_comptage(comptage, registre):
     if not ok:
         return None, code
 
-    resultat = variance.evaluer_variance(
-        comptage["chantier_id"],
-        comptage["materiau_id"],
-        comptage["quantite_comptee"],
-        registre,
-    )
+    try:
+        resultat = variance.evaluer_variance(
+            comptage["chantier_id"],
+            comptage["materiau_id"],
+            comptage["quantite_comptee"],
+            registre,
+        )
+    except DecimalIndeterminable:
+        return None, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
 
     if resultat["verdict_variance"] == "INDETERMINE":
         hash_maillon = registre.hash_tete()

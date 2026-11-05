@@ -48,6 +48,11 @@ from decimal import Decimal
 from typing import Any
 
 from . import stock, verdicts
+from .decimal_exact import (
+    AccumulateurDecimalExact,
+    somme_decimaux_exactement,
+    soustraire_exactement,
+)
 
 __all__ = [
     "DECLENCHEURS",
@@ -118,12 +123,20 @@ def actives(maillons: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
 def reserve_par_article(maillons: Iterable[Mapping[str, Any]]) -> dict[str, Decimal]:
     """Ce qui est réservé, par article, toutes réservations ACTIVES confondues. Un article sans réservation est
     absent (rien de réservé)."""
-    reserve: dict[str, Decimal] = {}
+    accumulateurs: dict[str, AccumulateurDecimalExact] = {}
     for reservation in actives(maillons):
         for ligne in reservation["lignes"]:
             quantite = _quantite(ligne["quantite_reservee"])
             if quantite > 0:
-                reserve[ligne["materiau_id"]] = reserve.get(ligne["materiau_id"], Decimal(0)) + quantite
+                accumulateur = accumulateurs.setdefault(ligne["materiau_id"], AccumulateurDecimalExact())
+                if not accumulateur.ajouter(quantite, 1):
+                    raise stock.DecimalIndeterminable
+    reserve = {}
+    for materiau_id, accumulateur in accumulateurs.items():
+        total = accumulateur.resultat()
+        if total is None:
+            raise stock.DecimalIndeterminable
+        reserve[materiau_id] = total
     return reserve
 
 
@@ -141,7 +154,10 @@ def statut_pret(lignes: Iterable[Mapping[str, Any]]) -> str:
 
 
 def _manquante(ligne: Mapping[str, Any]) -> Decimal:
-    return max(_quantite(ligne["quantite_besoin"]) - _quantite(ligne["quantite_reservee"]), Decimal(0))
+    return max(
+        soustraire_exactement(_quantite(ligne["quantite_besoin"]), _quantite(ligne["quantite_reservee"])),
+        Decimal(0),
+    )
 
 
 def lignes_manquantes(lignes: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -253,7 +269,7 @@ def reserver(
     for ligne in prevu["lignes"]:
         materiau_id = ligne["materiau_id"]
         besoin = _quantite(ligne["quantite_estimee"])
-        disponible = en_main[materiau_id] - reserve.get(materiau_id, Decimal(0))
+        disponible = soustraire_exactement(en_main[materiau_id], reserve.get(materiau_id, Decimal(0)))
         reservee = min(besoin, max(disponible, Decimal(0)))
         lignes.append(_ligne_texte(materiau_id, ligne.get("unite"), besoin, reservee))
     revision = existant["revision"] + 1 if existant is not None else 1
@@ -352,32 +368,43 @@ def reconcilier(
     cedes: set[str] = set()
     for materiau_id in sorted(set(materiaux)):
         plafond = max(en_main[materiau_id], Decimal(0))
-        total = sum((reservees[e["devis_id"]].get(materiau_id, Decimal(0)) for e in en_cours), Decimal(0))
+        total = somme_decimaux_exactement(
+            (reservees[e["devis_id"]].get(materiau_id, Decimal(0)), 1) for e in en_cours
+        )
+        if total is None:
+            raise stock.DecimalIndeterminable
         if total > plafond:
-            exces = total - plafond
+            exces = soustraire_exactement(total, plafond)
             for reservation in reversed(en_cours):
                 if exces <= 0:
                     break
                 actuelle = reservees[reservation["devis_id"]].get(materiau_id, Decimal(0))
                 retire = min(actuelle, exces)
                 if retire > 0:
-                    reservees[reservation["devis_id"]][materiau_id] = actuelle - retire
-                    exces -= retire
+                    reservees[reservation["devis_id"]][materiau_id] = soustraire_exactement(actuelle, retire)
+                    exces = soustraire_exactement(exces, retire)
                     changes.add(reservation["devis_id"])
                     cedes.add(reservation["devis_id"])
         elif total < plafond:
-            libre = plafond - total
+            libre = soustraire_exactement(plafond, total)
             for reservation in en_cours:
                 if libre <= 0:
                     break
                 devis = reservation["devis_id"]
                 if materiau_id not in besoins[devis]:
                     continue
-                manque = besoins[devis][materiau_id] - reservees[devis].get(materiau_id, Decimal(0))
+                manque = soustraire_exactement(
+                    besoins[devis][materiau_id], reservees[devis].get(materiau_id, Decimal(0))
+                )
                 ajout = min(manque, libre)
                 if ajout > 0:
-                    reservees[devis][materiau_id] = reservees[devis].get(materiau_id, Decimal(0)) + ajout
-                    libre -= ajout
+                    valeur_reservee = somme_decimaux_exactement((
+                        (reservees[devis].get(materiau_id, Decimal(0)), 1), (ajout, 1),
+                    ))
+                    if valeur_reservee is None:
+                        raise stock.DecimalIndeterminable
+                    reservees[devis][materiau_id] = valeur_reservee
+                    libre = soustraire_exactement(libre, ajout)
                     changes.add(devis)
     faits = []
     for reservation in en_cours:

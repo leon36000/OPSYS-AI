@@ -1,5 +1,13 @@
 from decimal import Decimal
 
+from .decimal_exact import (
+    AccumulateurDecimalExact,
+    DecimalIndeterminable,
+    somme_decimaux_exactement,
+    soustraire_exactement,
+    texte_ou_refus,
+)
+
 # PLAN T1.1-d2 : RETOUR (matériel jamais utilisé, réintégré — stocké positif, comme
 # RECEPTION) et PERTE/BRIS (matériel sorti sans consommation de chantier — stockés
 # négatifs, comme CONSOMMATION) entrent dans le théorique au même titre. Chaque type
@@ -12,9 +20,7 @@ def texte_canonique(valeur: Decimal) -> str:
     """Texte décimal CANONIQUE (`100`, `0.3`, `0` : sans zéros de fin, jamais de notation scientifique) : la même
     quantité s'écrit toujours de la même façon, quelle que soit l'arithmétique qui l'a produite. Un zéro n'a pas de
     signe."""
-    if valeur.is_zero():
-        return "0"
-    return format(valeur.normalize(), "f")
+    return texte_ou_refus(valeur)
 
 
 def deriver_stock_articles(materiaux_ids, mouvements) -> dict[str, Decimal]:
@@ -33,11 +39,21 @@ def deriver_stock_articles(materiaux_ids, mouvements) -> dict[str, Decimal]:
     (fournisseur, retour, rebut) et ce qui est réservé.
     """
     demandes = set(materiaux_ids)
-    totaux = {materiau_id: Decimal(0) for materiau_id in demandes}
+    accumulateurs = {materiau_id: AccumulateurDecimalExact() for materiau_id in demandes}
     for mouvement in mouvements:
         materiau_id = mouvement.get("materiau_id")
-        if materiau_id in demandes and mouvement.get("type_mouvement") in _TYPES_STOCK_THEORIQUE:
-            totaux[materiau_id] += Decimal(str(mouvement["quantite"]))
+        if (
+            materiau_id in demandes
+            and mouvement.get("type_mouvement") in _TYPES_STOCK_THEORIQUE
+            and not accumulateurs[materiau_id].ajouter(mouvement["quantite"], 1)
+        ):
+            raise DecimalIndeterminable
+    totaux = {}
+    for materiau_id, accumulateur in accumulateurs.items():
+        total = accumulateur.resultat()
+        if total is None:
+            raise DecimalIndeterminable
+        totaux[materiau_id] = total
     return totaux
 
 
@@ -60,24 +76,24 @@ def deriver_disponibilite(materiaux_ids, mouvements, hors_main, reserve) -> dict
         disponibilite[materiau_id] = {
             "stock_theorique": total,
             "hors_main": hors,
-            "en_main": total - hors,
+            "en_main": soustraire_exactement(total, hors),
             "reserve": reserve_article,
-            "disponible": total - hors - reserve_article,
+            "disponible": soustraire_exactement(soustraire_exactement(total, hors), reserve_article),
         }
     return disponibilite
 
 
 def _deriver_stock_theorique_decimal(chantier_id, materiau_id, registre) -> Decimal:
-    return sum(
-        (
-            Decimal(str(mouvement["quantite"]))
-            for mouvement in registre.lire()
-            if mouvement.get("type_mouvement") in _TYPES_STOCK_THEORIQUE
-            and mouvement.get("chantier_id") == chantier_id
-            and mouvement.get("materiau_id") == materiau_id
-        ),
-        Decimal(0),
+    total = somme_decimaux_exactement(
+        (Decimal(str(mouvement["quantite"])), 1)
+        for mouvement in registre.lire()
+        if mouvement.get("type_mouvement") in _TYPES_STOCK_THEORIQUE
+        and mouvement.get("chantier_id") == chantier_id
+        and mouvement.get("materiau_id") == materiau_id
     )
+    if total is None:
+        raise DecimalIndeterminable
+    return total
 
 
 def deriver_stock_theorique(chantier_id, materiau_id, registre) -> float:
@@ -91,15 +107,19 @@ def verifier_disponibilite_consommation(
     if not chantier_id:
         return False, "REJ-STOCK-CHANTIER-MANQUANT"
 
-    quantites_par_materiau = {}
+    accumulateurs = {}
     for ligne in lignes_consommees:
         materiau_id = ligne["materiau_id"]
-        # Même convention que deriver_stock_articles : les quantités saisies sont
-        # décimales. Comparer avant toute conversion en float, sans epsilon qui
-        # autoriserait une sortie réellement supérieure au stock disponible.
-        quantites_par_materiau[materiau_id] = quantites_par_materiau.get(
-            materiau_id, Decimal(0)
-        ) + Decimal(str(ligne["quantite"]))
+        accumulateur = accumulateurs.setdefault(materiau_id, AccumulateurDecimalExact())
+        if not accumulateur.ajouter(ligne["quantite"], 1):
+            return False, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
+
+    quantites_par_materiau = {}
+    for materiau_id, accumulateur in accumulateurs.items():
+        quantite = accumulateur.resultat()
+        if quantite is None:
+            return False, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
+        quantites_par_materiau[materiau_id] = quantite
 
     for materiau_id, quantite_demandee in quantites_par_materiau.items():
         stock_theorique = _deriver_stock_theorique_decimal(

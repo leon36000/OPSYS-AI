@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import sys
-from decimal import Decimal
+from decimal import Decimal, localcontext
+from itertools import permutations
 
 import m6_material_control.outils as m6_outils
 import pytest
-from m6_material_control import emplacements, reorder
+from m6_material_control import emplacements, reception, reorder, reservations, stock
 from m6_material_control import registre as registre_module
 from sqlalchemy import func, select, update
 
@@ -28,7 +29,20 @@ def test_somme_borne_decimale_est_exacte_et_abstient_au_dela_des_ressources():
     ]) == Decimal("0.1")
     assert reorder.somme_decimaux_exactement([(Decimal("1E+99999999"), 1)]) is None
     assert reorder.somme_decimaux_exactement([(Decimal("9" * 5000), 1)]) is None
-    assert reorder.somme_decimaux_exactement((Decimal(1), 1) for _ in range(5000)) is None
+    assert reorder.somme_decimaux_exactement((Decimal(1), 1) for _ in range(5000)) == Decimal(5000)
+    grand = Decimal("1E+4090")
+    petit = Decimal("1E-4090")
+    assert reorder.somme_decimaux_exactement([(grand, 1), (petit, 1), (grand, -1)]) is None
+    assert reorder.somme_decimaux_exactement([(grand, 1), (grand, -1), (petit, 1)]) == petit
+    grand_coefficient = Decimal("9" * 4096)
+    assert reorder.somme_decimaux_exactement([
+        (grand_coefficient, 1), (grand_coefficient, 1),
+        (grand_coefficient, -1), (grand_coefficient, -1),
+    ]) is None
+    assert reorder.somme_decimaux_exactement([
+        (grand_coefficient, 1), (grand_coefficient, -1),
+        (grand_coefficient, 1), (grand_coefficient, -1),
+    ]) == Decimal(0)
 
 
 def test_somme_borne_s_abstient_si_le_plafond_entier_python_empeche_conversion():
@@ -47,15 +61,98 @@ def test_somme_borne_s_abstient_si_le_plafond_entier_python_empeche_conversion()
     assert sys.get_int_max_str_digits() == plafond_initial
 
 
-@pytest.fixture
-def base(tmp_path, monkeypatch):
-    url = f"sqlite:///{tmp_path / 'm6-rebut-consumption-fictif.db'}"
-    monkeypatch.setenv(stockage.ENV_URL, url)
-    stockage.migrer(url)
-    try:
-        yield url
-    finally:
-        stockage.liberer()
+def test_stock_signe_et_canonique_invariants_aux_permutations_et_contextes():
+    materiau = "mat-somme-exacte-permutation-fictif"
+    mouvements = [
+        {"type_mouvement": "RECEPTION", "materiau_id": materiau, "quantite": "10000000000000000000000000000"},
+        {"type_mouvement": "CONSOMMATION", "materiau_id": materiau, "quantite": "-10000000000000000000000000000"},
+        {"type_mouvement": "RECEPTION", "materiau_id": materiau, "quantite": "0.1"},
+    ]
+    stock_attendu = Decimal("0.1")
+    canonique_attendu = "10000000000000000000000000000.1"
+
+    for ordre in permutations(mouvements):
+        for precision in (28, 40):
+            with localcontext() as contexte_decimal:
+                contexte_decimal.prec = precision
+                resultat = stock.deriver_stock_articles([materiau], ordre)[materiau]
+                assert resultat == stock_attendu
+                assert stock.texte_canonique(Decimal(canonique_attendu)) == canonique_attendu
+                disponibilite = stock.deriver_disponibilite([materiau], ordre, {}, {})[materiau]
+                assert disponibilite["disponible"] == stock_attendu
+
+
+def test_demande_legacy_est_somme_exacte_independamment_du_contexte_decimal():
+    materiau = "mat-demande-exacte-contexte-fictif"
+    mouvements = [{
+        "type_mouvement": "RECEPTION",
+        "chantier_id": "CH-demande-exacte-contexte-fictif",
+        "materiau_id": materiau,
+        "quantite": "10000000000000000000000000000",
+    }]
+
+    class Registre:
+        def lire(self):
+            return mouvements
+
+    demandes = [
+        {"materiau_id": materiau, "quantite": 10**28},
+        {"materiau_id": materiau, "quantite": 0.1},
+    ]
+    for precision in (28, 40):
+        with localcontext() as contexte_decimal:
+            contexte_decimal.prec = precision
+            accepte, code = stock.verifier_disponibilite_consommation(
+                "CH-demande-exacte-contexte-fictif", demandes, Registre()
+            )
+            assert accepte is False
+            assert code == "REJ-STOCK-INSUFFISANT"
+
+
+def test_cumul_reception_exact_et_borne_sans_contexte_decimal_ambiant():
+    material = "mat-cumul-reception-exact-fictif"
+    commandees = [{"materiau_id": material, "quantite_demandee": "10000000000000000000000000000"}]
+    livraisons = [
+        [{"materiau_id": material, "quantite_recue": "10000000000000000000000000000"}],
+        [{"materiau_id": material, "quantite_recue": "0.1"}],
+    ]
+    for precision in (28, 40):
+        with localcontext() as contexte_decimal:
+            contexte_decimal.prec = precision
+            resultat = reception.evaluer_cumul(commandees, livraisons)
+            assert resultat["verdict_reception"] == "RECEPTION_SUPERIEURE"
+            assert resultat["lignes"][0]["ecart_cumule"] == "0.1"
+            cumul_long = reception.evaluer_cumul(
+                [{"materiau_id": material, "quantite_demandee": "0"}],
+                ([{"materiau_id": material, "quantite_recue": "0.1"}] for _ in range(4097)),
+            )
+            assert cumul_long["lignes"][0]["quantite_recue_cumulee"] == "409.7"
+
+
+def test_reservations_exactes_sous_contextes_et_reconciliation():
+    material = "mat-reservation-exacte-fictif"
+    base = [
+        {
+            "type_entree": "reservation", "devis_id": "D-old", "chantier_id": "CH-old",
+            "evenement": "creee", "actif": True,
+            "revision": 1, "lignes": [{"materiau_id": material, "quantite_besoin": "10000000000000000000000000000",
+                                       "quantite_reservee": "10000000000000000000000000000"}],
+        },
+        {
+            "type_entree": "reservation", "devis_id": "D-new", "chantier_id": "CH-new",
+            "evenement": "creee", "actif": True,
+            "revision": 1, "lignes": [{"materiau_id": material, "quantite_besoin": "0.1",
+                                       "quantite_reservee": "0.1"}],
+        },
+    ]
+    for precision in (28, 40):
+        with localcontext() as contexte_decimal:
+            contexte_decimal.prec = precision
+            assert reservations.reserve_par_article(base)[material] == Decimal("10000000000000000000000000000.1")
+            faits = reservations.reconcilier([material], {material: Decimal(10000000000000000000000000000)},
+                                             base, "2026-11-05T13:00:00-04:00")
+            assert len(faits) == 1 and faits[0]["devis_id"] == "D-new"
+            assert faits[0]["lignes"][0]["quantite_reservee"] == "0"
 
 
 def _outil(nom):
@@ -414,6 +511,71 @@ def test_borne_locale_exacte_somme_le_rebut_et_dixieme_restant(base):
 
     assert consumed["ok"] and consumed["resultat"]["accepte"] is True, consumed
     assert _etat_stock_durable(material) != before
+
+
+def test_garde_publique_flux_historique_et_4097_lignes_ne_perd_pas_la_preuve_locale(base):
+    material = "mat-provenance-flux-4097-fictif"
+    project_a = "CH-provenance-flux-A-fictif"
+    project_b = "CH-provenance-flux-B-fictif"
+    damaged = _recevoir_quantite(material, project_a, 1, statut="endommage", suffix="rebut")
+    assert damaged["ok"] and damaged["resultat"]["accepte"] is True, damaged
+
+    # 4096 réceptions exactes supplémentaires sur A + une sur B. Le stock global couvre
+    # la demande de 4097 lignes; la borne C5 exacte de A reste 4096 après la mise au rebut.
+    with stockage.transaction():
+        registry = registre_module.Registre(maillons=stockage.maillons("m06-material-control", "principal"))
+        _, error = registry.ajouter_lot([
+            {
+                "type_mouvement": "RECEPTION", "chantier_id": project_a,
+                "materiau_id": material, "quantite": "1", "cout_unitaire": 5.0,
+            }
+            for _ in range(4096)
+        ] + [{
+            "type_mouvement": "RECEPTION", "chantier_id": project_b,
+            "materiau_id": material, "quantite": "1", "cout_unitaire": 5.0,
+        }])
+        assert error is None, error
+        movements = list(stockage.maillons("m06-material-control", "principal"))
+        transfers = list(stockage.maillons("m06-material-control", "emplacements"))
+
+    assert reorder.borne_superieure_en_main_locale(project_a, material, movements, transfers) == Decimal(4096)
+    wct = _wct(project_a, "w-provenance-flux-4097-fictif")
+    _publier_wct(wct)
+    before = _etat_stock_durable(material)
+    refused = _consommer_legacy(wct, project_a, [
+        {"materiau_id": material, "quantite": 1} for _ in range(4097)
+    ])
+
+    assert refused["ok"] and refused["resultat"]["accepte"] is False, refused
+    assert refused["resultat"]["verdict"]["code"] == "REJ-STOCK-INSUFFISANT"
+    assert "borne supérieure prouvée du stock en main local 4096" in refused["resultat"]["verdict"]["detail"]
+    assert _etat_stock_durable(material) == before
+
+
+def test_public_garde_locale_agrege_4097_lignes_sans_plafond_de_termes(base):
+    material = "mat-demande-limite-provenance-fictif"
+    project_a = "CH-demande-provenance-A-fictif"
+    project_b = "CH-demande-provenance-B-fictif"
+    damaged = _recevoir_quantite(material, project_a, 1, statut="endommage", suffix="rebut-A")
+    good_b = _recevoir_quantite(material, project_b, 1, statut="conforme", suffix="conforme-B")
+    assert damaged["ok"] and damaged["resultat"]["accepte"] is True, damaged
+    assert good_b["ok"] and good_b["resultat"]["accepte"] is True, good_b
+
+    with stockage.transaction():
+        movements = list(stockage.maillons("m06-material-control", "principal"))
+        transfers = list(stockage.maillons("m06-material-control", "emplacements"))
+    assert reorder.borne_superieure_en_main_locale(project_a, material, movements, transfers) == Decimal(0)
+    wct = _wct(project_a, "w-demande-limite-provenance-fictif")
+    _publier_wct(wct)
+    before = _etat_stock_durable(material)
+    demand = [{"materiau_id": material, "quantite": 0.0001} for _ in range(4097)]
+    response = _consommer_legacy(wct, project_a, demand)
+    after = _etat_stock_durable(material)
+
+    assert response.get("ok") is True, response
+    assert response.get("resultat", {}).get("accepte") is False, response
+    assert response["resultat"]["verdict"]["code"] == "REJ-STOCK-INSUFFISANT"
+    assert after == before
 
 
 def test_reception_multiligne_borne_seulement_la_source_finale_exacte(base):

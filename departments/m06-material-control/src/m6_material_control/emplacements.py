@@ -38,6 +38,12 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from . import encodage, stock, verdicts
+from .decimal_exact import (
+    AccumulateurDecimalExact,
+    DecimalIndeterminable,
+    ajouter_exactement,
+    soustraire_exactement,
+)
 
 __all__ = [
     "EMPLACEMENTS",
@@ -115,22 +121,32 @@ def _hors_main(cle_emplacement: str) -> bool:
     return cle_emplacement.split(":", 1)[0] in EMPLACEMENTS_HORS_MAIN
 
 
-def _transferts(maillons: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
-    return [maillon for maillon in maillons if maillon.get("type_entree") == TYPE_TRANSFERT]
+def _transferts(maillons: Iterable[Mapping[str, Any]]) -> Iterable[Mapping[str, Any]]:
+    return (maillon for maillon in maillons if maillon.get("type_entree") == TYPE_TRANSFERT)
 
 
 def _quantites_nommees(materiau_id: str, maillons: Iterable[Mapping[str, Any]]) -> dict[str, Decimal]:
     """Somme des entrées moins les sorties de chaque emplacement NOMMÉ pour cet article (jamais `inconnu`, résidu)."""
-    nommees: dict[str, Decimal] = {}
+    accumulateurs: dict[str, AccumulateurDecimalExact] = {}
     for maillon in _transferts(maillons):
         if maillon["materiau_id"] != materiau_id:
             continue
         quantite = Decimal(maillon["quantite"])
         origine, destination = cle(maillon["de"]), cle(maillon["vers"])
-        if origine != INCONNU:
-            nommees[origine] = nommees.get(origine, Decimal(0)) - quantite
-        if destination != INCONNU:
-            nommees[destination] = nommees.get(destination, Decimal(0)) + quantite
+        if origine != INCONNU and not accumulateurs.setdefault(
+            origine, AccumulateurDecimalExact()
+        ).ajouter(quantite, -1):
+            raise DecimalIndeterminable
+        if destination != INCONNU and not accumulateurs.setdefault(
+            destination, AccumulateurDecimalExact()
+        ).ajouter(quantite, 1):
+            raise DecimalIndeterminable
+    nommees = {}
+    for emplacement, accumulateur in accumulateurs.items():
+        quantite = accumulateur.resultat()
+        if quantite is None:
+            raise DecimalIndeterminable
+        nommees[emplacement] = quantite
     return nommees
 
 
@@ -140,7 +156,16 @@ def repartition(materiau_id: str, stock_total: Decimal, maillons: Iterable[Mappi
     nommees = {emplacement: quantite for emplacement, quantite in _quantites_nommees(materiau_id, maillons).items()
                if quantite != 0}
     resultat = dict(sorted(nommees.items()))
-    resultat[INCONNU] = stock_total - sum(nommees.values(), Decimal(0))
+    accumulateur = AccumulateurDecimalExact()
+    if not accumulateur.ajouter(stock_total, 1):
+        raise DecimalIndeterminable
+    for quantite in nommees.values():
+        if not accumulateur.ajouter(quantite, -1):
+            raise DecimalIndeterminable
+    total_inconnu = accumulateur.resultat()
+    if total_inconnu is None:
+        raise DecimalIndeterminable
+    resultat[INCONNU] = total_inconnu
     return resultat
 
 
@@ -154,14 +179,24 @@ def variation_en_main(origine: Mapping[str, Any], destination: Mapping[str, Any]
 def hors_main_par_article(maillons: Iterable[Mapping[str, Any]]) -> dict[str, Decimal]:
     """Ce qui est hors main (fournisseur, retour, rebut) pour chaque article qui a eu un transfert. Un article
     absent n'a rien hors main. Une passe sur le registre, pour tous les articles."""
-    hors: dict[str, Decimal] = {}
+    accumulateurs: dict[str, AccumulateurDecimalExact] = {}
     for maillon in _transferts(maillons):
         quantite = Decimal(maillon["quantite"])
         materiau_id = maillon["materiau_id"]
-        if _hors_main(cle(maillon["de"])):
-            hors[materiau_id] = hors.get(materiau_id, Decimal(0)) - quantite
-        if _hors_main(cle(maillon["vers"])):
-            hors[materiau_id] = hors.get(materiau_id, Decimal(0)) + quantite
+        if _hors_main(cle(maillon["de"])) and not accumulateurs.setdefault(
+            materiau_id, AccumulateurDecimalExact()
+        ).ajouter(quantite, -1):
+            raise DecimalIndeterminable
+        if _hors_main(cle(maillon["vers"])) and not accumulateurs.setdefault(
+            materiau_id, AccumulateurDecimalExact()
+        ).ajouter(quantite, 1):
+            raise DecimalIndeterminable
+    hors = {}
+    for materiau_id, accumulateur in accumulateurs.items():
+        total = accumulateur.resultat()
+        if total is None:
+            raise DecimalIndeterminable
+        hors[materiau_id] = total
     return hors
 
 
@@ -293,7 +328,7 @@ def construire_transfert(
             "REJ-TRANSFERT-MEME-EMPLACEMENT", detail=f"origine et destination identiques : {cle(origine)}"
         )
 
-    existants = _transferts(maillons)
+    existants = list(_transferts(maillons))
     quantite_texte = _texte(decimal)
     candidat = {"materiau_id": materiau_id, "quantite": quantite_texte, "de": origine, "vers": destination}
     for existant in existants:
@@ -305,11 +340,17 @@ def construire_transfert(
                 detail=f"transfert_id {transfert_id!r} déjà enregistré pour un autre geste",
             )
 
-    avant = repartition(materiau_id, stock_total, maillons)
-    apres = dict(avant)
-    cle_origine, cle_destination = cle(origine), cle(destination)
-    apres[cle_origine] = avant.get(cle_origine, Decimal(0)) - decimal
-    apres[cle_destination] = avant.get(cle_destination, Decimal(0)) + decimal
+    try:
+        avant = repartition(materiau_id, stock_total, maillons)
+        apres = dict(avant)
+        cle_origine, cle_destination = cle(origine), cle(destination)
+        apres[cle_origine] = soustraire_exactement(avant.get(cle_origine, Decimal(0)), decimal)
+        apres[cle_destination] = ajouter_exactement(avant.get(cle_destination, Decimal(0)), decimal)
+    except DecimalIndeterminable:
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSFERT-ARITHMETIQUE-DECIMALE-INDETERMINABLE",
+            detail="le calcul exact des soldes dépasse les limites techniques; aucun transfert n'est écrit",
+        )
     if apres[cle_origine] < 0:
         return None, verdicts.construire_verdict(
             "REJ-TRANSFERT-STOCK-INSUFFISANT",
@@ -368,8 +409,10 @@ def _empreinte(maillon: Mapping[str, Any]) -> str:
 
 def hash_tete(maillons: Iterable[Mapping[str, Any]]) -> str:
     """Empreinte du dernier transfert, ou la chaîne vide quand aucun n'a été fait."""
-    existants = _transferts(maillons)
-    return existants[-1]["hash_maillon"] if existants else _HASH_PRECEDENT_INITIAL
+    dernier = None
+    for maillon in _transferts(maillons):
+        dernier = maillon
+    return dernier["hash_maillon"] if dernier else _HASH_PRECEDENT_INITIAL
 
 
 def valider_chaine(maillons: Iterable[Mapping[str, Any]]) -> tuple[bool, str]:

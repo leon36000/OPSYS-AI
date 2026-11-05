@@ -302,7 +302,9 @@ ConfirmationConsommationTerrain:
       quantite_declaree: float
   stock_restant:
     - materiau_id: str
-      quantite: float
+      quantite: float | null
+      quantite_exacte: str | absent   # seulement si le float ne représente pas exactement le solde
+      motif_projection: str | absent # precision_float_insuffisante dans ce cas
   hash_maillon: str
 ```
 
@@ -310,6 +312,11 @@ ConfirmationConsommationTerrain:
 `devise`, ni `unite_monetaire`. Garde vérifiée par inspection ET par test d'intégration depuis le
 point d'entrée public (leçon retenue : un test qui n'exerce que des fonctions isolées peut
 masquer un chemin réel qui, lui, assemble le contrat différemment).
+
+Le WCT décrit une intervention déjà complétée. M6 enregistre donc le fait validé même si le stock
+restant exact n'est pas représentable comme float : `quantite` vaut alors `null`, `quantite_exacte`
+porte le solde décimal exact et `motif_projection` vaut `precision_float_insuffisante`. La forme
+historique reste inchangée lorsque le float représente le solde exactement.
 
 ### 5.8 Sortie — `SignalReorder`, `SignalVarianceStock`, `SignalPoAPayer`
 
