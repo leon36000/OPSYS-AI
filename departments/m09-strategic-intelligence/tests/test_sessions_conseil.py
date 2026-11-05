@@ -1,6 +1,9 @@
 """M9.4 — sessions de conseil : machine d'états, dépôts admis/refusés, critique, clôture gouvernée (fictif)."""
 
+import asyncio
 import copy
+import json
+from types import SimpleNamespace
 
 import pytest
 from m9_strategic_intelligence import capture_strategique as cs
@@ -10,6 +13,8 @@ from m9_strategic_intelligence import dossier_strategique as ds
 from m9_strategic_intelligence import outils_conseil as oc
 from m9_strategic_intelligence import rapport_decision_v2 as rd
 from m9_strategic_intelligence import sessions_conseil as sc
+
+from opsys.serveur_mcp import creer_serveur
 
 FICTIF = True
 REF = "2026-10-21T12:00:00Z"
@@ -292,6 +297,195 @@ def test_rejeu_public_conserve_le_verdict_id_actuel(monkeypatch):
     assert sc.valider_chaine(evenements) == (True, "")
 
 
+def test_reponses_publiques_expliquent_false_et_ne_valident_ni_n_autorisent_une_action(monkeypatch):
+    evenements, session_id = _ouvrir()
+    sortie_pdg = SORTIE_PDG | {
+        "recommandation": {
+            "decision": "Augmenter la dépense publicitaire de la campagne fictive",
+            "refs": ["A1", "H1"],
+            "actions": [
+                {
+                    "id": "a_pub",
+                    "type": "information",
+                    "description": "augmenter la dépense publicitaire de la campagne fictive cmp-1",
+                }
+            ],
+        }
+    }
+    evenements = _tous_deposes(evenements, session_id, sortie_pdg=sortie_pdg)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+    chaine_avant = copy.deepcopy(evenements)
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=evenements)
+    cloturer = next(o for o in outils if o.nom == "m9_cloturer_conseil")
+    reponse = cloturer.fonction(session_id, T)
+    assert len(json.dumps(reponse, ensure_ascii=False)) <= 5900
+    message = reponse["avertissements"][0]["message"]
+
+    assert reponse["rejoue"] is True
+    assert reponse["gouvernance"]["decision_majeure"] is False
+    assert reponse["gouvernance"]["actions_a_classement_non_verifie"] == 1
+    assert reponse["gouvernance"]["actions"][0]["verdict"] == "CLASSEMENT_NON_VERIFIE"
+    assert all(action["effet_autorise"] is False for action in reponse["gouvernance"]["actions"])
+    assert reponse["cloture"]["autorite_d_effet"] is False
+    assert "false ne garantit pas l'absence d'une action sensible" in message
+    assert "ni validation humaine ni autorisation d'effet" in message
+
+    lire_conseil = next(o for o in outils if o.nom == "m9_lire_conseil")
+    projection = lire_conseil.fonction(session_id)
+    assert len(json.dumps(projection, ensure_ascii=False)) <= 5900
+    assert (
+        "false ne garantit pas l'absence d'une action sensible"
+        in projection["cloture"]["avertissements"][0]["message"]
+    )
+
+    lire_rapport = next(o for o in outils if o.nom == "m9_lire_rapport_conseil")
+    page = lire_rapport.fonction(session_id)
+    assert len(json.dumps(page, ensure_ascii=False)) <= 5900
+    assert "false ne garantit pas l'absence d'une action sensible" in page["avertissements"][0]["message"]
+    assert any(a["code"] == "CLASSEMENT_NON_VERIFIE" and a["actions"] == 1 for a in page["avertissements"])
+    assert page["sha256"] == cs.empreinte(cloture["rapport"])
+    assert page["contenu_json"] == cs.canonique(cloture["rapport"])
+
+    assert evenements == chaine_avant
+    assert sc.valider_chaine(evenements) == (True, "")
+    assert cloture["autorite_d_effet"] is False
+    assert all(action["effet_autorise"] is False for action in cloture["gouvernance"]["actions"])
+
+
+def test_public_abstention_sans_decision_majeure_n_emet_pas_son_avertissement(monkeypatch):
+    evenements, session_id = _ouvrir()
+    for role, sortie in (("liaison_finance", SORTIE_FINANCE), ("contraintes_inventaire", SORTIE_INVENTAIRE)):
+        evenements = _ajouter(
+            evenements,
+            sc.deposer(evenements, session_id, role, sortie, reservation_id=f"r-{role}", tokens_reels=5, recu_a=T),
+        )
+    evenements = _ajouter(
+        evenements, sc.abandonner(evenements, session_id, "conseiller_pdg", "runtime indisponible", recu_a=T)
+    )
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+    chaine_avant = copy.deepcopy(evenements)
+    assert cloture["issue"] == "ABSTENTION" and cloture["gouvernance"] is None
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = {o.nom: o for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=evenements)}
+
+    reponse = outils["m9_cloturer_conseil"].fonction(session_id, T)
+    assert reponse["rejoue"] is True
+    assert reponse["gouvernance"] is None
+    assert reponse["avertissements"] == []
+    assert reponse["cloture"]["avertissements"] == []
+    assert "decision_majeure" not in reponse["cloture"]
+
+    projection = outils["m9_lire_conseil"].fonction(session_id)
+    assert projection["cloture"]["issue"] == "ABSTENTION"
+    assert projection["cloture"]["avertissements"] == []
+    page = outils["m9_lire_rapport_conseil"].fonction(session_id)
+    assert page["actions_a_classement_non_verifie"] == 0
+    assert page["avertissements"] == []
+    assert page["sha256"] == cs.empreinte(cloture["rapport"])
+    assert page["contenu_json"] == cs.canonique(cloture["rapport"])
+    assert all(len(json.dumps(rep, ensure_ascii=False)) <= 5900 for rep in (reponse, projection, page))
+    assert evenements == chaine_avant
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_public_avertit_quand_decision_majeure_vaut_vrai_sans_autoriser_effet(monkeypatch):
+    evenements, session_id = _ouvrir()
+    sortie_pdg = SORTIE_PDG | {
+        "recommandation": {
+            "decision": "Proposer une dépense publicitaire fictive",
+            "refs": ["A1", "H1"],
+            "actions": [{"id": "a_pub", "type": "depense_reelle", "description": "dépense fictive"}],
+        }
+    }
+    evenements = _tous_deposes(evenements, session_id, sortie_pdg=sortie_pdg)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+    chaine_avant = copy.deepcopy(evenements)
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = {o.nom: o for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=evenements)}
+    reponse = outils["m9_cloturer_conseil"].fonction(session_id, T)
+    assert reponse["gouvernance"]["decision_majeure"] is True
+    assert reponse["gouvernance"]["actions"][0]["verdict"] == "VALIDATION_HUMAINE_REQUISE"
+    assert reponse["gouvernance"]["actions"][0]["effet_autorise"] is False
+    assert reponse["cloture"]["autorite_d_effet"] is False
+    assert reponse["avertissements"][0]["code"] == "PORTEE_DECISION_MAJEURE"
+    assert "ni validation humaine ni autorisation d'effet" in reponse["avertissements"][0]["message"]
+
+    projection = outils["m9_lire_conseil"].fonction(session_id)
+    assert projection["cloture"]["avertissements"][0]["code"] == "PORTEE_DECISION_MAJEURE"
+    page = outils["m9_lire_rapport_conseil"].fonction(session_id)
+    assert page["avertissements"][0]["code"] == "PORTEE_DECISION_MAJEURE"
+    assert all(len(json.dumps(rep, ensure_ascii=False)) <= 5900 for rep in (reponse, projection, page))
+    assert evenements == chaine_avant
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_public_rapport_mixte_garde_un_avertissement_exact_quand_decision_majeure_est_vraie(monkeypatch):
+    evenements, session_id = _ouvrir()
+    sortie_pdg = SORTIE_PDG | {
+        "recommandation": {
+            "decision": "Proposer une dépense fictive et un suivi interne",
+            "refs": ["A1", "H1"],
+            "actions": [
+                {"id": "a_depense", "type": "depense_reelle", "description": "dépense fictive"},
+                {"id": "a_suivi", "type": "information", "description": "suivi fictif non vérifié"},
+            ],
+        }
+    }
+    evenements = _tous_deposes(evenements, session_id, sortie_pdg=sortie_pdg)
+    cloture = sc.cloturer(evenements, session_id, recu_a=T)
+    evenements = _ajouter(evenements, cloture)
+    chaine_avant = copy.deepcopy(evenements)
+    assert cloture["gouvernance"]["decision_majeure"] is True
+    assert cloture["gouvernance"]["actions_a_classement_non_verifie"] == 1
+
+    monkeypatch.setattr(oc, "exiger_admin_strict", lambda: None)
+    outils = {o.nom: o for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=evenements)}
+    reponse = outils["m9_cloturer_conseil"].fonction(session_id, T)
+    assert reponse["gouvernance"]["decision_majeure"] is True
+    assert reponse["gouvernance"]["actions_a_classement_non_verifie"] == 1
+    assert all(action["effet_autorise"] is False for action in reponse["gouvernance"]["actions"])
+
+    page = outils["m9_lire_rapport_conseil"].fonction(session_id)
+    assert [item["code"] for item in page["avertissements"]] == [
+        "PORTEE_DECISION_MAJEURE",
+        "CLASSEMENT_NON_VERIFIE",
+    ]
+    message = page["avertissements"][1]["message"]
+    assert "une valeur false de decision_majeure ne garantit pas" in message
+    assert "decision_majeure=false" not in message
+    assert page["sha256"] == cs.empreinte(cloture["rapport"])
+    assert page["contenu_json"] == cs.canonique(cloture["rapport"])
+    assert len(json.dumps(page, ensure_ascii=False)) <= 5900
+    assert evenements == chaine_avant
+    assert sc.valider_chaine(evenements) == (True, "")
+
+
+def test_registre_mcp_conserve_description_et_schema_entree_des_outils_conseil():
+    outils = oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=[])
+    capacites = SimpleNamespace(
+        lister=lambda: list(outils),
+        departements={"m09-strategic-intelligence": SimpleNamespace(code="M9")},
+    )
+    serveur = creer_serveur(capacites, garde=None, traceur=None)
+    catalogue = asyncio.run(serveur._request_handlers["tools/list"].handler(None, None))
+    outils_mcp = {outil.name: outil for outil in catalogue.tools}
+    index = {outil.nom: outil for outil in outils}
+
+    for nom in ("m9_cloturer_conseil", "m9_lire_conseil", "m9_lire_rapport_conseil"):
+        assert nom in outils_mcp
+        assert outils_mcp[nom].description == index[nom].description
+        assert outils_mcp[nom].input_schema == index[nom].parametres
+        assert getattr(outils_mcp[nom], "output_schema", None) is None
+        assert "avertissement" not in outils_mcp[nom].description.lower()
+
+
 def test_lecture_publique_avertit_sur_le_classement_legacy_sans_recrire_le_rapport(monkeypatch):
     evenements, session_id = _ouvrir()
     evenements = _tous_deposes(evenements, session_id)
@@ -329,11 +523,20 @@ def test_lecture_publique_avertit_sur_le_classement_legacy_sans_recrire_le_rappo
         assert page["actions_a_classement_non_verifie"] == 1
         assert page["avertissements"] == [
             {
+                "code": "PORTEE_DECISION_MAJEURE",
+                "message": (
+                    "decision_majeure indique uniquement si un type d'action déclaré a été reconnu comme sensible ; "
+                    "false ne garantit pas l'absence d'une action sensible. Ce booléen ne vaut ni validation humaine "
+                    "ni autorisation d'effet."
+                ),
+            },
+            {
                 "code": "CLASSEMENT_NON_VERIFIE",
                 "actions": 1,
                 "message": (
-                    "Le rapport historique comporte un ou plusieurs classements non vérifiés ; "
-                    "son contenu paginé et son empreinte sont restitués inchangés."
+                    "Un ou plusieurs types déclarés ne sont pas vérifiés ; une valeur false de decision_majeure "
+                    "ne garantit pas l'absence d'une action sensible. Le rapport historique, son contenu paginé "
+                    "et son empreinte sont restitués inchangés."
                 ),
             }
         ]
@@ -343,7 +546,7 @@ def test_lecture_publique_avertit_sur_le_classement_legacy_sans_recrire_le_rappo
     assert sc.valider_chaine(evenements) == (True, "")
 
 
-def test_lecture_publique_sans_avertissement_sans_action_a_classement_incertain(monkeypatch):
+def test_lecture_publique_signale_portee_sans_action_a_classement_incertain(monkeypatch):
     evenements, session_id = _ouvrir()
     sortie_pdg = {
         **SORTIE_PDG,
@@ -359,7 +562,16 @@ def test_lecture_publique_sans_avertissement_sans_action_a_classement_incertain(
     page = outil.fonction(session_id)
 
     assert page["actions_a_classement_non_verifie"] == 0
-    assert page["avertissements"] == []
+    assert page["avertissements"] == [
+        {
+            "code": "PORTEE_DECISION_MAJEURE",
+            "message": (
+                "decision_majeure indique uniquement si un type d'action déclaré a été reconnu comme sensible ; "
+                "false ne garantit pas l'absence d'une action sensible. Ce booléen ne vaut ni validation humaine "
+                "ni autorisation d'effet."
+            ),
+        }
+    ]
 
 
 def test_classement_incertain_ne_copie_pas_la_description_vers_rapport_meme_sur_4000_caracteres():

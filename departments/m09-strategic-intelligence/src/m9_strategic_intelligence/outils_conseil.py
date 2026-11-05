@@ -39,6 +39,23 @@ def _refus(code: str, detail: str) -> ValueError:
     return ValueError(f"{code} : {detail}")
 
 
+def _avertissement_portee_decision_majeure() -> dict[str, str]:
+    return {
+        "code": "PORTEE_DECISION_MAJEURE",
+        "message": (
+            "decision_majeure indique uniquement si un type d'action déclaré a été reconnu comme sensible ; "
+            "false ne garantit pas l'absence d'une action sensible. Ce booléen ne vaut ni validation humaine "
+            "ni autorisation d'effet."
+        ),
+    }
+
+
+def _avertissements_portee_si_applicable(gouvernance: object) -> list[dict[str, str]]:
+    if isinstance(gouvernance, Mapping) and type(gouvernance.get("decision_majeure")) is bool:
+        return [_avertissement_portee_decision_majeure()]
+    return []
+
+
 def _tranche(objet: object, depart: int, longueur: int) -> dict:
     if type(depart) is not int or depart < 0 or type(longueur) is not int or not 1 <= longueur <= MAX_PAGE_OCTETS:
         raise _refus("REJ-TISSU-DEPART", "départ et longueur bornés requis")
@@ -286,6 +303,9 @@ def construire_outils(
                 "actions_a_classement_non_verifie": conseil.compter_actions_classement_incertain(
                     projection["cloture"].get("gouvernance")
                 ),
+                "avertissements": _avertissements_portee_si_applicable(
+                    projection["cloture"].get("gouvernance")
+                ),
             },
         }
 
@@ -384,6 +404,7 @@ def construire_outils(
                 "rejoue": evenement is None,
                 **resume,
                 "gouvernance": _gouvernance_pour_projection(cloture["gouvernance"]),
+                "avertissements": _avertissements_portee_si_applicable(cloture.get("gouvernance")),
             },
             budget_sortie,
         )
@@ -394,20 +415,19 @@ def construire_outils(
         if cloture is None:
             raise _refus("REJ-SESSION-EN-COURS", "la session n'est pas close : aucun rapport")
         actions_incertaines = conseil.compter_actions_classement_incertain(cloture.get("gouvernance"))
-        avertissements = (
-            [
+        avertissements = _avertissements_portee_si_applicable(cloture.get("gouvernance"))
+        if actions_incertaines:
+            avertissements.append(
                 {
                     "code": "CLASSEMENT_NON_VERIFIE",
                     "actions": actions_incertaines,
                     "message": (
-                        "Le rapport historique comporte un ou plusieurs classements non vérifiés ; "
-                        "son contenu paginé et son empreinte sont restitués inchangés."
+                        "Un ou plusieurs types déclarés ne sont pas vérifiés ; une valeur false de decision_majeure "
+                        "ne garantit pas l'absence d'une action sensible. Le rapport historique, son contenu paginé "
+                        "et son empreinte sont restitués inchangés."
                     ),
                 }
-            ]
-            if actions_incertaines
-            else []
-        )
+            )
         return borner(
             {
                 "accepte": True,

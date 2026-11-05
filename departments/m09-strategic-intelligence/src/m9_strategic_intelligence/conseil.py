@@ -450,7 +450,10 @@ def gouverner(recommandation: Mapping) -> dict:
     ``recommandation`` : ``{"decision": str, "actions": [{"id", "type", "description"}]}``. Un type inconnu ou
     ``sensible`` sans classe connue est refusé (fail-closed) ; une classe sensible exige l'approbation exacte du
     mandataire nommé ; une déclaration ``suivi_interne`` ou ``information`` est ``CLASSEMENT_NON_VERIFIE`` et ne
-    vaut pas approbation. ``decision_majeure`` reste booléen : la limite de classification est signalée séparément."""
+    vaut pas approbation. ``decision_majeure`` vaut vrai si au moins un type déclaré est reconnu comme sensible ; faux
+    signifie seulement qu'aucun type déclaré n'a reçu ce classement. Faux ne garantit pas l'absence d'une action
+    sensible dans la réalité, et ce booléen ne vaut ni validation humaine ni autorisation d'effet. La limite de
+    classification est signalée séparément."""
     if not isinstance(recommandation, Mapping) or not _texte(recommandation.get("decision")):
         raise ValueError("REJ-GOUVERNANCE-ENTREE : décision textuelle requise")
     actions = recommandation.get("actions", [])
