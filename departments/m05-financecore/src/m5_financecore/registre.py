@@ -181,14 +181,23 @@ class Registre:
         entree_copy.pop("ligne_id", None)
         entree_copy.pop("precedent_ligne_id", None)
 
-        precedent = self._chain[-1]["ligne_id"] if self._chain else None
+        # Sur un registre durable, le rang lu fait partie du snapshot qui a servi à
+        # calculer l'empreinte. Sans cette précondition, un append concurrent entre
+        # la lecture de la tête et l'INSERT peut donner un nouveau rang à un maillon
+        # qui référence l'ancienne tête, cassant la chaîne sans erreur SQL.
+        rang_attendu = len(self._chain)
+        precedent = self._chain[rang_attendu - 1]["ligne_id"] if rang_attendu else None
         ligne_id = encodage.empreinte(entree_copy, precedent)
 
         maillon = dict(entree_copy)
         maillon["ligne_id"] = ligne_id
         maillon["precedent_ligne_id"] = precedent
 
-        self._chain.append(maillon)
+        append_preconditionnel = getattr(self._chain, "append_avec_rang_attendu", None)
+        if callable(append_preconditionnel):
+            append_preconditionnel(maillon, rang_attendu=rang_attendu)
+        else:
+            self._chain.append(maillon)
         return ligne_id
 
     def lire(self):

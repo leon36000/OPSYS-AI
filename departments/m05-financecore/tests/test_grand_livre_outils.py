@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import json
+import threading
 from decimal import Decimal
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from opsys import contexte, identite, stockage
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, Niveau, executer_atomique
+from opsys.stockage.maillons import MaillonsDurables
 from opsys.stockage.schema import REGISTRES
 
 FICTIF = True
@@ -505,3 +507,89 @@ def test_configuration_comptable_omise_dans_un_manifeste_mapping_garde_le_plan_b
               "lignes": [{"compte": "5600", "debit": "10.00", "credit": None},
                          {"compte": "1010", "debit": None, "credit": "10.00"}]}
     assert _accepte(_appeler(par_nom, "m5_proposer_ecriture_comptable", saisie))["ecriture"]
+
+
+def test_pg_saisie_et_generation_publiques_concurrentes_preservent_la_chaine_gl(
+    monkeypatch, par_nom, m5_postgres_doubles
+):
+    raison = m5_postgres_doubles.raison_sans_docker()
+    if raison is not None:
+        pytest.skip(raison)
+
+    with m5_postgres_doubles.postgres_ephemere(stockage_en_memoire=True) as url:
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        stockage.migrer(url)
+        m5_outils.utiliser_stockage_durable()
+        _facturer("FICTIF-FACTURE-GENERATION")
+        barriere = threading.Barrier(2)
+        premiere_terminee = threading.Event()
+        verrou_observations = threading.Lock()
+        threads_generation_alignes = set()
+        original = MaillonsDurables.append
+        observations = []
+
+        def aligner_maillons(self, maillon, *, rang_attendu=None):
+            manuel = maillon.get("origine") == "saisie"
+            genere = maillon.get("origine") == "generation_automatique"
+            if (self.departement, self.registre) == (DEPARTEMENT, "grand_livre") and manuel:
+                observations.append(maillon.get("origine"))
+                barriere.wait(30)
+                return original(self, maillon, rang_attendu=rang_attendu)
+            if (self.departement, self.registre) == (DEPARTEMENT, "grand_livre") and genere:
+                ident_thread = threading.get_ident()
+                with verrou_observations:
+                    premier = ident_thread not in threads_generation_alignes
+                    threads_generation_alignes.add(ident_thread)
+                if premier:
+                    observations.append(maillon.get("origine"))
+                    barriere.wait(30)
+                    if not premiere_terminee.wait(30):
+                        raise TimeoutError("la saisie manuelle n'a pas terminé")
+                    return original(self, maillon, rang_attendu=rang_attendu)
+                if not premiere_terminee.wait(30):
+                    raise TimeoutError("la saisie manuelle n'a pas terminé")
+                return original(self, maillon, rang_attendu=rang_attendu)
+            return original(self, maillon, rang_attendu=rang_attendu)
+
+        monkeypatch.setattr(MaillonsDurables, "append", aligner_maillons)
+        resultats = {}
+        erreurs = {}
+        outil_manuel = par_nom["m5_proposer_ecriture_comptable"]
+        outil_generation = par_nom["m5_generer_brouillons_comptables"]
+
+        def saisir():
+            try:
+                resultats["saisie"] = executer_atomique(outil_manuel, {
+                    "date_effet": "2026-10-03", "libelle": "Écriture manuelle fictive",
+                    "piece_type": "manuelle", "piece_reference": "FICTIF-MANUEL", "horodatage": H,
+                    "lignes": [
+                        {"compte": "5600", "debit": "10.00", "credit": None},
+                        {"compte": "1010", "debit": None, "credit": "10.00"},
+                    ],
+                })
+            except BaseException as exc:
+                erreurs["saisie"] = exc
+            finally:
+                premiere_terminee.set()
+
+        def generer():
+            try:
+                resultats["generation"] = executer_atomique(outil_generation, {"horodatage": H})
+            except BaseException as exc:
+                erreurs["generation"] = exc
+
+        threads = [threading.Thread(target=saisir), threading.Thread(target=generer)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(60)
+        assert all(not thread.is_alive() for thread in threads), "threads stalled"
+        chaine = registre_module.Registre(maillons=stockage.maillons(DEPARTEMENT, "grand_livre")).valider_chaine()
+        assert chaine == (True, ""), chaine
+        assert set(erreurs) == {"generation"}, erreurs
+        assert set(observations) == {"saisie", "generation_automatique"}, observations
+        assert isinstance(erreurs["generation"], stockage.EcritureConcurrente), erreurs
+        assert set(resultats) == {"saisie"}, resultats
+        assert resultats["saisie"]["ok"] and resultats["saisie"]["resultat"]["accepte"]
+        assert _maillons("grand_livre") == 1
+        stockage.liberer(url)
