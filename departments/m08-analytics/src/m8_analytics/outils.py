@@ -167,8 +167,19 @@ def construire_rapport(
     signaux: list[dict[str, Any]],
     role: str | None = None,
     metric_ids_autorises: list[str] | None = None,
-) -> dict[str, Any]:
-    return rapports.construire_rapport(metriques, signaux, role, metric_ids_autorises)
+    format_sortie: str = "json",
+) -> dict[str, Any] | str:
+    """Rapport structuré historique, ou sa représentation Markdown sans nouveau calcul.
+
+    Le filtre est appliqué par le même constructeur avant les deux formats. Le Markdown ne constitue
+    ni une preuve de provenance des sources ni un contrôle d'accès supplémentaire.
+    """
+    rapport = rapports.construire_rapport(metriques, signaux, role, metric_ids_autorises)
+    if format_sortie == "json":
+        return rapport
+    if format_sortie == "markdown":
+        return rapports.rendre_markdown(rapport)
+    raise ValueError("REJ-RAPPORT-FORMAT-INCONNU")
 
 
 def produire_digest_quotidien(
@@ -1348,7 +1359,8 @@ def outils(
             nom="m8_construire_rapport",
             description=(
                 "Assemble un RapportAnalytique à partir de métriques et signaux déjà calculés, "
-                "filtré par rôle si fourni. Un rôle sans metric_ids_autorises est refusé "
+                "filtré par rôle si fourni. format_sortie=markdown rend le même rapport sans calcul "
+                "supplémentaire. Un rôle sans metric_ids_autorises est refusé "
                 "(fail-closed, jamais une vue complète devinée)."
             ),
             parametres={
@@ -1358,6 +1370,7 @@ def outils(
                     "signaux": {"type": "array", "items": _SIGNAL},
                     "role": _ROLE,
                     "metric_ids_autorises": _METRIC_IDS_AUTORISES,
+                    "format_sortie": {"type": "string", "enum": ["json", "markdown"]},
                 },
                 "required": ["metriques", "signaux"],
                 "additionalProperties": False,

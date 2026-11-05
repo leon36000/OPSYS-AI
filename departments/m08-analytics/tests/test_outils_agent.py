@@ -256,6 +256,59 @@ def test_construire_rapport_role_sans_liste_via_executer_est_refus_metier():
     assert reponse["erreur"] == "refus_metier"
 
 
+def test_m8_construire_rapport_expose_markdown_sans_changer_le_filtre_ni_le_palier():
+    outil = _outils_par_nom()["m8_construire_rapport"]
+    arguments = {
+        "metriques": [
+            {"metric_id": "visible", "valeur": 12.5, "version_definition": "a" * 64,
+             "fraicheur": 1.0, "n": 2, "note_fictive": "extension-visible"},
+            {"metric_id": "secret", "valeur": 999.0, "version_definition": "b" * 64,
+             "fraicheur": 1.0, "n": 2, "note_fictive": "extension-secret"},
+        ],
+        "signaux": [
+            {
+                "metric_id": "secret",
+                "type_signal": "HORS_LIMITE_SUPERIEURE",
+                "valeur_observee": 999.0,
+                "limite_naturelle_haute": 10.0,
+                "limite_naturelle_basse": 0.0,
+                "n": 8,
+                "note_fictive": "signal-secret",
+            },
+            {
+                "metric_id": "visible",
+                "type_signal": "HORS_LIMITE_INFERIEURE",
+                "valeur_observee": 12.5,
+                "limite_naturelle_haute": 20.0,
+                "limite_naturelle_basse": 13.0,
+                "n": 8,
+                "note_fictive": "signal-visible",
+            },
+        ],
+        "role": "terrain",
+        "metric_ids_autorises": ["visible"],
+    }
+
+    json_result = executer(outil, arguments)
+    markdown_result = executer(outil, {**arguments, "format_sortie": "markdown"})
+
+    assert outil.autonomie == Autonomie.T0
+    assert outil.niveau_effectif == Niveau.N0
+    assert json_result["ok"] is True and markdown_result["ok"] is True
+    assert set(json_result["resultat"]) == {"type", "role", "metriques", "signaux", "snapshot_id"}
+    assert json_result["resultat"]["metriques"][0]["metric_id"] == "visible"
+    assert "visible" in markdown_result["resultat"]
+    assert "secret" not in markdown_result["resultat"]
+    assert "extension-visible" in markdown_result["resultat"]
+    assert "signal-visible" in markdown_result["resultat"]
+    assert "extension-secret" not in markdown_result["resultat"]
+    assert "signal-secret" not in markdown_result["resultat"]
+    assert markdown_result["resultat"].endswith("\n")
+    invalide = executer(outil, {**arguments, "format_sortie": "html"})
+    assert invalide["ok"] is False
+    assert invalide["erreur"] == "arguments_invalides"
+
+
 def test_outils_partagent_le_meme_registre_entre_deux_appels():
     """Preuve de la fermeture (closure) sur registre_cible : deux outils de la même instance
     voient les écritures l'un de l'autre, comme avant le passage à l'injection."""

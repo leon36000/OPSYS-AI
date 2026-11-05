@@ -184,3 +184,68 @@ def test_role_est_conserve_avec_filtre_actif_et_vide():
     )
 
     assert resultat["role"] == "admin"
+
+
+def test_rendu_markdown_est_stable_et_reproduit_les_champs_du_rapport():
+    metriques = [_metrique("m8_cash_libre_cad", 1234.5, fraicheur=0.5, n=4)]
+    signaux = [_signal("m8_cash_libre_cad", valeur_observee=1234.5, n=8)]
+    rapport = rapports.construire_rapport(
+        metriques, signaux, role="admin", metric_ids_autorises=["m8_cash_libre_cad"]
+    )
+
+    rendu = rapports.rendre_markdown(rapport)
+
+    assert rendu == rapports.rendre_markdown(rapport)
+    assert "m8\\_cash\\_libre\\_cad" in rendu
+    assert "1234.5" in rendu
+    assert "0.5" in rendu
+    assert "a" * 64 in rendu
+    assert rapport["snapshot_id"] in rendu
+    assert "n'authentifie pas les sources" in rendu
+
+
+def test_rendu_markdown_refuse_empreinte_alteree_et_n_expose_pas_champs_ajoutes():
+    rapport = rapports.construire_rapport(
+        [_metrique("visible", 12.0), {**_metrique("masquee", 99), "contact": "fictif@example.test"}],
+        [],
+        role="terrain",
+        metric_ids_autorises=["visible"],
+    )
+    rendu = rapports.rendre_markdown(rapport)
+    assert "visible" in rendu
+    assert "masquee" not in rendu
+    assert "fictif@example.test" not in rendu
+
+    falsifie = dict(rapport, role="admin")
+    with pytest.raises(ValueError, match="EMPREINTE-INVALIDE"):
+        rapports.rendre_markdown(falsifie)
+
+
+def test_rendu_markdown_refuse_nombres_non_finis_et_echappe_identifiants():
+    non_fini = rapports.construire_rapport([_metrique("metric", float("inf"))], [])
+    with pytest.raises(ValueError, match="VALEUR-INVALIDE"):
+        rapports.rendre_markdown(non_fini)
+
+    rapport = rapports.construire_rapport([_metrique("[lien](javascript:alerte)\n# titre")], [])
+    rendu = rapports.rendre_markdown(rapport)
+    assert "\\[lien\\]\\(javascript:alerte\\) \\# titre" in rendu
+    assert "\n# titre" not in rendu
+
+
+def test_rendu_markdown_preserve_extensions_json_autorisees_sans_les_interpreter_ou_tronquer():
+    extension = {"note_fictive": "extension-metric", "preuve_fictive": ["a", {"rang": 2}]}
+    extension_signal = {"annotation_fictive": "extension-signal"}
+    metrique = {**_metrique("mesure"), **extension}
+    signal = {**_signal("mesure"), **extension_signal}
+    rapport = rapports.construire_rapport([metrique], [signal])
+
+    rendu = rapports.rendre_markdown(rapport)
+
+    assert "note\\_fictive" in rendu and "extension-metric" in rendu
+    assert "preuve\\_fictive" in rendu and '"rang":2' in rendu
+    assert "annotation\\_fictive" in rendu and "extension-signal" in rendu
+
+    grande_extension = "x" * 12_000 + "FIN-FICTIF"
+    rapport_long = rapports.construire_rapport([_metrique("mesure") | {"extension": grande_extension}], [])
+    rendu_long = rapports.rendre_markdown(rapport_long)
+    assert grande_extension in rendu_long
