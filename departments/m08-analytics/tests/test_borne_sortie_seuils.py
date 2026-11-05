@@ -80,6 +80,15 @@ def test_charge_exacte_a_la_borne_tient_dans_la_vraie_page_m9_et_garde_les_ancie
     assert catalogue.erreurs_charge("m8.alerte_proposee", charge) == []
 
 
+def test_une_page_m9_exactement_au_budget_est_acceptee_et_un_caractere_de_moins_est_refuse():
+    charge = _charge_seuil("33.30")
+    taille = len(json.dumps(alertes_sortie.page_unique(charge), ensure_ascii=False))
+
+    assert alertes_sortie.exiger_page_lisible(charge, budget=taille) == taille
+    with pytest.raises(ValueError, match="REJ-M8-ALERTE-BORNE-SORTIE"):
+        alertes_sortie.exiger_page_lisible(charge, budget=taille - 1)
+
+
 def test_mesure_exacte_compte_les_echappements_et_erreur_de_borne_ne_recopie_pas_le_texte():
     charge = _charge_seuil("33.30") | {"quoi": "texte-fictif\n" * 3000}
     assert len(json.dumps(alertes_sortie.page_unique(charge), ensure_ascii=False)) > BUDGET_SORTIE_M9
