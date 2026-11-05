@@ -128,6 +128,17 @@ AVERTISSEMENT_HYPOTHESES_PROVENANCE_INDETERMINEE = {
     ),
 }
 
+AVERTISSEMENT_DIVERGENCE_HYPOTHESES = {
+    "code": "DIVERGENCE_HYPOTHESES_TOURS_RAPPORT",
+    "statut": "HYPOTHESE_DECLAREE",
+    "provenance": "tours_conseil",
+    "message": (
+        "Des hypothèses déclarées sont présentes dans les tours du conseil, tandis que la rubrique « Hypothèses » du "
+        "rapport est NON_DISPONIBLE. Cette divergence ne permet pas d’établir que ces éléments figurent dans le "
+        "rapport. Cet avertissement ne vérifie, ne confirme ni ne réfute leur contenu."
+    ),
+}
+
 
 def test_ouverture_deterministe_idempotente_et_dossier_fige():
     evenements, session_id = _ouvrir()
@@ -698,6 +709,17 @@ def test_lecture_publique_ajuste_page_au_budget_serialise_sans_perdre_contenu_ni
 
 def test_lecture_publique_n_emet_pas_avertissement_hypothese_sans_hypothese(monkeypatch):
     evenements, session_id = _ouvrir()
+    brouillon_refuse = sc.deposer(
+        evenements,
+        session_id,
+        "liaison_finance",
+        {"affirmations": [{"id": "H0", "nature": "hypothese", "enonce": "hypothèse non admise", "extra": True}]},
+        reservation_id="hypothese-refusee",
+        tokens_reels=5,
+        recu_a=T,
+    )
+    assert brouillon_refuse["issue"] == "REFUSE"
+    evenements = _ajouter(evenements, brouillon_refuse)
     finance = {
         "affirmations": [{"id": "A1", "nature": "observation_source", "reference": CASH, "valeur": "8400.00"}]
     }
@@ -709,7 +731,15 @@ def test_lecture_publique_n_emet_pas_avertissement_hypothese_sans_hypothese(monk
     ):
         evenements = _ajouter(
             evenements,
-            sc.deposer(evenements, session_id, role, sortie, reservation_id=f"no-h-{role}", tokens_reels=10, recu_a=T),
+            sc.deposer(
+                evenements,
+                session_id,
+                role,
+                sortie,
+                reservation_id=f"no-h-{role}",
+                tokens_reels=10,
+                recu_a=T,
+            ),
         )
     cloture = sc.cloturer(evenements, session_id, recu_a=T)
     evenements = _ajouter(evenements, cloture)
@@ -722,6 +752,7 @@ def test_lecture_publique_n_emet_pas_avertissement_hypothese_sans_hypothese(monk
     )
     page = outil.fonction(session_id)
     assert "HYPOTHESES_NON_VERIFIEES" not in {a["code"] for a in page["avertissements"]}
+    assert "DIVERGENCE_HYPOTHESES_TOURS_RAPPORT" not in {a["code"] for a in page["avertissements"]}
 
 
 def test_classement_incertain_ne_copie_pas_la_description_vers_rapport_meme_sur_4000_caracteres():
@@ -976,6 +1007,13 @@ def test_rapport_sans_hypotheses_ne_requalifie_pas_les_tours_hypothese(monkeypat
     rapport_sans_hypotheses = cloture["rapport"]
     assert rd.valider_rapport_decision_v2(rapport_sans_hypotheses) == (True, None)
     assert rapport_sans_hypotheses["sections"]["hypotheses"]["statut"] == "NON_DISPONIBLE"
+    sections = copy.deepcopy(rapport_sans_hypotheses["sections"])
+    sections["question"]["contenu"]["texte"] = "Q" * 3000
+    rapport_sans_hypotheses = rd.assembler(sections, version=rapport_sans_hypotheses["version"])
+    assert rd.valider_rapport_decision_v2(rapport_sans_hypotheses) == (True, None)
+    assert len(cs.canonique(rapport_sans_hypotheses)) > 4000
+    cloture["rapport"] = rapport_sans_hypotheses
+    cloture["rapport_id"] = rapport_sans_hypotheses["rapport_id"]
 
     tours_avec_hypotheses = [e for e in evenements_avec_hypotheses if e["type"] == "TOUR"]
     historique = _rechaîner_historique([evenements_avec_hypotheses[0], *tours_avec_hypotheses, cloture])
@@ -996,12 +1034,33 @@ def test_rapport_sans_hypotheses_ne_requalifie_pas_les_tours_hypothese(monkeypat
         for o in oc.construire_outils(budget_sortie=5900, captures_cible=[], sessions_cible=historique)
         if o.nom == "m9_lire_rapport_conseil"
     )
-    page = outil.fonction(session_id)
-    assert "HYPOTHESES_NON_VERIFIEES" not in {a["code"] for a in page["avertissements"]}
-    assert page["contenu_json"] == cs.canonique(rapport_sans_hypotheses)
-    assert page["rapport_id"] == rapport_sans_hypotheses["rapport_id"]
-    assert page["sha256"] == cs.empreinte(rapport_sans_hypotheses)
-    assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+    contenu_attendu = cs.canonique(rapport_sans_hypotheses)
+    pages = []
+    depart = 0
+    while True:
+        page = outil.fonction(session_id, depart)
+        pages.append(page)
+        assert page["depart"] == depart
+        assert len(json.dumps(page, ensure_ascii=False, allow_nan=False)) <= 5900
+        assert AVERTISSEMENT_DIVERGENCE_HYPOTHESES in page["avertissements"]
+        assert not any(a["code"] == "HYPOTHESES_NON_VERIFIEES" for a in page["avertissements"])
+        assert page["rapport_id"] == rapport_sans_hypotheses["rapport_id"]
+        assert page["sha256"] == cs.empreinte(rapport_sans_hypotheses)
+        suivant = page["prochain_depart"]
+        if suivant is None:
+            assert depart + len(page["contenu_json"]) == len(contenu_attendu)
+            break
+        assert suivant == depart + len(page["contenu_json"]) > depart
+        depart = suivant
+    assert len(pages) > 1
+    assert "le client accepte un report d'une semaine" not in str(pages[0]["avertissements"])
+    assert (
+        "ne permet pas d’établir que ces éléments figurent dans le rapport"
+        in pages[0]["avertissements"][-1]["message"]
+    )
+    assert "HYPOTHESE_DECLAREE" not in pages[0]["avertissements"][-1]["message"]
+    assert "DIVERGENCE_HYPOTHESES_TOURS_RAPPORT" in pages[0]["avertissements"][-1]["code"]
+    assert "".join(page["contenu_json"] for page in pages) == contenu_attendu
     assert historique == historique_avant
     assert sc.valider_chaine(historique) == (True, "")
 

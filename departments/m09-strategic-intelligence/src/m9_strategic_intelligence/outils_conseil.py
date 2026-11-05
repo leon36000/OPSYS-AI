@@ -86,8 +86,28 @@ def _avertissement_hypotheses_non_verifiees(projection: Mapping, rapport: object
     if hypotheses_legacy:
         contenu = rapport["hypotheses"]
         hypotheses_rapport = True
+    section_hypotheses_absentes = (
+        isinstance(section, Mapping)
+        and section.get("statut") == "NON_DISPONIBLE"
+        and type(section.get("raison")) is str
+        and bool(section["raison"].strip())
+        and len(section["raison"]) <= 1000
+        and section.get("contenu") in (None, [], {})
+    )
 
     if not hypotheses_rapport:
+        if section_hypotheses_absentes and textes_tours:
+            return {
+                "code": "DIVERGENCE_HYPOTHESES_TOURS_RAPPORT",
+                "statut": "HYPOTHESE_DECLAREE",
+                "provenance": "tours_conseil",
+                "message": (
+                    "Des hypothèses déclarées sont présentes dans les tours du conseil, tandis que la rubrique "
+                    "« Hypothèses » du rapport est NON_DISPONIBLE. Cette divergence ne permet pas d’établir que ces "
+                    "éléments figurent dans le rapport. Cet avertissement ne vérifie, ne confirme ni ne réfute leur "
+                    "contenu."
+                ),
+            }
         # Des hypothèses présentes seulement dans les tours ne sont pas attribuées à un rapport qui ne les renseigne
         # pas; cela évite de contredire une section v2 NON_DISPONIBLE.
         return None

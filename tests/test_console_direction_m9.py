@@ -513,3 +513,63 @@ def test_tableau_de_bord_montre_risques_actifs_changements_depuis_la_veille_et_i
     assert "depuis la veille" in page.text and "capture(s) nouvelle(s)" in page.text
     assert "Indicateurs exécutifs" in page.text and 'href="/opsys/direction/indicateurs' in page.text
     assert 'href="/opsys/direction/decision' in page.text and 'href="/opsys/direction/tendances' in page.text
+
+
+def test_direction_conseil_affiche_warning_hypotheses_reponse_fictive(monde, monkeypatch):
+    """La page HTTP admin rend le warning public, sans altérer le rapport fourni."""
+    from html import unescape
+
+    from opsys.console import direction_ui
+
+    client, _appel_reel, _ = monde
+    connecter(client)
+    session_id = "session-fictive-warning"
+    rapport_json = '{"rapport_id":"rapport-fictif-warning","sections":{}}'
+    avertissement = {
+        "code": "HYPOTHESES_NON_VERIFIEES",
+        "statut": "HYPOTHESE_DECLAREE",
+        "provenance": "tours_conseil",
+        "message": (
+            "Les hypothèses de ce rapport sont des déclarations des tours du conseil, au statut HYPOTHESE_DECLAREE. "
+            "Elles ne sont pas vérifiées par une source ; cet avertissement ne confirme ni ne réfute leur contenu."
+        ),
+    }
+    appels = []
+
+    def executer_fictif(_cnx, _deps, _session, nom, arguments):
+        appels.append(nom)
+        if nom == "m9_lire_conseil":
+            return {
+                "ok": True,
+                "resultat": {"accepte": True, "session_id": session_id, "issue": "RECOMMANDATION"},
+            }
+        if nom == "m9_lire_rapport_conseil":
+            return {
+                "ok": True,
+                "resultat": {
+                    "accepte": True,
+                    "session_id": session_id,
+                    "rapport_id": "rapport-fictif-warning",
+                    "actions_a_classement_non_verifie": 0,
+                    "avertissements": [avertissement],
+                    "taille": len(rapport_json),
+                    "depart": 0,
+                    "contenu_json": rapport_json,
+                    "prochain_depart": None,
+                    "sha256": "a" * 64,
+                },
+            }
+        raise AssertionError(f"outil inattendu: {nom}, arguments={arguments!r}")
+
+    monkeypatch.setattr(direction_ui.metier, "executer", executer_fictif)
+    reponse = client.get("/direction/conseil", params={"session_id": session_id})
+
+    assert reponse.status_code == 200, reponse.text
+    assert appels == ["m9_lire_conseil", "m9_lire_rapport_conseil"]
+    texte = unescape(reponse.text)
+    assert avertissement["code"] in texte
+    assert avertissement["statut"] in texte
+    assert avertissement["provenance"] in texte
+    assert avertissement["message"] in texte
+    assert "HYPOTHESES_NON_VERIFIEES" not in rapport_json
+    assert rapport_json in texte
