@@ -558,6 +558,7 @@ def test_la_rotation_fait_avancer_la_51e_affaire_malgre_50_echecs_repetes(plan, 
         if e["evenement"] == "curseur" and e["ressource"] == "arriere|rotation"
     ]
     assert len(curseurs) == 3 and all(e["details"]["ressources"] <= 50 for e in curseurs)
+    assert curseurs[-1]["details"] == {"decalage": 50, "reste": 1, "ressources": 50}
     texte = json.dumps(w.journal(CONSOLIDATION), ensure_ascii=False)
     assert not any(f"aff-{i:03}" in texte for i in range(51))
 
