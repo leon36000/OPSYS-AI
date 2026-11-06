@@ -6,10 +6,12 @@ export const OUTIL_MATERIAUX_AVEC_PREUVES="m6_declarer_materiaux_avec_preuves_ap
 export interface PreuveLigneMateriaux {readonly position_ligne:number;readonly note:string;readonly photos:readonly string[];}
 export interface ArgumentsMateriauxAvecPreuves {readonly wct_id:string;readonly formulaire:FormulaireMateriauxUtilisesM6;readonly preuves_lignes:readonly PreuveLigneMateriaux[];}
 export interface FichierPreuveLocal {readonly capture_id:string;readonly empreinte_sha256:string;readonly taille_octets:number;readonly type_mime:"image/jpeg"|"image/png";}
-export interface ReferencePreuveM6 {readonly registre:"principal"|"preuves_pertes_bris";readonly index:number;readonly hash_maillon:string;}
+/** null signifie que le serveur a expurgé le hash de la réponse employee; ce reçu ne prouve alors pas l'intégrité. */
+export interface ReferencePreuveM6 {readonly registre:"principal"|"preuves_pertes_bris";readonly index:number;readonly hash_maillon:string|null;}
 export interface ConfirmationMateriauxAvecPreuves {readonly wct_id:string;readonly intervention_id:string;readonly chantier_id:string;readonly lignes_declarees:readonly LigneDeclareeChantierM6[];readonly preuves:readonly {readonly position_ligne:number;readonly reference_mouvement:ReferencePreuveM6;readonly reference_preuve:ReferencePreuveM6;readonly nombre_photos:number;}[];}
 /** Copie locale de métadonnées réellement reçues : ni argument RPC, ni permission/signature. */
-export interface RegistreConfirmationMateriaux {readonly taille:number;readonly hash_tete:string;}
+/** null signifie hash non transmis, jamais un hash de remplacement ni une preuve vérifiée. */
+export interface RegistreConfirmationMateriaux {readonly taille:number;readonly hash_tete:string|null;}
 export interface RecuMateriauxAvecPreuves extends ConfirmationMateriauxAvecPreuves {readonly registre_confirmation:RegistreConfirmationMateriaux;}
 export type InterpretationMateriauxAvecPreuves={readonly accepte:true;readonly resultat:RecuMateriauxAvecPreuves}|{readonly accepte:false;readonly verdict:{readonly code:string;readonly detail:string}};
 const inconnu:InterpretationMateriauxAvecPreuves={accepte:false,verdict:{code:"accuse_invalide",detail:"Confirmation des preuves inconnue ou non liée : même intention conservée."}};
@@ -17,6 +19,7 @@ const obj=(v:unknown):v is Record<string,unknown>=>typeof v==="object"&&v!==null
 const ferme=(v:unknown,keys:readonly string[]):v is Record<string,unknown>=>obj(v)&&Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));
 const id=(v:unknown):v is string=>typeof v==="string"&&[...v].length<=256&&v.replace(/\p{White_Space}/gu,"").length>0&&!/[\p{Cc}\p{Cs}]/u.test(v);
 const hash=(v:unknown):v is string=>typeof v==="string"&&/^[0-9a-f]{64}$/.test(v);
+const hashOuExpurge=(v:unknown):v is string|null=>v===null||hash(v);
 const entier=(v:unknown,max=Number.MAX_SAFE_INTEGER):v is number=>typeof v==="number"&&Number.isSafeInteger(v)&&v>=0&&v<=max;
 const quantite=(v:unknown):v is number=>typeof v==="number"&&Number.isFinite(v)&&v>0&&(!Number.isInteger(v)||Number.isSafeInteger(v));
 export function notePreuveValide(v:unknown):v is string {return typeof v==="string"&&[...v].length>=1&&[...v].length<=500&&v.replace(/\p{White_Space}/gu,"").length>0&&!/[^\P{Cc}\t\r\n]|\p{Cs}/u.test(v);}
@@ -55,7 +58,7 @@ export function lireChargeMateriauxAvecPreuves(mutation:unknown):{readonly args:
   return {args:a,fichiers};
 }
 export function argumentsRpcMateriauxAvecPreuves(m:MutationOutbox):Readonly<Record<string,unknown>>|null {const c=lireChargeMateriauxAvecPreuves(m);return c?{...c.args}:null;}
-function ref(v:unknown,registre:ReferencePreuveM6["registre"]):v is ReferencePreuveM6{return ferme(v,["registre","index","hash_maillon"])&&v.registre===registre&&entier(v.index)&&hash(v.hash_maillon);}
+function ref(v:unknown,registre:ReferencePreuveM6["registre"]):v is ReferencePreuveM6{return ferme(v,["registre","index","hash_maillon"])&&v.registre===registre&&entier(v.index)&&hashOuExpurge(v.hash_maillon);}
 function confirmation(v:unknown,a:ArgumentsMateriauxAvecPreuves,taille:number,locale=false):ConfirmationMateriauxAvecPreuves|null {
   if(taille<a.formulaire.lignes_materiaux.length||!ferme(v,["wct_id","intervention_id","chantier_id","lignes_declarees","preuves",...(locale?["registre_confirmation"]:[])])||v.wct_id!==a.wct_id||v.intervention_id!==a.formulaire.intervention_id||v.chantier_id!==a.formulaire.chantier_id||!Array.isArray(v.lignes_declarees)||!v.lignes_declarees.every(ligne)||v.lignes_declarees.length!==a.formulaire.lignes_materiaux.length||!Array.isArray(v.preuves)||v.preuves.length!==a.preuves_lignes.length)return null;
   for(let i=0;i<v.lignes_declarees.length;i++){const l=v.lignes_declarees[i],e=a.formulaire.lignes_materiaux[i];if(Object.keys(l).some(k=>Reflect.get(l,k)!==Reflect.get(e,k)))return null;}
@@ -78,7 +81,7 @@ export function interpreterMateriauxAvecPreuves(brut:unknown,mutation?:MutationO
   }
   if(!ferme(s,keys)||s.ok!==true||!obj(s.resultat))return inconnu;const m=s.resultat;
   if(m.accepte===false){const v=m.verdict;if(!ferme(m,["accepte","verdict"])||!obj(v)||typeof v.code!=="string"||!/^REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(v.code)||v.code==="REJ-IDENTITE-APPAREIL-INVALIDE"||v.code==="REJ-M6-PREUVES-IDENTITE-INVALIDE"||typeof v.detail!=="string"||!ferme(v,["code","detail",...(Object.hasOwn(v,"statut")?["statut"]:[])]))return inconnu;return {accepte:false,verdict:{code:v.code,detail:v.detail}};}
-  if(!ferme(m,["accepte","resultat","registre"])||m.accepte!==true||!ferme(m.registre,["taille","hash_tete"])||!entier(m.registre.taille)||!hash(m.registre.hash_tete))return inconnu;
+  if(!ferme(m,["accepte","resultat","registre"])||m.accepte!==true||!ferme(m.registre,["taille","hash_tete"])||!entier(m.registre.taille)||!hashOuExpurge(m.registre.hash_tete))return inconnu;
   const taille=m.registre.taille;const c=confirmation(m.resultat,charge.args,taille);if(!c)return inconnu;
   return {accepte:true,resultat:{...c,registre_confirmation:{taille,hash_tete:m.registre.hash_tete}}};
 }
@@ -86,5 +89,5 @@ export function validerRecuMateriauxAvecPreuves(m:MutationOutbox):boolean {
   const s=copierJsonLecture(m),c=lireChargeMateriauxAvecPreuves(m);
   if(s===JSON_LECTURE_INVALIDE||!obj(s)||s.statut!=="envoyee"||!c||!obj(s.resumeAccepte))return false;
   const r=s.resumeAccepte.registre_confirmation;
-  return ferme(r,["taille","hash_tete"])&&entier(r.taille)&&hash(r.hash_tete)&&confirmation(s.resumeAccepte,c.args,r.taille,true)!==null;
+  return ferme(r,["taille","hash_tete"])&&entier(r.taille)&&hashOuExpurge(r.hash_tete)&&confirmation(s.resumeAccepte,c.args,r.taille,true)!==null;
 }

@@ -351,6 +351,9 @@ MUTATIONS_APPLIQUEES = Table(
     Column("horodatage_appareil", Text, nullable=False),
     Column("recu_le", Text, nullable=False),
     Column("statut", String(24), nullable=False),
+    # Détenteur confirmé des déclarations M6 d'appareil. Nullable pour les claims historiques : sans auteur
+    # conservé, un rejeu ne restitue pas l'ACK. La clé d'idempotence et le JSON de réponse restent inchangés.
+    Column("personne_origine", String(64)),
     CheckConstraint("statut IN ('en_cours','ok','refus_metier','en_attente_approbation')", name="statut_valide"),
 )
 

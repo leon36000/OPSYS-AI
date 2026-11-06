@@ -16,6 +16,7 @@ N4 et N5, et tout appel sans identité valide, suivent le chemin de la file, inc
 
 from __future__ import annotations
 
+import copy
 import datetime as dt
 import hashlib
 import json
@@ -48,6 +49,10 @@ logger = logging.getLogger("opsys.capacites")
 _MUTATION_NOTE_M6 = "m6_enregistrer_note_commande"
 _LECTURE_NOTE_M6 = "m6_lire_note_commande"
 _LISTE_NOTES_M6 = "m6_lister_notes_commande"
+_DECLARATIONS_MATERIAUX_M6 = frozenset({
+    "m6_declarer_materiaux_utilises",
+    "m6_declarer_materiaux_avec_preuves_appareil",
+})
 _MUTATION_CLASSEMENT_M6 = "m6_classer_cause_variance_appareil"
 _LECTURES_CLASSEMENT_M6 = frozenset({
     "m6_lister_variances_classables_wct_appareil",
@@ -1322,6 +1327,85 @@ class Capacites:
         return reponse
 
     @staticmethod
+    def _refus_rejeu_m6_identite_inconnue() -> dict[str, Any]:
+        return {
+            "ok": False,
+            "erreur": "REJ-IDENTITE-APPAREIL-INVALIDE",
+            "details": "Identité ou auteur de déclaration non vérifiable ; aucune confirmation en cache restituée.",
+        }
+
+    @staticmethod
+    def _refus_conflit_m6_sans_detail() -> dict[str, Any]:
+        return {
+            "ok": False,
+            "erreur": "mutation_conflit",
+            "details": "Clé d'idempotence déjà utilisée ; aucune réponse en cache restituée.",
+        }
+
+    def _signataire_appareil_m6_valide(self, cnx: Connection, meta: idempotence.Meta, nom: str):
+        """Relit identité active et appairage courant avant un ACK de déclaration M6.
+
+        La ligne appareil est verrouillée jusqu'au commit afin que le rejeu et le réappairage soient sérialisés
+        sur PostgreSQL. La portée de rôle reste celle du manifeste `roles_outils`.
+        """
+        from sqlalchemy import select
+
+        from .stockage.schema import APPAREILS
+
+        signataire = approbations.signataire_valide(cnx, identite_appelante())
+        if (
+            signataire is None or signataire.source != "appareil"
+            or nom not in self._outils_du_role(signataire.role)
+        ):
+            return None
+        appairage = cnx.execute(
+            select(APPAREILS.c.personne, APPAREILS.c.role)
+            .where(APPAREILS.c.identifiant == meta.appareil)
+            .with_for_update()
+        ).one_or_none()
+        if appairage is None or (appairage.personne, appairage.role) != (signataire.personne, signataire.role):
+            return None
+        return signataire
+
+    @staticmethod
+    def _censurer_hashs_stock_m6_employee(nom: str, reponse: dict[str, Any]) -> dict[str, Any]:
+        """N'expose pas à un appareil employee des empreintes qui engagent un coût unitaire.
+
+        Sur un nouvel appel, la projection précède la persistance de l'ACK idempotent. Un ancien ACK complet reste
+        intact en base; il est copié et projeté seulement pour la réponse de rejeu. Les tailles, indices, lignes et
+        liens métier demeurent, mais les empreintes expurgées ne constituent plus une preuve d'intégrité côté
+        appareil.
+        """
+        acteur = identite_appelante()
+        if (
+            acteur is None or acteur.source != "appareil" or acteur.role != "employee"
+            or nom not in {"m6_declarer_materiaux_utilises", "m6_declarer_materiaux_avec_preuves_appareil"}
+            or type(reponse) is not dict
+        ):
+            return reponse
+        resultat = reponse.get("resultat")
+        if type(resultat) is not dict or resultat.get("accepte") is not True:
+            return reponse
+
+        projection = copy.deepcopy(reponse)
+        metier = projection["resultat"]
+        registre = metier.get("registre")
+        if type(registre) is dict and "hash_tete" in registre:
+            registre["hash_tete"] = None
+        if nom == "m6_declarer_materiaux_avec_preuves_appareil":
+            confirmation = metier.get("resultat")
+            preuves = confirmation.get("preuves") if type(confirmation) is dict else None
+            if type(preuves) is list:
+                for preuve in preuves:
+                    if type(preuve) is not dict:
+                        continue
+                    for nom_reference in ("reference_mouvement", "reference_preuve"):
+                        reference = preuve.get(nom_reference)
+                        if type(reference) is dict and "hash_maillon" in reference:
+                            reference["hash_maillon"] = None
+        return projection
+
+    @staticmethod
     def _refus_classement_inconnu(suffixe: str) -> dict[str, Any]:
         return {
             "ok": False,
@@ -1470,6 +1554,10 @@ class Capacites:
                 refus = self._garder_note_m6()
                 if refus is not None:
                     return refus
+            if nom == "m6_declarer_materiaux_avec_preuves_appareil":
+                refus = self._garder_preuves_m6(arguments)
+                if refus is not None:
+                    return refus
             decision_revue = False
             if nom == _PROPOSITION_REVUE_M4:
                 # Autorité avant même la lecture de son claim ; la création historique
@@ -1516,10 +1604,6 @@ class Capacites:
                 refus = self._garder_classement_m6(nom, arguments)
                 if refus is not None:
                     return refus
-            if nom == "m6_declarer_materiaux_avec_preuves_appareil":
-                refus = self._garder_preuves_m6(arguments)
-                if refus is not None:
-                    return refus
             if revalider_humain_n3 and not self._humain_n3_cible_valide(nom, cnx):
                 return {
                     "ok": False,
@@ -1543,16 +1627,49 @@ class Capacites:
                     "details": f"{nom} est hors de la portée du rôle {role_refuse} "
                     "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
                 }
+            signataire_m6 = None
+            if nom in _DECLARATIONS_MATERIAUX_M6 and refus_role is None:
+                signataire_m6 = self._signataire_appareil_m6_valide(cnx, meta, nom)
+                if signataire_m6 is None:
+                    return self._refus_rejeu_m6_identite_inconnue()
+                claim_existant = idempotence._lire(cnx, meta)
+                if claim_existant is not None and claim_existant["outil"] != nom:
+                    return self._refus_conflit_m6_sans_detail()
+                if claim_existant is not None:
+                    if claim_existant.get("personne_origine") != signataire_m6.personne:
+                        return self._refus_rejeu_m6_identite_inconnue()
+                    if nom == "m6_declarer_materiaux_utilises":
+                        from m6_material_control import outils as outils_m6
+
+                        if not outils_m6.autoriser_rejeu_declaration_materiaux(arguments.get("wct_id")):
+                            return self._refus_rejeu_m6_identite_inconnue()
             try:
                 reclamation = idempotence.reclamer(cnx, meta, nom, arguments, recu_le)
             except idempotence.MutationConflit as exc:
                 if refus_role is not None:
                     return {**refus_role, "rejoue": False}
+                if signataire_m6 is not None:
+                    return self._refus_conflit_m6_sans_detail()
                 return {"ok": False, "erreur": "mutation_conflit", "details": str(exc)}
             except (ValueError, TypeError):
                 if nom == _PROPOSITION_REVUE_M4 or decision_revue:
                     return self._confirmation_revue_inconnue()
                 raise
+            if not reclamation.rejouee and signataire_m6 is not None:
+                from sqlalchemy import update
+
+                from .stockage.schema import MUTATIONS_APPLIQUEES
+
+                liee = cnx.execute(
+                    update(MUTATIONS_APPLIQUEES)
+                    .where(
+                        MUTATIONS_APPLIQUEES.c.appareil == meta.appareil,
+                        MUTATIONS_APPLIQUEES.c.cle_idempotence == meta.cle,
+                    )
+                    .values(personne_origine=signataire_m6.personne)
+                )
+                if liee.rowcount != 1:
+                    raise RuntimeError("liaison de l'auteur M6 absente après réclamation fraîche")
             if refus_role is not None:
                 # Un refus de portée est rejouable, mais ne peut jamais dévoiler une ancienne
                 # réponse réussie ni la nature d'un conflit : l'autorité précède toute restitution.
@@ -1561,6 +1678,13 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
+                if nom == "m6_declarer_materiaux_utilises":
+                    signataire = approbations.signataire_valide(cnx, identite_appelante())
+                    if (
+                        signataire is None or signataire.source != "appareil"
+                        or nom not in self._outils_du_role(signataire.role)
+                    ):
+                        return self._refus_rejeu_m6_identite_inconnue()
                 if nom == _MUTATION_NOTE_M6:
                     refus = self._garder_note_m6(arguments, reclamation.reponse)
                     if refus is not None:
@@ -1632,8 +1756,12 @@ class Capacites:
                         return refus
                     return self._borner_confirmation_preuves(reponse)
                 if nom == "m6_declarer_materiaux_avec_preuves_appareil":
-                    return self._borner_confirmation_preuves(reponse)
-                return reponse
+                    return self._censurer_hashs_stock_m6_employee(
+                        nom, self._borner_confirmation_preuves(
+                            self._censurer_hashs_stock_m6_employee(nom, reponse),
+                        ),
+                    )
+                return self._censurer_hashs_stock_m6_employee(nom, reponse)
             if demander_n4_humain:
                 if signataire_n4 is None:
                     raise ValueError("création N4 humaine sans signataire revérifié en base")
@@ -1691,6 +1819,9 @@ class Capacites:
                         reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
                 else:
                     reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
+            # Nouvel ACK employee : ne pas persister les empreintes sensibles. Les ACK historiques complets restent
+            # intacts et sont projetés seulement au rejeu ci-dessus.
+            reponse = self._censurer_hashs_stock_m6_employee(nom, reponse)
             finale = {**reponse, "rejoue": False}
             if nom == _MUTATION_RAPPEL_M1 and (
                 reponse.get("erreur", "").startswith("REJ-M1-RAPPEL-SORTIE-TROP-VOLUMINEUSE")
@@ -1706,8 +1837,10 @@ class Capacites:
                 raise RuntimeError("confirmation fraîche de classement hors de sa borne atomique")
             idempotence.finaliser(cnx, meta, reponse)
             if nom == "m6_declarer_materiaux_avec_preuves_appareil":
-                return self._borner_confirmation_preuves(finale)
-            return finale
+                return self._censurer_hashs_stock_m6_employee(
+                    nom, self._borner_confirmation_preuves(finale),
+                )
+            return self._censurer_hashs_stock_m6_employee(nom, finale)
 
     def _distribuer(
         self, nom: str, arguments: Mapping[str, Any] | None, *, appel_appareil: bool = False,
@@ -1870,6 +2003,10 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        # Projeter avant toute sérialisation ou création d'artefact. Cette frontière commune couvre
+        # notamment les sorties de _distribuer et de _valider_au_depart; censurer après cette étape
+        # serait trop tard si jetons.tronquer a déjà construit un aperçu ou persisté le texte complet.
+        reponse = self._censurer_hashs_stock_m6_employee(source, reponse)
         if source in {_MUTATION_NOTE_M6, _LECTURE_NOTE_M6, _LISTE_NOTES_M6}:
             # Notes privées : jamais copiées dans un artefact générique de sortie.
             from m6_material_control import notes_commande as n

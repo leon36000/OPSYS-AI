@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from m6_material_control import outils
 
-from opsys import contexte, idempotence, identite, stockage
+from opsys import appareils, contexte, idempotence, identite, stockage
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
@@ -22,6 +22,13 @@ spec.loader.exec_module(fx)
 monde = fx.monde
 KEY = "4612b2de-a1c4-4a68-a044-e0ab685025ad"
 META = idempotence.Meta(cle=KEY, appareil="APP-PREUVES-FICTIF", horodatage_appareil=fx.fx.DATE)
+
+
+@pytest.fixture(autouse=True)
+def _appairage_device_fictif(monde):
+    # Les appels Cap ci-dessous simulent la voie DEVICE : l'appareil doit être réellement appairé.
+    with stockage.transaction() as cnx:
+        appareils.appairer(cnx, META.appareil, fx.EMP.personne, "employee")
 
 
 def appeler(cap, a, actor=fx.EMP):

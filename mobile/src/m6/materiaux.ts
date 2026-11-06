@@ -170,8 +170,9 @@ export function interpreterResultatDeclarerMateriauxUtilises(
   }
   if (!ferme(m, ["accepte", "resultat", "registre"]) || m.accepte !== true ||
     !ferme(m.registre, ["taille", "hash_tete"]) || typeof m.registre.taille !== "number" ||
-    !Number.isSafeInteger(m.registre.taille) || m.registre.taille < 1 || typeof m.registre.hash_tete !== "string" ||
-    !/^[0-9a-f]{64}$/.test(m.registre.hash_tete)) return INCONNU;
+    !Number.isSafeInteger(m.registre.taille) || m.registre.taille < 1 ||
+    !(m.registre.hash_tete === null || (typeof m.registre.hash_tete === "string" &&
+      /^[0-9a-f]{64}$/.test(m.registre.hash_tete)))) return INCONNU;
   const c = copierJsonLecture(mutation);
   if (c === JSON_LECTURE_INVALIDE) return INCONNU;
   const f = formulaireMutation(c);

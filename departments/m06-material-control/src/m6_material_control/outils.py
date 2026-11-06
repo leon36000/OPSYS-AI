@@ -1830,6 +1830,22 @@ def _declarant_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
     return acces.acteur_de(confirmee.personne, confirmee.role, equipes_de_la_personne)
 
 
+def autoriser_rejeu_declaration_materiaux(wct_id: str) -> bool:
+    """Garde lecture seule avant de restituer un ACK simple de déclaration M6.
+
+    Réévalue l'identité active, le WCT publié et l'affectation directe/équipe que la déclaration fraîche utilise.
+    Aucun détail du refus ni aucune écriture de registre n'est produit ici.
+    """
+    acteur, verdict = _declarant_appareil()
+    if acteur is None or verdict is not None or not isinstance(wct_id, str) or not wct_id.strip():
+        return False
+    wct = _wct_publie_par_m4(wct_id)
+    if wct is None:
+        return False
+    ok, _ = validation.valider_wct(wct)
+    return ok and acces.controler_declarant(wct, acteur) is None
+
+
 def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict[str, Any]:
     """PLAN T1.1-d2 point 2, PLAN T1.4-i pour l'origine du WCT, PLAN T1.4-k pour qui déclare. Réponse
     tête + taille seulement (`_etat_registre`), comme les autres outils d'écriture.
