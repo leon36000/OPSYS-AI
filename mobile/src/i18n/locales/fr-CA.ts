@@ -811,7 +811,8 @@ const frCA: RessourcesCommunes = {
       "refus": "Action bloquée ou lecture refusée : {{code}}",
       "intention": "Intention conservée : {{id}} — {{statut}}",
       "intentionInconnue": "Intention {{id}} à retrouver dans la file : aucun nouvel envoi créé.",
-      "intentionConservee": "Cette intention attend une confirmation vérifiable. Les champs restent verrouillés ; vérifier le statut conserve le même identifiant.",
+      "intentionConservee": "Confirmation impossible à vérifier pour l’instant. L’intention reste conservée; les nouvelles tentatives gardent le même identifiant.",
+      "intentionAide": "Ne créez pas une deuxième déclaration. Si le doute persiste, demandez à la personne responsable de vérifier la situation, en lecture seule si possible.",
       "refusPermanent": "La file conserve un refus définitif pour cette intention. Aucun nouvel envoi créé ; le détail n’est pas repris sans reçu conservé.",
       "statut": "Vérifier le statut de la même intention",
       "limitePreuves": "Les cases photo et reçu restent des déclarations historiques. Cet écran ne téléverse pas de preuve physique."

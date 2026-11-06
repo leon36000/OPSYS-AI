@@ -328,7 +328,8 @@ const enCA: RessourcesCommunes = {
       "refus": "Action blocked or read refused: {{code}}",
       "intention": "Retained intent: {{id}} — {{statut}}",
       "intentionInconnue": "Intent {{id}} must be found in the queue: no new submission created.",
-      "intentionConservee": "This intent awaits a verifiable receipt. Fields remain locked; checking status retains the same identifier.",
+      "intentionConservee": "Confirmation cannot be verified right now. This intent is retained; retries reuse its identifier.",
+      "intentionAide": "Do not create a second declaration. If uncertainty remains, ask the responsible person to review the situation in read-only mode if possible.",
       "refusPermanent": "The queue retains a permanent refusal for this intent. No new submission created; details are not restated without a stored receipt.",
       "statut": "Check the same intent’s status",
       "limitePreuves": "Photo and receipt checkboxes remain historical declarations. This screen uploads no physical evidence."

@@ -100,6 +100,51 @@ test("double clic et ACK inconnu : un UUID, cible chantier source, payload conse
   for(const r of arbre!.root.findAllByType(TextInput))expect(r.props.editable).toBe(false);
   await appuyer("materials.contexte.statut");expect(mockFetch).toHaveBeenCalledTimes(1);expect(await mockOutbox.lister()).toHaveLength(1);
 });
+test.each([
+  ["auteur historique, enveloppe noyau","Identité ou auteur de déclaration non vérifiable ; aucune confirmation en cache restituée.",false],
+  ["identité retirée, enveloppe noyau","Personne fictive inactive ou rôle retiré.",false],
+  ["auteur historique, verdict métier","Identité ou auteur de déclaration non vérifiable ; aucune confirmation en cache restituée.",true],
+  ["identité retirée, verdict métier","Personne fictive inactive ou rôle retiré.",true],
+])("refus M6 (%s) garde l'intention lisible et interdit un doublon",async(_cas,details,verdictMetier)=>{
+  const result=verdictMetier?{ok:true,resultat:{accepte:false,verdict:{code:"REJ-IDENTITE-APPAREIL-INVALIDE",detail:details}}}:
+    {ok:false,erreur:"REJ-IDENTITE-APPAREIL-INVALIDE",details};
+  mockFetch.mockImplementation(async (_input:RequestInfo|URL,_init?:RequestInit)=>new Response(JSON.stringify({ok:true,result}),{status:200}));
+  await contexteEtImport();await modifierReels();await appuyer("materials.bouton");
+  let [m]=await mockOutbox.lister();expect(m).toMatchObject({statut:"en_attente",tentatives:1});
+  expect(texte()).toContain("materials.contexte.intentionConservee");expect(texte()).toContain("materials.contexte.intentionAide");
+  expect(texte()).not.toContain("REJ-IDENTITE-APPAREIL-INVALIDE");expect(texte()).not.toContain(details);
+  expect(fr.materials.contexte.intentionConservee).toContain("Confirmation impossible à vérifier");
+  expect(fr.materials.contexte.intentionConservee).toContain("nouvelles tentatives gardent le même identifiant");
+  expect(fr.materials.contexte.intentionAide).toContain("lecture seule si possible");
+  expect(fr.materials.contexte.intentionAide).toContain("personne responsable");
+  expect(en.materials.contexte.intentionConservee).toContain("Confirmation cannot be verified right now");
+  expect(en.materials.contexte.intentionConservee).toContain("retries reuse its identifier");
+  expect(en.materials.contexte.intentionAide).toContain("read-only mode if possible");
+  expect(en.materials.contexte.intentionAide).toContain("responsible person");
+  for(const message of [fr.materials.contexte.intentionConservee,fr.materials.contexte.intentionAide,en.materials.contexte.intentionConservee,en.materials.contexte.intentionAide]){
+    expect(message).not.toContain("REJ-");expect(message.toLowerCase()).not.toContain("hash");
+  }
+  const cle=m.id, charge=m.payload;
+  expect(JSON.parse(String(mockFetch.mock.calls[0][1]?.body)).idempotencyKey).toBe(cle);
+  await appuyer("materials.contexte.statut");expect(mockFetch).toHaveBeenCalledTimes(1);
+  m=(await mockOutbox.lister())[0];expect(m).toMatchObject({id:cle,statut:"en_attente",payload:charge});
+  for(const r of arbre!.root.findAllByType(TextInput))expect(r.props.editable).toBe(false);
+  if(!m.prochaineTentativeA)throw new Error("Recul fictif absent.");
+  mockNow=new Date(new Date(m.prochaineTentativeA).getTime()+1);
+  await appuyer("materials.contexte.statut");
+  expect(mockFetch).toHaveBeenCalledTimes(2);expect(await mockOutbox.lister()).toHaveLength(1);
+  expect((await mockOutbox.lister())[0]).toMatchObject({id:cle,statut:"en_attente",payload:charge});
+  for(const appel of mockFetch.mock.calls)expect(JSON.parse(String(appel[1]?.body)).idempotencyKey).toBe(cle);
+});
+test("refus métier certain reste définitif et distinct de l'incertitude d'identité",async()=>{
+  mockFetch.mockImplementation(async (_input:RequestInfo|URL,_init?:RequestInit)=>new Response(JSON.stringify({ok:true,result:{ok:true,resultat:{
+    accepte:false,verdict:{code:"REJ-WCT-INCONNU",detail:"WCT fictif absent."}}}}),{status:200}));
+  await contexteEtImport();await modifierReels();await appuyer("materials.bouton");
+  expect((await mockOutbox.lister())[0]).toMatchObject({statut:"echec_permanent"});
+  expect(texte()).toContain("materials.contexte.refusPermanent");
+  expect(texte()).not.toContain("materials.contexte.intentionConservee");
+  expect(await mockOutbox.lister()).toHaveLength(1);
+});
 test("confirmation fictive de forme canonique termine seulement via reçu persistant lié",async()=>{
   // Vecteur RAM fictif de transport, forme ACK déjà qualifiée SQL (pas une capture HTTP).
   mockFetch.mockImplementation(async (_u:RequestInfo|URL,init?:RequestInit)=>{

@@ -88,6 +88,7 @@ export default function EcranMateriaux() {
     {v.enQuarantaine?<Text style={styles.avis}>{t("materials.contexte.quarantaine")}</Text>:null}
     {v.intention?<Text>{t("materials.contexte.intention",{id:v.intention.id,statut:v.intention.statut})}</Text>:d.intentionId?<Text>{t("materials.contexte.intentionInconnue",{id:d.intentionId})}</Text>:null}
     {v.intention&&!v.confirme?<Text>{t(v.intention.statut==="echec_permanent"?"materials.contexte.refusPermanent":"materials.contexte.intentionConservee")}</Text>:null}
+    {v.intention&&!v.confirme&&v.intention.statut!=="echec_permanent"?<Text>{t("materials.contexte.intentionAide")}</Text>:null}
     {v.confirme?<Text style={styles.succes}>{t("materials.succes")}</Text>:null}
     {(v.intention||d.intentionId)?bouton("materials.contexte.statut",()=>void v.rafraichirStatut(),!v.autorisee||v.traitement):null}
     <Text>{t("materials.contexte.limitePreuves")}</Text>
