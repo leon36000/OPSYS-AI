@@ -30,6 +30,7 @@ import dataclasses
 import hashlib
 import json
 import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from decimal import Decimal, InvalidOperation
 
@@ -114,6 +115,215 @@ _NUMERIQUE = re.compile(
     rf"\s*{_CONTEXTE_TIRET_COMPAT}(?:(?:{_SIGNES_NUMERIQUES}\$|\$\s*{_SIGNES_NUMERIQUES}?)\s*|{_SIGNES_NUMERIQUES}?)"
     rf"{_BASE_NOMBRE_NUMERIQUE}(?:[.,]\d+)?\s*(?:\$|CAD|%)?\s*"
 )
+_EMOJI_CLE = re.compile(r"(?<!\d)[0-9#*]\ufe0f?\u20e3(?!\d)")
+_SEPARATEURS_NUMERIQUES = frozenset(".,:/+-−\uff0d\ufe63$%#*\uff0c\uff0e\u066b\u066c\u2027\u2009")
+_SIGNES_ET_DEVISES = frozenset("+-−\uff0d\ufe63$")
+
+
+def _groupe_chiffres_autour_espace(texte: str, position: int, direction: int) -> tuple[int, int]:
+    index = position + direction
+    while 0 <= index < len(texte) and unicodedata.category(texte[index]) in {"Cf", "Mn", "Mc", "Me"}:
+        index += direction
+    debut = fin = index
+    while 0 <= index < len(texte) and (
+        texte[index].isdecimal() or unicodedata.category(texte[index]) in {"Cf", "Mn", "Mc", "Me"}
+    ):
+        if texte[index].isdecimal():
+            debut = min(debut, index)
+            fin = max(fin, index + 1)
+        index += direction
+    return debut, fin
+
+
+def _espace_est_groupement_numerique(texte: str, position: int) -> bool:
+    debut_gauche, fin_gauche = _groupe_chiffres_autour_espace(texte, position, -1)
+    debut_droite, fin_droite = _groupe_chiffres_autour_espace(texte, position, 1)
+    gauche = fin_gauche - debut_gauche
+    droite = fin_droite - debut_droite
+    # Les espaces autour d'une devise font partie du même token, sans relier deux valeurs distinctes.
+    index_droite = position + 1
+    while index_droite < len(texte) and (
+        texte[index_droite].isspace() or unicodedata.category(texte[index_droite]) in {"Cf", "Mn", "Mc", "Me"}
+    ):
+        index_droite += 1
+    index_gauche = position - 1
+    while index_gauche >= 0 and (
+        texte[index_gauche].isspace() or unicodedata.category(texte[index_gauche]) in {"Cf", "Mn", "Mc", "Me"}
+    ):
+        index_gauche -= 1
+    if gauche and index_droite < len(texte) and unicodedata.category(texte[index_droite]) == "Sc":
+        return True
+    if droite and index_gauche >= 0 and unicodedata.category(texte[index_gauche]) == "Sc":
+        return True
+    if not 1 <= gauche <= 3 or droite != 3:
+        return False
+    # Une date ou une heure suivie d'une autre valeur ne forme pas un groupe de milliers.
+    prefixe = "".join(
+        caractere
+        for caractere in texte[:debut_gauche]
+        if unicodedata.category(caractere) not in {"Cf", "Mn", "Mc", "Me"}
+    )
+    separateur_date = r"[-/\uff0d\ufe63\u2212\u2010\u2011\u2012\u2013\u2014\uff0f]"
+    if re.search(rf"\d{{4}}{separateur_date}\d{{2}}{separateur_date}$", prefixe):
+        return False
+    return not re.search(r"\d{1,2}:\d{2}$", prefixe)
+
+
+def _caractere_atome_numerique(texte: str, position: int) -> bool:
+    caractere = texte[position]
+    categorie = unicodedata.category(caractere)
+    if caractere.isdecimal() or categorie in {"Cf", "Mn", "Mc", "Me"}:
+        return True
+    if categorie in {"Zs", "Zl", "Zp"} and caractere not in {" ", "\u00a0", "\u202f"}:
+        return True
+    if categorie == "Sc":
+        return any(
+            0 <= voisin < len(texte)
+            and (
+                texte[voisin].isdecimal()
+                or unicodedata.category(texte[voisin]) in {"Cf", "Mn", "Mc", "Me"}
+                or texte[voisin] in _SIGNES_ET_DEVISES
+                or (texte[voisin].isspace() and _espace_est_groupement_numerique(texte, voisin))
+            )
+            for voisin in (position - 1, position + 1)
+        )
+    if caractere.isspace():
+        return _espace_est_groupement_numerique(texte, position)
+    if caractere not in _SEPARATEURS_NUMERIQUES:
+        return False
+    gauche = position > 0 and (
+        texte[position - 1].isdecimal()
+        or unicodedata.category(texte[position - 1]) in {"Cf", "Mn", "Mc", "Me"}
+    )
+    droite = position + 1 < len(texte) and (
+        texte[position + 1].isdecimal()
+        or unicodedata.category(texte[position + 1]) in {"Cf", "Mn", "Mc", "Me"}
+    )
+    if caractere in {"-", "+", "\u2212", "\uff0d", "\ufe63"}:
+        return gauche and droite or (not gauche and droite)
+    return gauche and droite
+
+
+def _marque_adjacent_signe_ou_devise(texte: str, position: int) -> bool:
+    marques = {"Cf", "Mn", "Mc", "Me"}
+    for direction in (-1, 1):
+        voisin = position + direction
+        while 0 <= voisin < len(texte) and unicodedata.category(texte[voisin]) in marques:
+            voisin += direction
+        while 0 <= voisin < len(texte) and texte[voisin].isspace():
+            voisin += direction
+        if voisin < 0 or voisin >= len(texte):
+            continue
+        if texte[voisin] in _SIGNES_ET_DEVISES or unicodedata.category(texte[voisin]) == "Sc":
+            return True
+        if texte[voisin].isdecimal():
+            while 0 <= voisin < len(texte):
+                caractere = texte[voisin]
+                if (
+                    caractere.isdecimal()
+                    or unicodedata.category(caractere) in marques
+                    or caractere.isspace()
+                    or caractere in ".,"
+                ):
+                    voisin += direction
+                    continue
+                return caractere in _SIGNES_ET_DEVISES or unicodedata.category(caractere) == "Sc"
+    return False
+
+
+def _sequences_numeriques_marquees(texte: str) -> list[tuple[str, int, int, bool]]:
+    """Repère les chiffres adjacents à des formats invisibles ou marques combinantes.
+
+    Les dates/plages ne sont jamais normalisées : une forme marquée est tolérée seulement si cette
+    séquence complète est citée textuellement. Les keycaps isolées et les marques sans chiffre sont
+    laissées intactes.
+    """
+    keycap_positions = {
+        position
+        for match in _EMOJI_CLE.finditer(texte)
+        for position in range(*match.span())
+    }
+    prefixes_chiffres = [0]
+    for caractere in texte:
+        prefixes_chiffres.append(prefixes_chiffres[-1] + caractere.isdecimal())
+    resultats = []
+    position = 0
+    while position < len(texte):
+        if not _caractere_atome_numerique(texte, position):
+            position += 1
+            continue
+        debut = position
+        while position < len(texte) and _caractere_atome_numerique(texte, position):
+            position += 1
+        fin = position
+        while debut < fin and texte[debut].isspace():
+            debut += 1
+        while fin > debut and texte[fin - 1].isspace():
+            fin -= 1
+        if debut == fin:
+            continue
+        total_chiffres = prefixes_chiffres[fin] - prefixes_chiffres[debut]
+        douteux = False
+        for marque in range(debut, fin):
+            categorie = unicodedata.category(texte[marque])
+            if categorie not in {"Cf", "Mn", "Mc", "Me", "Zs", "Zl", "Zp"}:
+                continue
+            if texte[marque] in {" ", "\u00a0", "\u202f"} or marque in keycap_positions:
+                continue
+            avant = prefixes_chiffres[marque] - prefixes_chiffres[debut]
+            apres = prefixes_chiffres[fin] - prefixes_chiffres[marque + 1]
+            if categorie == "Cf":
+                # Un marqueur de format peut aussi suffixer/préfixer un chiffre seul; sinon un chiffre
+                # cité comme ``1<U+200B> $`` autoriserait sa forme nette dans une autre affirmation.
+                douteux = avant > 0 and apres > 0 or (
+                    total_chiffres > 0 and _marque_adjacent_signe_ou_devise(texte, marque)
+                )
+            elif categorie.startswith("Z"):
+                douteux = avant > 0 and apres > 0
+            elif total_chiffres > 0:
+                gauche = marque - 1
+                while gauche >= debut and unicodedata.category(texte[gauche]) in {"Cf", "Mn", "Mc", "Me"}:
+                    gauche -= 1
+                douteux = gauche >= debut and texte[gauche].isdecimal()
+                if not douteux:
+                    douteux = _marque_adjacent_signe_ou_devise(texte, marque)
+            if douteux:
+                break
+        if douteux:
+            tronquee = fin - debut > MAX_TEXTE
+            resultats.append((texte[debut : min(fin, debut + MAX_TEXTE)], debut, fin, tronquee))
+    return resultats
+
+
+def _masquer_sequences_numeriques_marquees(texte: str) -> str:
+    caracteres = list(texte)
+    for _token, debut, fin, _tronquee in _sequences_numeriques_marquees(texte):
+        caracteres[debut:fin] = [" "] * (fin - debut)
+    return "".join(caracteres)
+
+
+def _sequence_marquee_exactement_citee(
+    texte: str, token: str, debut: int, valeurs_citees: Sequence[str], *, tronquee: bool = False
+) -> bool:
+    if tronquee:
+        return False
+    if texte in valeurs_citees:
+        return True
+    for valeur in valeurs_citees:
+        position = valeur.find(token)
+        while position >= 0:
+            fin = position + len(token)
+            avant = valeur[position - 1] if position else ""
+            apres = valeur[fin] if fin < len(valeur) else ""
+            if not (avant.isalnum() or avant == "_") and not (apres.isalnum() or apres == "_"):
+                match = re.compile(re.escape(token)).search(texte, debut)
+                etiquette = _IDENTIFIANT_ETIQUETTE.search(texte[:debut])
+                if etiquette is None or (
+                    match and _identifiant_numerique_exactement_cite(texte, match, valeurs_citees)
+                ):
+                    return True
+            position = valeur.find(token, position + 1)
+    return False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -413,7 +623,8 @@ def chiffres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
     contrôle lexical ne classe pas le sens d'autres formats (voir aussi la limite du corpus métier M9.23)."""
     nombres: set[Decimal] = set()
     dates: set[str] = set()
-    for valeur in valeurs_citees:
+    valeurs_citees_sans_marques = [_masquer_sequences_numeriques_marquees(valeur) for valeur in valeurs_citees]
+    for valeur in valeurs_citees_sans_marques:
         valeur_sans_malformes = _masquer_montants_malformes(valeur)
         if _NUMERIQUE.fullmatch(valeur_sans_malformes) and (n := _nombre(valeur_sans_malformes)) is not None:
             nombres.add(n)
@@ -422,16 +633,22 @@ def chiffres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
         )
         # Toutes les formes écartées du scan composite sont des dates candidates et ne sont autorisées
         # qu'avec la même orthographe complète dans une citation.
-        dates.update(_DATE_SEQUENCES_NUMERIQUES.findall(valeur))
-    texte_sans_malformes = _masquer_montants_malformes(texte)
+        dates.update(_DATE_SEQUENCES_NUMERIQUES.findall(valeur_sans_malformes))
+    texte_sans_marques = _masquer_sequences_numeriques_marquees(texte)
+    texte_sans_malformes = _masquer_montants_malformes(texte_sans_marques)
     libres = [
         m.group(0).strip()
         for m in _MONTANT.finditer(texte_sans_malformes)
         if _nombre(m.group(0)) not in nombres
     ]
-    libres += [m.group(0).strip() for m in _montants_malformes(texte)]
-    libres += _sequences_numeriques_malformees(texte, valeurs_citees)
-    libres += [d for d in _DATE_SEQUENCES_NUMERIQUES.findall(texte) if d not in dates]
+    libres += [m.group(0).strip() for m in _montants_malformes(texte_sans_marques)]
+    libres += _sequences_numeriques_malformees(texte_sans_marques, valeurs_citees_sans_marques)
+    libres += [d for d in _DATE_SEQUENCES_NUMERIQUES.findall(texte_sans_marques) if d not in dates]
+    libres += [
+        token
+        for token, debut, _fin, tronquee in _sequences_numeriques_marquees(texte)
+        if not _sequence_marquee_exactement_citee(texte, token, debut, valeurs_citees, tronquee=tronquee)
+    ]
     return list(dict.fromkeys(libres))
 
 

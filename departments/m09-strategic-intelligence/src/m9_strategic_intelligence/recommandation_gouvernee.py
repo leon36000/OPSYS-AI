@@ -166,14 +166,16 @@ def nombres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
     """Nombres d'un texte libre qui ne sont la valeur d'AUCUN chiffre cité ou hypothèse de la direction. Les dates ISO
     se
     comparent en texte exact aux valeurs citées ; tout le reste se compare en valeur décimale."""
+    valeurs_citees_sans_marques = [conseil._masquer_sequences_numeriques_marquees(valeur) for valeur in valeurs_citees]
+    texte_sans_marques = conseil._masquer_sequences_numeriques_marquees(texte)
     autorises: set = set()
     dates = {
         d
-        for valeur in valeurs_citees
+        for valeur in valeurs_citees_sans_marques
         for pattern in (_DATE_ISO, _DATE_COMPAT)
         for d in pattern.findall(valeur)
     }
-    for valeur in valeurs_citees:
+    for valeur in valeurs_citees_sans_marques:
         # Une date citée est comparée comme chaîne complète plus bas. Son année ne constitue pas une
         # autorisation pour un autre chiffre libre (ex. « solde 2026 » avec la citation « date 2026-11-09 »).
         valeur_sans_dates = _DATE_COMPAT.sub(" ", _DATE_ISO.sub(" ", valeur))
@@ -192,10 +194,10 @@ def nombres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
     libres = [
         d
         for pattern in (_DATE_ISO, _DATE_COMPAT)
-        for d in pattern.findall(texte)
+        for d in pattern.findall(texte_sans_marques)
         if d not in dates
     ]
-    sans_dates = _DATE_COMPAT.sub(" ", _DATE_ISO.sub(" ", texte))
+    sans_dates = _DATE_COMPAT.sub(" ", _DATE_ISO.sub(" ", texte_sans_marques))
     malformes = conseil._montants_malformes(sans_dates)
     sans_malformes = conseil._masquer_montants_malformes(sans_dates)
     libres += [
@@ -205,6 +207,13 @@ def nombres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
     ]
     libres += [m.group(0).strip() for m in malformes]
     libres += _nombres_malformes_stricts(sans_malformes, valeurs_citees)
+    libres += [
+        token
+        for token, debut, _fin, tronquee in conseil._sequences_numeriques_marquees(texte)
+        if not conseil._sequence_marquee_exactement_citee(
+            texte, token, debut, valeurs_citees, tronquee=tronquee
+        )
+    ]
     return list(dict.fromkeys(libres))
 
 
