@@ -368,6 +368,136 @@ def test_rien_d_externe_ne_part_depuis_m10(plan):
     assert plan.ports.service_courriel is None and plan.ports.client_wordpress is None
 
 
+def test_une_affaire_en_echec_reste_eligible_apres_le_changement_de_jour(plan, monkeypatch):
+    import interconnexion_charges as ch
+    from m10_memoire import outils as m10
+
+    w.publier(
+        "m1.lead_qualifie",
+        "m01-front-office",
+        ch.lead_qualifie_m1("aff-ancienne", horodatage="2026-11-09T14:00:00-05:00"),
+    )
+    w.repartir(plan)
+    original = m10.consolider_affaire
+    w.activer(plan, (CONSOLIDATION,))
+
+    def echec(affaire_id, jour, horodatage):
+        raise RuntimeError("panne fictive au premier jour")
+
+    with monkeypatch.context() as panne:
+        panne.setattr(m10, "consolider_affaire", echec)
+        premier = w.tour(plan, w.local(MARDI, "03:05"))[CONSOLIDATION]
+    assert premier["statut"] == "erreur" and premier["erreurs"] == 1
+    assert _faits() == []
+
+    monkeypatch.setattr(m10, "consolider_affaire", original)
+    reprise = w.tour(plan, w.local("2026-11-11", "03:05"))[CONSOLIDATION]
+    assert reprise["affaires"] == 1 and reprise["statut"] == "ok"
+    assert ("aff-ancienne", LUNDI) in _faits()
+
+
+def test_un_backlog_ancien_en_echec_ne_bloque_pas_la_veille(plan, monkeypatch):
+    import interconnexion_charges as ch
+    from m10_memoire import outils as m10
+
+    for i in range(51):
+        w.publier(
+            "m1.lead_qualifie",
+            "m01-front-office",
+            ch.lead_qualifie_m1(f"aff-ancienne-{i:03}", horodatage="2026-11-09T14:00:00-05:00"),
+        )
+    w.repartir(plan, passes=100)
+    original = m10.consolider_affaire
+    w.activer(plan, (CONSOLIDATION,))
+
+    def seul_nouveau_reussit(affaire_id, jour, horodatage):
+        if affaire_id != "aff-nouvelle-veille":
+            raise RuntimeError("panne fictive persistante sur l'ancien jour")
+        return original(affaire_id, jour, horodatage)
+
+    monkeypatch.setattr(m10, "consolider_affaire", seul_nouveau_reussit)
+    premier = w.tour(plan, w.local(MARDI, "03:05"))[CONSOLIDATION]
+    assert premier["ressources"] == 50 and premier["erreurs"] == 50
+
+    w.publier(
+        "m1.lead_qualifie",
+        "m01-front-office",
+        ch.lead_qualifie_m1("aff-nouvelle-veille", horodatage="2026-11-10T14:00:00-05:00"),
+    )
+    w.repartir(plan, passes=100)
+    reprise = w.tour(plan, w.local("2026-11-11", "03:05"))[CONSOLIDATION]
+    assert reprise["ressources"] == 50 and reprise["erreurs"] == 49
+    assert reprise["affaires"] == 1 and reprise["statut"] == "erreur"
+    assert ("aff-nouvelle-veille", MARDI) in _faits()
+
+    curseurs = [e for e in w.journal(CONSOLIDATION) if e["evenement"] == "curseur"]
+    ressources = {e["ressource"] for e in curseurs}
+    assert {f"{LUNDI}|rotation", f"{MARDI}|rotation", "arriere|rotation"} <= ressources
+
+
+def test_un_jour_entierement_manque_sans_marqueur_n_est_pas_rattrape(plan):
+    import interconnexion_charges as ch
+
+    w.publier(
+        "m1.lead_qualifie",
+        "m01-front-office",
+        ch.lead_qualifie_m1("aff-jour-manque", horodatage="2026-11-09T14:00:00-05:00"),
+    )
+    w.repartir(plan, passes=100)
+    w.activer(plan, (CONSOLIDATION,))
+    # Aucun passage ne fonctionne le mardi : le mercredi, la routine ne prend que la veille (mardi), sans deviner
+    # qu'elle devrait balayer le lundi non engagé.
+    reprise = w.tour(plan, w.local("2026-11-11", "03:05"))[CONSOLIDATION]
+    assert reprise["ressources"] == 0 and _faits() == []
+
+
+def test_une_source_tardive_repend_un_jour_deja_marque_et_consolide(plan):
+    import interconnexion_charges as ch
+
+    w.publier(
+        "m1.lead_qualifie",
+        "m01-front-office",
+        ch.lead_qualifie_m1("aff-source-tardive", horodatage="2026-11-09T14:00:00-05:00"),
+    )
+    w.repartir(plan, passes=100)
+    w.activer(plan, (CONSOLIDATION,))
+    premier = w.tour(plan, w.local(MARDI, "03:05"))[CONSOLIDATION]
+    assert premier["affaires"] == 1 and ("aff-source-tardive", LUNDI) in _faits()
+
+    w.publier(
+        "m2.client_associe",
+        "m02-revenue-crm",
+        ch.client_associe("aff-source-tardive", horodatage_association="2026-11-09T22:00:00-05:00"),
+    )
+    w.repartir(plan, passes=100)
+    reprise = w.tour(plan, w.local("2026-11-11", "03:05"))[CONSOLIDATION]
+    assert reprise["affaires"] == 1 and reprise["statut"] == "ok"
+    faits = [f for f in w.faits_consolides() if f["affaire_id"] == "aff-source-tardive"]
+    assert sorted(len(f["sources"]) for f in faits) == [1, 2]
+    marqueurs = [
+        e for e in w.journal(CONSOLIDATION) if e["evenement"] == "curseur" and e["ressource"] == f"{LUNDI}|rotation"
+    ]
+    assert len(marqueurs) == 1
+
+
+def test_un_curseur_ombre_ne_declenche_pas_un_rattrapage_actif(plan):
+    import interconnexion_charges as ch
+
+    w.publier(
+        "m1.lead_qualifie",
+        "m01-front-office",
+        ch.lead_qualifie_m1("aff-ombre-seule", horodatage="2026-11-09T14:00:00-05:00"),
+    )
+    w.repartir(plan, passes=100)
+    w.activer(plan, (CONSOLIDATION,), mode="ombre")
+    w.tour(plan, w.local(MARDI, "03:05"))
+    assert _faits() == []
+
+    w.activer(plan, (CONSOLIDATION,), mode="actif")
+    actif = w.tour(plan, w.local("2026-11-11", "03:05"))[CONSOLIDATION]
+    assert actif["ressources"] == 0 and _faits() == []
+
+
 def test_l_ombre_de_l_audit_et_des_kpi_calcule_a_blanc_sans_ecrire_puis_l_actif_ecrit(plan):
     w.semer_une_journee_d_affaires(plan)
     w.activer(plan, w.ROUTINES_M10, mode="ombre")
@@ -422,8 +552,12 @@ def test_la_rotation_fait_avancer_la_51e_affaire_malgre_50_echecs_repetes(plan, 
     assert troisieme["ressources"] == 50 and troisieme["erreurs"] == 50
     assert essais_51 == ["aff-050"] and _faits().count(("aff-050", LUNDI)) == 1
 
-    curseurs = [e for e in w.journal(CONSOLIDATION) if e["evenement"] == "curseur"]
-    assert curseurs[-1]["details"] == {"decalage": 50, "reste": 1, "ressources": 50}
+    curseurs = [
+        e
+        for e in w.journal(CONSOLIDATION)
+        if e["evenement"] == "curseur" and e["ressource"] == "arriere|rotation"
+    ]
+    assert len(curseurs) == 3 and all(e["details"]["ressources"] <= 50 for e in curseurs)
     texte = json.dumps(w.journal(CONSOLIDATION), ensure_ascii=False)
     assert not any(f"aff-{i:03}" in texte for i in range(51))
 

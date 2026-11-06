@@ -318,7 +318,8 @@ TOURS: tuple[Tour, ...] = (
          "aucun", "brancher_maintenant",
          "L'énumérateur déterministe (m10_lister_affaires_a_consolider) remplace le tour d'agent « "
          "consolidation-nocturne ». "
-         "Un jour manqué (serveur arrêté) n'est pas rattrapé : l'audit hebdomadaire le dit.",
+         "Un jour jamais engagé (serveur arrêté) n'est pas rattrapé : l'audit hebdomadaire le dit. "
+         "Les jours déjà engagés restent éligibles après minuit.",
          "m10.routine.consolidation-affaires"),
     Tour("m10.audit_non_oubli", "M10 : audit hebdomadaire « non-oubli » (rapport consultable)",
          _OPS + "m10-memoire/src/m10_memoire/routines_outils.py", "executer_audit_non_oubli", "N2",

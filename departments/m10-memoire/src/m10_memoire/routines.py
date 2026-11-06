@@ -25,8 +25,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
+from itertools import islice
 from typing import Any
 
 from . import affaire, audit, classification, consolidation, etapes
@@ -151,6 +153,79 @@ def enumerer(
         "a_consolider": page,
         "reste": len(pendantes) - len(page),
         "deja_consolidees": len(touchees) - len(pendantes),
+        "affaires_refusees": refusees,
+    }
+
+
+def enumerer_jours(
+    jours: Iterable[str],
+    limite: int,
+    maillons_evenements: Sequence[Mapping[str, Any]],
+    maillons_affaires: Sequence[Mapping[str, Any]],
+    *,
+    decalage: int = 0,
+) -> dict[str, Any]:
+    """Énumère les couples pendants des seuls jours explicitement engagés, intercalés par jour.
+
+    L'ordre est stable et intercalé : pour chaque rang d'affaire, dates croissantes puis affaire triée dans chaque
+    date. La page circulaire limite le retour à `limite` couples même quand un jour ancien contient un grand arriéré.
+    """
+    jours_retenus = frozenset(jours)
+    index_wct = classification.index_lead_id_par_wct_id(maillons_evenements)
+    evenements: dict[str, dict[str, list[Mapping[str, Any]]]] = {}
+    refusees = 0
+    for maillon in maillons_evenements:
+        if classification.type_evenement(maillon) is None:
+            continue
+        jour = consolidation.jour_de(maillon["horodatage"])
+        if jour not in jours_retenus:
+            continue
+        lead = classification.lead_id(maillon, index_wct)
+        if lead is None:
+            continue
+        if not affaire.valide(lead):
+            refusees += 1
+            continue
+        evenements.setdefault(jour, {}).setdefault(lead, []).append(maillon)
+
+    faits = _faits_par_cle(maillons_affaires)
+    touchees = sum(len(par_affaire) for par_affaire in evenements.values())
+    pendantes: dict[str, list[str]] = {
+        jour: sorted(
+            affaire_id
+            for affaire_id, sources in par_affaire.items()
+            if _a_consolider(affaire_id, jour, sources, faits)
+        )
+        for jour, par_affaire in evenements.items()
+    }
+    pendantes = {jour: affaires for jour, affaires in pendantes.items() if affaires}
+    dates = sorted(pendantes)
+    total = sum(len(affaires) for affaires in pendantes.values())
+
+    def couples() -> Iterable[dict[str, str]]:
+        actifs = deque((jour, 0) for jour in dates)
+        while actifs:
+            jour, rang = actifs.popleft()
+            affaires = pendantes[jour]
+            yield {"jour": jour, "affaire_id": affaires[rang]}
+            if rang + 1 < len(affaires):
+                actifs.append((jour, rang + 1))
+
+    if total <= limite:
+        page = list(couples())
+    else:
+        depart = decalage % total
+        nombre = min(limite, total)
+        page = list(islice(couples(), depart, min(total, depart + nombre)))
+        if len(page) < nombre:
+            page.extend(islice(couples(), 0, nombre - len(page)))
+    return {
+        "jours": dates,
+        "a_consolider": page,
+        "pendantes": total,
+        "touchees": touchees,
+        "deja_consolidees": touchees - total,
+        "reste": total - len(page),
         "affaires_refusees": refusees,
     }
 

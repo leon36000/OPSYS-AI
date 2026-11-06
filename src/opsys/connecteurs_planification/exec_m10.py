@@ -1,5 +1,5 @@
-"""Les routines planifiées de M10 (mémoire) : la consolidation nocturne des affaires touchées la veille, l'audit
-hebdomadaire
+"""Les routines planifiées de M10 (mémoire) : la consolidation nocturne des affaires touchées la veille ou déjà
+engagées, l'audit hebdomadaire
 « non-oubli » et le calcul des KPI du manifeste. Déclarées au manifeste de M10 (bloc `routines_planifiees`),
 déclenchées par le
 planificateur durable (docs/architecture/PLANIFICATION.md §10).
@@ -45,7 +45,7 @@ JOURS_AUDIT = 7
 
 
 class ConsolidationAffaires(ExecuteurRoutine):
-    """La veille de chaque affaire touchée : un fait durable qui cite ses sources (rien de plus si déjà fait)."""
+    """Pour chaque jour engagé : un fait durable qui cite ses sources (rien de plus si déjà fait)."""
 
     def __init__(self, declaration: Any) -> None:
         super().__init__(declaration)
@@ -55,16 +55,15 @@ class ConsolidationAffaires(ExecuteurRoutine):
     def _pseudonyme(affaire: str) -> str:
         return hashlib.sha256(affaire.encode("utf-8")).hexdigest()[:16]
 
-    def _decalage(self, jour: str, mode: str) -> int:
-        """Le prochain index circulaire, séparé par jour et par mode, dans le journal append-only."""
-        ressource = f"{jour}|rotation"
+    def _decalage(self, mode: str) -> int:
+        """Le prochain index circulaire global, séparé par mode, dans le journal append-only."""
         with stockage.transaction() as cnx:
             brut = cnx.execute(
                 select(PLANIFICATEUR_JOURNAL.c.details)
                 .where(
                     PLANIFICATEUR_JOURNAL.c.executeur == self.nom[:40],
                     PLANIFICATEUR_JOURNAL.c.evenement == "curseur",
-                    PLANIFICATEUR_JOURNAL.c.ressource == ressource,
+                    PLANIFICATEUR_JOURNAL.c.ressource == "arriere|rotation",
                     PLANIFICATEUR_JOURNAL.c.mode == mode,
                 )
                 .order_by(PLANIFICATEUR_JOURNAL.c.id.desc())
@@ -80,7 +79,56 @@ class ConsolidationAffaires(ExecuteurRoutine):
             raise RefusExecuteur("REJ-PLAN-ROUTINE-CURSEUR-INVALIDE")
         return valeur
 
-    def _avancer_decalage(self, jour: str, mode: str, decalage: int, reste: int, ressources: int) -> None:
+    def _jours_eligibles(self, jusqua: str, mode: str) -> list[str]:
+        """Le jour dû et les jours antérieurs dont un curseur prouve que le travail avait commencé."""
+        with stockage.transaction() as cnx:
+            ressources = cnx.execute(
+                select(PLANIFICATEUR_JOURNAL.c.ressource)
+                .where(
+                    PLANIFICATEUR_JOURNAL.c.executeur == self.nom[:40],
+                    PLANIFICATEUR_JOURNAL.c.evenement == "curseur",
+                    PLANIFICATEUR_JOURNAL.c.mode == mode,
+                )
+                .distinct()
+            ).scalars()
+            marquees = list(ressources)
+        jours = {jusqua}
+        for ressource in marquees:
+            if not isinstance(ressource, str):
+                continue
+            jour, separateur, type_curseur = ressource.partition("|")
+            if separateur != "|" or type_curseur != "rotation":
+                continue
+            try:
+                if date.fromisoformat(jour).isoformat() != jour:
+                    continue
+            except ValueError:
+                continue
+            if jour < jusqua:
+                jours.add(jour)
+        return sorted(jours)
+
+    def _marquer_jour_engage(self, jour: str, mode: str) -> None:
+        """Un jour ne devient rattrapable que si son snapshot contient du travail pendant un passage dû."""
+        ressource = f"{jour}|rotation"
+        with stockage.transaction() as cnx:
+            deja_marquee = cnx.execute(
+                select(PLANIFICATEUR_JOURNAL.c.id)
+                .where(
+                    PLANIFICATEUR_JOURNAL.c.executeur == self.nom[:40],
+                    PLANIFICATEUR_JOURNAL.c.evenement == "curseur",
+                    PLANIFICATEUR_JOURNAL.c.ressource == ressource,
+                    PLANIFICATEUR_JOURNAL.c.mode == mode,
+                )
+                .limit(1)
+            ).first()
+            if deja_marquee is None:
+                journal.journaliser(
+                    cnx, self.nom, "curseur", systeme.IDENTIFIANT,
+                    ressource=ressource, mode=mode, statut="engage",
+                )
+
+    def _avancer_decalage(self, mode: str, decalage: int, reste: int, ressources: int) -> None:
         """Avance AVANT le traitement : un lot qui échoue ne bloque donc pas le prochain lot."""
         with stockage.transaction() as cnx:
             journal.journaliser(
@@ -88,7 +136,7 @@ class ConsolidationAffaires(ExecuteurRoutine):
                 self.nom,
                 "curseur",
                 systeme.IDENTIFIANT,
-                ressource=f"{jour}|rotation",
+                ressource="arriere|rotation",
                 mode=mode,
                 statut="avance",
                 details={"decalage": decalage, "reste": reste, "ressources": ressources},
@@ -102,24 +150,28 @@ class ConsolidationAffaires(ExecuteurRoutine):
             return []
         veille = (date.fromisoformat(aujourd_hui) - timedelta(days=1)).isoformat()
         mode = getattr(ctx, "mode", "actif")
-        decalage = self._decalage(veille, mode)
-        from m10_memoire.routines_outils import decalage_enumeration_interne
+        decalage = self._decalage(mode)
+        jours = self._jours_eligibles(veille, mode)
+        from m10_memoire.routines_outils import enumeration_arriere_interne
 
-        with decalage_enumeration_interne(decalage):
+        with enumeration_arriere_interne(veille, jours, decalage):
             liste = self.resultat(
                 self._appeler(ctx, LISTER, {"jour": veille, "limite": RESSOURCES_PAR_PASSAGE})
             )
         self._cibles = {}
         affaires = liste["a_consolider"]
-        pendantes = max(0, int(liste["touchees"]) - int(liste["deja_consolidees"]))
+        pendantes = int(liste["pendantes"])
         prochain_decalage = (decalage % pendantes + len(affaires)) % pendantes if pendantes else 0
-        for affaire in affaires:
-            ressource = f"{veille}|{self._pseudonyme(affaire)}"
+        if veille in liste["jours"]:
+            self._marquer_jour_engage(veille, mode)
+        for couple in affaires:
+            jour, affaire = couple["jour"], couple["affaire_id"]
+            ressource = f"{jour}|{self._pseudonyme(affaire)}"
             if mode == "ombre" and self.deja_fait(ressource, ctx):
                 continue
-            self._cibles[ressource] = (veille, affaire)
+            self._cibles[ressource] = (jour, affaire)
         if affaires and (self._cibles or liste["reste"]):
-            self._avancer_decalage(veille, mode, prochain_decalage, int(liste["reste"]), len(affaires))
+            self._avancer_decalage(mode, prochain_decalage, int(liste["reste"]), len(affaires))
         return sorted(self._cibles)
 
     def constater(self, ressource: str, ctx: Contexte) -> dict[str, Any]:

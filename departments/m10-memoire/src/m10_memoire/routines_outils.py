@@ -21,7 +21,7 @@ composé. Une écriture identique à une ligne existante (même clé = genre, fi
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, timedelta
@@ -44,6 +44,9 @@ PUBLICATIONS_MAX = 5000  # au-delà, l'audit refuse la fenêtre (fail-closed) pl
 _REGISTRE_RAPPORTS = registre.Registre(maillons=stockage.maillons("m10-memoire", "rapports_routine"))
 _AFFAIRE_JOUR = {"type": "string", "description": "AAAA-MM-JJ, jour touché (date telle qu'écrite au registre)."}
 _DECALAGE_ENUMERATION: ContextVar[int] = ContextVar("m10_decalage_enumeration", default=0)
+_ENUMERATION_ARRIERE: ContextVar[tuple[str, tuple[str, ...], int] | None] = ContextVar(
+    "m10_enumeration_arriere", default=None
+)
 
 
 @contextmanager
@@ -58,6 +61,25 @@ def decalage_enumeration_interne(decalage: int) -> Iterator[None]:
         yield
     finally:
         _DECALAGE_ENUMERATION.reset(jeton)
+
+
+@contextmanager
+def enumeration_arriere_interne(jusqua: str, jours: Sequence[str], decalage: int) -> Iterator[None]:
+    """Sélection privée du planificateur; la liste est bornée aux jours explicitement engagés."""
+    if not systeme.planificateur_en_cours():
+        raise PermissionError("reprise M10 réservée au planificateur")
+    if not _jour_valide(jusqua) or type(decalage) is not int or decalage < 0:
+        raise ValueError("sélection interne invalide")
+    if any(not _jour_valide(jour) for jour in jours):
+        raise ValueError("jour interne invalide")
+    jours_retenus = tuple(sorted(set(jours)))
+    if any(jour > jusqua for jour in jours_retenus) or jusqua not in jours_retenus:
+        raise ValueError("jours internes hors de la fenêtre de reprise")
+    jeton = _ENUMERATION_ARRIERE.set((jusqua, jours_retenus, decalage))
+    try:
+        yield
+    finally:
+        _ENUMERATION_ARRIERE.reset(jeton)
 
 
 def _verdict(code: str, detail: str) -> dict[str, Any]:
@@ -129,11 +151,21 @@ def lister_affaires_a_consolider(jour: str, limite: int = 50) -> dict[str, Any]:
     if type(limite) is not int or not 1 <= limite <= routines.LIMITE_MAX:
         return _verdict("REJ-ROUTINE-LIMITE-INVALIDE", f"limite entière de 1 à {routines.LIMITE_MAX}")
     decalage = _DECALAGE_ENUMERATION.get()
+    arriere = _ENUMERATION_ARRIERE.get()
+    if arriere is not None:
+        jusqua, jours, decalage = arriere
+        if jour != jusqua:
+            return _verdict("REJ-ROUTINE-CONTEXTE-INTERNE-INVALIDE", "jour différent de la sélection du planificateur")
+        resultat = routines.enumerer_jours(
+            jours, limite, _o._REGISTRE_EVENEMENTS.lire(), _o._REGISTRE_AFFAIRES.lire(), decalage=decalage
+        )
+    else:
+        resultat = routines.enumerer(
+            jour, limite, _o._REGISTRE_EVENEMENTS.lire(), _o._REGISTRE_AFFAIRES.lire(), decalage=decalage
+        )
     return {
         "accepte": True,
-        "resultat": routines.enumerer(
-            jour, limite, _o._REGISTRE_EVENEMENTS.lire(), _o._REGISTRE_AFFAIRES.lire(), decalage=decalage
-        ),
+        "resultat": resultat,
     }
 
 

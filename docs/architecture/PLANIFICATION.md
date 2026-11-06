@@ -358,7 +358,7 @@ que la routine existe et la suit. Remplacées : `digest-front-office` (M1) et `c
 | `m1.routine.rappels-et-suivis` | 900 s | idem | Une alerte quand l'**échéance explicite** d'un rappel (choisie par une personne) est passée, ou quand la **fenêtre** d'une conversation est terminée sans que la prochaine action soit faite. |
 | `m1.routine.urgences` | 300 s | idem | Une alerte quand une urgence de sécurité est encore ouverte après **un intervalle complet de contrôle** (celui que l'admin a réglé). |
 | `m1.routine.kpis-reception` | cron déclaré 06 h 30 | `m1_calculer_kpis` (N2) | Les KPI du manifeste de M1 sur 30 jours finissant la veille. |
-| `m10.routine.consolidation-affaires` | cron de `consolidation-nocturne` (3 h), sondé 15 min | `m10_lister_affaires_a_consolider` (N0), `m10_consolider_affaire` (N2) | L'énumérateur désigne les affaires touchées la veille dont le fait durable manque ou ne cite pas toutes les sources ; chacune est consolidée sous son propre bail. |
+| `m10.routine.consolidation-affaires` | cron de `consolidation-nocturne` (3 h), sondé 15 min | `m10_lister_affaires_a_consolider` (N0), `m10_consolider_affaire` (N2) | L'énumérateur désigne les affaires touchées la veille et celles des jours déjà engagés dont le fait durable manque ou ne cite pas toutes les sources ; page globale de 50, chacune consolidée sous son propre bail. |
 | `m10.routine.audit-non-oubli` | cron déclaré lundi 4 h 30 | `m10_executer_audit_non_oubli` (N2) | L'audit hebdomadaire, rapport consultable. |
 | `m10.routine.kpis-memoire` | cron déclaré 4 h 45 | `m10_calculer_kpis` (N2) | Les KPI du manifeste de M10, calculables ou dits non calculables. |
 | `m10.routine.contradictions-memoire` | cron déclaré 4 h 10 | `m10_rafraichir_contradictions` (N2) | Détecte et range les contradictions entre affirmations de sources différentes (domaines affaires et développement, jamais mêlés), marque les mémoires, propose selon l'ordre de vérité (une donnée) ; une contradiction critique ouvre UNE demande d'approbation N3 (5 par passage, 20 ouvertes au plus). En ombre : « aurait » avec des compteurs, rien n'est écrit. Voir `M10-CONTRADICTIONS.md`. |
@@ -404,8 +404,11 @@ direction (question ouverte pour Nathan).
   ou une réservation de créneau perdue n'écrit rien de plus (prouvé en rembobinant `prochain_passage`).
 - La consolidation désigne exactement ce que `m10_consolider_affaire` écrirait (même règle : union des sources de tous les faits de
   la clé) : un événement arrivé tard rend l'affaire de nouveau « à consolider » et ajoute un fait qui cite toutes les sources, sans
-  jamais réécrire un maillon. **Un jour manqué (serveur arrêté toute la nuit) n'est PAS rattrapé** (pas de rafale) : l'audit
-  hebdomadaire le dit (`jours_consolides`, `plus_ancien_non_consolide`).
+  jamais réécrire un maillon. Un jour dont le traitement avait commencé (marqueur append-only du planificateur) reste
+  éligible après minuit, avec une page globale de 50 couples jour/affaire et un curseur distinct pour les modes actif et
+  ombre. **Un jour entièrement manqué, sans marqueur (serveur arrêté toute la nuit), n'est PAS rattrapé** : l'audit
+  hebdomadaire le dit (`jours_consolides`, `plus_ancien_non_consolide`). Le mode ombre seul ne rend pas un ancien jour
+  éligible en mode actif.
 - Le journal du planificateur ne porte jamais un identifiant d'affaire : la ressource est `<jour>|<empreinte>`.
 
 **Ombre.** Une routine en `ombre` n'appelle que la lecture (ou le calcul à blanc, `ecrire` faux) et journalise « aurait » **une fois

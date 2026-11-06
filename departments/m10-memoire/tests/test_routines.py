@@ -4,6 +4,8 @@ Module pur, registres en mémoire, instants fournis. Données FICTIVES."""
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 from m10_memoire import consolidation, registre, revision, routines, variance, wct
 
@@ -152,6 +154,28 @@ def test_le_decalage_parcourt_plus_de_200_affaires_sans_plafond_cache():
         decalage = (decalage + 50) % (page["touchees"] - page["deja_consolidees"])
     assert set(trouvees) == attendues
     assert "aff-250" in trouvees and page["reste"] == 201
+
+
+def test_enumeration_multi_jour_tient_les_jours_tres_asymetriques():
+    ev, af = _mondes()
+    jour_charge = "2024-01-01"
+    total_charge = 5_000
+    total_jours_clairs = 1_000
+    for i in range(total_charge):
+        _lead(ev, f"aff-{i:05}", f"{jour_charge}T14:00:00-05:00")
+    jours_clairs = [
+        (date.fromisoformat(jour_charge) + timedelta(days=i + 1)).isoformat() for i in range(total_jours_clairs)
+    ]
+    for i, jour in enumerate(jours_clairs):
+        _lead(ev, f"aff-clair-{i:04}", f"{jour}T14:00:00-05:00")
+
+    total = total_charge + total_jours_clairs
+    page = routines.enumerer_jours(
+        [jour_charge, *jours_clairs], 50, ev.lire(), af.lire(), decalage=total - 50
+    )
+    assert len(page["a_consolider"]) == 50 and page["reste"] == total - 50
+    assert {couple["jour"] for couple in page["a_consolider"]} == {jour_charge}
+    assert [couple["affaire_id"] for couple in page["a_consolider"]] == [f"aff-{i:05}" for i in range(4_950, 5_000)]
 
 
 def test_une_affaire_consolidee_n_est_plus_designee_et_une_source_tardive_la_redesigne():
