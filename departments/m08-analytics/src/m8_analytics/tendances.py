@@ -20,8 +20,9 @@ Règles :
 * **Moyenne mobile** : moyenne arithmétique des ``k`` dernières observations valides, ``k = min(fenêtre demandée, n)``,
   avec ``k >= 2``. Définition rendue dans la réponse.
 * **XmR et prévision** : seulement si la cadence observée est EXACTEMENT régulière (tous les intervalles égaux) et
-  si ``n >= 8``. Sinon ``non_evalue`` avec la raison. Le XmR est en ``Decimal`` (constante 2,66 reprise de ``xmr.py``,
-  dont le contrat flottant historique n'est pas modifié) ; la prévision est une régression linéaire par moindres
+  si ``n >= 8``. Sinon ``non_evalue`` avec la raison. Les limites XmR sont calculées en ``Decimal`` et le signal
+  est classé par fractions exactes (constante 2,66 reprise de ``xmr.py``, dont le contrat flottant historique
+  n'est pas modifié) ; la prévision est une régression linéaire par moindres
   carrés sur l'index des observations. Les « bornes » sont l'enveloppe des résidus observés : ce n'est PAS un
   intervalle de confiance. Une prévision n'est jamais un fait observé.
 * **Trous** : non évalués. Aucune cadence attendue n'est déclarée dans le contrat ; un intervalle long n'est pas
@@ -45,6 +46,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal, DecimalException, localcontext
+from fractions import Fraction
 from typing import Any
 
 from . import encodage, entonnoir, fraicheur_mesures, nombres, xmr
@@ -63,13 +65,15 @@ HORIZON_PREVISION_MAX = 12
 MIN_OBSERVATIONS_XMR = 8
 MIN_OBSERVATIONS_PREVISION = 8
 HISTORIQUE_MAX = 1000
-# Précision du contexte Decimal pour les divisions (moyenne, relative, pente, résidus). Choix explicite : 28 chiffres,
-# la précision par défaut de la bibliothèque, assez pour des valeurs bornées à 1e15 et un affichage à 2 décimales.
+# Précision du contexte Decimal pour les divisions (moyenne, relative, pente, résidus).
 PRECISION_DECIMALE = 28
 _LONGUEUR_IDENTIFIANT = 64
 _LONGUEUR_INSTANT = 40
 _LONGUEUR_VALEUR = 80
 _EXEMPLES_MAX = 3
+# 200 observations ajoutent au plus 3 chiffres à la somme ; le facteur 2,66 et les
+# dénominateurs des moyennes ajoutent au plus 9 chiffres de garde.
+_GARDE_PRECISION_XMR = 12
 _CONSTANTE_XMR = Decimal(str(xmr.CONSTANTE_XMR))
 
 REJ_FENETRE_INVALIDE = "REJ-TENDANCES-FENETRE-INVALIDE"
@@ -188,10 +192,13 @@ def _exemple(construction: Any, raison: str) -> dict[str, Any]:
 
 
 def _valeur_lue(valeur: Any) -> Decimal | None:
-    if isinstance(valeur, str):
-        if not valeur or len(valeur) > _LONGUEUR_VALEUR:
-            return None
-    elif isinstance(valeur, bool) or not isinstance(valeur, (int, float, Decimal)):
+    if isinstance(valeur, bool) or not isinstance(valeur, (str, int, float, Decimal)):
+        return None
+    try:
+        texte = str(valeur)
+    except ValueError:
+        return None
+    if not texte or len(texte) > _LONGUEUR_VALEUR:
         return None
     return nombres.decimal_lu(valeur)
 
@@ -532,6 +539,14 @@ def _fraicheur(
     }
 
 
+def _precision_xmr(valeurs: list[Decimal]) -> int:
+    """Précision calculée selon l'échelle et la résolution réellement présentes dans la série."""
+    plus_grand_adjusted = max(valeur.adjusted() for valeur in valeurs)
+    plus_petit_exposant = min(valeur.as_tuple().exponent for valeur in valeurs)
+    chiffres_significatifs = plus_grand_adjusted - plus_petit_exposant + 1
+    return max(PRECISION_DECIMALE, chiffres_significatifs + _GARDE_PRECISION_XMR)
+
+
 def _xmr(points: list[dict[str, Any]], cadence: dict[str, Any]) -> dict[str, Any]:
     base: dict[str, Any] = {
         "statut": "non_evalue",
@@ -558,17 +573,31 @@ def _xmr(points: list[dict[str, Any]], cadence: dict[str, Any]) -> dict[str, Any
         return base
     try:
         with localcontext() as contexte_decimal:
-            contexte_decimal.prec = PRECISION_DECIMALE
             valeurs = [point["valeur"] for point in points]
+            contexte_decimal.prec = _precision_xmr(valeurs)
             centre = sum(valeurs, Decimal(0)) / Decimal(len(valeurs))
             amplitudes = [abs(valeurs[i] - valeurs[i - 1]) for i in range(1, len(valeurs))]
             amplitude_moyenne = sum(amplitudes, Decimal(0)) / Decimal(len(amplitudes))
             limite_haute = centre + _CONSTANTE_XMR * amplitude_moyenne
             limite_basse = centre - _CONSTANTE_XMR * amplitude_moyenne
             derniere = valeurs[-1]
-            if derniere > limite_haute:
+
+            # Une division Decimal répétée ne représente pas toujours exactement les limites. Les seuils restent
+            # calculés et rendus en Decimal, mais la comparaison de classement utilise les fractions exactes des
+            # mêmes observations pour qu'un arrondi de contexte ne crée ni ne masque un signal à la frontière.
+            rationnels = [Fraction(valeur) for valeur in valeurs]
+            centre_exact = sum(rationnels, Fraction(0)) / len(rationnels)
+            amplitudes_exactes = [
+                abs(rationnels[i] - rationnels[i - 1]) for i in range(1, len(rationnels))
+            ]
+            amplitude_moyenne_exacte = sum(amplitudes_exactes, Fraction(0)) / len(amplitudes_exactes)
+            constante_exacte = Fraction(_CONSTANTE_XMR)
+            limite_haute_exacte = centre_exact + constante_exacte * amplitude_moyenne_exacte
+            limite_basse_exacte = centre_exact - constante_exacte * amplitude_moyenne_exacte
+            derniere_exacte = rationnels[-1]
+            if derniere_exacte > limite_haute_exacte:
                 signal = "HORS_LIMITE_SUPERIEURE"
-            elif derniere < limite_basse:
+            elif derniere_exacte < limite_basse_exacte:
                 signal = "HORS_LIMITE_INFERIEURE"
             else:
                 signal = "DANS_LES_LIMITES"
