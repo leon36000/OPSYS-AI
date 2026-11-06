@@ -979,6 +979,8 @@ def enregistrer_signal_variance(intervention_id, charge_variance, registre_cible
         "signal_critique": charge_variance["signal_critique"],
         "seuil_pourcentage": charge_variance["seuil_pourcentage"],
     }
+    if "seuil_global_pourcentage_exact" in charge_variance:
+        maillon["seuil_global_pourcentage_exact"] = charge_variance["seuil_global_pourcentage_exact"]
     return registre_cible.ajouter(maillon)
 
 

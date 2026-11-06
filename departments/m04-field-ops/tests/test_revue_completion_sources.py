@@ -536,3 +536,17 @@ def test_interface_socle_de_variance_delegue_aux_contrats_canoniques_m6():
         "seuil_pourcentage": source["charge"]["seuil_pourcentage"],
     }
     assert dto["lignes_critiques"][0]["classement_courant"] == c.projection(source["classements"][0])
+
+
+def test_dossier_revue_preserve_le_seuil_global_exact_optionnel_et_rejette_une_contradiction():
+    exact = "0.40000000000000000000000000000000000001"
+    reg, source, i = source_pure()
+    source["charge"]["seuil_pourcentage"] = 0.4
+    source["charge"]["seuil_global_pourcentage_exact"] = exact
+
+    dto = pur().dossier(reg, source, i)
+
+    assert dto["source_variance"]["seuil_global_pourcentage_exact"] == exact
+    source["charge"]["seuil_global_pourcentage_exact"] = "0.41"
+    with pytest.raises(pur().Refus, match="SOURCE-INVALIDE"):
+        pur().dossier(reg, source, i)

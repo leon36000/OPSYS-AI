@@ -63,7 +63,17 @@ from typing import Any
 
 import yaml
 
-from opsys import approbations, contexte, evenements, horloge, identite, jetons, stockage, taxonomie
+from opsys import (
+    approbations,
+    contexte,
+    contrats_variance_m6,
+    evenements,
+    horloge,
+    identite,
+    jetons,
+    stockage,
+    taxonomie,
+)
 from opsys.departements import charger_departements
 from opsys.evenements import constats
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
@@ -635,6 +645,8 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     """Consommateur `m6.variance_chantier` : le verdict d'écart de matériaux de M6, repris tel quel
     (M8 le mesure, ne le recalcule pas). M6 publie un événement par statut : chacun est enregistré
     une fois ; `evaluee` est terminal et l'emporte à la mesure."""
+    if not contrats_variance_m6.seuil_global_pourcentage_exact_coherent(charge):
+        raise ValueError("seuil global exact M6 incohérent avec le champ numérique historique")
     wct_id = charge["wct_id"]
     faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
     enregistre = _ajouter_fait_si_nouveau(

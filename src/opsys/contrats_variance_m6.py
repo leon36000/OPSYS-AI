@@ -8,6 +8,7 @@ Les appelants fournissent leurs copies de sources et gardent leurs propres accè
 
 from m6_material_control import besoins_prevus
 from m6_material_control import classement_variance_appareil as _annotations
+from m6_material_control import seuils_variance as _seuils
 
 Refus = _annotations.Refus
 REGISTRE = _annotations.REGISTRE
@@ -24,4 +25,5 @@ source_projection = _annotations.source_projection
 valider_source = _annotations.valider_source
 empreinte_charge = _annotations.encodage.empreinte
 hash_valide = _annotations.preuves._hash
+seuil_global_pourcentage_exact_coherent = _seuils.seuil_global_pourcentage_exact_coherent
 besoin_pour_devis = besoins_prevus.pour_devis

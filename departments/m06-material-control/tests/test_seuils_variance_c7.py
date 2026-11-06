@@ -352,6 +352,50 @@ def test_le_vrai_chemin_lit_le_seuil_par_materiau_au_registre_et_publie_le_bon_c
     assert charge["seuil_pourcentage"] == 0.30
 
 
+def test_evenement_expose_le_global_c7_exact_sans_le_confondre_avec_le_seuil_materiau(base_durable):
+    from m6_material_control import outils as outils_mod
+
+    texte_exact = "0.40000000000000000000000000000000000001"
+    assert len(texte_exact) == 40
+    wct = _wct()
+    _preparer(
+        wct,
+        [{"materiau_id": "MAT-A", "quantite_estimee": 100.0, "unite": "boite"}],
+        [_mouvement_c7("MAT-A", 140.0)],
+    )
+    _configurer_c7(
+        global_pourcentage=texte_exact,
+        par_materiau={"MAT-A": "0.50"},
+        plancher_quantite="0",
+        plancher_dollars="0",
+    )
+
+    with stockage.transaction():
+        outils_mod._evaluer_et_publier_variance(wct)
+
+    charge = _charge_variance()
+    assert charge["seuil_pourcentage"] == 0.4  # projection numérique historique conservée
+    assert charge["seuil_global_pourcentage_exact"] == texte_exact
+    assert charge["lignes"][0]["critique"] is False  # le seuil MAT-A 0.50 prévaut sur le global
+
+
+@pytest.mark.parametrize(
+    "charge,attendu",
+    [
+        ({"seuil_pourcentage": 0.4}, True),  # événement historique sans extension
+        ({"seuil_pourcentage": 0.4, "seuil_global_pourcentage_exact": None}, True),
+        ({"seuil_pourcentage": 0.4,
+          "seuil_global_pourcentage_exact": "0.40000000000000000000000000000000000001"}, True),
+        ({"seuil_pourcentage": 0.4, "seuil_global_pourcentage_exact": "0.41"}, False),
+        ({"seuil_pourcentage": 0.4, "seuil_global_pourcentage_exact": "0.4\n"}, False),
+        ({"seuil_pourcentage": True, "seuil_global_pourcentage_exact": "0.4"}, False),
+        ({"seuil_pourcentage": 0.4, "seuil_global_pourcentage_exact": "0" * 41}, False),
+    ],
+)
+def test_projection_exacte_optionnelle_est_bornee_et_coherente(charge, attendu):
+    assert seuils_variance.seuil_global_pourcentage_exact_coherent(charge) is attendu
+
+
 def test_le_vrai_chemin_applique_le_plancher_en_dollars_avec_le_prix_declare_au_livre(base_durable):
     from m6_material_control import outils as outils_mod
 

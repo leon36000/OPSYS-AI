@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m6.variance_chantier",
   "title": "M6 — Variance de chantier (prévu vs réel)",
-  "description": "Émis par M6 (departments/m06-material-control/src/m6_material_control/outils.py::_evaluer_et_publier_variance) : compare les besoins prévus enregistrés par m6_enregistrer_besoins_prevus (PLAN T1.2-b/M6) au réel déclaré par m6_declarer_materiaux_utilises (T1.1-d2) pour le même wct_id, via variance_chantier.evaluer. Une fonction UNIQUE calcule et publie, partagée par TROIS déclencheurs : le consommateur de m4.travaux_termines (_recevoir_travaux_termines), et les deux outils eux-mêmes quand ils comblent après coup ce qui manquait à un WCT déjà reçu (le flux réel, R12 §4/§9.7, livre presque toujours la déclaration — et parfois le prévu M3, T1.2-d — APRÈS la complétion) : m6_declarer_materiaux_utilises et m6_enregistrer_besoins_prevus réévaluent et republient dès que leur propre écriture réussit. M4 (departments/m04-field-ops/src/m4_field_ops/outbox.py::confirmer_verification) est le seul consommateur prévu : il fait passer l'intervention de completed_pending_review à completed_verified seulement si statut_variance=evaluee et signal_critique=false. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "description": "Émis par M6 (departments/m06-material-control/src/m6_material_control/outils.py::_evaluer_et_publier_variance) : compare les besoins prévus enregistrés par m6_enregistrer_besoins_prevus (PLAN T1.2-b/M6) au réel déclaré par m6_declarer_materiaux_utilises (T1.1-d2) pour le même wct_id, via variance_chantier.evaluer. Une fonction UNIQUE calcule et publie, partagée par TROIS déclencheurs : le consommateur de m4.travaux_termines (_recevoir_travaux_termines), et les deux outils eux-mêmes quand ils comblent après coup ce qui manquait à un WCT déjà reçu (le flux réel, R12 §4/§9.7, livre presque toujours la déclaration — et parfois le prévu M3, T1.2-d — APRÈS la complétion) : m6_declarer_materiaux_utilises et m6_enregistrer_besoins_prevus réévaluent et republient dès que leur propre écriture réussit. M4 (departments/m04-field-ops/src/m4_field_ops/outbox.py::confirmer_verification) est le seul consommateur prévu : il fait passer l'intervention de completed_pending_review à completed_verified seulement si statut_variance=evaluee et signal_critique=false. Les propriétés listées dans required sont obligatoires même quand leur valeur est nulle; seuil_global_pourcentage_exact est une extension optionnelle et peut manquer dans les événements historiques.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -33,7 +33,13 @@
     },
     "seuil_pourcentage": {
       "type": ["number", "null"],
-      "description": "Seuil réellement utilisé (department.yaml/configuration.seuil_variance_chantier_pourcentage), tracé même quand statut_variance != evaluee ; null seulement si statut_variance=seuil_absent."
+      "description": "Seuil global de configuration (department.yaml/configuration.seuil_variance_chantier_pourcentage), conservé sous sa forme numérique historique et tracé même quand statut_variance != evaluee ; null seulement si statut_variance=seuil_absent. En C7, un seuil déclaré par matériau ou catégorie peut prévaloir pour une ligne donnée."
+    },
+    "seuil_global_pourcentage_exact": {
+      "type": ["string", "null"],
+      "maxLength": 40,
+      "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$",
+      "description": "OPTIONNEL pour compatibilité historique. Valeur textuelle exacte du seuil global C7 adopté; null si aucun seuil global C7 exact n'est disponible (mode hérité ou seuil absent). Cette valeur globale n'indique PAS nécessairement le seuil appliqué à chaque ligne : un seuil déclaré par matériau ou catégorie peut prévaloir. Quand ce champ est présent sous forme de texte, sa conversion IEEE-754 doit correspondre au champ historique seuil_pourcentage."
     },
     "horodatage_completion": {
       "type": "string",

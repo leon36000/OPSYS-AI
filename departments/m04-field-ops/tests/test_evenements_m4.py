@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 
+import m4_field_ops.outils as outils_mod
 import pytest
 from m2_preparation_estimation import marqueur_m2
 from m3_estimation.outils import outils as outils_m3
@@ -411,6 +412,55 @@ def test_recevoir_variance_chantier_ne_verifie_jamais_hors_evaluee_sans_signal(
 
     statut = executer_atomique(par_nom["m4_statut_intervention"], {"intervention_id": i_id})
     assert statut["resultat"]["statut"] == "completed_pending_review"
+
+
+def test_attente_m4_affiche_le_seuil_global_c7_exact_et_sa_portee(base_durable, deposer_photo_test):
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-SEUIL-EXACT")
+    executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
+    })
+    wct = _wct_pour(par_nom, i_id)
+    texte_exact = "0.40000000000000000000000000000000000001"
+    charge = _variance_charge(
+        wct_id=wct["wct_id"], intervention_id=i_id,
+        horodatage_completion=wct["horodatage_completion"],
+        signal_critique=True, seuil_pourcentage=0.4,
+        seuil_global_pourcentage_exact=texte_exact,
+    )
+
+    with stockage.transaction():
+        resultat = consommateurs()["m6.variance_chantier"](charge)
+        attente = next(x for x in outils_mod.attentes() if x["id"] == i_id)
+
+    assert resultat["verifie"] is False
+    assert f"seuil global C7 {texte_exact}" in attente["resume"]
+    assert "un seuil par matériau ou catégorie peut prévaloir" in attente["resume"]
+
+
+def test_m4_refuse_un_seuil_exact_contradictoire_avant_tracer_le_signal(base_durable, deposer_photo_test):
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-SEUIL-CONTRADICTOIRE")
+    executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
+    })
+    wct = _wct_pour(par_nom, i_id)
+    charge = _variance_charge(
+        wct_id=wct["wct_id"], intervention_id=i_id,
+        horodatage_completion=wct["horodatage_completion"],
+        signal_critique=True, seuil_pourcentage=0.4,
+        seuil_global_pourcentage_exact="0.41",
+    )
+
+    with stockage.transaction():
+        avant = list(stockage.maillons("m04-field-ops", "principal"))
+        with pytest.raises(ValueError, match="seuil global exact M6 incohérent"):
+            consommateurs()["m6.variance_chantier"](charge)
+        apres = list(stockage.maillons("m04-field-ops", "principal"))
+
+    assert apres == avant
 
 
 def test_recevoir_variance_chantier_redelivrance_ne_change_rien(base_durable, deposer_photo_test):

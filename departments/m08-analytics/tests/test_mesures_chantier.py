@@ -185,6 +185,21 @@ def test_la_mesure_de_materiaux_cite_le_materiau_et_le_verdict_de_m6_sans_le_rec
     }
 
 
+def test_fait_variance_preserve_lexact_optionnel_et_les_evenements_historiques():
+    charge = {
+        "wct_id": "wct-fictif-1", "statut_variance": "evaluee", "signal_critique": True,
+        "seuil_pourcentage": 0.4, "lignes": _variance()["lignes"],
+    }
+    ancien = mc.fait_variance(charge)
+    assert "seuil_global_pourcentage_exact" not in ancien
+
+    exact = "0.40000000000000000000000000000000000001"
+    nouveau = mc.fait_variance({**charge, "seuil_global_pourcentage_exact": exact})
+    entrees = _mesures(_wct(), _devis(), nouveau)["m8_ecart_materiaux_max_pct"]["entrees"]
+    assert nouveau["seuil_global_pourcentage_exact"] == exact
+    assert entrees["seuil_global_pourcentage_exact"] == exact
+
+
 def test_les_entrees_lues_sont_rendues_en_texte_decimal():
     entrees = _mesures(_wct(), _devis())["m8_ecart_duree_minutes"]["entrees"]
     assert entrees == {"duree_reelle_minutes": "120.00", "duree_estimee_minutes": "100.00"}

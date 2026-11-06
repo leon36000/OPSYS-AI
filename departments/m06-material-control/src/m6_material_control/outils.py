@@ -864,6 +864,11 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
         "statut_variance": statut_variance,
         "signal_critique": signal_critique,
         "seuil_pourcentage": seuil,
+        # Extension additive : texte exact du seuil global C7. Le champ numérique historique
+        # demeure inchangé; les seuils par matériau/catégorie peuvent prévaloir sur ce global.
+        "seuil_global_pourcentage_exact": (
+            config_seuils["global_pourcentage"] if config_seuils is not None else None
+        ),
         "horodatage_completion": horodatage_completion,
         "lignes": lignes,
     }

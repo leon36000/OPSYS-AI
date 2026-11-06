@@ -505,6 +505,79 @@ def test_evaluee_deja_publie_court_circuite_sans_reevaluer(base_durable):
     assert _compte_sortants("m6.variance_chantier") == nb_avant, "aucune republication après evaluee"
 
 
+def test_rejeu_d_un_evenement_historique_sans_seuil_exact_ne_le_recrit_pas(base_durable):
+    """Une extension du catalogue ne complète ni ne re-hashe un événement déjà publié."""
+    from opsys.evenements.schemas import erreurs_charge
+
+    evenement_id = "m6-variance-wct-historique-fictif-evaluee"
+    charge_historique = {
+        "evenement_id": evenement_id,
+        "wct_id": "wct-historique-fictif",
+        "intervention_id": "int-historique-fictif",
+        "chantier_id": "chantier-historique-fictif",
+        "statut_variance": "evaluee",
+        "signal_critique": False,
+        "seuil_pourcentage": 0.3,
+        "horodatage_completion": "2026-01-01T10:00:00-05:00",
+        "lignes": [],
+    }
+    assert erreurs_charge("m6.variance_chantier", charge_historique) == []
+    with stockage.transaction():
+        evenements.publier(
+            "m6.variance_chantier", "m06-material-control", charge_historique, evenement_id=evenement_id,
+        )
+        avant = _charges_publiees()[0]
+        with stockage.transaction() as cnx:
+            octets_avant = cnx.execute(
+                select(EVENEMENTS_SORTANTS.c.charge).where(EVENEMENTS_SORTANTS.c.evenement_id == evenement_id)
+            ).scalar_one()
+        assert "seuil_global_pourcentage_exact" not in avant
+
+        resultat = outils_mod._evaluer_et_publier_variance({
+            "wct_id": "wct-historique-fictif",
+            "intervention_id": "int-historique-fictif",
+            "devis_id": "devis-historique-fictif",
+            "horodatage_completion": "2026-01-01T10:00:00-05:00",
+        })
+
+        avec = _charges_publiees()[0]
+        with stockage.transaction() as cnx:
+            octets_apres = cnx.execute(
+                select(EVENEMENTS_SORTANTS.c.charge).where(EVENEMENTS_SORTANTS.c.evenement_id == evenement_id)
+            ).scalar_one()
+
+    assert resultat == {"traite": True, "statut_variance": "evaluee"}
+    assert avec == avant and "seuil_global_pourcentage_exact" not in avec
+    assert octets_apres == octets_avant
+
+
+def test_schema_evenement_accepte_ancien_et_seuil_exact_borne_refuse_texte_invalide():
+    from opsys.evenements.schemas import erreurs_charge
+
+    charge = {
+        "evenement_id": "m6-variance-schema-fictif-evaluee",
+        "wct_id": "wct-schema-fictif",
+        "intervention_id": "int-schema-fictif",
+        "chantier_id": "chantier-schema-fictif",
+        "statut_variance": "evaluee",
+        "signal_critique": True,
+        "seuil_pourcentage": 0.4,
+        "horodatage_completion": "2026-01-01T10:00:00-05:00",
+        "lignes": [],
+    }
+    assert erreurs_charge("m6.variance_chantier", charge) == []  # forme historique
+    texte_exact = "0.40000000000000000000000000000000000001"
+    assert erreurs_charge(
+        "m6.variance_chantier", {**charge, "seuil_global_pourcentage_exact": texte_exact}
+    ) == []
+    assert erreurs_charge(
+        "m6.variance_chantier", {**charge, "seuil_global_pourcentage_exact": "0" * 41}
+    )
+    assert erreurs_charge(
+        "m6.variance_chantier", {**charge, "seuil_global_pourcentage_exact": "0.4\n"}
+    )
+
+
 # -- correctif T1.2-d : le prévu vient du devis accepté par le bus (m3.devis_accepte) ----------
 def _ligne_devis(reference_ligne, quantite, unite, reference_besoin_materiau, prix_unitaire="10.00"):
     return {

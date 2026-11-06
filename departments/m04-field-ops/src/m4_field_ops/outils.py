@@ -45,6 +45,7 @@ from opsys import (
     approbations,
     cles_chiffrement,
     contexte,
+    contrats_variance_m6,
     evenements,
     fichiers,
     idempotence,
@@ -4074,6 +4075,8 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     lisant que le registre de M4, qu'un signal critique attend une revue humaine
     (`m4_resoudre_revue_completion`).
     """
+    if not contrats_variance_m6.seuil_global_pourcentage_exact_coherent(charge):
+        raise ValueError("seuil global exact M6 incohérent avec le champ numérique historique")
     reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
     intervention_id = charge["intervention_id"]
 
@@ -4429,7 +4432,16 @@ def _resume_completion_en_revue(reg: registre.Registre, intervention_id: str) ->
     if signal["statut_variance"] != "evaluee":
         return f"{base} — variance M6 non finalisée ({signal['statut_variance']})"
     if signal["signal_critique"] is True:
-        return f"{base} — écart matériaux CRITIQUE signalé par M6 (seuil {signal['seuil_pourcentage']})"
+        seuil_exact = signal.get("seuil_global_pourcentage_exact")
+        if type(seuil_exact) is str:
+            return (
+                f"{base} — écart matériaux CRITIQUE signalé par M6 (seuil global C7 {seuil_exact}; "
+                "un seuil par matériau ou catégorie peut prévaloir)"
+            )
+        return (
+            f"{base} — écart matériaux CRITIQUE signalé par M6 (seuil global {signal['seuil_pourcentage']}; "
+            "le seuil exact appliqué par matériau/catégorie n'est pas exposé)"
+        )
     # Atteint seulement si confirmer_verification a, pour une autre raison, échoué à vérifier
     # malgré un signal non critique (défensif : jamais supposé impossible, jamais deviné).
     return f"{base} — variance M6 évaluée sans signal critique"

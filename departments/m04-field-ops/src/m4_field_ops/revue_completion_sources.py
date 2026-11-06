@@ -62,6 +62,8 @@ def _source(reg, source, i):
         if type(source["charge"]) is not dict or "intervention_id" not in source["charge"]:
             raise Refus("SOURCE-INVALIDE")
         charge = source["charge"]
+        if not variance_materiaux.seuil_global_pourcentage_exact_coherent(charge):
+            raise Refus("SOURCE-INVALIDE")
         if charge.get("statut_variance") == "evaluee" and (
             type(charge.get("signal_critique")) is not bool
             or type(charge.get("seuil_pourcentage")) not in (int, float)
@@ -133,6 +135,13 @@ def dossier(reg, source, i, borne=5400):
                 "classement_courant": variance_materiaux.projection(old[-1]) if old else None,
             }
         )
+    source_variance = {
+        **variance_materiaux.source_projection(source),
+        "signal_critique": charge["signal_critique"],
+        "seuil_pourcentage": charge["seuil_pourcentage"],
+    }
+    if "seuil_global_pourcentage_exact" in charge:
+        source_variance["seuil_global_pourcentage_exact"] = charge["seuil_global_pourcentage_exact"]
     result = {
         "version_schema": 1,
         "lecture": "courante",
@@ -141,11 +150,7 @@ def dossier(reg, source, i, borne=5400):
         "wct": {"wct_id": capture["wct_id"], "intervention_id": i, "chantier_id": capture["chantier_id"]},
         "reference_completion": {"ligne_id": completion["ligne_id"], "hash_maillon": completion["wct"]["hash_maillon"]},
         "reference_transition": {"ligne_id": transition["ligne_id"]},
-        "source_variance": {
-            **variance_materiaux.source_projection(source),
-            "signal_critique": charge["signal_critique"],
-            "seuil_pourcentage": charge["seuil_pourcentage"],
-        },
+        "source_variance": source_variance,
         "lignes_critiques": lines,
         "sources": capture,
         "couverture": {

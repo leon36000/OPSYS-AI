@@ -35,6 +35,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import re
 from collections.abc import Iterable, Mapping
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, Inexact, InvalidOperation, Rounded, localcontext
@@ -58,6 +60,7 @@ __all__ = [
     "critique",
     "dernier",
     "enregistrer",
+    "seuil_global_pourcentage_exact_coherent",
     "seuil_pour",
     "valider_config",
     "verifier_chaine",
@@ -74,6 +77,7 @@ _POURCENTAGE_MAX = Decimal("5")
 _PLANCHER_MIN = Decimal("0")
 _PLANCHER_MAX = Decimal("1000000000000")
 _CENT = Decimal("0.01")
+_SEUIL_GLOBAL_TEXTE_RE = re.compile(r"(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\Z")
 
 SEUILS_REFUSES = frozenset({
     "REJ-SEUILS-STRUCTURE", "REJ-SEUILS-POURCENTAGE", "REJ-SEUILS-PLANCHER", "REJ-SEUILS-CATEGORIE",
@@ -204,6 +208,34 @@ def config_heritee(seuil_pourcentage: Any) -> dict[str, Any]:
         "plancher_quantite": None,
         "plancher_dollars": None,
     }
+
+
+def seuil_global_pourcentage_exact_coherent(charge: Any) -> bool:
+    """Valide l'extension textuelle optionnelle sans invalider les charges historiques.
+
+    Le texte est une projection exacte du seuil GLOBAL C7, pas du seuil finalement appliqué à
+    chaque matériau. Le nombre JSON historique est une projection float; lorsqu'un texte exact
+    est présent, il doit se convertir au même float. Un champ absent ou null reste compatible
+    avec l'ancien événement et le mode hérité.
+    """
+    if type(charge) is not dict:
+        return False
+    cle = "seuil_global_pourcentage_exact"
+    if cle not in charge or charge[cle] is None:
+        return True
+    texte = charge[cle]
+    if type(texte) is not str or not 1 <= len(texte) <= 40 or _SEUIL_GLOBAL_TEXTE_RE.fullmatch(texte) is None:
+        return False
+    nombre = charge.get("seuil_pourcentage")
+    if isinstance(nombre, bool) or type(nombre) not in (int, float):
+        return False
+    try:
+        valeur = Decimal(texte)
+        if not valeur.is_finite() or not _POURCENTAGE_MIN <= valeur <= _POURCENTAGE_MAX:
+            return False
+        return math.isfinite(nombre) and float(valeur) == float(nombre)
+    except (InvalidOperation, TypeError, ValueError, OverflowError):
+        return False
 
 
 def _seuil(valeur: Any) -> float:

@@ -143,7 +143,7 @@ def fait_devis(charge: dict[str, Any]) -> dict[str, Any]:
 
 def fait_variance(charge: dict[str, Any]) -> dict[str, Any]:
     """Fait tiré de ``m6.variance_chantier`` : le verdict de M6, ligne par ligne, tel quel."""
-    return {
+    fait = {
         "type_entree": "variance",
         "wct_id": charge["wct_id"],
         "statut_variance": charge["statut_variance"],
@@ -151,6 +151,9 @@ def fait_variance(charge: dict[str, Any]) -> dict[str, Any]:
         "seuil_pourcentage": charge["seuil_pourcentage"],
         "lignes": charge["lignes"],
     }
+    if "seuil_global_pourcentage_exact" in charge:
+        fait["seuil_global_pourcentage_exact"] = charge["seuil_global_pourcentage_exact"]
+    return fait
 
 
 def fait_rentabilite(charge: dict[str, Any]) -> dict[str, Any]:
@@ -424,6 +427,8 @@ def _ecart_materiaux_max_pct(
         "quantite_reelle": ligne["quantite_reelle"],
         "signal_critique_m6": variance["signal_critique"],
     }
+    if "seuil_global_pourcentage_exact" in variance:
+        entrees["seuil_global_pourcentage_exact"] = variance["seuil_global_pourcentage_exact"]
     if valeurs_exactes is not None:
         valeurs_exactes["m8_ecart_materiaux_max_pct"] = Fraction(ecart_max) * 100
     return ecart_max * _CENT, entrees, []

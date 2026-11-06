@@ -280,6 +280,35 @@ def test_la_variance_evaluee_de_m6_donne_le_plus_grand_ecart_sans_recalcul(base_
     assert mesure["entrees"]["signal_critique_m6"] is True
 
 
+def test_lecture_publique_m8_preserve_le_seuil_global_exact_de_m6(base_durable, departements):
+    exact = "0.40000000000000000000000000000000000001"
+    _publier("m4.travaux_termines", "m04-field-ops", _wct())
+    _publier(
+        "m6.variance_chantier", "m06-material-control",
+        _variance(seuil_pourcentage=0.4, seuil_global_pourcentage_exact=exact),
+    )
+    resume = _livrer(departements)
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+    mesure = _par_metrique(_mesures())["m8_ecart_materiaux_max_pct"]
+    assert mesure["entrees"]["seuil_global_pourcentage_exact"] == exact
+    assert next(f for f in _faits() if f["type_entree"] == "variance")[
+        "seuil_global_pourcentage_exact"] == exact
+
+
+def test_m8_n_enregistre_pas_une_variance_au_seuil_exact_contradictoire(base_durable, departements):
+    _publier("m4.travaux_termines", "m04-field-ops", _wct())
+    _publier(
+        "m6.variance_chantier", "m06-material-control",
+        _variance(seuil_pourcentage=0.4, seuil_global_pourcentage_exact="0.41"),
+    )
+
+    resume = _livrer(departements)
+
+    assert resume["echecs"] + resume["quarantaines"] >= 1
+    assert not any(f["type_entree"] == "variance" for f in _faits())
+
+
 @pytest.mark.parametrize("statut_attente", ["declaration_absente", "unites_indeterminees"])
 def test_la_variance_en_attente_puis_evaluee_la_mesure_suit_le_statut(base_durable, departements, statut_attente):
     _publier("m4.travaux_termines", "m04-field-ops", _wct())
