@@ -74,13 +74,46 @@ NATURES = frozenset({"observation_source", "hypothese", "inference"})
 MAX_AFFIRMATIONS = 24
 MAX_TEXTE = 1500
 CODE_CHIFFRE_LIBRE = "REJ-CONSEIL-CHIFFRE-LIBRE"
+_SIGNES_NUMERIQUES = r"[+\-\u2212\uff0d\ufe63]"
+_BORDURE_NUMERIQUE = r"[\w.,\uff0c\uff0e\u066b\u066c\u2027\u2009+\-\u2212$]"
+_CONTEXTE_TIRET_COMPAT = r"(?:(?<=\d[\uff0d\ufe63])|(?<![\uff0d\ufe63]))"
+_BASE_NOMBRE_MONTANT = r"(?:\d{1,3}(?:,\d{3})+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)"
+_BASE_NOMBRE_NUMERIQUE = r"(?:\d{1,3}(?:,\d{3})+|\d[\d \u00a0\u202f]*)"
 # Montant, pourcentage ou décimal à deux chiffres : une quantité que le code calcule et qu'un modèle ne produit pas.
 _MONTANT = re.compile(
-    r"(?<![\w.,])(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,]\d{1,2})?\s?(?:\$|CAD|%|dollars?|k\$)"
-    r"|(?<![\w.,])\d+[.,]\d{2}(?![\w])"
+    rf"{_CONTEXTE_TIRET_COMPAT}(?<!{_BORDURE_NUMERIQUE}){_SIGNES_NUMERIQUES}?{_BASE_NOMBRE_MONTANT}"
+    r"(?:[.,]\d{1,2})?\s?(?:\$|CAD|%|dollars?|k\$)(?!\d|[.,]\d)"
+    rf"|{_CONTEXTE_TIRET_COMPAT}(?<!{_BORDURE_NUMERIQUE})(?:{_SIGNES_NUMERIQUES}\$|\$\s*{_SIGNES_NUMERIQUES}?){_BASE_NOMBRE_MONTANT}"
+    r"(?:[.,]\d{1,2})?(?:\s?(?:CAD|%|dollars?|k\$|\$))?(?!\d|[.,]\d)"
+    rf"|{_CONTEXTE_TIRET_COMPAT}(?<!{_BORDURE_NUMERIQUE}){_SIGNES_NUMERIQUES}?\d+[.,]\d{{2}}(?![\w]|[.,]\d)"
+)
+_SEQUENCE_NUMERIQUE_MONTANT = r"\d[\d.,\uff0c\uff0e\u066b\u066c\u2027\u2009]*"
+_UNITE_MONTANT = r"(?:CAD|%|dollars?|k\$|\$)"
+# Candidats monétaires plus larges que _MONTANT : ils servent seulement à repérer et refuser les
+# tokens avec devise/unité dont la ponctuation ne forme pas un montant reconnu. Les dates ISO et
+# identifiants sans devise ne correspondent pas à cette règle.
+_MONTANT_CANDIDAT = re.compile(
+    rf"(?<!{_BORDURE_NUMERIQUE})(?:{_SIGNES_NUMERIQUES}\$|\$\s*{_SIGNES_NUMERIQUES}?)"
+    rf"{_SEQUENCE_NUMERIQUE_MONTANT}(?:\s?{_UNITE_MONTANT})?(?![\w])"
+    rf"|(?<!{_BORDURE_NUMERIQUE}){_SIGNES_NUMERIQUES}?{_SEQUENCE_NUMERIQUE_MONTANT}"
+    rf"\s?{_UNITE_MONTANT}(?![\w])"
 )
 _DATE_ISO = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
-_NUMERIQUE = re.compile(r"\s*\d[\d \u00a0\u202f]*(?:[.,]\d+)?\s*(?:\$|CAD|%)?\s*")
+_DATE_COMPAT = re.compile(r"\b\d{4}[-\uff0d\ufe63]\d{2}[-\uff0d\ufe63]\d{2}\b")
+_DATE_SEQUENCES_NUMERIQUES = re.compile(
+    r"\b\d{4}[-/\uff0d\ufe63\u2212\u2010\u2011\u2012\u2013\u2014\uff0f]"
+    r"\d{2}[-/\uff0d\ufe63\u2212\u2010\u2011\u2012\u2013\u2014\uff0f]\d{2}\b"
+)
+_SEQUENCE_NUMERIQUE_MALFORMEE = re.compile(
+    rf"(?<!{_BORDURE_NUMERIQUE}){_SIGNES_NUMERIQUES}?\d+(?:[.,\uff0c\uff0e\u066b\u066c\u2027\u2009]\d+)+(?![\w])"
+)
+_IDENTIFIANT_ETIQUETTE = re.compile(
+    r"(?i)(?<![\w])(?:version|lot|id|identifiant|référence|reference|ref|code)\s*(?:[:#]\s*)?$"
+)
+_NUMERIQUE = re.compile(
+    rf"\s*{_CONTEXTE_TIRET_COMPAT}(?:(?:{_SIGNES_NUMERIQUES}\$|\$\s*{_SIGNES_NUMERIQUES}?)\s*|{_SIGNES_NUMERIQUES}?)"
+    rf"{_BASE_NOMBRE_NUMERIQUE}(?:[.,]\d+)?\s*(?:\$|CAD|%)?\s*"
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -300,27 +333,105 @@ def _texte(valeur: object, maximum: int = MAX_TEXTE) -> bool:
 
 
 def _nombre(texte: str) -> Decimal | None:
+    chiffres = re.sub(r"[^\d.,]", "", texte)
+    if "," in chiffres and "." in chiffres:
+        if re.fullmatch(r"\d{1,3}(?:,\d{3})+\.\d+", chiffres):
+            chiffres = chiffres.replace(",", "")
+        else:
+            return None
+    elif re.fullmatch(r"\d{1,3}(?:,\d{3}){2,}", chiffres):
+        # Plusieurs groupes complets de trois ne peuvent pas être une décimale seule.
+        chiffres = chiffres.replace(",", "")
+    elif re.fullmatch(r"\d{1,3},\d{3}", chiffres):
+        # Un seul groupe de trois après la virgule est ambigu sans convention de locale :
+        # il peut s'agir de milliers ou d'une décimale. Ne l'interprète pas comme 8.400.
+        return None
+    else:
+        chiffres = chiffres.replace(",", ".")
     try:
-        return Decimal(re.sub(r"[^\d.,]", "", texte).replace(",", "."))
+        nombre = Decimal(chiffres)
     except InvalidOperation:
         return None
+    debut = texte.lstrip()
+    moins = ("-", "\u2212", "\uff0d", "\ufe63")
+    if debut.startswith(moins) or (
+        debut.startswith("$") and debut[1:].lstrip().startswith(moins)
+    ):
+        return nombre.copy_negate()
+    return nombre
 
+
+def _montants_malformes(texte: str):
+    """Candidats monétaires ambigus ou non valides, sans fragment numérique autorisable."""
+    return [
+        m for m in _MONTANT_CANDIDAT.finditer(texte)
+        if _MONTANT.fullmatch(m.group(0)) is None or _nombre(m.group(0)) is None
+    ]
+
+def _masquer_montants_malformes(texte: str) -> str:
+    """Retire les candidats malformés avant toute extraction pour interdire les captures partielles."""
+    caracteres = list(texte)
+    for match in _montants_malformes(texte):
+        caracteres[match.start() : match.end()] = [" "] * (match.end() - match.start())
+    return "".join(caracteres)
+
+def _identifiant_numerique_exactement_cite(texte: str, match, valeurs_citees: Sequence[str]) -> bool:
+    etiquette = _IDENTIFIANT_ETIQUETTE.search(texte[: match.start()])
+    if etiquette is None:
+        return False
+    identifiant = texte[etiquette.start() : match.end()]
+    for valeur in valeurs_citees:
+        position = valeur.find(identifiant)
+        while position >= 0:
+            fin = position + len(identifiant)
+            avant = valeur[position - 1] if position else ""
+            apres = valeur[fin] if fin < len(valeur) else ""
+            if not (avant.isalnum() or avant == "_") and not (apres.isalnum() or apres == "_"):
+                return True
+            position = valeur.find(identifiant, position + 1)
+    return False
+
+def _sequences_numeriques_malformees(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
+    """Tokens numériques composites non pris en charge, hors dates, citations exactes et IDs étiquetés."""
+    texte_sans_montants = _masquer_montants_malformes(texte)
+    texte_a_scanner = _DATE_SEQUENCES_NUMERIQUES.sub(" ", texte_sans_montants)
+    libres = []
+    for match in _SEQUENCE_NUMERIQUE_MALFORMEE.finditer(texte_a_scanner):
+        token = match.group(0)
+        if _NUMERIQUE.fullmatch(token) is not None or token in valeurs_citees:
+            continue
+        if not _identifiant_numerique_exactement_cite(texte_a_scanner, match, valeurs_citees):
+            libres.append(token)
+    return libres
 
 def chiffres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
     """Montants, pourcentages, décimaux et dates ISO d'un texte libre absents de toute valeur CITÉE par la même sortie.
 
     « Le code calcule, le modèle explique » : un modèle peut reprendre une valeur qu'il cite, jamais en produire une
-    (somme, projection, zéro pour une absence). Entiers nus et identifiants ne sont pas visés : leur sens ne se
-    détermine pas sans sémantique (limite connue, voir le corpus métier M9.23)."""
+    (somme, projection, zéro pour une absence). Les entiers nus et identifiants attachés restent hors de ce garde. Les
+    séquences ponctuées non parseables sont refusées, sauf token exactement cité ou identifiant étiqueté et cité ; ce
+    contrôle lexical ne classe pas le sens d'autres formats (voir aussi la limite du corpus métier M9.23)."""
     nombres: set[Decimal] = set()
     dates: set[str] = set()
     for valeur in valeurs_citees:
-        if _NUMERIQUE.fullmatch(valeur) and (n := _nombre(valeur)) is not None:
+        valeur_sans_malformes = _masquer_montants_malformes(valeur)
+        if _NUMERIQUE.fullmatch(valeur_sans_malformes) and (n := _nombre(valeur_sans_malformes)) is not None:
             nombres.add(n)
-        nombres.update(n for m in _MONTANT.finditer(valeur) if (n := _nombre(m.group(0))) is not None)
-        dates.update(_DATE_ISO.findall(valeur))
-    libres = [m.group(0).strip() for m in _MONTANT.finditer(texte) if _nombre(m.group(0)) not in nombres]
-    libres += [d for d in _DATE_ISO.findall(texte) if d not in dates]
+        nombres.update(
+            n for m in _MONTANT.finditer(valeur_sans_malformes) if (n := _nombre(m.group(0))) is not None
+        )
+        # Toutes les formes écartées du scan composite sont des dates candidates et ne sont autorisées
+        # qu'avec la même orthographe complète dans une citation.
+        dates.update(_DATE_SEQUENCES_NUMERIQUES.findall(valeur))
+    texte_sans_malformes = _masquer_montants_malformes(texte)
+    libres = [
+        m.group(0).strip()
+        for m in _MONTANT.finditer(texte_sans_malformes)
+        if _nombre(m.group(0)) not in nombres
+    ]
+    libres += [m.group(0).strip() for m in _montants_malformes(texte)]
+    libres += _sequences_numeriques_malformees(texte, valeurs_citees)
+    libres += [d for d in _DATE_SEQUENCES_NUMERIQUES.findall(texte) if d not in dates]
     return list(dict.fromkeys(libres))
 
 

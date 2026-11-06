@@ -17,12 +17,13 @@ import json
 
 import pytest
 from m2_revenue_crm import outils as m2
+from sqlalchemy import select
+
 from opsys import admission_agents, agents, contexte, identite, stockage
 from opsys.capacites import Capacites
 from opsys.contexte import IdentiteAppelante
 from opsys.departements import charger_departements
 from opsys.stockage.schema import META
-from sqlalchemy import select
 
 FICTIF = True
 M9 = "m09-strategic-intelligence"
@@ -259,8 +260,9 @@ def test_session_complete_avec_runtime_natif_simule_recommandation_gouvernee_et_
     while depart is not None:
         page = _ok(_appel(capacites, "m9_lire_rapport_conseil", {"session_id": session_id, "depart": depart}))
         assert page["actions_a_classement_non_verifie"] == 1
-        assert page["avertissements"][0]["code"] == "CLASSEMENT_NON_VERIFIE"
-        assert page["avertissements"][0]["actions"] == 1
+        avertissements = {avertissement["code"]: avertissement for avertissement in page["avertissements"]}
+        assert avertissements["CLASSEMENT_NON_VERIFIE"]["actions"] == 1
+        assert "PORTEE_DECISION_MAJEURE" in avertissements
         morceaux.append(page["contenu_json"])
         depart = page["prochain_depart"]
     rapport = json.loads("".join(morceaux))

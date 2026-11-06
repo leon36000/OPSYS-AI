@@ -50,8 +50,25 @@ _CHEMIN = re.compile(r"[A-Za-z0-9_]+(\[\d+\])?(\.[A-Za-z0-9_]+(\[\d+\])?)*")
 # ``conseil.chiffres_libres`` (qui ne vise que montants, pourcentages et décimaux) : dans une recommandation, AUCUN
 # nombre
 # n'est libre. Les identifiants (c1, o2) sont écartés par la frontière de mot.
-_NOMBRE_LIBRE = re.compile(r"(?<![\w.,])(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,]\d+)?(?![\w])")
+_SIGNES_NUMERIQUES = r"[+\-\u2212\uff0d\ufe63]"
+_BORDURE_NUMERIQUE = r"[\w.,\uff0c\uff0e\u066b+\-\u2212$]"
+_CONTEXTE_TIRET_COMPAT = r"(?:(?<=\d[\uff0d\ufe63])|(?<![\uff0d\ufe63]))"
+_BASE_NOMBRE_LIBRE = r"(?:\d{1,3}(?:,\d{3})+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)"
+_NOMBRE_LIBRE = re.compile(
+    rf"{_CONTEXTE_TIRET_COMPAT}(?<!{_BORDURE_NUMERIQUE})(?:{_SIGNES_NUMERIQUES}\$|\$\s*{_SIGNES_NUMERIQUES}?|{_SIGNES_NUMERIQUES})?"
+    rf"{_BASE_NOMBRE_LIBRE}(?:[.,]\d+)?(?![\w]|\d|[.,]\d)"
+)
 _DATE_ISO = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+_DATE_COMPAT = re.compile(
+    r"\b\d{4}[-/\uff0d\ufe63\u2212\u2010\u2011\u2012\u2013\u2014\uff0f]\d{2}"
+    r"[-/\uff0d\ufe63\u2212\u2010\u2011\u2012\u2013\u2014\uff0f]\d{2}\b"
+)
+_NOMBRE_MALFORME_STRICT = re.compile(
+    rf"(?<!{_BORDURE_NUMERIQUE}){_SIGNES_NUMERIQUES}?\d+(?:[.,\uff0c\uff0e\u066b\u066c\u2027\u2009]\d+)+(?![\w])"
+)
+_IDENTIFIANT_ETIQUETTE = re.compile(
+    r"(?i)(?<![\w])(?:version|lot|id|identifiant|référence|reference|ref|code)\s*(?:[:#]\s*)?$"
+)
 _DECISION_PRETENDUE = re.compile(
     r"\b(j'ai|nous avons|c'est)\s+(décidé|décidée|approuvé|approuvée|autorisé|autorisée|signé|signée|payé|payée|"
     r"envoyé|envoyée|commandé|commandée|embauché)|décision (est )?prise|\bapprouvé par athéna\b",
@@ -117,20 +134,77 @@ def _valeur_au_chemin(document: object, chemin: str) -> object:
     return courant
 
 
+def _identifiant_malforme_exactement_cite(texte: str, match, valeurs_citees: Sequence[str]) -> bool:
+    """Exempte uniquement une étiquette d'identifiant fermée suivie d'un token cité littéralement."""
+    etiquette = _IDENTIFIANT_ETIQUETTE.search(texte[: match.start()])
+    if etiquette is None:
+        return False
+    identifiant = texte[etiquette.start() : match.end()]
+    for valeur in valeurs_citees:
+        position = valeur.find(identifiant)
+        while position >= 0:
+            fin = position + len(identifiant)
+            avant = valeur[position - 1] if position else ""
+            apres = valeur[fin] if fin < len(valeur) else ""
+            if not (avant.isalnum() or avant == "_") and not (apres.isalnum() or apres == "_"):
+                return True
+            position = valeur.find(identifiant, position + 1)
+    return False
+
+def _nombres_malformes_stricts(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
+    """Séquences répétées non parseables, hors identifiants étiquetés et attestés au caractère près."""
+    malformes = []
+    for match in _NOMBRE_MALFORME_STRICT.finditer(texte):
+        token = match.group(0)
+        if _NOMBRE_LIBRE.fullmatch(token) is not None:
+            continue
+        if not _identifiant_malforme_exactement_cite(texte, match, valeurs_citees):
+            malformes.append(token)
+    return malformes
+
 def nombres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
     """Nombres d'un texte libre qui ne sont la valeur d'AUCUN chiffre cité ou hypothèse de la direction. Les dates ISO
     se
     comparent en texte exact aux valeurs citées ; tout le reste se compare en valeur décimale."""
     autorises: set = set()
+    dates = {
+        d
+        for valeur in valeurs_citees
+        for pattern in (_DATE_ISO, _DATE_COMPAT)
+        for d in pattern.findall(valeur)
+    }
     for valeur in valeurs_citees:
-        autorises.update(conseil._nombre(m.group(0)) for m in _NOMBRE_LIBRE.finditer(valeur))
-        autorises.add(conseil._nombre(valeur))
-    dates = {d for valeur in valeurs_citees for d in _DATE_ISO.findall(valeur)}
-    libres = [d for d in _DATE_ISO.findall(texte) if d not in dates]
-    sans_dates = _DATE_ISO.sub(" ", texte)
-    libres += [
-        m.group(0).strip() for m in _NOMBRE_LIBRE.finditer(sans_dates) if conseil._nombre(m.group(0)) not in autorises
+        # Une date citée est comparée comme chaîne complète plus bas. Son année ne constitue pas une
+        # autorisation pour un autre chiffre libre (ex. « solde 2026 » avec la citation « date 2026-11-09 »).
+        valeur_sans_dates = _DATE_COMPAT.sub(" ", _DATE_ISO.sub(" ", valeur))
+        # Un token monétaire malformé ne doit jamais autoriser l'un de ses fragments numériques.
+        valeur_sans_dates = conseil._masquer_montants_malformes(valeur_sans_dates)
+        autorises.update(
+            nombre
+            for m in _NOMBRE_LIBRE.finditer(valeur_sans_dates)
+            if (nombre := conseil._nombre(m.group(0))) is not None
+        )
+        # Une chaîne composite (« perte: -8400.00 ») a déjà ses chiffres extraits ci-dessus. Ne la
+        # renormalise pas comme un nombre entier : _nombre ne prend qu'un signe en préfixe et perdrait celui-ci
+        # au milieu de la chaîne.
+        if conseil._NUMERIQUE.fullmatch(valeur):
+            autorises.add(conseil._nombre(valeur))
+    libres = [
+        d
+        for pattern in (_DATE_ISO, _DATE_COMPAT)
+        for d in pattern.findall(texte)
+        if d not in dates
     ]
+    sans_dates = _DATE_COMPAT.sub(" ", _DATE_ISO.sub(" ", texte))
+    malformes = conseil._montants_malformes(sans_dates)
+    sans_malformes = conseil._masquer_montants_malformes(sans_dates)
+    libres += [
+        m.group(0).strip()
+        for m in _NOMBRE_LIBRE.finditer(sans_malformes)
+        if conseil._nombre(m.group(0)) is None or conseil._nombre(m.group(0)) not in autorises
+    ]
+    libres += [m.group(0).strip() for m in malformes]
+    libres += _nombres_malformes_stricts(sans_malformes, valeurs_citees)
     return list(dict.fromkeys(libres))
 
 
