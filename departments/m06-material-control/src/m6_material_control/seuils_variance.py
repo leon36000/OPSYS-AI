@@ -37,8 +37,17 @@ import hashlib
 import json
 from collections.abc import Iterable, Mapping
 from datetime import datetime
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, Inexact, InvalidOperation, Rounded, localcontext
+from fractions import Fraction
 from typing import Any
+
+from .decimal_exact import (
+    MAX_DIGITS,
+    MAX_EXPONENT,
+    DecimalIndeterminable,
+    multiplier_exactement,
+    texte_decimal_exact,
+)
 
 __all__ = [
     "REGISTRE",
@@ -98,7 +107,7 @@ def _decimal(valeur: Any, code: str, detail: str) -> Decimal:
         raise SeuilsRefuses(code, detail)
     try:
         lu = Decimal(str(valeur).strip())
-    except (InvalidOperation, ValueError):
+    except (InvalidOperation, TypeError, ValueError):
         raise SeuilsRefuses(code, detail) from None
     if not lu.is_finite():
         raise SeuilsRefuses(code, detail)
@@ -108,7 +117,11 @@ def _decimal(valeur: Any, code: str, detail: str) -> Decimal:
 def _texte_decimal(valeur: Decimal) -> str:
     if valeur.is_zero():
         return "0"
-    return format(valeur.normalize(), "f")
+    # `normalize()` obéit à la précision Decimal active et peut arrondir un réglage
+    # long. Le rendu exact reste fixe quand il tient dans les bornes techniques; sinon
+    # la notation scientifique compacte conserve la même valeur sans expansion énorme.
+    texte = texte_decimal_exact(valeur)
+    return texte if texte is not None else str(valeur)
 
 
 def _borne(valeur: Decimal, minimum: Decimal, maximum: Decimal, code: str, detail: str) -> Decimal:
@@ -207,6 +220,23 @@ def seuil_pour(materiau_id: Any, config: Mapping[str, Any]) -> dict[str, Any]:
     return {"seuil_pourcentage": _seuil(config["global_pourcentage"]), "origine": "global"}
 
 
+def _seuil_decimal_pour(materiau_id: Any, config: Mapping[str, Any]) -> Decimal | None:
+    """Valeur décimale exacte du seuil applicable, pour les comparaisons internes."""
+    if isinstance(materiau_id, str) and materiau_id in config.get("par_materiau", {}):
+        valeur = config["par_materiau"][materiau_id]
+    else:
+        categorie = config.get("categories", {}).get(materiau_id) if isinstance(materiau_id, str) else None
+        if categorie is not None and categorie in config.get("par_categorie", {}):
+            valeur = config["par_categorie"][categorie]
+        else:
+            valeur = config.get("global_pourcentage")
+    try:
+        seuil = Decimal(str(valeur))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    return seuil if seuil.is_finite() and seuil > 0 else None
+
+
 def _montant_ecart(ecart: Any, valeur_unitaire: float) -> Decimal | None:
     try:
         quantite = Decimal(str(ecart))
@@ -215,11 +245,35 @@ def _montant_ecart(ecart: Any, valeur_unitaire: float) -> Decimal | None:
         return None
     if not quantite.is_finite() or not valeur.is_finite() or valeur <= 0:
         return None
-    return (abs(quantite) * valeur).quantize(_CENT, rounding=ROUND_HALF_UP)
+    try:
+        montant_exact = multiplier_exactement(quantite.copy_abs(), valeur)
+        _, chiffres, exposant = montant_exact.as_tuple()
+        # quantize a besoin d'une précision suffisante pour le coefficient exprimé au cent.
+        # Le produit est borné par decimal_exact.MAX_DIGITS/MAX_EXPONENT; le contexte appelant
+        # ne doit ni arrondir le montant ni faire lever InvalidOperation sur une précision basse.
+        precision = max(1, len(chiffres) + max(0, exposant + 2) + 2)
+        with localcontext() as contexte:
+            contexte.prec = precision
+            # Le produit exact est borné à MAX_DIGITS/MAX_EXPONENT, mais l'appelant peut
+            # avoir réduit Emax/Emin. Utiliser une plage suffisante pour représenter le
+            # produit et son coefficient au cent, sans hériter de cette borne locale.
+            contexte.Emax = MAX_DIGITS + MAX_EXPONENT + 2
+            contexte.Emin = -(MAX_DIGITS + MAX_EXPONENT + 2)
+            # L'inexactitude au cent est la règle métier explicite HALF_UP, pas une erreur
+            # gouvernée par les traps du contexte Decimal de l'appelant.
+            contexte.traps[Inexact] = False
+            contexte.traps[Rounded] = False
+            return montant_exact.quantize(_CENT, rounding=ROUND_HALF_UP)
+    except (DecimalIndeterminable, InvalidOperation, TypeError, ValueError, OverflowError):
+        return None
 
 
 def critique(
-    verdict: Mapping[str, Any], config: Mapping[str, Any], valeur_unitaire: float | None = None
+    verdict: Mapping[str, Any],
+    config: Mapping[str, Any],
+    valeur_unitaire: float | None = None,
+    *,
+    ratio_exact: Fraction | None = None,
 ) -> dict[str, Any]:
     """La criticité d'UN verdict matériau, planchers compris.
 
@@ -239,13 +293,20 @@ def critique(
         return {"critique": False, "motif": "ratio_non_defini", **seuil}
     if not ratio_decimal.is_finite():
         return {"critique": False, "motif": "ratio_non_defini", **seuil}
-    if abs(ratio_decimal) < Decimal(str(seuil["seuil_pourcentage"])):
+    if ratio_exact is not None:
+        seuil_decimal = _seuil_decimal_pour(verdict.get("materiau_id"), config)
+        if seuil_decimal is None:
+            return {"critique": False, "motif": "ratio_non_defini", **seuil}
+        sous_seuil = ratio_exact < Fraction(seuil_decimal)
+    else:
+        sous_seuil = ratio_decimal.copy_abs() < Decimal(str(seuil["seuil_pourcentage"]))
+    if sous_seuil:
         return {"critique": False, "motif": "sous_seuil", **seuil}
     if config.get("mode") == "herite":
         return {"critique": True, "motif": "au_dessus_du_seuil", **seuil}
 
     plancher_quantite = Decimal(str(config["plancher_quantite"]))
-    ecart = abs(Decimal(str(verdict.get("ecart", 0))))
+    ecart = Decimal(str(verdict.get("ecart", 0))).copy_abs()
     if ecart < plancher_quantite:
         return {"critique": False, "motif": "sous_plancher_quantite", **seuil}
     plancher_dollars = Decimal(str(config["plancher_dollars"]))

@@ -25,10 +25,18 @@ Règles dures (DEFINITION-PRODUIT.md §7 M6, « Règles dures », et M6.12 l.515
   Le seuil de criticité est TOUJOURS fourni par l'appelant, jamais codé en dur ici.
 """
 
+import math
 from decimal import Decimal
+from fractions import Fraction
 
 from . import contrats_sortie, validation
 from . import seuils_variance as seuils_module
+from .decimal_exact import (
+    AccumulateurDecimalExact,
+    DecimalIndeterminable,
+    float_projection_exacte_ou_refus,
+    soustraire_exactement,
+)
 
 # Types de ligne (contrats.TYPES_LIGNE_MATERIAUX_UTILISES) qui augmentent la quantité
 # réellement sortie pour un matériau. "retour" est le seul type qui la diminue (matériel
@@ -43,11 +51,11 @@ def _dec(quantite) -> Decimal:
     return Decimal(str(quantite))
 
 
-def _quantite_nette_declaree(materiau_id, lignes_declarees) -> tuple[float, str | None, bool]:
+def _quantite_nette_declaree(materiau_id, lignes_declarees) -> tuple[Decimal, str | None, bool]:
     """Somme les lignes déclarées pour un matériau : sortie nette (prevu/non_prevu/
     achat_terrain/perte/bris) moins les retours. Renvoie aussi l'unité déclarée et si
     elle est ambiguë (plus d'une unité distincte pour le même matériau_id)."""
-    total = Decimal(0)
+    total = AccumulateurDecimalExact()
     unites: set[str] = set()
 
     for ligne in lignes_declarees:
@@ -55,24 +63,33 @@ def _quantite_nette_declaree(materiau_id, lignes_declarees) -> tuple[float, str 
             continue
         unites.add(ligne["unite"])
         if ligne["type_ligne"] in _TYPES_EN_SORTIE_NETTE:
-            total += _dec(ligne["quantite"])
+            signe = 1
         elif ligne["type_ligne"] == "retour":
-            total -= _dec(ligne["quantite"])
+            signe = -1
+        else:
+            continue
+        if not total.ajouter(_dec(ligne["quantite"]), signe):
+            raise DecimalIndeterminable
+
+    total_exact = total.resultat()
+    if total_exact is None:
+        raise DecimalIndeterminable
 
     unite = next(iter(unites)) if len(unites) == 1 else None
     unite_ambigue = len(unites) > 1
-    return float(total), unite, unite_ambigue
+    return total_exact, unite, unite_ambigue
 
 
 def _indetermine(materiau_id, quantite_estimee, quantite_reelle) -> dict:
     # Fail-closed (P2/AGENTS.md) : comparer des quantités d'unités incohérentes (ou
     # inconnues, côté registre — PLAN T1.1-d2) inventerait un écart. On dit ce qui
     # manque (unité cohérente), pas un chiffre.
+    quantite_reelle_sortie = float_projection_exacte_ou_refus(quantite_reelle)
     return {
         "materiau_id": materiau_id,
         "unite": None,
         "quantite_estimee": quantite_estimee,
-        "quantite_reelle": quantite_reelle,
+        "quantite_reelle": quantite_reelle_sortie,
         "ecart": None,
         "ecart_pourcentage": None,
         "verdict_variance": "INDETERMINE",
@@ -81,16 +98,17 @@ def _indetermine(materiau_id, quantite_estimee, quantite_reelle) -> dict:
     }
 
 
-def _verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle) -> dict:
+def _verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle, ratios_exacts=None) -> dict:
     """Verdict neutre pour un matériau dont l'estimé et le réel sont déjà résolus dans
     la MÊME unité (ou dont l'unité est simplement inconnue, PLAN T1.1-d2). Partagé par
     `comparer` (lignes_declarees explicites) et `comparer_depuis_registre` (mouvements
     persistés, qui ne portent pas d'unité)."""
-    # Écart et ratio en décimal EXACT (un float donnait 0,09999999999999994 pour 10 % et un faux écart pour 0,1 + 0,2 vs
-    # 0,3) ; le contrat de sortie reste un float, celui du nombre décimal le plus proche du résultat exact.
+    # Les calculs et la comparaison restent exacts en Decimal. La projection vers le contrat
+    # float historique n'est permise que si son texte JSON conserve chaque quantité/écart.
     estimee_exacte, reelle_exacte = _dec(quantite_estimee), _dec(quantite_reelle)
-    ecart_exact = reelle_exacte - estimee_exacte
-    ecart = float(ecart_exact)
+    ecart_exact = soustraire_exactement(reelle_exacte, estimee_exacte)
+    quantite_reelle_sortie = float_projection_exacte_ou_refus(reelle_exacte)
+    ecart = float_projection_exacte_ou_refus(ecart_exact)
 
     if quantite_estimee == 0 and quantite_reelle > 0:
         verdict_variance = "NON_PREVU"
@@ -105,13 +123,24 @@ def _verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle) -> di
 
     # Ratio non défini quand rien n'était estimé (division par zéro) : None, jamais une
     # valeur fabriquée (0 ou infini) — cohérent avec le reste du paquet (DA-M6-09).
-    ecart_pourcentage = float(abs(ecart_exact) / estimee_exacte) if quantite_estimee > 0 else None
+    if estimee_exacte > 0:
+        ratio_exact = Fraction(ecart_exact.copy_abs()) / Fraction(estimee_exacte)
+        try:
+            ecart_pourcentage = float(ratio_exact)
+        except (OverflowError, ValueError):
+            raise DecimalIndeterminable from None
+        if not math.isfinite(ecart_pourcentage) or (ratio_exact and ecart_pourcentage == 0.0):
+            raise DecimalIndeterminable
+        if ratios_exacts is not None:
+            ratios_exacts[materiau_id] = ratio_exact
+    else:
+        ecart_pourcentage = None
 
     return {
         "materiau_id": materiau_id,
         "unite": unite,
         "quantite_estimee": quantite_estimee,
-        "quantite_reelle": quantite_reelle,
+        "quantite_reelle": quantite_reelle_sortie,
         "ecart": ecart,
         "ecart_pourcentage": ecart_pourcentage,
         "verdict_variance": verdict_variance,
@@ -120,7 +149,7 @@ def _verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle) -> di
     }
 
 
-def _comparer_materiau(materiau_id, besoin, lignes_declarees) -> dict:
+def _comparer_materiau(materiau_id, besoin, lignes_declarees, ratios_exacts=None) -> dict:
     quantite_estimee = besoin["quantite_estimee"] if besoin else 0.0
     unite_besoin = besoin["unite"] if besoin else None
 
@@ -133,10 +162,12 @@ def _comparer_materiau(materiau_id, besoin, lignes_declarees) -> dict:
     if unite_incoherente:
         return _indetermine(materiau_id, quantite_estimee, quantite_reelle)
 
-    return _verdict_neutre(materiau_id, unite_besoin or unite_declaree, quantite_estimee, quantite_reelle)
+    return _verdict_neutre(
+        materiau_id, unite_besoin or unite_declaree, quantite_estimee, quantite_reelle, ratios_exacts
+    )
 
 
-def comparer(besoins_estimes, lignes_declarees) -> list[dict]:
+def comparer(besoins_estimes, lignes_declarees, *, _ratios_exacts=None) -> list[dict]:
     """Verdict neutre par matériau (PLAN T1.1-d point 2). Suppose une entrée déjà
     validée (validation.valider_besoins_estimes_chantier / valider_lignes_declarees_chantier) —
     module pur, comme variance.py."""
@@ -147,7 +178,9 @@ def comparer(besoins_estimes, lignes_declarees) -> list[dict]:
     )
 
     return [
-        _comparer_materiau(materiau_id, estimes_par_materiau.get(materiau_id), lignes_declarees)
+        _comparer_materiau(
+            materiau_id, estimes_par_materiau.get(materiau_id), lignes_declarees, _ratios_exacts
+        )
         for materiau_id in materiaux
     ]
 
@@ -169,24 +202,32 @@ MESSAGE_ECART_CRITIQUE = (
 _TYPES_MOUVEMENT_REEL_DECLARE = frozenset({"CONSOMMATION", "RETOUR", "PERTE", "BRIS"})
 
 
-def _quantite_reelle_depuis_registre(chantier_id, materiau_id, wct_id, registre) -> float:
+def _quantite_reelle_depuis_registre(chantier_id, materiau_id, wct_id, registre) -> Decimal:
     """Sortie nette (positive = matière sortie) reconstruite depuis les mouvements du
     registre : CONSOMMATION/PERTE/BRIS sont stockés négatifs (materiel.py), RETOUR
     positif — la somme signée négée donne directement la même quantité que
     `_quantite_nette_declaree` calculerait depuis les lignes déclarées d'origine."""
-    total_signe = Decimal(0)
+    total_net = AccumulateurDecimalExact()
     for mouvement in registre.lire():
         if (
             mouvement.get("type_mouvement") in _TYPES_MOUVEMENT_REEL_DECLARE
             and mouvement.get("chantier_id") == chantier_id
             and mouvement.get("materiau_id") == materiau_id
             and (wct_id is None or mouvement.get("wct_id") == wct_id)
+            # CONSOMMATION/PERTE/BRIS sont négatifs ; RETOUR est positif.
+            # On inverse chaque signe à l'ajout pour obtenir directement la sortie nette.
+            and not total_net.ajouter(_dec(mouvement["quantite"]), -1)
         ):
-            total_signe += _dec(mouvement["quantite"])
-    return float(-total_signe)
+            raise DecimalIndeterminable
+    quantite = total_net.resultat()
+    if quantite is None:
+        raise DecimalIndeterminable
+    return quantite
 
 
-def comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id=None) -> list[dict]:
+def comparer_depuis_registre(
+    besoins_estimes, chantier_id, registre, wct_id=None, *, _ratios_exacts=None
+) -> list[dict]:
     """Verdict neutre par matériau (PLAN T1.1-d2 point 3), réel déclaré relu directement
     au registre M6 (persisté par materiel.soumettre_materiaux_utilises) au lieu d'être
     reçu de l'appelant. `wct_id=None` agrège tout le réel déclaré du chantier (toutes
@@ -225,14 +266,18 @@ def comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id=None
             or any(not isinstance(u, str) or not u.strip() for u in unites)
             or (unite is not None and unites != {unite})
         ):
+            # Valeur exacte inaccessible sous le contrat float : le point d'entrée evaluer()
+            # convertira le refus borné en code métier, sans publier un montant arrondi.
             verdicts.append(_indetermine(materiau_id, quantite_estimee, quantite_reelle))
         else:
             unite_reelle = next(iter(unites)) if unites else None
-            verdicts.append(_verdict_neutre(materiau_id, unite or unite_reelle, quantite_estimee, quantite_reelle))
+            verdicts.append(_verdict_neutre(
+                materiau_id, unite or unite_reelle, quantite_estimee, quantite_reelle, _ratios_exacts
+            ))
     return verdicts
 
 
-def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> dict | None:
+def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage, ratios_exacts=None) -> dict | None:
     """SignalVarianceChantierCritique (PLAN T1.1-d point 3) : émis seulement quand au
     moins un matériau atteint ou dépasse `seuil_pourcentage` (toujours fourni par
     l'appelant). Un ecart_pourcentage=None (NON_PREVU/INDETERMINE, ratio non défini) ne
@@ -240,12 +285,18 @@ def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> 
     en dur. La règle porte sur l'AMPLEUR de l'écart (`abs`) : une sous-consommation de
     40 % est aussi critique qu'une hausse de 40 %. M6 signale seulement ; ce signal ne
     touche jamais un statut de chantier M4."""
-    en_ecart_critique = [
-        verdict
-        for verdict in verdicts
-        if verdict["ecart_pourcentage"] is not None
-        and abs(verdict["ecart_pourcentage"]) >= seuil_pourcentage
-    ]
+    seuil_exact = Fraction(_dec(seuil_pourcentage))
+    en_ecart_critique = []
+    for verdict in verdicts:
+        if verdict["ecart_pourcentage"] is None:
+            continue
+        ratio_exact = ratios_exacts.get(verdict["materiau_id"]) if ratios_exacts is not None else None
+        if ratio_exact is not None:
+            critique = ratio_exact >= seuil_exact
+        else:
+            critique = abs(verdict["ecart_pourcentage"]) >= seuil_pourcentage
+        if critique:
+            en_ecart_critique.append(verdict)
 
     if not en_ecart_critique:
         return None
@@ -260,7 +311,7 @@ def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> 
 
 
 def _construire_signal_si_critique_c7(
-    chantier_id, verdicts, config, valeurs_unitaires
+    chantier_id, verdicts, config, valeurs_unitaires, ratios_exacts=None
 ) -> dict | None:
     """Signal C7 : le seuil applicable par matériau (matériau > catégorie > global), plus les deux planchers
     déclarés. Le détail `seuils_appliques` sert à l'admin et aux tests ; l'événement `m6.variance_chantier` ne le
@@ -268,7 +319,12 @@ def _construire_signal_si_critique_c7(
     valeurs = valeurs_unitaires if isinstance(valeurs_unitaires, dict) else {}
     details, critiques = [], []
     for verdict in verdicts:
-        resultat = seuils_module.critique(verdict, config, valeurs.get(verdict["materiau_id"]))
+        resultat = seuils_module.critique(
+            verdict,
+            config,
+            valeurs.get(verdict["materiau_id"]),
+            ratio_exact=ratios_exacts.get(verdict["materiau_id"]) if ratios_exacts is not None else None,
+        )
         details.append({"materiau_id": verdict["materiau_id"], **resultat})
         if resultat["critique"]:
             critiques.append(verdict)
@@ -321,15 +377,21 @@ def evaluer(
     if not ok:
         return None, code
 
-    if lignes_declarees is not None:
-        ok, code = validation.valider_lignes_declarees_chantier(lignes_declarees)
-        if not ok:
-            return None, code
-        verdicts = comparer(besoins_estimes, lignes_declarees)
-    elif registre is not None:
-        verdicts = comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id)
-    else:
-        return None, "REJ-VARIANCE-CHANTIER-SOURCE-MANQUANTE"
+    ratios_exacts = {}
+    try:
+        if lignes_declarees is not None:
+            ok, code = validation.valider_lignes_declarees_chantier(lignes_declarees)
+            if not ok:
+                return None, code
+            verdicts = comparer(besoins_estimes, lignes_declarees, _ratios_exacts=ratios_exacts)
+        elif registre is not None:
+            verdicts = comparer_depuis_registre(
+                besoins_estimes, chantier_id, registre, wct_id, _ratios_exacts=ratios_exacts
+            )
+        else:
+            return None, "REJ-VARIANCE-CHANTIER-SOURCE-MANQUANTE"
+    except DecimalIndeterminable:
+        return None, "REJ-M6-ARITHMETIQUE-DECIMALE-INDETERMINABLE"
 
     if seuils is not None:
         try:
@@ -337,9 +399,13 @@ def evaluer(
                 {cle: seuils[cle] for cle in seuils_module.CHAMPS_CONFIG if cle in seuils})
         except seuils_module.SeuilsRefuses:
             return None, "REJ-SEUILS-STRUCTURE"
-        signal = _construire_signal_si_critique_c7(chantier_id, verdicts, config, valeurs_unitaires)
+        signal = _construire_signal_si_critique_c7(
+            chantier_id, verdicts, config, valeurs_unitaires, ratios_exacts
+        )
     else:
-        signal = _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage)
+        signal = _construire_signal_si_critique(
+            chantier_id, verdicts, seuil_pourcentage, ratios_exacts
+        )
 
     return contrats_sortie.construire_resultat_variance_chantier(verdicts, signal), None
 
