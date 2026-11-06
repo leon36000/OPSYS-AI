@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import insert, select
@@ -184,3 +186,167 @@ def test_endpoint_ne_change_pas_le_claim(monde, session):
     with session() as cnx:
         apres = [dict(ligne) for ligne in cnx.execute(select(MUTATIONS_APPLIQUEES)).mappings().all()]
     assert apres == avant
+
+
+def _formulaire(client, csrf: str, *, appareil: str = APPAREIL, cle: str = "intention-formulaire-fictive"):
+    return client.post(
+        "/materiaux/intention",
+        data={"csrf": csrf, "appareil": appareil, "cle_idempotence": cle},
+    )
+
+
+def test_formulaire_admin_est_post_csrf_no_store_et_sans_identifiants_url(monde):
+    csrf = _connecter(monde)
+    response = monde.get("/materiaux/intention")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert 'method="post"' in response.text
+    assert 'action="/opsys/materiaux/intention"' in response.text
+    assert 'name="csrf"' in response.text and csrf in response.text
+    assert 'name="appareil"' in response.text
+    assert 'name="cle_idempotence"' in response.text
+    assert "appareil-fictif" not in str(response.url) and "intention-fictive" not in str(response.url)
+
+
+def test_formulaire_legacy_accepte_et_redaction_complete(monde, session):
+    csrf = _connecter(monde)
+    cle = "intention-formulaire-legacy-fictive"
+    _claim(session, cle, reponse=_accepte(), auteur=None)
+    with session() as cnx:
+        avant = dict(cnx.execute(select(MUTATIONS_APPLIQUEES).where(
+            MUTATIONS_APPLIQUEES.c.appareil == APPAREIL,
+            MUTATIONS_APPLIQUEES.c.cle_idempotence == cle,
+        )).mappings().one())
+
+    response = _formulaire(monde, csrf, cle=cle)
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert "Résultat : Acceptée" in response.text
+    assert "Cette vérification n’a rien rejoué." in response.text
+    for sensible in ("987.65", "wct-fictif-sensible", "personne-fictive-sensible",
+                     "hash_maillon", "hash_tete", APPAREIL, cle):
+        assert sensible not in response.text
+    with session() as cnx:
+        apres = dict(cnx.execute(select(MUTATIONS_APPLIQUEES).where(
+            MUTATIONS_APPLIQUEES.c.appareil == APPAREIL,
+            MUTATIONS_APPLIQUEES.c.cle_idempotence == cle,
+        )).mappings().one())
+    assert apres == avant
+
+
+def test_formulaire_absence_et_recu_legacy_invalide_sont_indetermines(monde, session):
+    csrf = _connecter(monde)
+    legacy = "intention-formulaire-legacy-invalide"
+    _claim(session, legacy, statut="en_cours", reponse={"ok": True}, auteur=None)
+
+    absent = _formulaire(monde, csrf, cle="intention-formulaire-absente")
+    ancien = _formulaire(monde, csrf, cle=legacy)
+
+    assert "Résultat : Indéterminée" in absent.text
+    assert "Résultat : Indéterminée" in ancien.text
+    assert absent.text.count("Le reçu est absent ou ne permet pas") == 1
+    assert ancien.text.count("Le reçu est absent ou ne permet pas") == 1
+    assert "intention-formulaire-absente" not in absent.text
+    assert legacy not in ancien.text
+
+
+def test_formulaire_refuse_n_expose_ni_verdict_ni_detail(monde, session):
+    csrf = _connecter(monde)
+    cle = "intention-formulaire-refus-fictive"
+    _claim(session, cle, reponse={
+        "ok": True,
+        "resultat": {
+            "accepte": False,
+            "verdict": {"code": "REJ-WCT-INCONNU", "detail": "détail-fictif-confidentiel"},
+        },
+    })
+
+    response = _formulaire(monde, csrf, cle=cle)
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert "Résultat : Refusée" in response.text
+    assert "REJ-WCT-INCONNU" not in response.text
+    assert "détail-fictif-confidentiel" not in response.text
+    assert APPAREIL not in response.text and cle not in response.text
+
+
+def test_formulaire_refuse_non_admin_csrf_invalide_url_et_role_revoque(monde, session):
+    csrf_employe = _connecter(monde, "employe.reconciliation.fictif")
+    assert monde.get("/materiaux/intention").status_code == 403
+    assert _formulaire(monde, csrf_employe).status_code == 403
+
+    csrf_admin = _connecter(monde, "admin.reconciliation.fictif")
+    assert monde.post(
+        "/materiaux/intention",
+        data={"csrf": "faux", "appareil": APPAREIL, "cle_idempotence": "cle-fictive"},
+    ).status_code == 403
+    assert monde.post(
+        "/materiaux/intention?appareil=appareil-fictif&cle_idempotence=cle-fictive",
+        data={"csrf": csrf_admin, "appareil": APPAREIL, "cle_idempotence": "cle-fictive"},
+    ).status_code == 400
+    assert monde.get("/materiaux/intention?appareil=appareil-fictif").status_code == 400
+    with session() as cnx:
+        identite.retirer_role(cnx, "admin.reconciliation.fictif", "admin")
+    assert _formulaire(monde, csrf_admin).status_code == 403
+
+
+def test_formulaire_refuse_champs_ouverts_et_doublons(monde):
+    csrf = _connecter(monde)
+    contenu = urlencode([
+        ("csrf", csrf), ("appareil", APPAREIL), ("appareil", "autre-appareil-fictif"),
+        ("cle_idempotence", "cle-fictive"),
+    ])
+    response = monde.post(
+        "/materiaux/intention", content=contenu,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 400
+
+    response = monde.post(
+        "/materiaux/intention",
+        data={"csrf": csrf, "appareil": APPAREIL, "cle_idempotence": "cle-fictive", "outil": OUTIL},
+    )
+    assert response.status_code == 400
+
+
+def test_lien_reconciliation_est_discretement_dans_les_commandes():
+    from opsys.console.commandes_ui import rendre_liste
+
+    html = rendre_liste(
+        {"comptes": {}, "pos": [], "total": 0, "suivant": None},
+        "/opsys", None, False, 0,
+    )
+    assert 'href="/opsys/materiaux/intention"' in html
+    assert "Vérifier une intention de matériaux" in html
+
+
+def test_identifiants_incompatibles_postgresql_sont_indetermines(monde):
+    from unittest.mock import Mock
+
+    from opsys.console.m6_intention_reconciliation import lire_etat
+
+    connexion = Mock()
+    assert lire_etat(connexion, "appareil\x00fictif", "cle-fictive") == "indeterminee"
+    assert lire_etat(connexion, APPAREIL, "cle\x00fictive") == "indeterminee"
+    assert lire_etat(connexion, "appareil\ud800", "cle-fictive") == "indeterminee"
+    connexion.execute.assert_not_called()
+
+    csrf = _connecter(monde)
+    for invalide in ("appareil\x00fictif", "cle\x00fictive", "cle\navec-controle"):
+        assert _etat(monde, csrf, "intention-sans-requete", appareil=invalide).json() == {
+            "etat": "indeterminee",
+        }
+    api = monde.post(
+        "/api/m6/intention/etat",
+        json={"appareil": APPAREIL, "cle_idempotence": "cle\x00fictive"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    form = _formulaire(monde, csrf, cle="cle\x00fictive")
+    assert api.json() == {"etat": "indeterminee"}
+    assert form.status_code == 200
+    assert "Résultat : Indéterminée" in form.text

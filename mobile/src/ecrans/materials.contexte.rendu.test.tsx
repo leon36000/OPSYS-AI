@@ -97,6 +97,10 @@ test("double clic et ACK inconnu : un UUID, cible chantier source, payload conse
   const body=JSON.parse(String(mockFetch.mock.calls[0][1]?.body));expect(body.idempotencyKey).toBe(m.id);expect(body.args).toEqual(m.payload);
   const lu=serveurCapture("m3-devis-accepte-texte-verifie");expect(body.args.formulaire.chantier_id).toBe(lu.valeur.chantier.chantier_id);
   expect(body.args.formulaire.chantier_id).not.toBe(mockId);expect(texte()).toContain("materials.contexte.intentionConservee");
+  const appareilReconciliation=arbre!.root.findByProps({testID:"materials-appareil-reconciliation"});
+  expect(appareilReconciliation.props.selectable).toBe(true);
+  expect(JSON.stringify(appareilReconciliation.props.children)).toContain(configuration.appareilId);
+  expect(arbre!.root.findByProps({testID:"materials-intention-id"}).props.selectable).toBe(true);
   for(const r of arbre!.root.findAllByType(TextInput))expect(r.props.editable).toBe(false);
   await appuyer("materials.contexte.statut");expect(mockFetch).toHaveBeenCalledTimes(1);expect(await mockOutbox.lister()).toHaveLength(1);
 });
@@ -143,6 +147,7 @@ test("refus métier certain reste définitif et distinct de l'incertitude d'iden
   expect((await mockOutbox.lister())[0]).toMatchObject({statut:"echec_permanent"});
   expect(texte()).toContain("materials.contexte.refusPermanent");
   expect(texte()).not.toContain("materials.contexte.intentionConservee");
+  expect(arbre!.root.findAllByProps({testID:"materials-appareil-reconciliation"})).toHaveLength(0);
   expect(await mockOutbox.lister()).toHaveLength(1);
 });
 test("confirmation fictive de forme canonique termine seulement via reçu persistant lié",async()=>{
@@ -153,6 +158,7 @@ test("confirmation fictive de forme canonique termine seulement via reçu persis
   });
   await contexteEtImport();await modifierReels();await appuyer("materials.bouton");
   expect((await mockOutbox.lister())[0].statut).toBe("envoyee");expect(texte()).toContain("materials.succes");
+  expect(arbre!.root.findAllByProps({testID:"materials-appareil-reconciliation"})).toHaveLength(0);
   await act(async()=>arbre!.unmount());arbre=undefined;await monter();expect(texte()).toContain("materials.succes");expect(mockFetch).toHaveBeenCalledTimes(1);
 });
 test("brouillon sauvegardé/reprise mémoire garde l'intention et le recul avant renvoi de la même clé",async()=>{
@@ -183,6 +189,7 @@ test("ancien propriétaire inconnu reste en quarantaine sur cet objet, sans lect
   await contexteEtImport();await modifierReels();await appuyer("materials.bouton");const m=(await mockOutbox.lister())[0];
   await mockOutbox.mettreAJour({...m,proprietaire:null});await act(async()=>arbre!.unmount());arbre=undefined;await monter();
   expect(texte()).toContain("materials.contexte.quarantaine");expect(texte()).not.toContain("materials.succes");
+  expect(arbre!.root.findAllByProps({testID:"materials-appareil-reconciliation"})).toHaveLength(0);
   await appuyer("materials.contexte.statut");expect(mockFetch).toHaveBeenCalledTimes(1);expect(await mockOutbox.lister()).toHaveLength(1);
 });
 test.each(["horsligne","role","jeton","navigation","saisie"])("réponse en vol %s fermée",async(mode)=>{

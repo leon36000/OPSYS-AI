@@ -49,13 +49,22 @@ from starlette.datastructures import MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from .. import admission_agents, agents, agents_declencheurs, contexte, etat, identite, stockage, tableau_de_bord
+from .. import (
+    admission_agents,
+    agents,
+    agents_declencheurs,
+    contexte,
+    etat,
+    identite,
+    stockage,
+    tableau_de_bord,
+)
 from ..capacites import Capacites
 from ..departements import Departement, charger_departements
 from ..pont_bi import http as pont_bi_http
-from ..stockage import base_cron_operateur, codec
-from ..stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
-from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE, MUTATIONS_APPLIQUEES
+from ..stockage import base_cron_operateur
+from ..stockage.portabilite import DIALECTES_QUALIFIES
+from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE
 from . import (
     agents_etat,
     agents_ui,
@@ -83,6 +92,8 @@ from . import (
     fusion_pdf_ui,
     fusion_synthese,
     fusion_ui,
+    m6_intention_reconciliation,
+    m6_intention_reconciliation_ui,
     marketing_cmo_ui,
     marketing_growth_ui,
     marketing_performance_ui,
@@ -135,10 +146,6 @@ _MESSAGES_ERREUR = {
     403: "Vous n'avez pas le droit d'accéder à cette page.", 400: "La requête n'a pas pu être comprise.",
 }
 _PAGE_WALLBOARD = re.compile(r"/wallboards/[a-z0-9][a-z0-9-]*$")
-_HASH_M6 = re.compile(r"[0-9a-f]{64}\Z")
-_OUTILS_DECLARATION_M6 = frozenset({
-    "m6_declarer_materiaux_utilises", "m6_declarer_materiaux_avec_preuves_appareil",
-})
 _STATIQUES = {
     "console.css": (ressources.CSS, "text/css; charset=utf-8"),
     "console.js": (ressources.JS, "text/javascript; charset=utf-8"),
@@ -243,63 +250,6 @@ async def _objet_json_decimal(request: Request) -> dict[str, Any]:
     if not isinstance(donnees, dict):
         raise HTTPException(400, "objet JSON attendu")
     return donnees
-
-
-def _etat_reconciliation_m6(ligne: Mapping[str, Any] | None) -> str:
-    """Projette un claim M6 sur trois états fermés, sans exposer l'accusé stocké."""
-    inconnu = "indeterminee"
-    if ligne is None or ligne.get("outil") not in _OUTILS_DECLARATION_M6:
-        return inconnu
-    texte = ligne.get("reponse")
-    if type(texte) is not str or len(texte) > 16_384:
-        return inconnu
-    try:
-        reponse = codec.decoder_strict(texte, profondeur_max=16)
-    except ValueError:
-        return inconnu
-    if type(reponse) is not dict:
-        return inconnu
-
-    statut = ligne.get("statut")
-    if statut == "ok":
-        if set(reponse) != {"ok", "resultat"} or reponse["ok"] is not True:
-            return inconnu
-        resultat = reponse["resultat"]
-        if type(resultat) is not dict or type(resultat.get("accepte")) is not bool:
-            return inconnu
-        if resultat["accepte"] is False:
-            verdict = resultat.get("verdict")
-            code = verdict.get("code") if type(verdict) is dict else None
-            return "refusee" if (
-                set(resultat) == {"accepte", "verdict"}
-                and type(code) is str and code.startswith("REJ-")
-            ) else inconnu
-        registre = resultat.get("registre")
-        details = resultat.get("resultat")
-        if (
-            set(resultat) != {"accepte", "resultat", "registre"}
-            or type(details) is not dict
-            or type(registre) is not dict
-            or set(registre) != {"taille", "hash_tete"}
-            or type(registre.get("taille")) is not int or registre["taille"] < 0
-            or (registre.get("hash_tete") is not None
-                and (type(registre["hash_tete"]) is not str or _HASH_M6.fullmatch(registre["hash_tete"]) is None))
-        ):
-            return inconnu
-        return "acceptee"
-
-    if statut == "refus_metier":
-        erreur = reponse.get("erreur")
-        details = reponse.get("details")
-        if (
-            set(reponse) == {"ok", "erreur", "details"}
-            and reponse.get("ok") is False
-            and type(erreur) is str
-            and erreur in {"arguments_invalides", "refus_metier", "hors_portee_role"}
-            and ((type(details) is str) or (type(details) is list and all(type(x) is str for x in details)))
-        ):
-            return "refusee"
-    return inconnu
 
 
 def _attestation_depuis_formulaire(champs: Mapping[str, str]) -> dict[str, str] | None:
@@ -605,6 +555,11 @@ def creer_application(
     # administration seulement.
     app.include_router(commandes_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+    ))
+    # Vérification des intentions M6 : écran admin de lecture seule, lié discrètement aux commandes.
+    app.include_router(m6_intention_reconciliation_ui.creer_router(
+        session_page=session_page, verifier_formulaire=verifier_formulaire, lire_corps=_corps,
+        cnx_factory=cnx_factory, prefixe=prefixe,
     ))
     # Seuils matériaux (C7) : le seuil global, les seuils par catégorie/matériau et les deux planchers de variance,
     # édités par un administrateur avec un audit chaîné ; administration seulement.
@@ -1295,30 +1250,13 @@ def creer_application(
         if request.query_params:
             return {"etat": "indeterminee"}
         appareil, cle = corps.get("appareil"), corps.get("cle_idempotence")
-        if (
-            set(corps) != {"appareil", "cle_idempotence"}
-            or type(appareil) is not str or not appareil.strip() or len(appareil) > 128
-            or type(cle) is not str or not cle.strip() or len(cle) > 128
-        ):
+        if set(corps) != {"appareil", "cle_idempotence"}:
             return {"etat": "indeterminee"}
         with cnx_factory() as cnx:
             verifier_administration(cnx, session)
-            condition = (
-                (MUTATIONS_APPLIQUEES.c.appareil == appareil)
-                & (MUTATIONS_APPLIQUEES.c.cle_idempotence == cle)
-            )
-            octets = nb_octets(MUTATIONS_APPLIQUEES.c.reponse)
-            ligne = cnx.execute(
-                select(
-                    MUTATIONS_APPLIQUEES.c.outil,
-                    MUTATIONS_APPLIQUEES.c.statut,
-                    MUTATIONS_APPLIQUEES.c.reponse,
-                ).where(condition & octets.between(1, 16_384))
-            ).mappings().one_or_none()
-            if ligne is not None and ligne["outil"] not in _OUTILS_DECLARATION_M6:
-                ligne = None
+            etat = m6_intention_reconciliation.lire_etat(cnx, appareil, cle)
             verifier_administration(cnx, session)
-        return {"etat": _etat_reconciliation_m6(ligne)}
+        return {"etat": etat}
 
     @app.put("/api/agents-plafonds")
     async def api_configurer_plafonds_agents(request: Request) -> dict[str, Any]:

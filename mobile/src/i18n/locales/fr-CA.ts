@@ -813,6 +813,8 @@ const frCA: RessourcesCommunes = {
       "intentionInconnue": "Intention {{id}} à retrouver dans la file : aucun nouvel envoi créé.",
       "intentionConservee": "Confirmation impossible à vérifier pour l’instant. L’intention reste conservée; les nouvelles tentatives gardent le même identifiant.",
       "intentionAide": "Ne créez pas une deuxième déclaration. Si le doute persiste, demandez à la personne responsable de vérifier la situation, en lecture seule si possible.",
+      "appareilReconciliation": "ID de l’appareil actuellement appairé (à confirmer si réinitialisé) : {{id}}",
+      "appareilReconciliationAide": "Cet identifiant décrit l’appareil actuellement appairé. S’il a été réinitialisé, il peut différer de celui de l’intention; demandez au responsable de vérifier avant de conclure.",
       "refusPermanent": "La file conserve un refus définitif pour cette intention. Aucun nouvel envoi créé ; le détail n’est pas repris sans reçu conservé.",
       "statut": "Vérifier le statut de la même intention",
       "limitePreuves": "Les cases photo et reçu restent des déclarations historiques. Cet écran ne téléverse pas de preuve physique."

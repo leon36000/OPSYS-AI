@@ -142,6 +142,7 @@ def rendre_liste(page: Mapping[str, Any], prefixe: str, statut: str | None, en_r
         "<p>Cette page est en lecture seule : elle n'approuve, n'envoie, ne reçoit et n'annule rien. "
         "Ces gestes passent par leurs outils et leurs approbations. Un bon « en retard » est envoyé, confirmé ou "
         "partiellement reçu avec une date requise dépassée.</p>"
+        f'<p><a href="{pages.e(prefixe)}/materiaux/intention">Vérifier une intention de matériaux</a></p>'
         f"{_liens_filtres(prefixe, statut, en_retard)}<h2>Résumé</h2><p>{comptes}</p>"
         f"<h2>Liste</h2>{tableau}<p>{int(page['total'])} bon(s) de commande.</p>{navigation}"
     )

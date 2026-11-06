@@ -330,6 +330,8 @@ const enCA: RessourcesCommunes = {
       "intentionInconnue": "Intent {{id}} must be found in the queue: no new submission created.",
       "intentionConservee": "Confirmation cannot be verified right now. This intent is retained; retries reuse its identifier.",
       "intentionAide": "Do not create a second declaration. If uncertainty remains, ask the responsible person to review the situation in read-only mode if possible.",
+      "appareilReconciliation": "Currently paired device ID (confirm if reset): {{id}}",
+      "appareilReconciliationAide": "This identifies the currently paired device. If it was reset, the ID may differ from the intent’s; ask the responsible person to verify before drawing a conclusion.",
       "refusPermanent": "The queue retains a permanent refusal for this intent. No new submission created; details are not restated without a stored receipt.",
       "statut": "Check the same intent’s status",
       "limitePreuves": "Photo and receipt checkboxes remain historical declarations. This screen uploads no physical evidence."

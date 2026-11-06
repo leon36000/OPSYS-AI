@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ajouterLigne, creerLigneVide, modifierLigne, retirerLigne, TYPES_LIGNE_MATERIAUX, validerLigne } from "@/ecrans/materials";
 import type { LigneEnSaisie } from "@/ecrans/materials";
 import { estimationEnNombreExact } from "@/m6/contexteMateriaux";
+import { obtenirConfigurationAppel } from "@/protocole/configuration";
 import { useDeclarationMateriaux } from "@/terrain/useDeclarationMateriaux";
 
 const RAISONS_LOCALES = ["cible_absente", "cible_changee", "source_changee", "prevu_absent", "prevu_vide", "page_deja_importee", "estimation_non_importable", "trop_de_lignes", "identifiants_invalides", "intention_en_attente", "aucune_ligne", "lignes_invalides", "lecture_indisponible","preuve_manquante","capture_indisponible","preuves_invalides","fichiers_en_attente","achat_terrain_hors_preuves"];
@@ -17,6 +18,9 @@ export default function EcranMateriaux() {
   const { t } = useTranslation(), { id } = useLocalSearchParams<{id:string}>();
   const interventionId=typeof id==="string"?id:"", enLigne=useNetInfo().isConnected===true;
   const v=useDeclarationMateriaux(interventionId,enLigne), c=v.contexte, d=v.brouillon;
+  const appareilId=obtenirConfigurationAppel()?.appareilId??null;
+  const reconciliationIncertaine=(v.intention!==null&&!v.enQuarantaine&&!v.confirme&&v.intention.statut!=="echec_permanent")
+    ||(v.intention===null&&d.intentionId!==null);
   const desactive=v.verrouille||v.traitement, suivant=c?.pagination.suivant;
   const bouton=(cle:string,action:()=>void,disabled=false)=><Pressable accessibilityLabel={cle} style={styles.boutonSecondaire} disabled={disabled} onPress={action}><Text style={styles.boutonSecondaireTexte}>{t(cle)}</Text></Pressable>;
   return <ScrollView contentContainerStyle={styles.conteneur}>
@@ -86,9 +90,13 @@ export default function EcranMateriaux() {
     {v.stockage==="echec"?bouton("materials.contexte.sauver",()=>void v.sauver(),!v.autorisee):null}
     {v.avis?<Text style={styles.avis}>{RAISONS_LOCALES.includes(v.avis)?t(`materials.contexte.raison_${v.avis}`):t("materials.contexte.refus",{code:v.avis})}{v.detailAvis?` — ${v.detailAvis}`:""}</Text>:null}
     {v.enQuarantaine?<Text style={styles.avis}>{t("materials.contexte.quarantaine")}</Text>:null}
-    {v.intention?<Text>{t("materials.contexte.intention",{id:v.intention.id,statut:v.intention.statut})}</Text>:d.intentionId?<Text>{t("materials.contexte.intentionInconnue",{id:d.intentionId})}</Text>:null}
+    {v.intention?<Text selectable testID="materials-intention-id">{t("materials.contexte.intention",{id:v.intention.id,statut:v.intention.statut})}</Text>:d.intentionId?<Text selectable testID="materials-intention-id">{t("materials.contexte.intentionInconnue",{id:d.intentionId})}</Text>:null}
     {v.intention&&!v.confirme?<Text>{t(v.intention.statut==="echec_permanent"?"materials.contexte.refusPermanent":"materials.contexte.intentionConservee")}</Text>:null}
-    {v.intention&&!v.confirme&&v.intention.statut!=="echec_permanent"?<Text>{t("materials.contexte.intentionAide")}</Text>:null}
+    {reconciliationIncertaine?<Text>{t("materials.contexte.intentionAide")}</Text>:null}
+    {reconciliationIncertaine&&appareilId?<>
+      <Text selectable testID="materials-appareil-reconciliation">{t("materials.contexte.appareilReconciliation",{id:appareilId})}</Text>
+      <Text>{t("materials.contexte.appareilReconciliationAide")}</Text>
+    </>:null}
     {v.confirme?<Text style={styles.succes}>{t("materials.succes")}</Text>:null}
     {(v.intention||d.intentionId)?bouton("materials.contexte.statut",()=>void v.rafraichirStatut(),!v.autorisee||v.traitement):null}
     <Text>{t("materials.contexte.limitePreuves")}</Text>

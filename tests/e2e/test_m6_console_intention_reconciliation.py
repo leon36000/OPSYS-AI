@@ -74,3 +74,16 @@ def test_les_declarations_reelles_sont_lues_sans_rejouer_ni_exposer_le_recu(equi
         assert "cout_unitaire" not in response.text
         assert "hash_tete" not in response.text
         assert "preuves" not in response.text
+        # Les deux surfaces ferment les caractères que PostgreSQL ne peut pas encoder comme texte.
+        api_nul = client.post(
+            "/api/m6/intention/etat",
+            json={"appareil": equipe["employe"].appareil_id + "\x00", "cle_idempotence": cle},
+            headers={"X-CSRF-Token": csrf},
+        )
+        formulaire_nul = client.post(
+            "/materiaux/intention",
+            data={"csrf": csrf, "appareil": equipe["employe"].appareil_id, "cle_idempotence": cle + "\x00"},
+        )
+        assert api_nul.json() == {"etat": "indeterminee"}
+        assert formulaire_nul.status_code == 200
+        assert "Résultat : Indéterminée" in formulaire_nul.text
