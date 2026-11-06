@@ -11,7 +11,8 @@ le fait durable de la veille manque ou ne cite pas toutes les sources, et chacun
 L'audit et les KPI
 écrivent un rapport au registre `rapports_routine` (consultable par `m10_lire_rapports_routine`). Aucun contact
 externe, aucune
-promotion ni confirmation (décisions humaines). En ombre, seule la lecture est appelée : rien n'est écrit.
+promotion ni confirmation (décisions humaines). En ombre, la lecture n'écrit aucun fait métier ; le journal
+opérationnel conserve les observations et le curseur de parcours.
 
 Le journal du planificateur ne porte jamais l'identifiant d'une affaire : la ressource est `<jour>|<empreinte de
 l'affaire>`.
@@ -20,10 +21,17 @@ l'affaire>`.
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import select
+
+from .. import service_acteur_systeme as systeme
+from .. import stockage
+from ..stockage.schema import PLANIFICATEUR_JOURNAL
+from . import journal
 from .bail import Bail
 from .planificateur import RESSOURCES_PAR_PASSAGE, Contexte, RefusExecuteur
 from .routines import ExecuteurRoutine
@@ -47,6 +55,45 @@ class ConsolidationAffaires(ExecuteurRoutine):
     def _pseudonyme(affaire: str) -> str:
         return hashlib.sha256(affaire.encode("utf-8")).hexdigest()[:16]
 
+    def _decalage(self, jour: str, mode: str) -> int:
+        """Le prochain index circulaire, séparé par jour et par mode, dans le journal append-only."""
+        ressource = f"{jour}|rotation"
+        with stockage.transaction() as cnx:
+            brut = cnx.execute(
+                select(PLANIFICATEUR_JOURNAL.c.details)
+                .where(
+                    PLANIFICATEUR_JOURNAL.c.executeur == self.nom[:40],
+                    PLANIFICATEUR_JOURNAL.c.evenement == "curseur",
+                    PLANIFICATEUR_JOURNAL.c.ressource == ressource,
+                    PLANIFICATEUR_JOURNAL.c.mode == mode,
+                )
+                .order_by(PLANIFICATEUR_JOURNAL.c.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+        if brut is None:
+            return 0
+        try:
+            valeur = json.loads(brut).get("decalage")
+        except (TypeError, ValueError):
+            valeur = None
+        if type(valeur) is not int or valeur < 0:
+            raise RefusExecuteur("REJ-PLAN-ROUTINE-CURSEUR-INVALIDE")
+        return valeur
+
+    def _avancer_decalage(self, jour: str, mode: str, decalage: int, reste: int, ressources: int) -> None:
+        """Avance AVANT le traitement : un lot qui échoue ne bloque donc pas le prochain lot."""
+        with stockage.transaction() as cnx:
+            journal.journaliser(
+                cnx,
+                self.nom,
+                "curseur",
+                systeme.IDENTIFIANT,
+                ressource=f"{jour}|rotation",
+                mode=mode,
+                statut="avance",
+                details={"decalage": decalage, "reste": reste, "ressources": ressources},
+            )
+
     def ressources(self, ctx: Contexte) -> list[str]:
         super().ressources(ctx)
         self._verifier(ctx)
@@ -54,13 +101,25 @@ class ConsolidationAffaires(ExecuteurRoutine):
         if not due:
             return []
         veille = (date.fromisoformat(aujourd_hui) - timedelta(days=1)).isoformat()
-        liste = self.resultat(self._appeler(ctx, LISTER, {"jour": veille, "limite": RESSOURCES_PAR_PASSAGE}))
+        mode = getattr(ctx, "mode", "actif")
+        decalage = self._decalage(veille, mode)
+        from m10_memoire.routines_outils import decalage_enumeration_interne
+
+        with decalage_enumeration_interne(decalage):
+            liste = self.resultat(
+                self._appeler(ctx, LISTER, {"jour": veille, "limite": RESSOURCES_PAR_PASSAGE})
+            )
         self._cibles = {}
-        for affaire in liste["a_consolider"]:
+        affaires = liste["a_consolider"]
+        pendantes = max(0, int(liste["touchees"]) - int(liste["deja_consolidees"]))
+        prochain_decalage = (decalage % pendantes + len(affaires)) % pendantes if pendantes else 0
+        for affaire in affaires:
             ressource = f"{veille}|{self._pseudonyme(affaire)}"
-            if getattr(ctx, "mode", "actif") == "ombre" and self.deja_fait(ressource, ctx):
+            if mode == "ombre" and self.deja_fait(ressource, ctx):
                 continue
             self._cibles[ressource] = (veille, affaire)
+        if affaires and (self._cibles or liste["reste"]):
+            self._avancer_decalage(veille, mode, prochain_decalage, int(liste["reste"]), len(affaires))
         return sorted(self._cibles)
 
     def constater(self, ressource: str, ctx: Contexte) -> dict[str, Any]:

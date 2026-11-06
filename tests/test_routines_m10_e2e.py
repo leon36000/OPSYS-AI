@@ -382,3 +382,125 @@ def test_l_ombre_de_l_audit_et_des_kpi_calcule_a_blanc_sans_ecrire_puis_l_actif_
     resume = w.tour(plan, w.local("2026-11-16", "05:20"))
     assert resume[AUDIT]["rapports"] == 1 and resume[KPIS]["rapports"] == 1
     assert sorted(r["genre"] for r in w.rapports_m10()) == ["audit_non_oubli", "kpis"]
+
+
+def test_la_rotation_fait_avancer_la_51e_affaire_malgre_50_echecs_repetes(plan, monkeypatch):
+    import interconnexion_charges as ch
+    from m10_memoire import outils as m10
+
+    for i in range(51):
+        affaire = f"aff-{i:03}"
+        w.publier(
+            "m1.lead_qualifie",
+            "m01-front-office",
+            ch.lead_qualifie_m1(affaire, horodatage="2026-11-09T14:00:00-05:00"),
+        )
+    w.repartir(plan, passes=100)
+    original = m10.consolider_affaire
+    essais_51 = []
+
+    def echec_des_cinquante_premieres(affaire_id, jour, horodatage):
+        if affaire_id != "aff-050":
+            raise RuntimeError("panne fictive persistante")
+        essais_51.append(affaire_id)
+        return original(affaire_id, jour, horodatage)
+
+    monkeypatch.setattr(m10, "consolider_affaire", echec_des_cinquante_premieres)
+    w.activer(plan, (CONSOLIDATION,))
+    premiere = w.tour(plan, w.local(MARDI, "03:05"))[CONSOLIDATION]
+    assert premiere["ressources"] == 50 and premiere["erreurs"] == 50
+    assert premiere["statut"] == "erreur" and essais_51 == []
+
+    seconde = w.tour(plan, w.local(MARDI, "03:20"))[CONSOLIDATION]
+    assert seconde["ressources"] == 50 and seconde["erreurs"] == 49
+    assert seconde["statut"] == "erreur" and essais_51 == ["aff-050"]
+    assert ("aff-050", LUNDI) in _faits()
+
+    # Le nouveau passage reconstruit l'exécuteur et relit le curseur append-only. La liste pendante est passée de 51
+    # à 50 ; l'offset 49 est normalisé sur cette liste raccourcie et la consolidation de la 51e reste idempotente.
+    troisieme = w.tour(plan, w.local(MARDI, "03:35"))[CONSOLIDATION]
+    assert troisieme["ressources"] == 50 and troisieme["erreurs"] == 50
+    assert essais_51 == ["aff-050"] and _faits().count(("aff-050", LUNDI)) == 1
+
+    curseurs = [e for e in w.journal(CONSOLIDATION) if e["evenement"] == "curseur"]
+    assert curseurs[-1]["details"] == {"decalage": 50, "reste": 1, "ressources": 50}
+    texte = json.dumps(w.journal(CONSOLIDATION), ensure_ascii=False)
+    assert not any(f"aff-{i:03}" in texte for i in range(51))
+
+
+def test_ombre_utilise_un_curseur_distinct_et_ne_consolide_rien(plan, monkeypatch):
+    import interconnexion_charges as ch
+    from m10_memoire import outils as m10
+
+    for i in range(51):
+        w.publier(
+            "m1.lead_qualifie",
+            "m01-front-office",
+            ch.lead_qualifie_m1(f"aff-{i:03}", horodatage="2026-11-09T14:00:00-05:00"),
+        )
+    w.repartir(plan, passes=100)
+    original = m10.consolider_affaire
+    essais_actifs = []
+
+    def suivie_active(affaire_id, jour, horodatage):
+        if affaire_id != "aff-050":
+            raise RuntimeError("panne fictive persistante")
+        essais_actifs.append(affaire_id)
+        return original(affaire_id, jour, horodatage)
+
+    monkeypatch.setattr(m10, "consolider_affaire", suivie_active)
+    w.activer(plan, (CONSOLIDATION,), mode="ombre")
+    premiere = w.tour(plan, w.local(MARDI, "03:05"))[CONSOLIDATION]
+    assert premiere["ressources"] == 50 and premiere["statut"] == "ombre"
+    seconde = w.tour(plan, w.local(MARDI, "03:20"))[CONSOLIDATION]
+    assert seconde["ressources"] == 1 and seconde["statut"] == "ombre"
+    assert _faits() == [] and essais_actifs == []
+
+    # Une source tardive peut s'insérer hors de la page courante déjà constatée : même un passage à vide doit
+    # avancer le curseur pour que l'ombre finisse par l'observer, sans consolider l'affaire.
+    w.publier(
+        "m1.lead_qualifie",
+        "m01-front-office",
+        ch.lead_qualifie_m1("aff-047a", horodatage="2026-11-09T14:00:00-05:00"),
+    )
+    w.repartir(plan, passes=100)
+    passage_vide = w.tour(plan, w.local(MARDI, "03:35"))[CONSOLIDATION]
+    assert passage_vide["ressources"] == 0 and passage_vide["statut"] == "ombre"
+    passage_tardif = w.tour(plan, w.local(MARDI, "03:50"))[CONSOLIDATION]
+    assert passage_tardif["ressources"] == 1 and passage_tardif["statut"] == "ombre"
+    assert _faits() == [] and essais_actifs == []
+
+    # Le mode actif repart sur son propre curseur 0; les 50 « auraient » ne sont ni des succès ni des échecs actifs.
+    w.activer(plan, (CONSOLIDATION,), mode="actif")
+    active = w.tour(plan, w.local(MARDI, "04:05"))[CONSOLIDATION]
+    assert active["ressources"] == 50 and active["erreurs"] == 50 and essais_actifs == []
+
+
+def test_un_arret_apres_l_avancement_du_curseur_reprend_au_passage_suivant(plan, monkeypatch):
+    import interconnexion_charges as ch
+
+    from opsys.connecteurs_planification.exec_m10 import ConsolidationAffaires
+    from opsys.connecteurs_planification.planificateur import RefusExecuteur
+
+    for i in range(51):
+        w.publier(
+            "m1.lead_qualifie",
+            "m01-front-office",
+            ch.lead_qualifie_m1(f"aff-{i:03}", horodatage="2026-11-09T14:00:00-05:00"),
+        )
+    w.repartir(plan, passes=100)
+    w.activer(plan, (CONSOLIDATION,))
+
+    def panne_immediatement_apres_selection(self, ressource, ctx, bail):
+        raise RefusExecuteur("REJ-PLAN-CRASH-FICTIF")
+
+    with monkeypatch.context() as panne:
+        panne.setattr(ConsolidationAffaires, "traiter", panne_immediatement_apres_selection)
+        interruption = w.tour(plan, w.local(MARDI, "03:05"))[CONSOLIDATION]
+    assert interruption["ressources"] == 50 and interruption["erreurs"] == 50
+    assert interruption["statut"] == "erreur"
+    assert _faits() == []
+
+    reprise = w.tour(plan, w.local(MARDI, "03:20"))[CONSOLIDATION]
+    assert reprise["ressources"] == 50 and reprise["statut"] == "ok"
+    assert reprise["affaires"] == 50 and ("aff-050", LUNDI) in _faits()

@@ -127,21 +127,29 @@ def enumerer(
     limite: int,
     maillons_evenements: Sequence[Mapping[str, Any]],
     maillons_affaires: Sequence[Mapping[str, Any]],
+    *,
+    decalage: int = 0,
 ) -> dict[str, Any]:
     """Les affaires touchées le `jour` (date telle qu'écrite au registre, comme la consolidation) et celles à
-    consolider,
-    triées (ordre stable : deux lectures du même état donnent la même liste). `a_consolider` est borné à `limite` ;
-    `reste`
-    dit ce qui attend le passage suivant."""
+    consolider, triées (ordre stable). `a_consolider` est borné à `limite` et commence à `decalage` dans l'ordre
+    circulaire ; `reste` compte les autres affaires pendantes."""
     par_affaire, refusees = _evenements_par_affaire(jour, maillons_evenements)
     faits = _faits_par_cle(maillons_affaires)
     touchees = sorted(par_affaire)
     pendantes = [a for a in touchees if _a_consolider(a, jour, par_affaire[a], faits)]
+    if len(pendantes) <= limite:
+        page = pendantes
+    else:
+        depart = decalage % len(pendantes)
+        fin = depart + limite
+        page = pendantes[depart:fin]
+        if fin > len(pendantes):
+            page.extend(pendantes[: fin - len(pendantes)])
     return {
         "jour": jour,
         "touchees": len(touchees),
-        "a_consolider": pendantes[:limite],
-        "reste": max(0, len(pendantes) - limite),
+        "a_consolider": page,
+        "reste": len(pendantes) - len(page),
         "deja_consolidees": len(touchees) - len(pendantes),
         "affaires_refusees": refusees,
     }

@@ -21,6 +21,9 @@ composé. Une écriture identique à une ligne existante (même clé = genre, fi
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, timedelta
 from typing import Any
 
@@ -40,6 +43,21 @@ CONSOMMATEUR = "m10-memoire"
 PUBLICATIONS_MAX = 5000  # au-delà, l'audit refuse la fenêtre (fail-closed) plutôt que d'en lire une partie
 _REGISTRE_RAPPORTS = registre.Registre(maillons=stockage.maillons("m10-memoire", "rapports_routine"))
 _AFFAIRE_JOUR = {"type": "string", "description": "AAAA-MM-JJ, jour touché (date telle qu'écrite au registre)."}
+_DECALAGE_ENUMERATION: ContextVar[int] = ContextVar("m10_decalage_enumeration", default=0)
+
+
+@contextmanager
+def decalage_enumeration_interne(decalage: int) -> Iterator[None]:
+    """Curseur temporaire du planificateur; aucun argument ni état public du registre MCP."""
+    if not systeme.planificateur_en_cours():
+        raise PermissionError("curseur interne réservé au planificateur")
+    if type(decalage) is not int or decalage < 0:
+        raise ValueError("décalage interne entier positif ou nul requis")
+    jeton = _DECALAGE_ENUMERATION.set(decalage)
+    try:
+        yield
+    finally:
+        _DECALAGE_ENUMERATION.reset(jeton)
 
 
 def _verdict(code: str, detail: str) -> dict[str, Any]:
@@ -110,9 +128,12 @@ def lister_affaires_a_consolider(jour: str, limite: int = 50) -> dict[str, Any]:
         return _verdict("REJ-ROUTINE-JOUR-INVALIDE", "jour doit être une date calendaire AAAA-MM-JJ")
     if type(limite) is not int or not 1 <= limite <= routines.LIMITE_MAX:
         return _verdict("REJ-ROUTINE-LIMITE-INVALIDE", f"limite entière de 1 à {routines.LIMITE_MAX}")
+    decalage = _DECALAGE_ENUMERATION.get()
     return {
         "accepte": True,
-        "resultat": routines.enumerer(jour, limite, _o._REGISTRE_EVENEMENTS.lire(), _o._REGISTRE_AFFAIRES.lire()),
+        "resultat": routines.enumerer(
+            jour, limite, _o._REGISTRE_EVENEMENTS.lire(), _o._REGISTRE_AFFAIRES.lire(), decalage=decalage
+        ),
     }
 
 

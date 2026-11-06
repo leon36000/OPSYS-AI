@@ -59,6 +59,9 @@ def test_les_quatre_outils_sont_declares_n0_ou_n2_agent_seulement_et_le_manifest
         outil = _outil(nom)
         assert outil.autonomie is autonomie and outil.niveau is niveau and outil.roles_appareil == frozenset(), nom
         assert not outil.frontiere_humaine and outil.parametres["additionalProperties"] is False, nom
+    schema_enumerateur = _outil("m10_lister_affaires_a_consolider").parametres
+    assert set(schema_enumerateur["properties"]) == {"jour", "limite"}
+    assert schema_enumerateur["properties"]["limite"]["maximum"] == routines.LIMITE_MAX
     manifeste = yaml.safe_load(
         (
             routines.__file__ and __import__("pathlib").Path(routines.__file__).resolve().parents[2] / "department.yaml"
@@ -68,6 +71,22 @@ def test_les_quatre_outils_sont_declares_n0_ou_n2_agent_seulement_et_le_manifest
     # la lecture sert aux personnes, pas à une routine ; le rafraîchissement des contradictions a son propre test
     assert declares == (set(attendus) - {"m10_lire_rapports_routine"}) | {"m10_rafraichir_contradictions"}
     assert {k["id"] for k in manifeste["kpis"]} == set(routines.kpi_ids())
+
+
+def test_le_curseur_prive_exige_le_planificateur_et_est_toujours_reinitialise():
+    assert routines_outils._DECALAGE_ENUMERATION.get() == 0
+    with pytest.raises(PermissionError), routines_outils.decalage_enumeration_interne(12):
+        pass
+    assert routines_outils._DECALAGE_ENUMERATION.get() == 0
+
+    with systeme.contexte_planificateur():
+        with routines_outils.decalage_enumeration_interne(12):
+            assert routines_outils._DECALAGE_ENUMERATION.get() == 12
+        assert routines_outils._DECALAGE_ENUMERATION.get() == 0
+        with pytest.raises(RuntimeError), routines_outils.decalage_enumeration_interne(7):
+            raise RuntimeError("interruption fictive")
+        assert routines_outils._DECALAGE_ENUMERATION.get() == 0
+    assert routines_outils._DECALAGE_ENUMERATION.get() == 0
 
 
 @pytest.mark.parametrize(

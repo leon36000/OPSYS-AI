@@ -62,8 +62,8 @@ def _mondes():
     return registre.Registre(), registre.Registre()
 
 
-def _enumerer(ev, af, jour=JOUR, limite=50):
-    return routines.enumerer(jour, limite, ev.lire(), af.lire())
+def _enumerer(ev, af, jour=JOUR, limite=50, decalage=0):
+    return routines.enumerer(jour, limite, ev.lire(), af.lire(), decalage=decalage)
 
 
 # -- 1. l'énumérateur
@@ -124,6 +124,34 @@ def test_la_limite_borne_la_liste_et_dit_le_surplus():
         _lead(ev, f"aff-{i}")
     page = _enumerer(ev, af, limite=2)
     assert page["a_consolider"] == ["aff-0", "aff-1"] and page["reste"] == 3 and page["touchees"] == 5
+
+
+def test_le_decalage_parcourt_circulairement_la_page_et_se_normalise_si_la_liste_retrecit():
+    ev, af = _mondes()
+    for i in range(5):
+        _lead(ev, f"aff-{i}")
+    page = _enumerer(ev, af, limite=2, decalage=4)
+    assert page["a_consolider"] == ["aff-4", "aff-0"] and page["reste"] == 3
+    assert consolidation.consolider_affaire("aff-4", JOUR, CONSO, ev, af)["ecrit"] is True
+    # Le curseur 4 devient l'index 0 dans la liste pendante à quatre éléments.
+    retrecie = _enumerer(ev, af, limite=2, decalage=4)
+    assert retrecie["a_consolider"] == ["aff-0", "aff-1"] and retrecie["reste"] == 2
+
+
+def test_le_decalage_parcourt_plus_de_200_affaires_sans_plafond_cache():
+    ev, af = _mondes()
+    attendues = {f"aff-{i:03}" for i in range(251)}
+    for affaire_id in sorted(attendues):
+        _lead(ev, affaire_id)
+    trouvees = []
+    decalage = 0
+    for _ in range(6):
+        page = _enumerer(ev, af, limite=50, decalage=decalage)
+        assert len(page["a_consolider"]) == 50
+        trouvees.extend(page["a_consolider"])
+        decalage = (decalage + 50) % (page["touchees"] - page["deja_consolidees"])
+    assert set(trouvees) == attendues
+    assert "aff-250" in trouvees and page["reste"] == 201
 
 
 def test_une_affaire_consolidee_n_est_plus_designee_et_une_source_tardive_la_redesigne():
