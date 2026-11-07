@@ -47,6 +47,32 @@ admin SQL : résultat conservé hors Source dans `price-import-m10-preflight-v1-
 Cela n’interroge pas la mémoire d’affaires/production et ne prouve pas l’absence de contexte
 projet antérieur. Le contrat M10 versionné et les directives actuelles ont aussi été relus.
 
+## Réévaluation du 7 novembre 2026
+
+L’audit du 27 octobre reste une photographie historique. La présente réévaluation part de la
+branche `claude/ligne-architecte` à `8137881a07e4795cbb86a45097772955cad656a7` et du
+[README M6](../../../departments/m06-material-control/README.md), sans changer les règles ni les
+données de M6.
+
+| Sujet | Preuve actuelle et limite |
+|---|---|
+| Bons de commande et prix | `bons_commande.py`, `po_lecture.py`, `cout_sortie.py` et `commande_courriel_outils.py` couvrent les lignes avec unités, le facteur de perte déclaré, les PO par fournisseur, la lecture admin et le coût de sortie par source. Le courriel reste un brouillon/flux M1 éprouvé sur double; il n’y a pas de commande réelle fournisseur qualifiée. |
+| Fournisseurs initiaux | `fournisseurs_a_fournir.py` nomme Gentek, Royal Solution de Bâtiment, O.A.M. et Kaycan comme données à fournir. Aucune adresse de commande, condition, grille tarifaire ou délai réel n’est déduit de leur nom. |
+| Réception, stock et terrain | `details_reception.py`, `emplacements.py`, `materiel.py`, `variance_chantier.py`, `achats_terrain.py` et `ajustements.py` portent les parcours locaux et leur audit. Le formulaire employé existe dans `mobile/app/(employee)/job/[id]/materials.tsx` et l’écran stock admin dans `mobile/app/(admin)/stock.tsx`. Leur présence et leurs tests ne prouvent pas une exécution sur téléphone réel. |
+| Réglages et alertes | `seuils_variance.py`, `alertes_approvisionnement.py`, `reorder.py` et la console `seuils_materiaux_ui.py` existent. Les seuils, planchers et catégories sont des décisions de direction non remplies par défaut; les valeurs proposées par agent ne sont pas des paramètres approuvés. Les alertes restent neutres, sans accusation d’employé. |
+| Jonctions | Le code reçoit M3 (`m3.besoins_materiaux`), M4 (`m4.travaux_termines`), publie des faits de réception et de coût pour M5, des constats de disponibilité pour M8, des signaux lus par M9 et des références/événements pour M10. Chaque jonction doit encore être qualifiée dans un E2E unique avec données fictives avant de conclure au critère « estimation → finance ». |
+| Tests rejoués | `tests/test_m6_scenario_sortie_article_po.py`, `tests/test_console_commandes_m6.py` et `tests/test_console_m6_intention_reconciliation.py` : **46 tests passés** le 7 novembre 2026 avec `OPSYS_HOME` isolé. Cette sélection ne qualifie ni PostgreSQL, ni fournisseur réel, ni appareil mobile natif. |
+
+Le risque de rejeu d’une intention mobile après perte de l’identité d’appareil reste **conditionnel** :
+le dépôt ne prouve pas que l’outbox SQLite survive à une réinitialisation qui efface SecureStore.
+La politique de rapprochement ne doit pas être élargie sur cette seule hypothèse.
+
+**Patch minimal suivant :** construire et rejouer un E2E fictif d’un seul tenant M3 → besoin M6 →
+PO approuvé → courriel M1 sur double → réception partielle → fin M4 et usage mobile → variance et
+revue admin → coût M5 → constats M8/M9 → mémoire M10. Ajouter les contre-épreuves de rejeu et de
+permissions. Les contacts, prix, formats de commande et conditions réels des quatre fournisseurs
+doivent venir de sources fournies et datées avant tout envoi réel.
+
 ## Permissions, gates Nathan et suites
 
 Aucun outil/droit nouveau. Préparer un candidat est réversible et sans engagement. Envoi réel
@@ -54,3 +80,8 @@ fournisseur, import officiel sous politique/validation, ajustement de stock, don
 nouvelle source, paiement et déploiement gardent leurs gates. La mise à jour automatique à
 réception des listes de prix reste l’objectif; aucun format PDF/XLSX/CSV fournisseur n’est
 supposé. Ce document et le prochain contrat ne déclarent ni M6 ni OPSYS complet.
+
+La directive d’autonomie plus récente de Nathan cible une confirmation administrateur pour les
+**commandes de matériel**, les paiements et les dépôts de paie. Les autres gates énumérés dans
+l’audit historique décrivent le code de l’époque; ils doivent être revus par action et testés
+avant d’être retirés. Le présent audit ne change aucune permission.
