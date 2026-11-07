@@ -213,6 +213,17 @@ Sans changement, rien n'est écrit. Un **retrait** exige `--retirer`. Une descri
 consigne adressée au modèle (« ignore les instructions précédentes », « ne le dis pas à l'utilisateur », `<IMPORTANT>`…) ou une longue suite opaque
 **bloque** le scellement (`inspecter_description`). Le registre s'écrit un outil par ligne : une modification d'outil est une ligne de diff.
 
+**Révision 43 (approuvée par Nathan, 2026-11-07)** : resserrement du contrat publié de
+`m3_classifier_confiance`, `m3_qualifier_photos` et `m3_estimer_projet`. Les objets photo,
+référence d'échelle et seuils refusent les champs supplémentaires ; identifiants et type de
+référence doivent être non blancs, dimensions positives et éclairage dans les bornes déclarées.
+Un inventaire statique des appelants connus du dépôt (source, Core, mobile, scripts et tests)
+n'a trouvé aucune charge positive avec des champs supplémentaires ; les charges qui en ont
+sont des tests de refus. Les appels générés à l'exécution et les clients externes restent
+inconnus et devront être vérifiés avant déploiement. La même révision ajoute seulement à la
+description de `m6_consommer_materiaux` le rendu exact d'une quantité non représentable par
+le flottant historique. Aucun niveau, droit, ajout ou retrait d'outil ne change.
+
 **Garde de CI** : `tests/test_registre_mcp.py::test_le_registre_livre_correspond_exactement_au_catalogue_reel` échoue dès qu'une description, un
 schéma ou un niveau d'outil change sans nouvelle révision. C'est la « révision approuvée » : le diff du registre est relu dans la revue de code.
 **À l'intégration des branches parallèles (m10-connaissances, m7-studio-creatif, cablage-connecteurs…), les outils ajoutés ou modifiés feront échouer
