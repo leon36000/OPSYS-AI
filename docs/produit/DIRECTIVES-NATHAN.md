@@ -6,6 +6,25 @@ versionnée du projet ; la reprise est publiée dans la [PR privée #623](https:
 sans fusion ni déploiement.
 Il ne prétend pas être déjà ingéré par M10 ni conservé dans la mémoire personnelle d'un modèle.
 
+## Autonomie cible précisée le 7 novembre 2026
+
+Nathan réaffirme que les dix départements doivent disposer de capacités, connaissances,
+outils et intégrations métier profonds, et exécuter automatiquement les tâches pour
+lesquelles ils sont autorisés. La cible est de réduire les validations de routine :
+**les paiements, les dépôts de paie et les commandes de matériel sont les trois actions
+pour lesquelles il demande expressément une confirmation des administrateurs avant
+exécution**. Les anciens prompts des départements, transmis de nouveau comme vision,
+doivent être adaptés à cette instruction et au code actuel ; leurs états « STUB »,
+chemins `grs_api/` et listes de gates ne décrivent pas automatiquement le produit actuel.
+
+Cette directive définit la cible produit, pas une preuve que les automatismes ou les
+connecteurs existent déjà. Pour chaque action automatisée, le code doit vérifier les
+droits, le consentement applicable, les données sources, le contrat du fournisseur et
+la traçabilité. Les autres validations humaines inscrites dans les anciens textes et
+dans le code demandent une revue explicite par parcours avant d'être remplacées par
+une politique automatique testée. Aucune autorisation de paiement réel, de fusion ou
+de déploiement n'est déduite de cette directive.
+
 ## Construire à partir de briques existantes
 
 Avant de développer une capacité importante, rechercher ce qui fonctionne déjà dans OPSYS,

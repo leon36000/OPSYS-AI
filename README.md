@@ -59,9 +59,9 @@ catalogue de fournisseurs : un chiffre périmé fait échouer le test.
 | Outils ouverts aux appareils | 258 |
 | Avatars | 10 |
 | Packs sectoriels | 2 |
-| Fichiers de migration | 51 |
-| Tête alembic | 0087 |
-| Révision du registre MCP | 41 |
+| Fichiers de migration | 53 |
+| Tête alembic | 0089 |
+| Révision du registre MCP | 43 |
 | Outils scellés au registre MCP | 727 |
 | Lignes du catalogue de fournisseurs | 66 |
 <!-- chiffres:fin -->

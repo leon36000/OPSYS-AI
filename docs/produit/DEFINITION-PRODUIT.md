@@ -14,6 +14,9 @@ API par département, assimilation documentaire et calibration :
 **Priorité de réalisation précisée le 21 octobre 2026 (Montréal) :** grandes exigences OPSYS
 sur serveur Linux d'abord, application mobile en dernière phase. Les ambitions fonctionnelles
 restent intégrales ; voir les [directives durables](DIRECTIVES-NATHAN.md).
+**Autonomie cible précisée le 7 novembre 2026 :** automatiser les tâches autorisées et réserver
+la confirmation administrateur aux paiements, dépôts de paie et commandes de matériel ;
+voir les [directives durables](DIRECTIVES-NATHAN.md#autonomie-cible-précisée-le-7-novembre-2026).
 **Sources :** prompts maîtres des départements (8–9 juin 2026, et 23 juin 2026 pour M6), plan maître v1.2 (juillet–août 2026), directives de Nathan (septembre 2026). Détail en annexe A.
 
 ---
@@ -146,6 +149,9 @@ Chaque département les consomme au lieu de réinventer les siens. C'est ce qui 
 ### P1 — L'humain reste dans la boucle
 
 Synthèse commune. Les échelles exactes de M7 (niveaux 0–6) et de M5 (F0–F7) restent la référence dans leur département.
+Le tableau ci-dessous décrit la politique historique encore présente dans plusieurs parcours.
+La cible d'autonomie du 7 novembre 2026 demande sa révision par action ; elle ne change pas
+à elle seule les permissions du code livré.
 
 | Niveau | Nature | Règle |
 |---|---|---|
