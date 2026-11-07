@@ -115,11 +115,12 @@ Les décisions et prompts ingérés portent le module `PROJET` : le **preflight 
 | Outils sur SQLite : niveaux, canaux, isolation des domaines, planificateur seul, sas, plafonds, lecture bornée | `departments/m10-memoire/tests/test_contradictions_outils.py` |
 | Ingestion : dépôt Git fictif, idempotence, secrets et PII, versions, archives, remplacements, preflight, CLI | `departments/m10-memoire/tests/test_ingestion_projet.py` |
 | **Scénario de bout en bout** : vrai bus, vraie file d'approbation, vrai planificateur à horloge injectée, ombre puis actif, rejeu, approbation, aucun contenu personnel dans les journaux | `tests/test_contradictions_m10_e2e.py` |
+| Console Mnémo privée : files `affaires` et `developpement` séparées, projection bornée sans valeurs ni références, lecture seule après garde admin, repli indisponible sans fuite | `tests/test_mnemo_console.py` (13 tests, 7 novembre 2026) |
 
 Limites dites sans euphémisme : **dans le canal agent, la classe est déclarée par l'agent parmi les quatre classes basses** (documentation, journal, mémoire ancienne, hypothèse) : l'ordre entre elles est indicatif (un agent peut en dominer un autre en choisissant une classe plus haute que sa source réelle ; la marque est informative, rien n'est supprimé), seule l'usurpation d'une classe haute est impossible, et tout ce qui touche une classe ou un attribut critique reste à une personne ; SQLite seulement (le domaine développement est SQLite par conception, ADR-0012) ; horloge injectée ; aucune donnée réelle ; l'ingestion est un analyseur de structure (titres, en-têtes, ligne
 « Remplace ») qui ne comprend pas le sens d'une directive : une directive qui change de sens sans changer de section est une nouvelle version, pas une contradiction (seule une affirmation à clé en est une) ;
 la détection ne porte que sur ce qui a été *affirmé à clé* (par un agent, une personne ou un fichier à bloc) : elle ne lit pas le texte libre des mémoires ; aucun détecteur automatique ne tire de clés des registres existants
-(événements, faits analytiques) : c'est une extension ; la console n'a pas encore d'écran de revue des contradictions (lecture par l'outil, décision par la file d'approbation) ; l'accès mobile admin n'est pas ouvert
+(événements, faits analytiques) : c'est une extension ; la console Mnémo montre désormais les deux files à traiter mais aucune valeur d'affirmation ni action de décision (décision par la file d'approbation) ; l'accès mobile admin n'est pas ouvert
 (aucun droit d'appareil, pour ne pas élargir les portées) ; `rapport_valide`, `test_sonde` et `code` n'ont pas de producteur en production (seuls les canaux existent) ; l'ordre de vérité attend la décision de Nathan sur le point 5.
 
 ## Sources

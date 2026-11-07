@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from m10_memoire import contradictions as journal_contradictions
+from m10_memoire import contradictions_outils, verite
 
 from opsys import cli, identite
 from opsys.console import application
@@ -193,9 +195,63 @@ def _connexion(client, user="owner_fictif"):
     )
 
 
-def test_console_pages_protegees_session_et_role(client, donnees):
+def _seed_contradictions(session):
+    ordre = verite.charger()
+    entrees = (
+        ("affaires", "decision_proprietaire", "journal", "humain:nathan", "agent:m10-memoire"),
+        ("developpement", "constitution", "documentation", "fichier:AGENTS.md", "fichier:docs/architecture/fictive.md"),
+    )
+    with session():
+        for domaine, classe_a, classe_b, emetteur_a, emetteur_b in entrees:
+            base = {
+                "domaine": domaine,
+                "sujet": "regle:consolefictive",
+                "attribut": "gate_humain",
+                "ref": "projet:source-fictive@" + "a" * 64,
+                "horodatage": T,
+            }
+            contradictions_outils._REGISTRE_AFFIRMATIONS.ajouter({
+                **base,
+                "type_entree": "affirmation_enregistree",
+                "valeur": "ValeurPriveeFictiveA",
+                "classe": classe_a,
+                "emetteur": emetteur_a,
+            })
+            contradictions_outils._REGISTRE_AFFIRMATIONS.ajouter({
+                **base,
+                "type_entree": "affirmation_enregistree",
+                "valeur": "ValeurPriveeFictiveB",
+                "classe": classe_b,
+                "emetteur": emetteur_b,
+            })
+        actives = journal_contradictions.actives(
+            journal_contradictions.affirmations(contradictions_outils._REGISTRE_AFFIRMATIONS.lire())
+        )
+        detections = journal_contradictions.detecter(
+            actives, set(), ordre, T
+        )
+        for detection in detections:
+            for entree in journal_contradictions.entrees_detection(detection):
+                contradictions_outils._REGISTRE_CONTRADICTIONS.ajouter(entree)
+    assert len(detections) == 2
+
+
+def _tailles_registres_contradictions(session):
+    with session():
+        return (
+            len(contradictions_outils._REGISTRE_AFFIRMATIONS.lire()),
+            len(contradictions_outils._REGISTRE_CONTRADICTIONS.lire()),
+        )
+
+
+def test_console_pages_protegees_session_et_role(client, donnees, monkeypatch):
     assert client.get("/plateforme/mnemo", follow_redirects=False).status_code == 303
     assert client.get("/api/plateforme/mnemo").status_code == 401
+
+    def lecture_interdite(*args, **kwargs):
+        pytest.fail("le lecteur de contradictions ne doit pas être appelé avant la garde admin")
+
+    monkeypatch.setattr(contradictions_outils, "lire_contradictions", lecture_interdite)
     _connexion(client, "vendeur_fictif")
     for chemin in ("/plateforme/mnemo", "/api/plateforme/mnemo"):
         r = client.get(chemin, follow_redirects=False)
@@ -224,6 +280,58 @@ def test_console_echappe_les_libelles(client, donnees):
     _connexion(client)
     page = client.get("/plateforme/mnemo").text
     assert "<b>gras</b>" not in page and "&lt;b&gt;gras&lt;/b&gt;" in page
+
+
+def test_console_affiche_les_contradictions_separees_sans_valeurs_ni_ecriture(client, donnees, session):
+    _seed_contradictions(session)
+    avant = _tailles_registres_contradictions(session)
+    _connexion(client)
+
+    page = client.get("/plateforme/mnemo")
+    api = client.get("/api/plateforme/mnemo")
+    assert page.status_code == 200 and page.headers["cache-control"] == "no-store"
+    assert api.status_code == 200 and api.headers["cache-control"] == "no-store"
+    assert "Contradictions à traiter" in page.text
+    assert "Mémoire d’affaires" in page.text and "Mémoire de développement" in page.text
+    assert "À valider par une personne" in page.text and "maximum 10" in page.text
+    for valeur_privee in ("ValeurPriveeFictiveA", "ValeurPriveeFictiveB", "consolefictive", "fichier:AGENTS.md"):
+        assert valeur_privee not in page.text
+        assert valeur_privee not in api.text
+
+    vues = api.json()["contradictions"]
+    assert set(vues) == {"affaires", "developpement"}
+    for vue in vues.values():
+        assert vue["statut"] == "disponible"
+        assert vue["total"] == vue["affichees"] == 1 and vue["limite"] == 10
+        assert len(vue["elements"]) == 1
+        element = vue["elements"][0]
+        assert len(element["identifiant"]) == 12 and element["critique"] is True
+        assert element["statut"] == "en_attente_humain"
+        assert set(element) == {
+            "identifiant", "statut", "critique", "source_a", "source_b", "proposition", "demande_en_attente"
+        }
+    assert _tailles_registres_contradictions(session) == avant
+
+
+def test_console_signale_une_file_indisponible_si_le_lecteur_m10_echoue(client, donnees, monkeypatch):
+    _connexion(client)
+
+    def lecture_en_echec(*args, **kwargs):
+        raise RuntimeError("détail interne non destiné à la console")
+
+    monkeypatch.setattr(contradictions_outils, "lire_contradictions", lecture_en_echec)
+    page = client.get("/plateforme/mnemo")
+    api = client.get("/api/plateforme/mnemo")
+
+    assert page.status_code == 200 and page.headers["cache-control"] == "no-store"
+    assert page.text.count("File indisponible.") == 2
+    assert "détail interne" not in page.text
+    assert api.status_code == 200 and api.headers["cache-control"] == "no-store"
+    assert {d: v["statut"] for d, v in api.json()["contradictions"].items()} == {
+        "affaires": "indisponible",
+        "developpement": "indisponible",
+    }
+    assert "détail interne" not in api.text
 
 
 def test_api_json_est_complete_et_sans_pseudonyme_complet(client, donnees):

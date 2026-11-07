@@ -11,6 +11,7 @@ Routes : /plateforme/mnemo (page) ; /api/plateforme/mnemo (JSON).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -29,6 +30,13 @@ _STATUTS = {
     "a_confirmer": ("à confirmer", "badge-alerte"),
     "inconnu": ("inconnu", "badge-danger"),
 }
+_LIMITE_CONTRADICTIONS = 10
+_ID_CONTRADICTION = re.compile(r"^[0-9a-f]{32}$")
+_STATUTS_CONTRADICTION = {
+    "ouverte": "À examiner",
+    "en_attente_humain": "À valider par une personne",
+}
+_MARQUES_CONTRADICTION = frozenset({"valide", "retenue", "dominee", "contestee"})
 
 
 def _badge(texte: str, classe: str) -> str:
@@ -139,6 +147,159 @@ def _lecons(v: Mapping[str, Any]) -> str:
     )
 
 
+def _resume_contradiction(item: Any, classes: frozenset[str]) -> dict[str, Any] | None:
+    """Projection fermée : aucun sujet, valeur, émetteur, motif ou référence ne quitte le lecteur M10."""
+    if not isinstance(item, Mapping):
+        return None
+    identifiant = item.get("contradiction_id")
+    statut = item.get("statut")
+    if not isinstance(identifiant, str) or not _ID_CONTRADICTION.fullmatch(identifiant):
+        return None
+    if not isinstance(statut, str) or statut not in _STATUTS_CONTRADICTION:
+        return None
+    marques = item.get("marques")
+    if not isinstance(marques, Mapping):
+        marques = {}
+
+    sources = []
+    for cote in ("a", "b"):
+        source = item.get(cote)
+        if not isinstance(source, Mapping):
+            return None
+        classe = source.get("classe")
+        ligne_id = source.get("ligne_id")
+        marque = marques.get(ligne_id) if isinstance(ligne_id, str) else None
+        sources.append({
+            "classe": classe if isinstance(classe, str) and classe in classes else "inconnue",
+            "marque": marque if isinstance(marque, str) and marque in _MARQUES_CONTRADICTION else "inconnue",
+        })
+
+    proposition = item.get("proposition")
+    retenue = proposition.get("retenue") if isinstance(proposition, Mapping) else None
+    demande = item.get("demande")
+    return {
+        "identifiant": identifiant[:12],
+        "statut": statut,
+        "critique": item.get("critique") is True,
+        "source_a": sources[0],
+        "source_b": sources[1],
+        "proposition": retenue if retenue in ("a", "b") else None,
+        "demande_en_attente": isinstance(demande, Mapping) and demande.get("statut") == "en_attente",
+    }
+
+
+def _lire_contradictions_admin() -> dict[str, dict[str, Any]]:
+    """Lit les deux files M10 séparément; l'appelant garde la session admin avant et après cette lecture."""
+    domaines_attendus = ("affaires", "developpement")
+
+    def indisponible() -> dict[str, Any]:
+        return {
+            "statut": "indisponible",
+            "total": 0,
+            "limite": _LIMITE_CONTRADICTIONS,
+            "affichees": 0,
+            "plus": False,
+            "elements": [],
+        }
+
+    try:
+        from m10_memoire import contradictions_outils, verite
+
+        classes = frozenset(x for x in verite.charger().classes if isinstance(x, str))
+        domaines = verite.domaines()
+    except Exception:
+        return {domaine: indisponible() for domaine in domaines_attendus}
+
+    resultats: dict[str, dict[str, Any]] = {}
+    for domaine in domaines:
+        if domaine not in domaines_attendus:
+            continue
+        try:
+            lecture = contradictions_outils.lire_contradictions(
+                domaine,
+                vue="contradictions",
+                etat="a_traiter",
+                limite=_LIMITE_CONTRADICTIONS,
+                decalage=0,
+            )
+        except Exception:
+            resultats[domaine] = indisponible()
+            continue
+        if not isinstance(lecture, Mapping) or lecture.get("accepte") is not True:
+            resultats[domaine] = indisponible()
+            continue
+        resultat = lecture.get("resultat")
+        if not isinstance(resultat, Mapping):
+            resultats[domaine] = indisponible()
+            continue
+        brutes = resultat.get("contradictions")
+        elements = []
+        if isinstance(brutes, list):
+            for item in brutes[:_LIMITE_CONTRADICTIONS]:
+                resume = _resume_contradiction(item, classes)
+                if resume is not None:
+                    elements.append(resume)
+        total = resultat.get("total")
+        total = min(total, 2_147_483_647) if type(total) is int and total >= 0 else len(elements)
+        suivant = resultat.get("suivant")
+        omis_budget = resultat.get("omis_budget")
+        resultats[domaine] = {
+            "statut": "disponible",
+            "total": total,
+            "limite": _LIMITE_CONTRADICTIONS,
+            "affichees": len(elements),
+            "plus": total > len(elements)
+            or (type(suivant) is int and suivant >= 0)
+            or (type(omis_budget) is int and omis_budget > 0),
+            "elements": elements,
+        }
+    return resultats
+
+
+def _contradictions(vues: Mapping[str, Mapping[str, Any]]) -> str:
+    e = pages.e
+    noms = {"affaires": "Mémoire d’affaires", "developpement": "Mémoire de développement"}
+    sections = []
+    for domaine in ("affaires", "developpement"):
+        vue = vues.get(domaine, {})
+        if vue.get("statut") != "disponible":
+            sections.append(f"<section><h3>{noms[domaine]}</h3><p>File indisponible.</p></section>")
+            continue
+        total = vue.get("total", 0)
+        affichees = vue.get("affichees", 0)
+        lignes = []
+        for item in vue.get("elements", []):
+            proposition = {"a": "Source A", "b": "Source B"}.get(item["proposition"], "À trancher")
+            demande = "Demande N3 en attente" if item["demande_en_attente"] else "Aucune demande N3"
+            lignes.append(
+                "<tr>"
+                f"<td><code>{e(item['identifiant'])}</code></td>"
+                f"<td>{e(_STATUTS_CONTRADICTION[item['statut']])}</td>"
+                f"<td>{'oui' if item['critique'] else 'non'}</td>"
+                f"<td>{e(item['source_a']['classe'])} · {e(item['source_a']['marque'])}</td>"
+                f"<td>{e(item['source_b']['classe'])} · {e(item['source_b']['marque'])}</td>"
+                f"<td>{e(proposition)}</td><td>{e(demande)}</td></tr>"
+            )
+        tableau = (
+            "<table><thead><tr><th>ID</th><th>État</th><th>Critique</th><th>Source A</th><th>Source B</th>"
+            f"<th>Proposition</th><th>Sas humain</th></tr></thead><tbody>{''.join(lignes)}</tbody></table>"
+            if lignes
+            else "<p>Aucune contradiction à traiter.</p>"
+        )
+        suite = " · d’autres résultats sont omis" if vue.get("plus") else ""
+        sections.append(
+            f"<section><h3>{noms[domaine]}</h3><p>{e(affichees)} affichée(s) sur {e(total)} · "
+            f"maximum {e(vue.get('limite', _LIMITE_CONTRADICTIONS))}{suite}</p>{tableau}</section>"
+        )
+    return (
+        '<section><h2>Contradictions à traiter</h2>'
+        '<p class="note">Lecture seule, séparée par domaine. '
+        'Les valeurs et références des affirmations ne sont pas affichées. '
+        "Toute décision reste dans le sas humain N3.</p>"
+        f"{''.join(sections)}</section>"
+    )
+
+
 def contenu(vue: Mapping[str, Any], *, prefixe: str) -> str:
     e = pages.e
     return (
@@ -149,6 +310,7 @@ def contenu(vue: Mapping[str, Any], *, prefixe: str) -> str:
         "ces énoncés : ils viennent de lectures existantes et de décisions de la direction.</p>"
         + _soi(vue["soi"])
         + _graphe(vue["graphe"])
+        + _contradictions(vue["contradictions"])
         + _lecons(vue["lecons"])
     )
 
@@ -164,7 +326,9 @@ def creer_router(
 
     def lire() -> dict[str, Any]:
         with cnx_factory() as cnx:
-            return lecture.vue_admin(cnx)
+            vue = lecture.vue_admin(cnx)
+            vue["contradictions"] = _lire_contradictions_admin()
+            return vue
 
     @router.get("/plateforme/mnemo", response_class=HTMLResponse)
     def page_mnemo(request: Request) -> Response:
